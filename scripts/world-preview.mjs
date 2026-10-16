@@ -378,6 +378,11 @@ const args = parseArgs(
       default: 0,
       help: "after the views, time this many drawn frames and print ms/frame",
     },
+    ab: {
+      kind: "string",
+      default: "",
+      help: "with --frames, time each frame whole and without each of these parts in turn (the benchmark's HIDEABLE, comma-separated)",
+    },
     downhill: {
       kind: "flag",
       help: "set a downhill over the seed (its A-nets, for the net-<s> views)",
@@ -579,7 +584,16 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   );
 }
 
-if (args.frames > 0) {
+if (args.frames > 0 && args.ab) {
+  const parts = args.ab.split(",").filter(Boolean);
+  const r = await page.evaluate(([n, p]) => globalThis.__world.abMs(n, p), [args.frames, parts]);
+  const whole = r["(nothing)"];
+  console.log("A/B (software rasterizer — shares, not a phone's ms):");
+  for (const [k, ms] of Object.entries(r)) {
+    const d = k === "(nothing)" ? "" : `  ${(ms - whole).toFixed(1)}`;
+    console.log(`  ${k.padEnd(14)} ${ms.toFixed(1)} ms${d}`);
+  }
+} else if (args.frames > 0) {
   const r = await page.evaluate((n) => globalThis.__world.frameMs(n), args.frames);
   console.log(
     `frame: ${r.ms.toFixed(1)} ms (software rasterizer — structure, not speed), ` +

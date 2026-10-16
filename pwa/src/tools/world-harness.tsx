@@ -29,6 +29,8 @@ import {
   showcaseSkis,
 } from "@engine";
 import type { CameraRung } from "../game/renderer-api.ts";
+import type { Hideable } from "../game/benchmark-report.ts";
+import { abFrames } from "./ab-frames.ts";
 
 import { beastById } from "../game/beast-defs.ts";
 import { beastPlanFor, beastPose, freshBeastPose, roundAt } from "../game/beast-plan.ts";
@@ -71,6 +73,7 @@ declare global {
       ready: Promise<void>;
       shoot(name: string): Promise<Shot>;
       frameMs(frames: number): Promise<{ ms: number; calls: number; triangles: number }>;
+      abMs(frames: number, parts: readonly Hideable[]): Promise<Record<string, number>>;
     };
   }
 }
@@ -976,5 +979,9 @@ window.__world = {
     const ms = (performance.now() - t0) / frames;
     const info = renderer.info();
     return { ms, calls: info.calls, triangles: info.triangles };
+  },
+  async abMs(frames, parts) {
+    renderer.setCamera("chase", true);
+    return abFrames(renderer, () => frame(true), frames, parts);
   },
 };

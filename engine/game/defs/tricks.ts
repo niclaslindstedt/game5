@@ -104,22 +104,27 @@ export const TRICKS = {
 
   /** ── THE STROKES (`strokes.ts`) ─────────────────────────────────────
    * THE GATES: how far toward the top of its axis an input has to be
-   * carried in the take-off's window for it to be a stroke rather than trim — the lean's (both
-   * ways: back is the backflip, forward the front flip) and the edge's.
-   * The edge's is the lower: a key tapped left or right is ramped
-   * (`input-model.ts`) and a quick tap must still reach it. Below them the
-   * lean and the edge are the ordinary air control of `flight.ts`. */
+   * carried for it to be a stroke rather than trim — the lean's (both
+   * ways: back is the backflip, forward the front flip) and the edge's, a
+   * TIGHT lean either way. Below them the lean and the edge are the
+   * ordinary air control of `flight.ts`. */
   flipGate: 0.8,
-  spinGate: 0.6,
+  spinGate: 0.75,
+  /** A SPIN IS THROWN AT ANY MOMENT OF THE FLIGHT, not only in the take-off's
+   * window: the edge carried across its gate while nothing turns him yet
+   * winds one up, so long as the snow is at least `spinLate` s away — a
+   * hard edge thrown just before the landing is lining it up, not a trick. */
+  spinLate: 0.6,
   /** ...and the most a flight may turn on each axis, rad: a 1440 and a
    * double. Winding a throw up stops short of what would carry past it in
    * the air there is, the body open. */
   spinMost: 8 * Math.PI,
   flipMost: 4 * Math.PI,
-  /** THE TAKE-OFF'S WINDOW, s past `air.counts`: the only time an axis
-   * thrown across its gate SETS a turn going — a skier's rotation comes off
+  /** THE TAKE-OFF'S WINDOW, s past `air.counts`: the only time the lean
+   * thrown across its gate SETS a loop going — a skier's rotation comes off
    * the lip, wound up into it and released as he leaves the snow, and once
-   * he is up the body can change its shape but not the turn it carries. */
+   * he is up the body can change its shape but not the turn it carries.
+   * The spin's throw is the game's liberty (`spinLate`). */
   setFor: 0.3,
   /** HOW A THROW IS SET: held across its gate in the window, the open
    * body's rate gathers at `flipSet` / `spinSet` rad/s² (the reference
@@ -135,18 +140,20 @@ export const TRICKS = {
   flipRate: 10,
   flipSet: 25,
   spinRate: 10,
-  spinSet: 50,
+  spinSet: 25,
   /** WHAT THE BODY'S SHAPE DOES TO IT: the inertia about the side axis
    * tucked is about two thirds of the body laid out, so the lean held the
    * loop's way turns it `tuckForm` times as fast and held against it
    * `openForm` times; the arms pulled in and thrown wide do the same to a
    * spin (`spinIn`, `spinOut`) — a smaller change, since the skis and the
-   * legs are most of the inertia about the up axis. The body changes shape
+   * legs are most of the inertia about the up axis, and smallest opened
+   * out: an edge thrown against a spin checks it only a little, so where
+   * it comes down is the throw's timing. The body changes shape
    * at `formRate` of the whole range a second. */
   tuckForm: 1.5,
   openForm: 0.6,
   spinIn: 1.35,
-  spinOut: 0.65,
+  spinOut: 0.85,
   formRate: 6,
   /** THE SPOT: with the snow no more than `catchLook` s away and his body
    * not tucked, a skier coming round within `flipCatch` rad of his feet

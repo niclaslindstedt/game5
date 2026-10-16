@@ -224,6 +224,13 @@ export function createWorldRenderer(
   let wildlife: Wildlife | null = null;
   let crowd: CrowdView | null = null;
   let machines: Machines | null = null;
+  const fitMachines = (lv: Level, state: GameState, fx: { spray: Spray; cloud: SnowCloud }) => {
+    if (machines?.fits(state)) return; // another craft on the same map: built anew
+    machines?.group.removeFromParent();
+    machines?.dispose();
+    machines = createMachines(lv, state, env, { ...fx, snowAt: sampleSnow, wearing });
+    scene.add(machines.group);
+  };
   let clear: LineClear | undefined;
   /** The ridden booms' clear: the course's marks, never the trees — they
    * are pushed off the trunks instead (`trunks`, `camera-rigs.ts`). */
@@ -521,8 +528,7 @@ export function createWorldRenderer(
       cloud.setBudget(SPRAY_SHARE[video.spray]);
       scene.add(cloud.mesh);
       if (!(await prime(mine, ahead.machinePrimes(lv)))) return;
-      machines = createMachines(lv, state, env, { spray, cloud, snowAt: sampleSnow, wearing });
-      scene.add(machines.group);
+      fitMachines(lv, state, { spray, cloud });
       field = state.rivals;
       kit = playerKitOf(state);
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
@@ -530,7 +536,7 @@ export function createWorldRenderer(
       lastTick = -1;
       lastState = null;
       lens.snap();
-      await Promise.all([breathe(), machines.ready]);
+      await Promise.all([breathe(), machines?.ready]);
       if (mine !== loads || cold) return;
       await warm(state, mine);
     },
@@ -589,6 +595,7 @@ export function createWorldRenderer(
         lastTick = -1;
         lastState = state;
         pack = packFor(state);
+        if (machines) fitMachines(level, state, { spray, cloud }); // a wingsuit after skis
       }
       if (pack && Math.abs(sunNow(skyLevel ?? state.level, state.t).elevation - packSun) > 0.005) {
         pack = packFor(state);

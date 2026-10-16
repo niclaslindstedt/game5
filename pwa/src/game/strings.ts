@@ -767,6 +767,10 @@ export const STRINGS = {
   optLamps: "LAMPS",
   optLampsHint:
     "After dark, how many lamps light the snow at once: your own headlamp always, then the nearest. LOW also stops the snow glittering in the beams.",
+  optFrameRate: "FRAME RATE",
+  optFrameRateHint:
+    "The most frames a second the game draws. At 60 a phone runs cooler and keeps its speed for longer.",
+  frameCapNone: "UNLIMITED",
   optAntialias: "SMOOTH EDGES",
   optAntialiasHint: "Antialiasing. Takes effect the next time the game is opened.",
 

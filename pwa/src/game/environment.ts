@@ -371,6 +371,8 @@ export function createEnvironment(
     setSky(next) {
       plain = next === "plain";
       dome.setPlain(plain);
+      ranges.setPlain(plain);
+      dome.setSkyline(ranges.silhouette());
       skyTiers();
     },
     setAloft(look) {
@@ -383,6 +385,7 @@ export function createEnvironment(
       gpu.setGround(ground);
       const shade = terrain.setGround(ground, key, sun.castShadow);
       ranges.setLevel(level, key, level ? await farFaceGrid(level) : null);
+      dome.setSkyline(ranges.silhouette());
       await shade;
     },
     shadeSettled: () => terrain.settled(),

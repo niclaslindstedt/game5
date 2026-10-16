@@ -31,6 +31,73 @@ import type { SkyLook } from "./sky.ts";
 import { MOON_GLSL } from "./moon-glsl.ts";
 import { DISC, surfaceSurge } from "./night-sky.ts";
 import { STARFIELD_GLSL, turnBasis } from "./starfield.ts";
+import { FAR_AIR } from "./far-ranges-plan.ts";
+
+/** THE FAR RANGES PAINTED ON A PLAIN SKY: the baked skyline
+ * (`far-silhouette.ts`) read at this pixel's bearing and turned into an
+ * angle from where the lens stands, its two layers laid over the sky as
+ * the far ground through the air — the far one paler, the near one nearer
+ * the ground's own colour, each lit on the faces turned to the sun and
+ * shading off below its crest. */
+const SKYLINE_GLSL = /* glsl */ `
+// The skyline at bearing \`az\` (turns, 0 along +z, clockwise from above).
+vec4 skylineAt(float az) {
+  float bins = float(textureSize(uSkyline, 0).x);
+  float x = fract(az + 1.0) * bins - 0.5;
+  float i0 = floor(x);
+  int a = int(mod(i0, bins));
+  int b = int(mod(i0 + 1.0, bins));
+  return mix(texelFetch(uSkyline, ivec2(a, 0), 0), texelFetch(uSkyline, ivec2(b, 0), 0), x - i0);
+}
+// The angle a layer's crest stands at from the lens (\`h\`, \`dist\`).
+float crestAt(float h, float dist) {
+  return atan(h - cameraPosition.y, dist);
+}
+// A range's colour \`below\` rad under its crest, \`dist\` m off, its face
+// turned as the crest runs (\`slope\`: rad of rise a rad to the right).
+vec3 ridgeColour(vec3 dh, float dist, float below, float slope) {
+  vec3 air = hazeColour(dh);
+  // The far ranges' air (\`FAR_AIR\`): the game's haze over the map's
+  // scale, the clear air's past it.
+  float far = min(dist, ${FAR_AIR.near.toFixed(1)}) + max(dist - ${FAR_AIR.near.toFixed(1)}, 0.0) * ${FAR_AIR.thin.toFixed(3)};
+  float seen = exp(-far * uHaze * mix(uHazeFloor, 1.0, 0.5));
+  // The face under a crest rising to the right falls away to the left:
+  // turned toward the lens, up a mountain's steepness, and to the side
+  // the crest falls to — lit as the sun stands to it.
+  vec3 right = vec3(dh.z, 0.0, -dh.x);
+  vec3 face = normalize(vec3(0.0, 0.8, 0.0) - dh * 0.6 - right * clamp(slope * 3.0, -1.5, 1.5));
+  float lit = 0.8 * max(dot(face, uSunDir), 0.0) + 0.2 * max(uSunDir.y, 0.0);
+  // The far ground's light (\`FAR_ALBEDO\`, a third, the country's mean)
+  // on SNOW at the crests, falling to the woods' and the rock's a degree
+  // or so under them.
+  float snow = mix(3.0, 1.2, smoothstep(0.0, 0.015, below));
+  vec3 ground = (uFarGround + uFarKey * lit) * snow;
+  // The foot of a range is seen through the valleys' air under it.
+  seen *= mix(1.0, 0.75, smoothstep(0.01, 0.06, below));
+  return mix(air, ground, seen);
+}
+vec3 paintSkyline(vec3 c, vec3 d) {
+  vec2 hz = d.xz;
+  if (dot(hz, hz) < 1e-8) return c;
+  vec3 dh = vec3(normalize(hz), 0.0).xzy;
+  float el = asin(clamp(d.y, -1.0, 1.0));
+  float px = max(fwidth(el), 1e-5);
+  float az = atan(d.x, d.z) / 6.28318531;
+  // Two texels either side, for the way each crest runs.
+  float step = 2.0 / float(textureSize(uSkyline, 0).x);
+  vec4 s = skylineAt(az);
+  vec4 l = skylineAt(az - step);
+  vec4 r = skylineAt(az + step);
+  float span = step * 12.5663706;
+  float farEl = crestAt(s.z, s.w);
+  float farSlope = (crestAt(r.z, r.w) - crestAt(l.z, l.w)) / span;
+  float nearEl = crestAt(s.x, s.y);
+  float nearSlope = (crestAt(r.x, r.y) - crestAt(l.x, l.y)) / span;
+  c = mix(c, ridgeColour(dh, s.w, farEl - el, farSlope), smoothstep(farEl + px, farEl - px, el));
+  c = mix(c, ridgeColour(dh, s.y, nearEl - el, nearSlope), smoothstep(nearEl + px, nearEl - px, el));
+  return c;
+}
+`;
 
 /** The sun's apparent radius, rad — a touch over the real 0.27° so the disc
  * is more than a pixel on a phone. */
@@ -42,8 +109,10 @@ export type SkyDome = {
   follow(camera: THREE.Camera): void;
   /** The night's half of a look; the cloud's is `clouds`'s uniforms. */
   update(look: SkyLook): void;
-  /** The SKY row's PLAIN: the air's colour alone, nothing in it. */
+  /** The SKY row's PLAIN: the air's colour alone, nothing in it but the far
+   * ranges' skyline painted on it (`far-silhouette.ts`; null: none). */
   setPlain(on: boolean): void;
+  setSkyline(skyline: THREE.DataTexture | null): void;
   dispose(): void;
 };
 
@@ -64,6 +133,8 @@ export function createSkyDome(
     uMoonCol: { value: new THREE.Vector3() },
     uMoonGlow: { value: new THREE.Vector3() },
     uStarSky: { value: new THREE.Vector4() },
+    uSkyline: { value: null as THREE.DataTexture | null },
+    uSkylineOn: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
     uniforms: { ...haze, ...clouds.uniforms, ...(contrails?.uniforms ?? {}), ...own },
@@ -91,10 +162,13 @@ export function createSkyDome(
       uniform vec3 uMoonCol;
       uniform vec3 uMoonGlow;
       uniform vec4 uStarSky;
+      uniform sampler2D uSkyline;
+      uniform float uSkylineOn;
       varying vec3 vDir;
       varying vec4 vClip;
       ${STARFIELD_GLSL}
       ${MOON_GLSL}
+      ${SKYLINE_GLSL}
 
       void main() {
         vec3 d = normalize(vDir);
@@ -196,7 +270,15 @@ export function createSkyDome(
         float below = -asin(clamp(d.y, -1.0, 1.0)) - uFar.x;
         float band = mistBand(d);
         float under = smoothstep(-0.0004, 0.0004, below);
+        #ifdef PLAIN_SKY
+        // A plain sky's skyline stands down over the far ground too: the
+        // country between is the near range's own slopes.
+        c = mix(c, farColour(d, smoothstep(0.0, 0.01, below)), under);
+        if (uSkylineOn > 0.5) c = paintSkyline(c, d);
+        c = mix(c, farColour(d, band), band);
+        #else
         c = mix(c, farColour(d, max(smoothstep(0.0, 0.01, below), band)), max(under, band));
+        #endif
         // A VALLEY FOG SEEN FROM ABOVE (\`uSeaK\`): its lit top fills the
         // view under the level, going into the haze's colour far off.
         if (uSeaK > 0.0 && d.y < 0.0 && cameraPosition.y > uSea.w) {
@@ -228,6 +310,10 @@ export function createSkyDome(
       if (on) material.defines.PLAIN_SKY = 1;
       else delete material.defines.PLAIN_SKY;
       material.needsUpdate = true;
+    },
+    setSkyline(skyline) {
+      own.uSkyline.value = skyline;
+      own.uSkylineOn.value = skyline ? 1 : 0;
     },
     update(look) {
       // The slab is read (a program of its own) only when it is drawn.

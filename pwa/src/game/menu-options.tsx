@@ -58,6 +58,7 @@ import {
   type Settings,
 } from "./settings.ts";
 import { KEY_ACTIONS } from "./settings-input.ts";
+import { FRAME_CAPS, frameCapOf, type FrameCap } from "./frame-cap.ts";
 import { shellContent } from "../shell-host.ts";
 import {
   DISTANCE_LEVELS,
@@ -132,6 +133,11 @@ const ASSIST_WORD: Record<AssistLevel, string> = {
 const ASSIST_STOPS: Stop<AssistLevel>[] = ASSIST_LEVELS.map((id) => ({
   id,
   label: ASSIST_WORD[id],
+}));
+
+const FRAME_CAP_STOPS: Stop<string>[] = FRAME_CAPS.map((cap) => ({
+  id: String(cap),
+  label: cap === 0 ? STRINGS.frameCapNone : String(cap),
 }));
 
 const MISHAP_WORD: Record<MishapSetting, string> = {
@@ -468,6 +474,14 @@ export function OptionsPage({
                 stops={TIER_STOPS}
                 value={video.lamps}
                 onPick={(lamps) => setVideo({ lamps })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optFrameRate}
+                hint={STRINGS.optFrameRateHint}
+                stops={FRAME_CAP_STOPS}
+                value={String(frameCapOf(settings.frameCap, touch))}
+                onPick={(id) => onSettings({ ...settings, frameCap: Number(id) as FrameCap })}
                 onHint={setHint}
               />
               <StepRow

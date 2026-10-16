@@ -331,6 +331,11 @@ export function createWorldRenderer(
       scene.remove(o);
     }
     for (const r of riders) scene.remove(r.model.root);
+    // THE LAST FRAME'S RENDER LISTS hold every object it drew, and so every
+    // geometry, material and texture of the world just let go, until the
+    // scene is drawn again — which it is not while the next world is built
+    // behind a card. That was the whole old world held beside the new one.
+    gl.renderLists.dispose();
     ghost?.dispose();
     ghost = null;
     terrain = forest = gates = lifts = trail = spray = null;

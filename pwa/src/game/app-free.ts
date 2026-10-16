@@ -18,6 +18,7 @@ import {
   freeRideLevel,
   heldLevel,
   keepRidden,
+  leaveSeedCard,
   onSeedMaps,
   paintBehind,
   riddenLevel,
@@ -124,8 +125,11 @@ export function createFreeRides(deps: {
       later,
     }),
     stageFree: (o: CreateGameOptions | null, after?: number): void => {
-      if (o) stage.want(o, deps.outfit(), after);
-      else stage.drop();
+      if (o) {
+        // Off the start card: its worker and the map built ahead go first.
+        leaveSeedCard(freeAsk(o));
+        stage.want(o, deps.outfit(), after);
+      } else stage.drop();
     },
     free: (asked: CreateGameOptions): void => {
       // ANOTHER RUN ON THE MOUNTAIN BEING RIDDEN (the pause card's PISTE

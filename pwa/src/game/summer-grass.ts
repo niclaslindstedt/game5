@@ -179,7 +179,7 @@ vec4 gG = texture2D(uGround, guv);
 vec2 suv = gAt / uSummerSize;
 vec4 sA = texture2D(uSummerA, suv);
 vec4 sB = texture2D(uSummerB, suv);
-float gy = grassHeight(gAt) + ${LOOSE.toFixed(3)} * (1.0 - gG.b);
+float gy = grassHeight(gAt) + ${LOOSE.toFixed(3)} * (1.0 - max(gG.b, 0.0));
 float slope = length(gG.rg);
 float above = smoothstep(uSummerBands.y - 20.0, uSummerBands.y + 30.0, gy + (grassNoise(gAt * 0.02) - 0.5) * 60.0);
 // What grows here, 0 nothing .. 1 a full tuft.

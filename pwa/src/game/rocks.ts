@@ -31,6 +31,7 @@ import {
   cliffWalls,
   regionOf,
   rockHash,
+  windAt,
   type CliffWall,
   type Level,
 } from "@engine";
@@ -38,7 +39,16 @@ import {
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
 import { FOREST_LOOK, type RockLook } from "./settings-video.ts";
-import { buildSkin, buildWall, rockMesh, smoothSkin, type RockMesh } from "./rock-shapes.ts";
+import {
+  ROCK_SNOW,
+  buildSkin,
+  buildWall,
+  rockMesh,
+  smoothSkin,
+  type RockMesh,
+} from "./rock-shapes.ts";
+import { summerShown } from "./season-look.ts";
+import { BAND_SNOW, CALM_FROM, CALM_TO, STRATA_GLSL, strataUniforms } from "./strata-glsl.ts";
 
 /** A tile's side, m. */
 const TILE = 192;
@@ -78,13 +88,12 @@ const HYSTERESIS = 30;
  * and bare stone on the next, twinkles as the lens moves — the far crags
  * flicker. Calmed, the face keeps its shape and its snow and loses only
  * the detail no pixel can hold. Close in nothing changes. */
-const CALM_FROM = 80;
-const CALM_TO = 350;
 const CALM_HEAD = /* glsl */ `
 attribute vec3 soft;
 attribute vec3 calm;
-attribute vec2 strata;
-varying vec2 vStrata;
+attribute vec3 strata;
+varying vec3 vStrata;
+varying float vCalm;
 `;
 // Three's vertex shader colours before it reads the normal, so the share
 // is reckoned with the colour.
@@ -94,77 +103,207 @@ float rockCalm = smoothstep(${CALM_FROM.toFixed(1)}, ${CALM_TO.toFixed(1)},
   distance((modelMatrix * vec4(position, 1.0)).xyz, cameraPosition));
 vColor.xyz = mix(color.xyz, calm, rockCalm);
 vStrata = strata;
+vCalm = rockCalm;
 `;
 
-/** THE BEDS' FINE GRAIN, in the rock's own shader (no texture): each bed
- * the skin lays (`strata.ts`, metres thick) is drawn as the thin layers it
- * is made of — partings every `LAYER` m along its bed coordinate, each
- * layer a shade of its own — cut by the joints' cracks (a few to a joint
- * block, `vStrata.y`), each carried into the light as a little relief off
- * its own derivatives (the surface gradient, no tangents), and all of it
- * faded out where a pixel spans a layer, so a far face never shimmers.
- * Only on the rock, never the snow lying on it. */
+/** THE ROCK'S OWN MATERIAL, in its shader (no texture, no sampler): what
+ * the skin's beds and a cliff's wall are made of under their facets.
+ *
+ * - THE LAMINAE: each bed the skin lays (`strata.ts`, metres thick) drawn
+ *   as the thin layers it is made of, every `LAYER` m along its bed
+ *   coordinate, each a shade of its own and rounded in the light — its
+ *   bump an ANALYTIC height (a lamina's profile, differentiated by hand and
+ *   carried by the screen derivatives of the smooth coordinate alone), never
+ *   the screen derivatives of a stepped field, which blink a 2×2 block at
+ *   every step.
+ * - THE JOINTS: cracks across the layers, NO GRID — a run of a layer or
+ *   few shares its set, the next run's are dealt afresh (they JOG at a
+ *   parting), a joint now and then skips a run (two blocks one) and a
+ *   second set falls between at its own spacing. On the skin the main set
+ *   stands where the skin's own blocks jog (`jointOf`'s whole numbers).
+ * - STREAKS of wet and iron down the fall line (noise stretched up the
+ *   world, so they run straight down any face), LICHEN in patches, RIME
+ *   plastered on the windward side of every facet (`uRockWind`, read off
+ *   the facet's own normal), and the NEW SNOW dusted over what lies back
+ *   (`uFresh`).
+ * - THE BEDS AS TONE past the calm (`strata-glsl.ts`): where the skin's
+ *   facets are eased away with distance its beds are painted back on, the
+ *   ground's own far bands, box-filtered over the pixel.
+ *
+ * Every term fades with the pixel's footprint on the rock (`fwidth`): a
+ * line goes before it is thinner than a pixel, a patch to its mean before
+ * it is the size of one, so nothing twinkles as the lens moves. Only on
+ * the rock, never the snow lying on it. */
 const LAYER = 0.9;
+/** The snow on the rock and the rime's white, linear (`rock-shapes.ts`'
+ * snow), as GLSL. */
+const SNOW_GLSL = `vec3(${ROCK_SNOW.map((v) => v.toFixed(3)).join(", ")})`;
+const RIME_GLSL = "vec3(0.9, 0.93, 0.97)";
 const STRATA_FRAG_HEAD = /* glsl */ `
-varying vec2 vStrata;
+varying vec3 vStrata;
+varying float vCalm;
+uniform vec2 uRockWind;
+uniform float uRockSummer;
+uniform float uFresh;
+${STRATA_GLSL}
 float rkHash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
   p += dot(p, p + 45.32);
   return fract(p.x * p.y);
 }
-float rkDetail;
-float rkHeight;
+float rkHash3(vec3 p) {
+  p = fract(p * 0.1031);
+  p += dot(p, p.zyx + 31.32);
+  return fract((p.x + p.y) * p.z);
+}
+float rkNoise(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(rkHash3(i), rkHash3(i + vec3(1, 0, 0)), f.x),
+        mix(rkHash3(i + vec3(0, 1, 0)), rkHash3(i + vec3(1, 1, 0)), f.x), f.y),
+    mix(mix(rkHash3(i + vec3(0, 0, 1)), rkHash3(i + vec3(1, 0, 1)), f.x),
+        mix(rkHash3(i + vec3(0, 1, 1)), rkHash3(i + vec3(1, 1, 1)), f.x), f.y),
+    f.z);
+}
+// A noise faded to its mean where its wave is under a few pixels (px m).
+float rkSoft(vec3 p, float wave, float px) {
+  return mix(0.5, rkNoise(p / wave), 1.0 - smoothstep(0.15, 0.4, px / wave));
+}
+// The distance, in joint units, from u to the nearest joint of a run:
+// the main set at the run's dealt places (or at the whole numbers, lead
+// 1), some of them skipped, and a second set between, sparser.
+float rkJoint(float u, float run, float lead) {
+  float c = floor(u);
+  float d = 4.0;
+  float keep = floor(run / 3.0);
+  for (int i = -1; i <= 1; i++) {
+    float cc = c + float(i);
+    float h1 = rkHash(vec2(cc, run));
+    float a = cc + mix(0.1 + 0.8 * h1, 0.0, lead);
+    if (rkHash(vec2(cc + 31.7, keep)) > 0.22) d = min(d, abs(u - a));
+    float h2 = rkHash(vec2(cc + 57.1, run + 0.5));
+    if (h2 > 0.62) d = min(d, abs(u - (cc + 0.25 + 0.5 * rkHash(vec2(run, cc + 9.3)))));
+  }
+  return d;
+}
+vec2 rkSlope;
 float rkRock;
 `;
 const STRATA_COLOUR = /* glsl */ `
 #include <color_fragment>
+rkSlope = vec2(0.0);
 {
+  vec3 P = vHazeWorld;
+  vec3 dpx = dFdx(P);
+  vec3 dpy = dFdy(P);
+  // The size of a pixel on the rock, m, and the facet's own normal (the
+  // position is never stepped, so its derivatives are the facet's).
+  float px = max(length(dpx), length(dpy)) + 1e-4;
+  vec3 F = normalize(cross(dpx, dpy));
+  F *= sign(dot(F, cameraPosition - P) + 1e-6);
   float lum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
   rkRock = 1.0 - smoothstep(0.3, 0.55, lum);
+  bool wall = vStrata.z < -0.5;
+  float fine = 1.0 - smoothstep(0.03, 0.1, px);
+  float mid = 1.0 - smoothstep(0.08, 0.3, px);
+  float winter = 1.0 - uRockSummer;
+
+  // THE SNOW DECIDED BY THE FACET where the corners' paint is smeared
+  // between a snowy tread and its bare riser: the facet that lies back
+  // holds it, the one that stands up sheds it, so a tread reads as a tread
+  // and not a white wash down the riser below it. Near only; calmed, the
+  // corners' even paint stands.
+  if (!wall) {
+    float s0 = 1.0 - rkRock;
+    float smear = clamp(4.0 * s0 * (1.0 - s0), 0.0, 1.0) * (1.0 - vCalm) * winter;
+    float want = smoothstep(0.6, 0.85, F.y);
+    float s1 = mix(s0, want, 0.7 * smear);
+    vec3 bare = clamp((diffuseColor.rgb - ${SNOW_GLSL} * s0) / max(1.0 - s0, 0.25), 0.0, 1.0);
+    diffuseColor.rgb = mix(diffuseColor.rgb, mix(bare, ${SNOW_GLSL}, s1), smear);
+    rkRock = 1.0 - s1;
+  }
+
+  // THE LAMINAE, and their analytic bump.
   float t = vStrata.x / ${LAYER.toFixed(2)} + 0.18 * sin(vStrata.y * 9.42);
-  float fwT = fwidth(t);
-  float fade = 1.0 - smoothstep(0.03, 0.12, fwT);
-  float p = fract(t);
-  float part = 1.0 - smoothstep(0.0, 0.04 + fwT, min(p, 1.0 - p));
-  // Not every layer parts cleanly: some run into the next unbroken.
-  part *= step(0.3, rkHash(vec2(floor(t + 0.5), 5.3)));
-  float layer = rkHash(vec2(floor(t), 3.1));
-  // The joints: the main set's cracks every block, faint and wandering
-  // with the layer, and a minor one now and then, broken off within a
-  // layer or two — never a grid.
-  // A joint stops at a parting and takes up again a little along: each
-  // few layers shift the set.
-  float u = vStrata.y + 0.012 * sin(t * 2.1 + vStrata.y * 5.0)
-    + 0.35 * rkHash(vec2(floor(t * 0.34), 1.7));
-  float fwU = fwidth(u);
-  float q = fract(u);
-  float jointMain = 1.0 - smoothstep(0.0, 0.012 + fwU, min(q, 1.0 - q));
-  jointMain *= step(0.3, rkHash(vec2(floor(u), floor(t * 0.34))));
-  float u3 = u * 3.0 + 0.4 * rkHash(vec2(floor(t * 0.5), 7.0));
-  float q3 = fract(u3);
-  float crack = (1.0 - smoothstep(0.0, 0.02 + 3.0 * fwU, min(q3, 1.0 - q3)))
-    * step(0.72, rkHash(vec2(floor(t * 0.5), floor(u3))));
-  crack = max(crack * 0.6, jointMain);
-  float fadeU = 1.0 - smoothstep(0.03, 0.12, fwU);
-  rkDetail = fade * rkRock;
-  float tone = (0.86 + 0.28 * layer) * (1.0 - 0.2 * part);
-  tone = mix(1.0, tone, fade) * mix(1.0, 1.0 - 0.35 * crack, fadeU);
-  diffuseColor.rgb *= mix(1.0, tone, rkRock);
-  // Each layer a hand proud at its top, its parting and the cracks cut in.
-  rkHeight = rkRock * (fade * fade * (0.05 * p - 0.03 * part) - fadeU * fadeU * 0.06 * crack);
+  vec2 dt = vec2(dFdx(t), dFdy(t));
+  float fwT = abs(dt.x) + abs(dt.y);
+  float lam = 1.0 - smoothstep(0.04, 0.14, fwT);
+  float L = floor(t);
+  float fl = t - L;
+  float layer = rkHash(vec2(L, 3.1));
+  // A lamina's rounded face, its height 0.035 sin(pi f) m (none at a
+  // parting), and its slope along t by hand.
+  float dh = 0.035 * 3.14159 * cos(3.14159 * fl) * lam * lam * rkRock;
+  rkSlope = dh * dt;
+
+  // THE JOINTS: no grid.
+  float run = floor(L * 0.41 + 0.3 * sin(L * 1.7));
+  float u = vStrata.y * (wall ? 1.0 : 2.0);
+  float fwU = abs(dFdx(u)) + abs(dFdy(u)) + 1e-6;
+  float jd = rkJoint(u, run, wall ? 0.0 : 1.0) / fwU;
+  float crack = (1.0 - smoothstep(0.6, 1.6, jd)) * mid;
+  float parting = (1.0 - smoothstep(0.0, 0.05 + fwT, min(fl, 1.0 - fl)))
+    * step(0.3, rkHash(vec2(L + 0.5, 5.3)));
+
+  float tone = mix(1.0, (0.86 + 0.28 * layer) * (1.0 - 0.2 * parting), lam);
+  tone *= 1.0 - 0.38 * crack;
+
+  // STREAKS down the fall line, RUST, LICHEN — on the steep facets.
+  float steep = (1.0 - smoothstep(0.55, 0.85, F.y)) * (1.0 - vCalm);
+  // A streak is a hand or two across and tens of metres down.
+  float wet = smoothstep(0.6, 0.85, rkSoft(vec3(P.x, P.y * 0.06, P.z), 1.6, px)) * steep;
+  float rust = smoothstep(0.62, 0.9, rkSoft(vec3(P.x + 40.0, P.y * 0.23, P.z), 7.7, px)) * steep;
+  // Two scales across each other, so no patch reads as the noise's cube.
+  float lichen = smoothstep(0.6, 0.78, 0.6 * rkSoft(P + 23.0, 2.7, px) + 0.4 * rkSoft(P.zxy * 1.3 + 7.0, 1.1, px))
+    * (1.0 - wet);
+  float orange = smoothstep(0.55, 0.75, rkNoise(P * 0.11 + 5.0));
+  vec3 c = diffuseColor.rgb;
+  vec3 rk = c * tone * (1.0 - 0.22 * wet);
+  rk = mix(rk, rk * vec3(1.25, 1.0, 0.78), 0.3 * rust);
+  rk = mix(rk, rk * mix(vec3(1.0, 1.1, 0.9), vec3(1.3, 1.02, 0.7), orange), 0.3 * lichen);
+  c = mix(c, rk, rkRock);
+
+  // THE BEDS AS TONE where the facets are calmed away (the skin alone).
+  float fwW = abs(dFdx(vStrata.x)) + abs(dFdy(vStrata.x));
+  if (!wall && uStrata.w > 0.5 && vCalm > 0.0) {
+    vec3 b = stBands(vStrata.x, fwW);
+    float even = vStrata.z;
+    vec3 snowC = ${SNOW_GLSL};
+    vec3 stone = clamp((c - snowC * even) / max(1.0 - even, 0.08), 0.0, 1.0);
+    float cover = clamp(even + ${BAND_SNOW.toFixed(2)} * b.y * winter, 0.0, 1.0);
+    vec3 banded = mix(stone * (1.0 + b.x), snowC, cover);
+    c = mix(c, banded, vCalm);
+  }
+
+  // RIME on the windward facets and the NEW SNOW dusting what lies back.
+  float windward = clamp(-dot(F.xz, uRockWind), 0.0, 1.0);
+  float rime = smoothstep(0.5, 0.9, windward)
+    * smoothstep(0.42, 0.78, 0.6 * rkSoft(P + 2.0, 1.7, px) + 0.6 * rkSoft(P, 6.7, px)) * winter;
+  float lies = smoothstep(0.25, 0.6, F.y);
+  float dust = clamp(uFresh * 8.0, 0.0, 0.6) * smoothstep(0.4, 0.75, rkSoft(P + 11.0, 0.48, px) + 0.3 * lies)
+    * (0.35 + 0.65 * lies) * winter;
+  // Read off a facet's own normal, so faded as the facets are calmed: one
+  // facet in a few pixels white and the next bare would twinkle.
+  float cover2 = clamp(0.45 * rime + dust, 0.0, 1.0) * rkRock * (1.0 - 0.8 * vCalm);
+  diffuseColor.rgb = mix(c, ${RIME_GLSL}, cover2);
+  rkSlope *= 1.0 - cover2;
 }
 `;
 const STRATA_NORMAL = /* glsl */ `
 #include <normal_fragment_maps>
 {
+  // The surface gradient (no tangents): the height's screen slope
+  // \`rkSlope\` (worked out by hand) turned into a normal tipped off the
+  // facet's.
   vec3 sp = -vViewPosition;
   vec3 sx = dFdx(sp);
   vec3 sy = dFdy(sp);
   vec3 r1 = cross(sy, normal);
   vec3 r2 = cross(normal, sx);
   float det = dot(sx, r1) * faceDirection;
-  vec2 dh = vec2(dFdx(rkHeight), dFdy(rkHeight));
-  vec3 grad = sign(det) * (dh.x * r1 + dh.y * r2);
+  vec3 grad = sign(det) * (rkSlope.x * r1 + rkSlope.y * r2);
   normal = normalize(abs(det) * normal - grad);
 }
 `;
@@ -250,12 +389,25 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
   let lastEye: THREE.Vector3 | null = null;
   let lastReach = 0;
   const band = regionLookOf(regionOf(level).id).rock;
+  // The material's own uniforms: the beds (`strata-glsl.ts`), the wind the
+  // rime is plastered by (where it blows toward, its length how hard) and
+  // the summer.
+  const wind = windAt(level, 0);
+  const wl = Math.hypot(wind.x, wind.z) || 1;
+  // Rime is a storm's, laid on whichever day: half of it on a calm one.
+  const hard = 0.5 + 0.5 * Math.min(1, wind.speed / 12);
+  const rockU = {
+    ...strataUniforms(level, !!band),
+    uRockWind: { value: new THREE.Vector2((wind.x / wl) * hard, (wind.z / wl) * hard) },
+    uRockSummer: { value: summerShown() ? 1 : 0 },
+  };
   const material = hazeMaterial(
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
     haze,
     "rock",
     (shader) => {
       PAST_THE_WALL(shader);
+      Object.assign(shader.uniforms, rockU);
       shader.vertexShader = (CALM_HEAD + shader.vertexShader)
         .replace("#include <beginnormal_vertex>", CALM_NORMAL)
         .replace("#include <color_vertex>", CALM_COLOUR)
@@ -352,7 +504,7 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
     g.setAttribute("color", new THREE.Float32BufferAttribute(part.col, 3));
     g.setAttribute("soft", new THREE.Float32BufferAttribute(part.soft, 3));
     g.setAttribute("calm", new THREE.Float32BufferAttribute(part.calm, 3));
-    g.setAttribute("strata", new THREE.Float32BufferAttribute(part.bed, 2));
+    g.setAttribute("strata", new THREE.Float32BufferAttribute(part.bed, 3));
     g.computeBoundingSphere();
     const mesh = new THREE.Mesh(g, material);
     mesh.userData.bytes =

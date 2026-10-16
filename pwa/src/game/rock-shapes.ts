@@ -47,7 +47,7 @@ const FOOT = 0.45;
 /** The snow the beds' treads hold on the mean (`snowShare`'s `held`
  * over a bed, its riser and the beds that shed it): the even cover a
  * calmed far face is painted with. */
-const CALM_HELD = 0.06;
+export const CALM_HELD = 0.06;
 
 /** A CLIFF WALL'S BEDS: about `WALL_BED` m thick (0.45..1.55 of it), each
  * jutting `WALL_JUT` m out of the face at its top (the least and the most)
@@ -94,6 +94,7 @@ export function rockTone(tone: Tone): Tone {
 }
 /** Snow on rock, linear — a shade under the open snow's glare, lying thin. */
 const SNOW: Tone = [0.86, 0.89, 0.94];
+export const ROCK_SNOW = SNOW;
 /** IN SUMMER the up-facing facets carry turf and lichen, not snow, and
  * only half cover them: a grey-green, linear. */
 const LEDGE: Tone = [0.15, 0.17, 0.1];
@@ -112,7 +113,8 @@ export type RockMesh = {
   readonly soft: number[];
   readonly calm: number[];
   /** A vertex's bed and riser-or-tread (`smoothSkin`), -1 on a cliff's
-   * wall; and its bed and joint coordinates, two floats, for the shader. */
+   * wall; and, three floats for the shader, its bed and joint coordinates
+   * and the calmed face's even snow (-1 on a cliff's wall). */
   readonly zone: number[];
   readonly bed: number[];
 };
@@ -170,7 +172,7 @@ function tri(
     m.zone.push(-1);
     // A wall's layers are level and its joints run up it, every so far
     // along it: the beds the shader draws, cut across.
-    m.bed.push(p[1], along(p));
+    m.bed.push(p[1], along(p), -1);
   }
 }
 
@@ -318,7 +320,7 @@ export function buildSkin(
         stone[2] * c0 + over[2] * even,
       );
       m.zone.push(zone);
-      m.bed.push(v[p + 3], jointOf(st, x, z));
+      m.bed.push(v[p + 3], jointOf(st, x, z), even);
     }
   };
   for (let j = j0; j < j1; j++) {

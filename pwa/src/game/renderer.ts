@@ -190,6 +190,7 @@ export function createWorldRenderer(
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9, gl);
   env.setDistance(video.distance);
   env.setSky(video.sky);
+  env.setHorizon(video.horizon);
   /** Under SHADOWS HIGH every skier casts into a map of his own. */
   const hero = createHeroShadow(env.haze, shadowLook().hero);
   const heroModels: SkisModel[] = [];
@@ -944,6 +945,8 @@ export function createWorldRenderer(
       hero.setSize(shadowLook().hero);
       env.setDistance(video.distance);
       env.setSky(video.sky);
+      env.setHorizon(video.horizon);
+      env.setHorizon(video.horizon);
       spray?.setBudget(SPRAY_SHARE[video.spray]);
       spray?.setFlight?.(SPRAY_GPU[video.spray]);
       cloud?.setBudget(SPRAY_SHARE[video.spray]);

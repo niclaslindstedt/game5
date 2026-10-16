@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE FAR RANGES AS A PAINTED BAND — what a PLAIN sky (the SKY row's)
+// THE FAR RANGES AS A PAINTED BAND — what a PAINTED horizon (the HORIZON row's)
 // draws in place of the rings' mesh: the skyline round the map baked once
 // into a strip a texel a bearing, and painted on the dome itself
 // (`sky-dome.ts`) as two flat layers of hazy ridges, the far one paler

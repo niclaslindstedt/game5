@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE LENS ON THE JUMP PLANE (`pwa/src/game/camera-plane.ts`): the booms
-// behind and over it, the door lens out of the door on the door's side,
+// behind and over it on the tail's line, the door lens out of the door on the door's side,
 // the cockpit at the pilot's eye rolled with the airframe, every boom clear
 // of the snow, and a change of rung flown round the airframe — never
 // through it.
@@ -52,7 +52,7 @@ describe("the plane's lenses", () => {
     }
   });
 
-  it("stands the chase behind the tail, over it and out to the door's side", () => {
+  it("stands the chase dead behind the tail and over it", () => {
     const { s, at } = flying();
     const lens = planeLens(createPlaneCam(), s.plane!, at, "chase", ground);
     // Fresh booms frame along the default; step them onto the airframe.
@@ -62,7 +62,7 @@ describe("the plane's lenses", () => {
     const b = body(at, settled.eye);
     expect(b.z).toBeLessThan(-PLANE_LOOK.chase.dist + 2);
     expect(b.y).toBeGreaterThan(PLANE.cog.y);
-    expect(Math.sign(b.x)).toBe(Math.sign(PLANE.door.x));
+    expect(Math.abs(b.x)).toBeLessThan(0.5);
     expect(Number.isFinite(lens.eye.x)).toBe(true);
   });
 

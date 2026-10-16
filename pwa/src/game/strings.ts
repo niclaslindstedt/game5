@@ -767,6 +767,9 @@ export const STRINGS = {
   optSky: "SKY",
   optSkyPlain: "PLAIN",
   optSkyFull: "FULL",
+  optHorizon: "HORIZON",
+  optHorizonPainted: "PAINTED",
+  optHorizon3d: "3D",
   optLamps: "LAMPS",
   optLampsHint:
     "After dark, how many lamps light the snow at once: your own headlamp always, then the nearest. LOW also stops the snow glittering in the beams.",

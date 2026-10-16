@@ -218,6 +218,13 @@ describe("the picture's ladders (settings-video.ts)", () => {
     expect(mergeVideo({ ...VIDEO_PRESETS.medium, sky: undefined }).sky).toBe("full");
     expect(mergeVideo({ ...VIDEO_PRESETS.low, sky: "full" }).sky).toBe("full");
   });
+
+  it("stands the 3D horizon on every preset, the painted one picked by hand", () => {
+    expect(TIERS.map((t) => VIDEO_PRESETS[t].horizon)).toEqual(["3d", "3d", "3d"]);
+    expect(presetOf(mergeVideo({ ...VIDEO_PRESETS.low, horizon: undefined }))).toBe("low");
+    expect(mergeVideo({ ...VIDEO_PRESETS.low, horizon: "painted" }).horizon).toBe("painted");
+    expect(presetOf(mergeVideo({ ...VIDEO_PRESETS.low, horizon: "painted" }))).toBe("custom");
+  });
 });
 
 describe("fitting the picture to the machine (picture-fit.ts)", () => {

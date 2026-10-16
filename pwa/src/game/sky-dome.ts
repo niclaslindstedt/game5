@@ -33,7 +33,7 @@ import { DISC, surfaceSurge } from "./night-sky.ts";
 import { STARFIELD_GLSL, turnBasis } from "./starfield.ts";
 import { FAR_AIR } from "./far-ranges-plan.ts";
 
-/** THE FAR RANGES PAINTED ON A PLAIN SKY: the baked skyline
+/** THE FAR RANGES PAINTED ON THE DOME (the HORIZON row's PAINTED): the baked skyline
  * (`far-silhouette.ts`) read at this pixel's bearing and turned into an
  * angle from where the lens stands, its two layers laid over the sky as
  * the far ground through the air — the far one paler, the near one nearer
@@ -109,9 +109,10 @@ export type SkyDome = {
   follow(camera: THREE.Camera): void;
   /** The night's half of a look; the cloud's is `clouds`'s uniforms. */
   update(look: SkyLook): void;
-  /** The SKY row's PLAIN: the air's colour alone, nothing in it but the far
-   * ranges' skyline painted on it (`far-silhouette.ts`; null: none). */
+  /** The SKY row's PLAIN: the air's colour alone, nothing in it. */
   setPlain(on: boolean): void;
+  /** The HORIZON row's PAINTED: the far ranges' skyline painted on the
+   * dome (`far-silhouette.ts`; null: none, the rings' mesh stands). */
   setSkyline(skyline: THREE.DataTexture | null): void;
   dispose(): void;
 };
@@ -270,15 +271,15 @@ export function createSkyDome(
         float below = -asin(clamp(d.y, -1.0, 1.0)) - uFar.x;
         float band = mistBand(d);
         float under = smoothstep(-0.0004, 0.0004, below);
-        #ifdef PLAIN_SKY
-        // A plain sky's skyline stands down over the far ground too: the
-        // country between is the near range's own slopes.
-        c = mix(c, farColour(d, smoothstep(0.0, 0.01, below)), under);
-        if (uSkylineOn > 0.5) c = paintSkyline(c, d);
-        c = mix(c, farColour(d, band), band);
-        #else
-        c = mix(c, farColour(d, max(smoothstep(0.0, 0.01, below), band)), max(under, band));
-        #endif
+        if (uSkylineOn > 0.5) {
+          // A painted skyline stands down over the far ground too: the
+          // country between is the near range's own slopes.
+          c = mix(c, farColour(d, smoothstep(0.0, 0.01, below)), under);
+          c = paintSkyline(c, d);
+          c = mix(c, farColour(d, band), band);
+        } else {
+          c = mix(c, farColour(d, max(smoothstep(0.0, 0.01, below), band)), max(under, band));
+        }
         // A VALLEY FOG SEEN FROM ABOVE (\`uSeaK\`): its lit top fills the
         // view under the level, going into the haze's colour far off.
         if (uSeaK > 0.0 && d.y < 0.0 && cameraPosition.y > uSea.w) {

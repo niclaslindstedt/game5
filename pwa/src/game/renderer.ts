@@ -726,6 +726,7 @@ export function createWorldRenderer(
       const looked = gaze.frame(ladder, rigPose, skier.lift, dt, box.height, level);
       if (looked && !planted && lens.rung() !== "orbit") aimLens(lens.camera, looked);
       afterski.sway(lens.camera, state, lens.rung(), planted !== null);
+      picture.setBlaze(machines?.blaze(planted !== null) ?? null, state.t);
 
       const eye = lens.camera.position;
       cullBehind(lens.camera, riders); // a rival clear behind the lens is left out

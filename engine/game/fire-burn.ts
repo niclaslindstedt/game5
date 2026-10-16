@@ -24,6 +24,7 @@ import { FIRE_BURN, FIRE_KINDS } from "./defs/fires.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { firesNear, type Fire } from "./fires.ts";
+import { sledFireFlux } from "./sled-fire.ts";
 import { derive } from "./skier.ts";
 import type { GameEvent, GameState } from "./state.ts";
 
@@ -70,8 +71,15 @@ function metFire(state: GameState): { fire: Fire; share: number } | null {
   return null;
 }
 
-/** SET ALIGHT by `f`, met at (x, z). */
-function catchFire(state: GameState, f: Fire, x: number, z: number, events: GameEvent[]): void {
+/** SET ALIGHT by `f`, met at (x, z) — his skis in its hearth, or a
+ * snowmobile he rode in alight under him (`sled-fire.ts`). */
+export function catchFire(
+  state: GameState,
+  f: Fire,
+  x: number,
+  z: number,
+  events: GameEvent[],
+): void {
   if (state.burn?.burning) return;
   state.burn = {
     fire: f.id,
@@ -176,5 +184,7 @@ export function stepBurn(state: GameState, events: GameEvent[]): void {
   // The heat on him: his clothes' while they burn, the fire's own while he
   // lies in it, whichever is the more.
   const lying = inFire ? FIRE_KINDS[inFire.kind].flux : 0;
-  burn.flux = Math.max(burn.burning ? FIRE_BURN.flux : 0, lying);
+  // ...and a snowmobile's fireball round him (`sled-fire.ts`).
+  const ball = sledFireFlux(state, body.x, body.y, body.z);
+  burn.flux = Math.max(burn.burning ? FIRE_BURN.flux : 0, lying, ball);
 }

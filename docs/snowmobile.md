@@ -115,6 +115,17 @@ An amateur on a free ride shouldered hard enough to throw a skier (`crowd.ts`'s 
 
 The machine goes on without him and lies where it comes to rest. When he is stood up (the reset), he is back on it, standing it on its belt again.
 
+## Into a fire
+
+A free ride's fires (`fires.ts`: a camp fire outside a hut, a bonfire on the valley floor) are not solids to the machine. They are something it can catch from (`sled-fire.ts`, its numbers and their research `defs/sled-fire.ts`). The machine meets a hearth when its footprint is in the hearth: three circles of `SLED_FIRE.radius` (0.5 m) along it, at its skis, its engine bay and its tunnel. Its belly must also be under the flames plus `over` (0.5 m), so a jump over a camp fire clears it. A bonfire's bench logs (`log` solids lower than 0.75 m over the snow) are ridden over with a buck.
+
+- **It catches.** Through the bed it keeps `bed` (0.72) of its way and comes out ALIGHT (`SledState.burn`, the `sled` event's `alight` phase). A rider on its boards catches with it (`fire-burn.ts`'s `catchFire`).
+- **The tank goes up** `fuse` (1.6 s) later, wherever the machine has got to. This is the game's one liberty: a real tank may only leak. `ball` (0.45) of its 30 kg of fuel goes up as a fireball by the helicopter's law (`heli-wreck.ts`'s `fireballOf`), about 14 m across for about a second. The machine is kicked up and over and left dead (the `boom` phase). Its rider is blown off it (the `blast` crash cause, `CRASH.over.blast`) with his clothes alight. A skier standing within `near.reach` (7 m) is knocked down, and inside the ball he is set alight too. The ball's heat is summed into his dose while it burns (`sledFireFlux`, read by `stepBurn`). With his wounds carried, a burn like that kills him.
+- **The wreck** is never taken again (`sledWithin` refuses it). After `wreck.lasts` (90 s), once the skier is `clear` (25 m) of it and stood up, a fresh machine stands on the spot at the bottom (the `fresh` phase).
+- **Safe for work** none of this happens: a hearth is a solid the machine is held off at its edge.
+
+As drawn (`sled-fire-view.ts`, built the first time a machine catches): flames off its belly pan, engine bay, tank and tunnel, licking higher as the fuse burns down. They are thinner from the cockpit, where they are half an arm's length off. Then the fireball, the flash, the sparks, and the snow thrown out by the shock (`explosion.ts`). After that a pool fire burns under a black column, and the machine chars to soot with embers glowing in it (`SledView.char`). The fire lights the snow after dark. A rider who saw the tank go from his own eyes (TIPS or HELMET) stays in his own head as it throws him (`camera-blast.ts`): the lens tumbles with the ragdoll's chest and rolls with his shoulders, it is shaken hard at first, and the field is blown wide at the flash. It hands back once he lies still. Over the picture the grade pass lays THE BLAZE (`grade-pass.ts`'s `uBlaze`, `region-picture.ts`'s `setBlaze`): the heat's shimmer, flames licking up from the foot of the frame, the white flash and the smoke closing in. It is heard as the fire's whoomph and the helicopter's explosion pitched up for a smaller ball. `make sled ARGS=--sheet=fire` is its lab, and `tests/sled_fire_test.ts` holds it.
+
 ## The look
 
 The model is made in Blender off `SLED` and the class's traced profile (`make models KIND=sled`). It is cut into rigid nodes the game poses every frame off the engine (`SLED_NODES`):

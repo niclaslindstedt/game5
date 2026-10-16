@@ -11,6 +11,7 @@
 
 import {
   NEUTRAL_INPUT,
+  firesOf,
   rotate,
   SLED,
   treesNear,
@@ -58,6 +59,24 @@ const RUNGS = ["tips", "helmet", "chase", "far", "high"] as const;
 const ride =
   (o: Partial<SkierInput>): Drive =>
   () => ({ ...NEUTRAL_INPUT, ...o });
+const GAS = ride({ tuck: 0.6 });
+
+/** THE MACHINE STOOD 12 m short of the map's first bonfire, aimed at its
+ * middle across its first bench and going 9 m/s — false with none. */
+function intoBonfire(st: Stage, s: GameState): boolean {
+  const fire = firesOf(st.level).find((f) => f.kind === "bonfire");
+  if (!fire) return false;
+  const seat = fire.seats[0];
+  const heading = Math.atan2(fire.x - seat.x, fire.z - seat.z);
+  const back = 12;
+  place(
+    s,
+    { x: fire.x - Math.sin(heading) * back, z: fire.z - Math.cos(heading) * back },
+    heading,
+    9,
+  );
+  return true;
+}
 
 /** THE MACHINE STOOD where a frame needs it, its rider on it: at (x, z),
  * its nose on `heading`, going `speed` m/s along it with its belt turning
@@ -559,6 +578,70 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     st.shoot(s, "lamp", around(1, 1.2, -9, 45, 0, 0.6));
     await st.sky(null);
   },
+  // ── INTO A BONFIRE ─────────────────────────────────────────────────────
+  // Ridden at a bonfire on the valley floor: alight through its bed, the
+  // fuse, the tank going up, the wreck burning — from behind and planted.
+  fire(st) {
+    const s = st.fresh(true);
+    if (!intoBonfire(st, s)) return;
+    st.camera("chase");
+    st.run(s, 0.4, GAS);
+    st.shoot(s, "closing", around(5, 1.8, 3, 50, 4, 0.8));
+    st.until(s, (q) => !!q.sled?.burn, 2, GAS);
+    st.run(s, 0.3, GAS);
+    st.shoot(s, "alight", "chase");
+    st.run(s, 0.8, GAS);
+    st.shoot(s, "fuse", around(6, 1.6, 0, 45, 0, 0.8));
+    st.until(s, (q) => (q.sled?.burn?.boom ?? -1) >= 0, 2, GAS);
+    st.run(s, 0.1, still);
+    st.shoot(s, "boom", around(14, 4, 10, 55, 0, 2));
+    st.run(s, 0.5, still);
+    st.shoot(s, "fireball", around(14, 4, 10, 55, 0, 3));
+    st.shoot(s, "thrown", onRider(6, 2, 4, 55));
+    st.run(s, 4, still);
+    st.shoot(s, "wreck-5s", around(5, 2.2, 5, 50, 0, 0.6));
+    st.run(s, 20, still);
+    st.shoot(s, "wreck-25s", around(6, 3, 7, 50, 0, 0.8));
+  },
+  // THROUGH HIS OWN EYES: the cockpit as it catches, then thrown in his
+  // own head by the blast.
+  "fire-eyes"(st) {
+    const s = st.fresh(true);
+    if (!intoBonfire(st, s)) return;
+    st.camera("helmet");
+    st.run(s, 0.4, GAS);
+    st.shoot(s, "closing", "helmet");
+    st.until(s, (q) => !!q.sled?.burn, 2, GAS);
+    st.run(s, 0.2, GAS);
+    st.shoot(s, "alight", "helmet");
+    st.run(s, 1, GAS);
+    st.shoot(s, "fuse", "helmet");
+    st.until(s, (q) => (q.sled?.burn?.boom ?? -1) >= 0, 2, GAS);
+    st.run(s, 0.05, still);
+    st.shoot(s, "flash", "helmet");
+    for (const t of [0.3, 0.8, 1.5]) {
+      st.run(s, t - (t === 0.3 ? 0.05 : t === 0.8 ? 0.3 : 0.8), still);
+      st.shoot(s, `blast-${t}s`, "helmet");
+    }
+    st.run(s, 2.5, still);
+    st.shoot(s, "lying", "helmet");
+  },
+  async "fire-night"(st) {
+    await st.sky({ hour: 21 });
+    const s = st.fresh(true);
+    if (intoBonfire(st, s)) {
+      st.camera("chase");
+      st.until(s, (q) => !!q.sled?.burn, 3, GAS);
+      st.run(s, 0.8, GAS);
+      st.shoot(s, "alight", "chase");
+      st.until(s, (q) => (q.sled?.burn?.boom ?? -1) >= 0, 2, GAS);
+      st.run(s, 0.25, still);
+      st.shoot(s, "boom", around(16, 5, 12, 55, 0, 3));
+      st.run(s, 8, still);
+      st.shoot(s, "wreck", around(7, 2.5, 7, 50, 0, 0.6));
+    }
+    await st.sky(null);
+  },
   // ── THE MODEL ALONE ────────────────────────────────────────────────────
   turntable(st) {
     const s = st.fresh(false);
@@ -589,4 +672,5 @@ export const GROUPS: Record<string, readonly string[]> = {
   turntable: ["turntable"],
   lenses: ["lenses", "lenses-powder"],
   cockpit: ["cockpit", "cockpit-close", "cockpit-powder", "cockpit-night"],
+  fire: ["fire", "fire-eyes", "fire-night"],
 };

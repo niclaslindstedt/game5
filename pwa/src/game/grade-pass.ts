@@ -54,6 +54,7 @@ uniform vec3 uShade;
 uniform vec3 uGlow;
 uniform vec2 uSplit;
 uniform float uBuzz;
+uniform vec3 uBlaze;
 uniform float uTime;
 varying vec2 vUv;
 
@@ -85,8 +86,55 @@ vec3 drunk(vec2 uv) {
   return mix(a, e, 0.45 * smoothstep(0.0, 0.5, b));
 }
 
+// THE BLAZE (region-picture's setBlaze): a fire through his own eyes — the
+// heat's shimmer rising through the picture, flames licking up from its
+// foot and a warm cast over it, the flash washing it white, the smoke
+// closing in from its edges — at 0, 0, 0 not read at all.
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+    mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float flames(vec2 uv, float t) {
+  vec2 q = vec2(uv.x * 7.0, uv.y * 3.2 - t * 2.6);
+  float n = noise(q) * 0.55 + noise(q * 2.1 + 3.7) * 0.3 + noise(q * 4.3 - 1.9) * 0.15;
+  return n;
+}
+vec3 blaze(vec3 c, vec2 uv) {
+  float heat = uBlaze.x;
+  float flash = uBlaze.y;
+  float smoke = uBlaze.z;
+  float t = uTime;
+  // The cast: the light of the fire warming everything seen.
+  c = mix(c, c * vec3(1.35, 0.82, 0.5) + vec3(0.06, 0.018, 0.0), heat * 0.7);
+  // The tongues up from the foot of the picture, ragged and rising.
+  float reach = 0.18 + 0.42 * heat;
+  float n = flames(uv, t);
+  float tongue = smoothstep(reach, reach * 0.25, uv.y + (0.5 - n) * reach * 0.9);
+  float core = smoothstep(reach * 0.55, 0.0, uv.y + (0.5 - n) * reach * 0.6);
+  vec3 fire = mix(vec3(1.0, 0.32, 0.04), vec3(1.0, 0.82, 0.42), core);
+  c = mix(c, fire * (1.2 + core), clamp(tongue * heat * 1.1, 0.0, 1.0));
+  // The smoke at the edges, rolling.
+  float edge = smoothstep(0.2, 0.75, length((uv - 0.5) * vec2(1.25, 1.0)));
+  float roll = noise(uv * 5.0 + vec2(t * 0.3, t * 0.7)) * 0.6 + 0.4;
+  c = mix(c, vec3(0.05, 0.04, 0.035), clamp(smoke * edge * roll * 1.3, 0.0, 0.92));
+  c *= 1.0 - smoke * 0.25;
+  // The flash.
+  return mix(c, vec3(1.0, 0.94, 0.82), clamp(flash, 0.0, 1.0));
+}
+
 void main() {
-  vec3 seen = uBuzz > 0.0 ? drunk(vUv) : texture2D(uPicture, vUv).rgb;
+  vec2 at = vUv;
+  if (uBlaze.x > 0.0) {
+    // The air over the fire shimmering: the picture wavering, most low down.
+    float lo = 1.0 - vUv.y;
+    at += vec2(sin(vUv.y * 38.0 + uTime * 11.0), cos(vUv.x * 31.0 + uTime * 9.0))
+      * 0.0045 * uBlaze.x * (0.35 + lo);
+  }
+  vec3 seen = uBuzz > 0.0 ? drunk(at) : texture2D(uPicture, at).rgb;
   gl_FragColor = vec4(max(seen, 0.0), 1.0);
   #include <tonemapping_fragment>
   vec3 c = gl_FragColor.rgb;
@@ -117,6 +165,8 @@ void main() {
     c = mix(c, c * vec3(1.08, 0.97, 0.86), uBuzz * 0.6);
   }
 
+  if (uBlaze.x + uBlaze.y + uBlaze.z > 0.0) c = blaze(c, vUv);
+
   gl_FragColor = vec4(c, 1.0);
   #include <colorspace_fragment>
 }
@@ -130,6 +180,9 @@ export type GradePass = {
   setGrade(grade: ColourGrade): void;
   /** How drunk the picture is, 0..1, and the clock it swims by, s. */
   setBuzz(buzz: number, t: number): void;
+  /** The fire through his eyes: its heat, flash and smoke, 0..1 each, and
+   * the clock its flames rise by, s. */
+  setBlaze(heat: number, flash: number, smoke: number, t: number): void;
   /** Read the picture back, tone-map and grade it, write the canvas. */
   render(renderer: THREE.WebGLRenderer): void;
   dispose(): void;
@@ -164,6 +217,7 @@ export function createGradePass(samples: number): GradePass {
     uGlow: { value: new THREE.Vector3(1, 1, 1) },
     uSplit: { value: new THREE.Vector2(0, 0) },
     uBuzz: { value: 0 },
+    uBlaze: { value: new THREE.Vector3(0, 0, 0) },
     uTime: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
@@ -204,6 +258,10 @@ export function createGradePass(samples: number): GradePass {
     },
     setBuzz(buzz, t) {
       uniforms.uBuzz.value = buzz;
+      uniforms.uTime.value = t;
+    },
+    setBlaze(heat, flash, smoke, t) {
+      uniforms.uBlaze.value.set(heat, flash, smoke);
       uniforms.uTime.value = t;
     },
     render(renderer) {

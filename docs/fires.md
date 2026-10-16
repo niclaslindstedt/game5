@@ -142,3 +142,7 @@ and the same at hour 21); `tests/fire_people_test.ts` holds it.
   reads BURNED. `make burn` is its lab (sheets `catch`, `burn`, `char`,
   `night`, `sfw`, each frame captioned with the time since he caught, the
   burnt share, its milliseconds, draw calls and triangles).
+
+## A snowmobile ridden into one
+
+The snowmobile catches in a hearth instead of being held off it, and its tank goes up a moment later. Its rider is blown off it burning. [The snowmobile's page](snowmobile.md#into-a-fire) has the whole of it.

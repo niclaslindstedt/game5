@@ -35,6 +35,8 @@ import { mendBody } from "./body.ts";
 import { deriveSled, freshContacts, rideSled } from "./sled-body.ts";
 import { depthUnder } from "./snow.ts";
 import { sledSpotOf } from "./sled-pad.ts";
+import { stepSledFire } from "./sled-fire.ts";
+import { SLED_FIRE } from "./defs/sled-fire.ts";
 import { derive } from "./skier.ts";
 import { windAt, type Wind } from "./wind.ts";
 import type {
@@ -185,10 +187,14 @@ export function stepSled(run: GameState, input: SkierInput, events: GameEvent[])
   if (s.hitCooldown > 0) s.hitCooldown -= dt;
   const c = run.skier;
   // THROWN OFF IT and stood back up: back on the machine, which he stands
-  // on its belt again where it lies.
+  // on its belt again where it lies — unless it is a burnt-out wreck
+  // (`sled-fire.ts`), which he is stood up beside on his skis.
   if (s.thrown && !c.thrown) {
-    remount(run, s, events);
-    return true;
+    if (wrecked(s)) s.thrown = false;
+    else {
+      remount(run, s, events);
+      return true;
+    }
   }
   // THROWN OFF IT BY SOMETHING ELSE — an amateur shouldered too hard
   // (`crowd.ts`'s `clipCrowd`) after the machine's own step: it goes on
@@ -208,7 +214,9 @@ export function stepSled(run: GameState, input: SkierInput, events: GameEvent[])
     // engine idling down — stepped like any body, so a machine left in
     // powder sits down into it.
     drive(run, s, PARKED, events, false);
+    stepSledFire(run, s, events);
     if (s.running && (s.mode === "down" || s.t > SLED.idleFor)) s.running = false;
+    renew(run, s, events);
     return false;
   }
   // RIGHTED AND DUG OUT: the reset press stands the machine back on its
@@ -223,8 +231,27 @@ export function stepSled(run: GameState, input: SkierInput, events: GameEvent[])
     return false;
   }
   drive(run, s, sledControls(input), events, true);
+  // RIDDEN INTO A FIRE (`sled-fire.ts`): alight, and its tank gone up
+  // under him — blown off it.
+  const blast = s.rider ? stepSledFire(run, s, events) : null;
+  if (blast) throwOff(run, s, events, blast, s.speed, false, "blast");
   if (s.rider) hold(run, s);
   return s.rider;
+}
+
+/** Whether the machine is a burnt-out wreck: its tank gone up. */
+const wrecked = (s: SledState): boolean => !!s.burn && s.burn.boom >= 0;
+
+/** THE WRECK'S PLACE TAKEN: once it has burnt out and the skier, stood up,
+ * is well clear of it, a fresh machine stands on the spot at the bottom. */
+function renew(run: GameState, s: SledState, events: GameEvent[]): void {
+  const b = s.burn;
+  if (!b || b.boom < 0 || run.t - b.boom < SLED_FIRE.wreck.lasts) return;
+  const c = run.skier;
+  if (c.thrown || hypot(c.x - s.x, c.z - s.z) < SLED_FIRE.wreck.clear) return;
+  delete s.burn;
+  Object.assign(s, freshSled(run));
+  say(run, events, "fresh");
 }
 
 /** The body stepped under `ctl`, then the trees, the map's edge, the
@@ -321,6 +348,11 @@ function judgeLanding(
 }
 
 const near: number[] = [];
+/** A log lying no higher than this over the snow is ridden over, m (the
+ * skis' tips curl up some 0.35 m and ride onto it), the machine
+ * bucked up off it at this share of the speed it met it at. */
+const LOG_OVER = 0.75;
+const LOG_BUCK = 0.3;
 
 /** THE TRUNKS AND THE POSTS (`posts.ts`) against the machine's plan — a
  * capsule down its length — pushed out of, the closing speed taken off and
@@ -347,9 +379,15 @@ function trees(run: GameState, s: SledState): number {
     if (d >= reach) continue;
     const nx = d > 1e-6 ? dx / d : -fx;
     const nz = d > 1e-6 ? dz / d : -fz;
+    const vn = s.vx * nx + s.vz * nz;
+    // A LOG LYING LOW — a bench round a fire, a woodpile's end: the skis
+    // ride up onto it and the machine is bucked over it, never stopped.
+    if (t.stuff === "log" && t.y + t.height < level.groundAt(t.x, t.z) + LOG_OVER) {
+      if (vn < 0) s.vy = Math.max(s.vy, -vn * LOG_BUCK);
+      continue;
+    }
     s.x += nx * (reach - d);
     s.z += nz * (reach - d);
-    const vn = s.vx * nx + s.vz * nz;
     if (vn >= 0) continue;
     s.vx -= 1.25 * vn * nx;
     s.vz -= 1.25 * vn * nz;
@@ -470,6 +508,7 @@ function throwOff(
   v0: { x: number; y: number; z: number },
   speed: number,
   rolled = false,
+  cause: "sled" | "blast" = "sled",
 ): void {
   const c = run.skier;
   const at = riderFrame(run, s);
@@ -485,7 +524,7 @@ function throwOff(
     c.wz = s.wz;
   }
   leave(run, s, events, speed);
-  const b = throwRider(run, "sled", v0, events, {
+  const b = throwRider(run, cause, v0, events, {
     how: rolled ? K.rolled : undefined,
     keepSkis: true,
   });
@@ -534,7 +573,7 @@ function mount(run: GameState, s: SledState): void {
 export function sledWithin(run: GameState): boolean {
   const s = run.sled;
   const c = run.skier;
-  if (!s || s.rider || s.thrown) return false;
+  if (!s || s.rider || s.thrown || wrecked(s)) return false;
   if (c.thrown || c.lift || c.tunnel || run.heli?.rider) return false;
   // Under a paramotor's wing the press releases the rig (`para.ts`).
   if (run.para && run.para.mode !== "dropped") return false;
@@ -557,6 +596,7 @@ function board(run: GameState, s: SledState, events: GameEvent[]): void {
  * running, the skier on its boards and mended. */
 export function startSled(run: GameState, events: GameEvent[]): void {
   const s = run.sled!;
+  delete s.burn;
   Object.assign(s, freshSled(run));
   const c = run.skier;
   standSkier(run, s.x, s.z, s.heading);

@@ -756,7 +756,7 @@ export const STRINGS = {
     "How fine the ground's mesh is under the skis. Every setting reaches as far as DISTANCE draws.",
   optTrails: "TRAILS",
   optTrailsHint:
-    "How finely the snow keeps every track cut, and how far round the skier. Off leaves the snow untouched.",
+    "How finely the snow keeps every track cut, and how far round the skier. Off leaves the snow untouched. Medium and high also hollow the deep powder round the trees.",
   optForest: "FOREST",
   optForestHint:
     "How far out trees are drawn in full, how thick the far woods stand, and how many variants of each kind of tree are drawn: ten, five or two.",

@@ -172,15 +172,23 @@ export type TrailLook = {
   fineSpan: number;
   /** Coarse map texels a side (it spans the whole map). */
   coarseSize: number;
+  /** Whether the TREE WELLS are drawn (`tree-wells.ts`): the hollow round
+   * every trunk in deep powder lowered into the snow, and the stub of trunk
+   * down into it. Their map is refilled every 16 m the lens moves — some
+   * 18 ms of the processor's a time, a dropped frame every second or two at
+   * speed — and the ground reads it five times a pixel near the lens. OFF
+   * and LOW give them up: the snow round a trunk is drawn level, though the
+   * skier still meets the hollow and can sink into it. */
+  wells: boolean;
 };
 
 export const TRAIL_LOOK: Record<TrailLevel, TrailLook> = {
   // OFF still builds the smallest maps there are, so the ground's shader has
   // something to read — they are simply never written.
-  off: { stamp: false, fineSize: 64, fineSpan: 64, coarseSize: 64 },
-  low: { stamp: true, fineSize: 512, fineSpan: 64, coarseSize: 1024 },
-  medium: { stamp: true, fineSize: 1024, fineSpan: 96, coarseSize: 1024 },
-  high: { stamp: true, fineSize: 2048, fineSpan: 160, coarseSize: 2048 },
+  off: { stamp: false, fineSize: 64, fineSpan: 64, coarseSize: 64, wells: false },
+  low: { stamp: true, fineSize: 512, fineSpan: 64, coarseSize: 1024, wells: false },
+  medium: { stamp: true, fineSize: 1024, fineSpan: 96, coarseSize: 1024, wells: true },
+  high: { stamp: true, fineSize: 2048, fineSpan: 160, coarseSize: 2048, wells: true },
 };
 
 export type ForestLook = {

@@ -76,6 +76,9 @@ export type TerrainOptions = TerrainLook & {
   /** THE DEFORMABLE SNOW's field (`deform-snow.ts`), drawn as a mesh of its
    * own a vertex a cell inside level 0, where the trail uniforms say it is. */
   deform?: DeformLook;
+  /** Whether the TREE WELLS are drawn (`TRAIL_LOOK`'s `wells`); on when
+   * left out. */
+  wells?: boolean;
 };
 
 export type Terrain = {
@@ -508,7 +511,7 @@ export function createTerrain(
   const wind = windFromOf(level);
   // THE TREE WELLS in deep powder (`tree-wells.ts`): their map, and the
   // wood drawn down into them.
-  const wells = createTreeWells(level, haze);
+  const wells = createTreeWells(level, haze, options.wells ?? true);
   group.add(wells.group);
   const shared = {
     ...wells.uniforms,

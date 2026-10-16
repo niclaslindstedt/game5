@@ -365,9 +365,8 @@ export function createWorldRenderer(
   const prime = (mine: number, pieces: ahead.Prime[]) => ahead.primed(pieces, () => rest(mine));
   /** Whether the world standing has had its shaders compiled. */
   let warmed = true;
-  /** The trail maps and the ground that reads them, built for the picture in
-   * force. One step, because the ground's shader holds the maps' uniforms by
-   * reference: new maps are a new ground. */
+  /** The trail maps and the ground that reads them, built for the picture in force: the
+   * ground's shader holds the maps' uniforms by reference, so new maps are a new ground. */
   function buildTrail(lv: Level): TrailMap {
     const map = createTrailMap(lv.size, TRAIL_LOOK[video.trails]);
     map.clear(gl);
@@ -377,7 +376,8 @@ export function createWorldRenderer(
     const look = terrainLook(video.terrain); // the whole reach: aloft draws past the stop's view
     const deformed = deform.build(video, look.spacing, summer(), map.uniforms);
     skiClear = createSkiClear(map.uniforms);
-    const options = { ...summerOptions(look, lv, video), deform: deformed };
+    const { wells } = TRAIL_LOOK[video.trails]; // the tree wells, from TRAILS MEDIUM up
+    const options = { ...summerOptions(look, lv, video), deform: deformed, wells };
     const ground = createTerrain(lv, env.haze, map.uniforms, options);
     ground.group.name = "terrain";
     scene.add(ground.group);

@@ -92,7 +92,8 @@ describe("the revert", () => {
 
   it("leaves a skier knocked or crept back at a walk standing where he stops", () => {
     const state = switched(TUNING.switch.revert.least - 0.5);
-    expect(ride(state, 2).reverted).toBe(false);
+    // A flat firm groomer lets him coast a while before he stands.
+    expect(ride(state, 4).reverted).toBe(false);
     expect(state.skier.speed).toBeLessThan(0.5);
   });
 

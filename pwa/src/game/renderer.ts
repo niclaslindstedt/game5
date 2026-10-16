@@ -187,6 +187,7 @@ export function createWorldRenderer(
   let watched: ReplayView | null = null;
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9, gl);
   env.setDistance(video.distance);
+  env.setSky(video.sky);
   /** Under SHADOWS HIGH every skier casts into a map of his own. */
   const hero = createHeroShadow(env.haze, shadowLook().hero);
   const heroModels: SkisModel[] = [];
@@ -939,6 +940,7 @@ export function createWorldRenderer(
       env.setShadow(shadowLook());
       hero.setSize(shadowLook().hero);
       env.setDistance(video.distance);
+      env.setSky(video.sky);
       spray?.setBudget(SPRAY_SHARE[video.spray]);
       spray?.setFlight?.(SPRAY_GPU[video.spray]);
       cloud?.setBudget(SPRAY_SHARE[video.spray]);

@@ -208,6 +208,13 @@ describe("the picture's ladders (settings-video.ts)", () => {
     expect(mergeVideo({ resolution: "70" }).resolution).toBe("70");
     expect(mergeVideo({ resolution: "toString" }).resolution).toBe(DEFAULT_VIDEO.resolution);
   });
+
+  it("draws a plain sky on LOW alone, and keeps a LOW picture stored before the row on LOW", () => {
+    expect(TIERS.map((t) => VIDEO_PRESETS[t].sky)).toEqual(["plain", "full", "full"]);
+    expect(presetOf(mergeVideo({ ...VIDEO_PRESETS.low, sky: undefined }))).toBe("low");
+    expect(mergeVideo({ ...VIDEO_PRESETS.medium, sky: undefined }).sky).toBe("full");
+    expect(mergeVideo({ ...VIDEO_PRESETS.low, sky: "full" }).sky).toBe("full");
+  });
 });
 
 describe("fitting the picture to the machine (picture-fit.ts)", () => {

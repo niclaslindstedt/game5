@@ -203,6 +203,10 @@ export const PICTURE_PRICES: PriceList = {
     medium: { cost: 0.3, benefit: 6 },
     high: { cost: 0.6, benefit: 10 },
   },
+  sky: {
+    plain: { cost: 0, benefit: 0 },
+    full: { cost: 0.3, benefit: 14 },
+  },
 };
 
 /** The frame the fit aims a drained frame at, ms: sixty a second, with a

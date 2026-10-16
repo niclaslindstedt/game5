@@ -88,6 +88,7 @@ import { joltHand, NO_JOLT } from "./skier-save.ts";
 import { bareRest, placeBare } from "./skier-bare.ts";
 import { flightHands } from "./skier-flight.ts";
 import { holdShins, trickFeet, tuckOf } from "./skier-somersault.ts";
+import { TWIRL } from "./skier-twirl.ts";
 import { add, clamp01, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
 import {
   bootFrame,
@@ -275,7 +276,14 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // A SKIER BRAKING RISES OUT OF HIS TUCK: skis thrown across under a man
   // folded flat swing his legs into profile, the knees up by his shoulders
   // — so the skid stands him up, the skis where the engine's drop has them.
-  const crouch = Math.max(clamp01(input.crouch) * (1 - SKID_RISE * skid), FS.crouch);
+  // THE TWIRL (`skier-twirl.ts`): a spin led by the shoulders and the
+  // head, the arms in, the body a little folded.
+  const TW = input.twirl ?? { lead: 0, tight: 0 };
+  const crouch = Math.max(
+    clamp01(input.crouch) * (1 - SKID_RISE * skid),
+    FS.crouch,
+    TWIRL.crouch * Math.abs(TW.lead),
+  );
   // Into the air and back as motions (the view's eased `air`), and a
   // load let go of over the pop rather than in a step.
   const air = clamp01(input.air ?? (input.airborne ? 1 : 0));
@@ -654,7 +662,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const neck = add(waist, scale(upperDir, thoracic));
   // The head held up to look down the hill: the neck bends back out of a
   // tuck's pitch, and turns into the turn.
-  const look = turning * 0.35 + LEAD.look * ahead + glance + SW.look;
+  const look = turning * 0.35 + LEAD.look * ahead + glance + SW.look + TWIRL.look * TW.lead;
   // THE EYES NEARER LEVEL: whatever the body leans, a skier holds his
   // eyes toward the horizon — the head rolls back off the trunk's lean in
   // the WORLD (the pair's own roll, `input.roll`, and the trunk's on it)
@@ -677,7 +685,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // skis across under them.
   const twist =
     -turning * S.twist * (1 - 0.5 * crouch) +
-    LEAD.twist * ahead -
+    LEAD.twist * ahead +
+    TWIRL.twist * TW.lead -
     skiAngle * 0.5 * skid +
     0.5 * gait.twist +
     J.twist +
@@ -769,7 +778,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       LEAD.hands * ahead +
       side * 0.1 * air +
       side * TURN_PLANT.reach.x * reachOf(i) -
-      inward * (h.x - side * handX);
+      inward * (h.x - side * handX) -
+      TWIRL.hands * TW.tight * (h.x - hips.x);
     // Off the stance, or — working the poles — off the shoulder, which
     // already rides the hips' sink and the legs' fold.
     const own = h.y + hipsLift * 0.6 - bump * 0.5 - sink;
@@ -791,7 +801,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
         0.1 * load +
         0.25 * pop -
         0.3 * carve * inside +
-        TURN_PLANT.reach.y * reachOf(i),
+        TURN_PLANT.reach.y * reachOf(i) +
+        TWIRL.raise * TW.tight,
       z:
         h.z +
         0.25 * lone +

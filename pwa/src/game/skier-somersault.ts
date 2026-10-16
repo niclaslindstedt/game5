@@ -27,6 +27,7 @@ import { fromAxisAngle, multiply, rotate } from "@niclaslindstedt/oss-game-frame
 import { add, mix, type V3 } from "./skier-vec.ts";
 import type { TrickPose } from "@engine";
 import type { FlightShape } from "./skier-flight.ts";
+import { createTwirl, stepTwirl, twirlOf, type SpinThrow, type TwirlShape } from "./skier-twirl.ts";
 
 /** The throw as the engine keeps it: the angle owed in all and turned so
  * far, rad, back positive (`TrickState`). */
@@ -35,7 +36,7 @@ export type FlipThrow = {
   readonly flipDone: number;
   /** How tucked the engine has him, 0..1, where it says (`TrickState`). */
   readonly flipTuck?: number;
-};
+} & Partial<SpinThrow>;
 
 /** THE TUCK as the view carries it between frames. */
 export type Somersault = {
@@ -127,7 +128,12 @@ export function somersaultOf(s: Somersault): SomersaultShape | undefined {
 }
 
 /** What a skier's pose is laid onto by a loop (`SkierPoseInput`'s). */
-type LaidPose = { somersault?: SomersaultShape; flight?: FlightShape; lean: number };
+type LaidPose = {
+  somersault?: SomersaultShape;
+  twirl?: TwirlShape;
+  flight?: FlightShape;
+  lean: number;
+};
 
 /** A rider's tuck as the view keeps it: stepped each frame off the throw
  * and handed to the pose — and, on skis, LAID on it: a loop owns his body
@@ -139,15 +145,23 @@ export function createTuck(): {
   lay(pose: LaidPose): void;
 } {
   const s = createSomersault();
+  const w = createTwirl();
   return {
     step(t, dt, stand) {
       stepSomersault(s, t, dt);
+      // ...and the spin's lead and arms (`skier-twirl.ts`).
+      stepTwirl(
+        w,
+        t && t.spinGoal !== undefined ? { spinGoal: t.spinGoal, spinForm: t.spinForm } : null,
+        dt,
+      );
       // ...the skis pulled up under him with the knees.
       if (stand) for (let i = 0; i < 2; i++) stand.lift[i] += flipLift(somersaultOf(s));
     },
     shape: () => somersaultOf(s),
     lay(pose) {
       pose.somersault = somersaultOf(s);
+      pose.twirl = twirlOf(w);
       pose.flight = withFlip(pose.flight, pose.somersault);
       pose.lean *= 1 - (pose.somersault?.own ?? 0);
     },

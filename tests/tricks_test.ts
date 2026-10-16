@@ -287,7 +287,7 @@ describe("a free ride's flight that was never meant", () => {
   });
 });
 
-describe("a spin is set off the lip, not snapped", () => {
+describe("a spin is wound up, not snapped", () => {
   const spun = (seconds: number, at: (t: number, s: GameState) => Partial<SkierInput>) => {
     const state = staged("tricks", { ...LAUNCH, height: 30, vy: 6 });
     const rates: number[] = [];
@@ -305,6 +305,22 @@ describe("a spin is set off the lip, not snapped", () => {
     // Let go, it neither stops nor settles: it is still turning.
     expect(rates[rates.length - 1]).toBeCloseTo(state.tricks.spinSpeed, 6);
     expect(state.tricks.spinSpeed).toBeGreaterThan(3);
+  });
+
+  it("the edge thrown tight long after the take-off still starts a spin; a gentle one steers", () => {
+    const late = spun(2, (t) => ({ steer: t > 1 && t < 1.3 ? 1 : 0 }));
+    expect(late.state.tricks.spinSpeed).toBeGreaterThan(4);
+    expect(late.yaw).toBeGreaterThan(Math.PI);
+    const soft = spun(2, (t) => ({ steer: t > 1 && t < 1.3 ? 0.5 : 0 }));
+    expect(soft.state.tricks.spinGoal).toBe(0);
+  });
+
+  it("the edge against a spin checks it only a little", () => {
+    const kept = spun(1.6, (t) => ({ steer: t < 0.4 ? 1 : 0 }));
+    const checked = spun(1.6, (t) => ({ steer: t < 0.4 ? 1 : t > 0.6 ? -1 : 0 }));
+    const end = (r: { rates: number[] }) => r.rates[r.rates.length - 1];
+    expect(end(checked)).toBeGreaterThan(end(kept) * 0.8);
+    expect(end(checked)).toBeLessThan(end(kept));
   });
 
   it("a 180 comes down switch and rides away backward, clean", () => {

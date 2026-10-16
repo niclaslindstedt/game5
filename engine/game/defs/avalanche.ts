@@ -25,6 +25,12 @@ export const AVALANCHE = {
    * groomed run is packed through to the ground and the patrol works it
    * with explosives before it opens; the danger lies off it. */
   packedHolds: 0.5,
+  /** No slab breaks within this far of held snow, m — a piste's packed
+   * share (its soft edge and windrows with it) or a ROCK WALL (`rocks.ts`'
+   * `rockShare`, a rocky cliff's face): a wall too steep and bare to carry
+   * a slab sheds its snow in sluffs, and a slab's crown, flanks and
+   * stauchwall are cut short where either begins. */
+  keepOff: 6,
   /** THE WOODS ANCHOR THE SNOWPACK: this many trunks within `anchorReach`
    * m of a point hold its slab in place (a dense forest prevents release;
    * a few trees in a glade do not). */

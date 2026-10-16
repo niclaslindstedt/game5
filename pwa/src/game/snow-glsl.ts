@@ -77,7 +77,7 @@ import { SNOW_LAMPS_LIGHT } from "./snow-lamps-glsl.ts";
 import { SNOW_RELIEF_SAMPLE } from "./snow-relief-glsl.ts";
 import { SNOW_SUN_LIGHT, SUN_GLARE } from "./snow-sun-glsl.ts";
 import { SNOW_TRAIL_ALBEDO, SNOW_TRAIL_LIGHT, SNOW_TRAIL_SAMPLE } from "./snow-trail-glsl.ts";
-import { BAND_SNOW, CALM_FROM, CALM_TO, STRATA_GLSL } from "./strata-glsl.ts";
+import { CALM_FROM, CALM_TO, STRATA_GLSL } from "./strata-glsl.ts";
 import { CALM_HELD, ROCK_SNOW } from "./rock-shapes.ts";
 
 // The vertex half (`snow-vertex-glsl.ts`), grafted beside the fragment's.
@@ -275,8 +275,7 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
       float ny = inversesqrt(1.0 + dot(grad, grad));
       float even = clamp((ny + ${CALM_HELD.toFixed(3)} - ${ROCKS.skin.slides.toFixed(3)}) / ${(ROCKS.skin.holds - ROCKS.skin.slides).toFixed(3)}, 0.0, 1.0);
       vec3 b = stBands(stCoord(p, vSnowWorld.y), fwW);
-      float cover = clamp(even + ${BAND_SNOW.toFixed(2)} * b.y, 0.0, 1.0);
-      snowSkinCol = mix(uRockStone * (1.0 + b.x), vec3(${ROCK_SNOW.map((v) => v.toFixed(3)).join(", ")}), cover) / ${GLARE.toFixed(3)};
+      snowSkinCol = stFar(uRockStone, vec3(${ROCK_SNOW.map((v) => v.toFixed(3)).join(", ")}), even, b, 1.0) / ${GLARE.toFixed(3)};
     }
   }
 

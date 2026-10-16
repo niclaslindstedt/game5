@@ -155,6 +155,9 @@ export type HazeUniforms = {
   /** THE NEW SNOW over the run, m (`GameState.fresh`): what buries the
    * groomer's look. The run's, not the sky's — the renderer writes it. */
   uFresh: { value: number };
+  /** THE RUN'S SNOW DIAL (`GameState.snowDepth`, 1 the ordinary snow): how
+   * deep the loose snow lies — what buries the talus's stones. */
+  uSnowDial: { value: number };
   /** THE PISTE THROUGH THE DAY (`GameState.piste`, `piste-day.ts`): how
    * skied up, sun-softened and refrozen the groomer is, each 0..1, and 1
    * in `w` on a run dealt it — all nought on one that was not. The
@@ -235,8 +238,10 @@ export function setRunSnow(
   day: { worn: number; soft: number; hard: number } | undefined,
   age?: SnowAge | null,
   tracks?: Tracks,
+  dial = 1,
 ): void {
   u.uFresh.value = fresh;
+  u.uSnowDial.value = dial;
   u.uTracks.value.set(tracks?.many ?? 0, tracks?.churn ?? 0);
   if (day) u.uPiste.value.set(day.worn, day.soft, day.hard, 1);
   else u.uPiste.value.set(0, 0, 0, 0);
@@ -297,6 +302,7 @@ export function createHazeUniforms(): HazeUniforms {
     uFlat: { value: 0 },
     uGlitter: { value: 1 },
     uFresh: { value: 0 },
+    uSnowDial: { value: 1 },
     uPiste: { value: new THREE.Vector4(0, 0, 0, 0) },
     uSnowAge: { value: new THREE.Vector4(0, 0, 0, 0) },
     uSnowAge2: { value: new THREE.Vector4(0, 0, 0, -1) },

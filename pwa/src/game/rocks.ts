@@ -39,16 +39,18 @@ import {
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
 import { FOREST_LOOK, type RockLook } from "./settings-video.ts";
+import { createTalus } from "./talus.ts";
 import {
   ROCK_SNOW,
   buildSkin,
   buildWall,
   rockMesh,
+  rockTone,
   smoothSkin,
   type RockMesh,
 } from "./rock-shapes.ts";
 import { summerShown } from "./season-look.ts";
-import { BAND_SNOW, CALM_FROM, CALM_TO, STRATA_GLSL, strataUniforms } from "./strata-glsl.ts";
+import { CALM_FROM, CALM_TO, STRATA_GLSL, strataUniforms } from "./strata-glsl.ts";
 
 /** A tile's side, m. */
 const TILE = 192;
@@ -57,6 +59,9 @@ const SLICE = 1.5;
 /** Within this of the lens a tile is built whole at once, whatever it
  * costs, m: a crag appearing that close would be seen. */
 const NOW = 110;
+/** The farthest cut's ledges, as a share of their lift (\`buildSkin\`'s
+ * \`relief\`): band-limited, so they stop crawling at a kilometre. */
+const FAR_RELIEF = 0.4;
 /** How far past the reach a built tile is kept, m, before it is let go. */
 const KEEP = 2 * TILE;
 /** A cut: out to `out` m off a tile's nearest corner its lattice is
@@ -174,22 +179,24 @@ float rkSoft(vec3 p, float wave, float px) {
 // The distance, in joint units, from u to the nearest joint of a run:
 // the main set at the run's dealt places (or at the whole numbers, lead
 // 1), some of them skipped, and a second set between, sparser.
-float rkJoint(float u, float run, float lead) {
+// \`keep\` names the stretch a joint is kept or skipped over (a skipped
+// share \`skip\`), \`second\` the share of cells with a joint of the second set.
+float rkJoint(float u, float run, float lead, float keep, float skip, float second) {
   float c = floor(u);
   float d = 4.0;
-  float keep = floor(run / 3.0);
   for (int i = -1; i <= 1; i++) {
     float cc = c + float(i);
     float h1 = rkHash(vec2(cc, run));
     float a = cc + mix(0.1 + 0.8 * h1, 0.0, lead);
-    if (rkHash(vec2(cc + 31.7, keep)) > 0.22) d = min(d, abs(u - a));
+    if (rkHash(vec2(cc + 31.7, keep)) > skip) d = min(d, abs(u - a));
     float h2 = rkHash(vec2(cc + 57.1, run + 0.5));
-    if (h2 > 0.62) d = min(d, abs(u - (cc + 0.25 + 0.5 * rkHash(vec2(run, cc + 9.3)))));
+    if (h2 > 1.0 - second) d = min(d, abs(u - (cc + 0.25 + 0.5 * rkHash(vec2(run, cc + 9.3)))));
   }
   return d;
 }
 vec2 rkSlope;
 float rkRock;
+uniform vec3 uRockStone;
 `;
 const STRATA_COLOUR = /* glsl */ `
 #include <color_fragment>
@@ -215,13 +222,24 @@ rkSlope = vec2(0.0);
   // holds it, the one that stands up sheds it, so a tread reads as a tread
   // and not a white wash down the riser below it. Near only; calmed, the
   // corners' even paint stands.
+  //
+  // DUSTED, NEVER SHEETED: a tread is a ledge with the snow lying on it,
+  // the rock poking through in patches and its back eaten into, not a flat
+  // white sheet the size of the facet — the snow broken by a noise a few
+  // metres across, near only (calmed, the beds' tone carries it).
   if (!wall) {
     float s0 = 1.0 - rkRock;
-    float smear = clamp(4.0 * s0 * (1.0 - s0), 0.0, 1.0) * (1.0 - vCalm) * winter;
-    float want = smoothstep(0.6, 0.85, F.y);
+    float near = (1.0 - vCalm) * winter;
+    float smear = clamp(4.0 * s0 * (1.0 - s0), 0.0, 1.0) * near;
+    float want = smoothstep(0.7, 0.92, F.y);
     float s1 = mix(s0, want, 0.7 * smear);
+    float patchy = smoothstep(0.3, 0.72,
+      0.6 * rkSoft(P * vec3(1.0, 2.2, 1.0) + 3.0, 3.1, px) + 0.4 * rkSoft(P + 17.0, 1.1, px));
+    float eat = near * smoothstep(0.35, 0.8, s0) * 0.5 * (1.0 - patchy);
+    s1 *= 1.0 - eat;
     vec3 bare = clamp((diffuseColor.rgb - ${SNOW_GLSL} * s0) / max(1.0 - s0, 0.25), 0.0, 1.0);
-    diffuseColor.rgb = mix(diffuseColor.rgb, mix(bare, ${SNOW_GLSL}, s1), smear);
+    bare = mix(bare, uRockStone * (0.75 + 0.35 * patchy), smoothstep(0.55, 0.9, s0));
+    diffuseColor.rgb = mix(diffuseColor.rgb, mix(bare, ${SNOW_GLSL}, s1), max(smear, eat * 2.0));
     rkRock = 1.0 - s1;
   }
 
@@ -240,15 +258,24 @@ rkSlope = vec2(0.0);
 
   // THE JOINTS: no grid.
   float run = floor(L * 0.41 + 0.3 * sin(L * 1.7));
-  float u = vStrata.y * (wall ? 1.0 : 2.0);
+  // On a wall: wide apart, each kept or skipped a lamina at a time (a
+  // crack runs a layer or three and stops, then jogs), the second set
+  // rare, and a soft groove a few cm wide rather than a pen line.
+  float u = vStrata.y * (wall ? 1.9 : 2.0);
   float fwU = abs(dFdx(u)) + abs(dFdy(u)) + 1e-6;
-  float jd = rkJoint(u, run, wall ? 0.0 : 1.0) / fwU;
-  float crack = (1.0 - smoothstep(0.6, 1.6, jd)) * mid;
+  float jd = wall
+    ? rkJoint(u, run, 0.0, L, 0.55, 0.15)
+    : rkJoint(u, run, 1.0, floor(run / 3.0), 0.22, 0.38);
+  float jw = wall ? 0.012 : 0.0;
+  float crack = (1.0 - smoothstep(jw * 0.4, jw + 1.6 * fwU, jd)) * mid;
   float parting = (1.0 - smoothstep(0.0, 0.05 + fwT, min(fl, 1.0 - fl)))
-    * step(0.3, rkHash(vec2(L + 0.5, 5.3)));
+    * step(wall ? 0.72 : 0.3, rkHash(vec2(L + 0.5, 5.3)));
 
   float tone = mix(1.0, (0.86 + 0.28 * layer) * (1.0 - 0.2 * parting), lam);
-  tone *= 1.0 - 0.38 * crack;
+  tone *= 1.0 - (wall ? 0.3 : 0.38) * crack;
+  // UNDERCUT: a facet facing down is the underside of a bed jutting over
+  // the one below, in its own shadow — darker than the sky's light leaves it.
+  tone *= 1.0 - 0.42 * smoothstep(-0.04, -0.45, F.y) * (1.0 - vCalm);
 
   // STREAKS down the fall line, RUST, LICHEN — on the steep facets.
   float steep = (1.0 - smoothstep(0.55, 0.85, F.y)) * (1.0 - vCalm);
@@ -272,21 +299,24 @@ rkSlope = vec2(0.0);
     float even = vStrata.z;
     vec3 snowC = ${SNOW_GLSL};
     vec3 stone = clamp((c - snowC * even) / max(1.0 - even, 0.08), 0.0, 1.0);
-    float cover = clamp(even + ${BAND_SNOW.toFixed(2)} * b.y * winter, 0.0, 1.0);
-    vec3 banded = mix(stone * (1.0 + b.x), snowC, cover);
+    vec3 banded = stFar(stone, snowC, even, b, winter);
     c = mix(c, banded, vCalm);
   }
 
   // RIME on the windward facets and the NEW SNOW dusting what lies back.
   float windward = clamp(-dot(F.xz, uRockWind), 0.0, 1.0);
-  float rime = smoothstep(0.5, 0.9, windward)
-    * smoothstep(0.42, 0.78, 0.6 * rkSoft(P + 2.0, 1.7, px) + 0.6 * rkSoft(P, 6.7, px)) * winter;
+  // Rime grows out into the wind off edges and ledges: a windward wall's
+  // ledges (its beds' tops and the facets lying back) carry the most.
+  float ledgeTop = wall ? smoothstep(0.78, 0.98, fl) * lam + smoothstep(0.15, 0.6, F.y) : 0.0;
+  float rime = smoothstep(0.5, 0.9, windward + 0.25 * ledgeTop)
+    * smoothstep(0.42, 0.78, 0.6 * rkSoft(P + 2.0, 1.7, px) + 0.6 * rkSoft(P, 6.7, px) + 0.25 * ledgeTop)
+    * winter;
   float lies = smoothstep(0.25, 0.6, F.y);
   float dust = clamp(uFresh * 8.0, 0.0, 0.6) * smoothstep(0.4, 0.75, rkSoft(P + 11.0, 0.48, px) + 0.3 * lies)
     * (0.35 + 0.65 * lies) * winter;
   // Read off a facet's own normal, so faded as the facets are calmed: one
   // facet in a few pixels white and the next bare would twinkle.
-  float cover2 = clamp(0.45 * rime + dust, 0.0, 1.0) * rkRock * (1.0 - 0.8 * vCalm);
+  float cover2 = clamp((wall ? 0.6 : 0.45) * rime + dust, 0.0, 1.0) * rkRock * (1.0 - 0.8 * vCalm);
   diffuseColor.rgb = mix(c, ${RIME_GLSL}, cover2);
   rkSlope *= 1.0 - cover2;
 }
@@ -312,6 +342,27 @@ vec3 objectNormal = normalize(mix(normal, soft, rockCalm));
 #ifdef USE_TANGENT
   vec3 objectTangent = vec3(tangent.xyz);
 #endif
+`;
+
+/** THE TALUS'S STONES SUNK (`talus.ts`): each stone (`stone`: the
+ * ground under it and its height, m) buried by the run's loose snow past
+ * the ordinary (`uSnowDial`) and its new snow (`uFresh`), and sunk into
+ * the snow over the last quarter of its reach (`uTalus.x`), so none pops
+ * in or out as the lens comes and goes. */
+const TALUS_HEAD = /* glsl */ `
+attribute vec4 stone;
+uniform vec4 uTalus;
+uniform float uSnowDial;
+uniform float uFresh;
+`;
+const TALUS_SINK = /* glsl */ `
+#include <begin_vertex>
+{
+  float tlD = distance(stone.xyz, cameraPosition);
+  float tlGone = smoothstep(uTalus.x * 0.75, uTalus.x, tlD);
+  float tlSnow = clamp(0.3 * (uSnowDial - 1.0) + uFresh, -0.1 * stone.w, 1.5);
+  transformed.y -= tlSnow + tlGone * stone.w * 1.2;
+}
 `;
 
 /** AND PULLED TOWARD THE LENS, IN DEPTH ALONE: `PULL` m for every metre
@@ -400,23 +451,36 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
     ...strataUniforms(level, !!band),
     uRockWind: { value: new THREE.Vector2((wind.x / wl) * hard, (wind.z / wl) * hard) },
     uRockSummer: { value: summerShown() ? 1 : 0 },
+    uRockStone: { value: new THREE.Vector3(...rockTone(band?.tone ?? [0.3, 0.3, 0.3])) },
   };
-  const material = hazeMaterial(
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
-    haze,
-    "rock",
-    (shader) => {
+  const patch =
+    (talus: boolean) =>
+    (shader: THREE.WebGLProgramParametersWithUniforms): void => {
       PAST_THE_WALL(shader);
-      Object.assign(shader.uniforms, rockU);
-      shader.vertexShader = (CALM_HEAD + shader.vertexShader)
+      Object.assign(shader.uniforms, rockU, talus ? talusU : {});
+      let vs = (CALM_HEAD + (talus ? TALUS_HEAD : "") + shader.vertexShader)
         .replace("#include <beginnormal_vertex>", CALM_NORMAL)
         .replace("#include <color_vertex>", CALM_COLOUR)
         .replace("#include <project_vertex>", PULL_GLSL);
+      if (talus) vs = vs.replace("#include <begin_vertex>", TALUS_SINK);
+      shader.vertexShader = vs;
       shader.fragmentShader = (STRATA_FRAG_HEAD + shader.fragmentShader)
         .replace("#include <color_fragment>", STRATA_COLOUR)
         .replace("#include <normal_fragment_maps>", STRATA_NORMAL);
-    },
-  );
+    };
+  const stone = (): THREE.MeshStandardMaterial =>
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
+  const material = hazeMaterial(stone(), haze, "rock", patch(false));
+  // THE TALUS under the walls (`talus.ts`): the same material, its stones
+  // sunk by the snow and with the distance.
+  const talusU = { uTalus: { value: new THREE.Vector4(look.talus.reach, 0, 0, 0) } };
+  const talusMaterial = band ? hazeMaterial(stone(), haze, "talus", patch(true)) : null;
+  const talus =
+    band && talusMaterial
+      ? createTalus(level, band.tone, talusMaterial, talusU.uTalus, look)
+      : null;
+  if (talus) group.add(talus.mesh);
+  group.userData.talusStats = talus?.stats;
   const cols = band ? Math.ceil(level.size / TILE) : 0;
   const tiles: Tile[] = [];
   for (let j = 0; j < cols; j++) {
@@ -481,6 +545,7 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
       i0 + n,
       t.j * n + end,
       cuts[k].every,
+      k === cuts.length - 1 ? FAR_RELIEF : 1,
     );
     t.done = end;
     if (t.done < n) return false;
@@ -553,6 +618,7 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
       while (!step(t, k));
       if (t.mesh) t.mesh.visible = true;
     }
+    talus?.settle();
     stats.owed = 0;
   };
 
@@ -597,8 +663,10 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
         if (next.mesh) next.mesh.visible = true;
       }
       stats.owed = owed;
+      talus?.update(eye);
     },
     setLook(next) {
+      talus?.setLook(next);
       const was = cuts;
       cuts = cutsOf(next);
       if (cuts.every((c, k) => c.out === was[k].out && c.cell === was[k].cell)) return;
@@ -607,6 +675,8 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
     dispose() {
       for (const t of tiles) drop(t);
       material.dispose();
+      talus?.dispose();
+      talusMaterial?.dispose();
     },
   };
 }

@@ -62,6 +62,16 @@ export const CALM_TO = 300;
 /** How much of a band's snowy tread is laid over a far face's even cover. */
 export const BAND_SNOW = 0.35;
 
+/** THE FAR FACE: dark rock with white ledges, never a pale wash. Of the
+ * calmed face's even snow (`rock-shapes.ts`' `even`) this share is kept
+ * spread over it (`FAR_EVEN`), and its own share again is laid on the
+ * beds' snowy treads (`FAR_LEDGE`, on top of `BAND_SNOW`), the stone under
+ * it darkened to `FAR_DARK` of its tone — `stFar`, which the skin's calm
+ * and the ground under it (`snow-glsl.ts`) both paint with. */
+export const FAR_EVEN = 0.62;
+export const FAR_LEDGE = 0.9;
+export const FAR_DARK = 0.8;
+
 /** The uniforms: the map's strata seed, and (dipX, dipZ, bed, on). */
 export type StrataUniforms = {
   uStSeed: { value: number };
@@ -167,5 +177,12 @@ vec3 stBands(float w, float fw) {
   if (up > 0.0) t += stTone(k + 1) * up;
   if (down > 0.0) t += stTone(k - 1) * down;
   return vec3(t * amp, amp);
+}
+// THE FAR FACE'S COLOUR (\`FAR_EVEN\`): the stone, its even snow and its
+// bands (\`stBands\`), the ledges' snow scaled by \`ledge\` (none in summer).
+vec3 stFar(vec3 stone, vec3 snowC, float even, vec3 b, float ledge) {
+  float cover = clamp(${FAR_EVEN.toFixed(2)} * even
+    + (${BAND_SNOW.toFixed(2)} + ${FAR_LEDGE.toFixed(2)} * even) * b.y * ledge, 0.0, 1.0);
+  return mix(stone * ${FAR_DARK.toFixed(2)} * (1.0 + b.x), snowC, cover);
 }
 `;

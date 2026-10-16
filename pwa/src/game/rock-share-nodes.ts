@@ -41,8 +41,19 @@ function nearPacked(level: Level, r: number): Uint8Array | null {
   return a;
 }
 
-/** Every node's share, row by row, or null where the map lays no rock. */
+const memo = new WeakMap<Level, Float32Array | null>();
+
+/** Every node's share, row by row, or null where the map lays no rock —
+ * reckoned once a map (the ground's paint and the talus both read it), and
+ * shared read-only. */
 export function rockShareNodes(level: Level): Float32Array | null {
+  if (memo.has(level)) return memo.get(level) ?? null;
+  const out = shareNodes(level);
+  memo.set(level, out);
+  return out;
+}
+
+function shareNodes(level: Level): Float32Array | null {
   if (!regionOf(level).rock) return null;
   const f = level.ground;
   // Where no packed snow lies within reach the engine's own ring of reads

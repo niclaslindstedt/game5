@@ -199,6 +199,7 @@ export function buildSkin(
   i1: number,
   j1: number,
   every = 1,
+  relief = 1,
 ): void {
   const S = ROCKS.skin;
   // Laid off the map under the skin the physics rides (`withRock`).
@@ -252,15 +253,30 @@ export function buildSkin(
   const over = summerShown() ? LEDGE : SNOW;
   const SNOW_MOST = summerShown() ? 0.5 : 1;
   const g = { x: 0, y: 1, z: 0 };
+  // THE FARTHEST CUT BAND-LIMITED (`relief` under 1): its ledges' lift
+  // over the ground eased toward the skin's mean, so a stair of risers a
+  // pixel or two tall stops crawling over the snow behind it — the beds are
+  // carried there by the shader's tone (`stFar`). A function of the point
+  // alone, so two triangles sharing a corner still share it.
+  const MEAN = 0.6;
+  const yOf = (v: SliceVerts, p: number): number => {
+    if (relief >= 1) return v[p + 1];
+    const g0 = level.groundAt(v[p], v[p + 2]);
+    const lift = v[p + 1] - g0;
+    return lift <= MEAN ? v[p + 1] : g0 + MEAN + (lift - MEAN) * relief;
+  };
   const emit = (v: SliceVerts, k: number, mid: number): void => {
     const a = 0;
     const b = F * (k - 1);
     const c = F * k;
+    const ya = yOf(v, a);
+    const yb = yOf(v, b);
+    const yc = yOf(v, c);
     const ex = v[b] - v[a];
-    const ey = v[b + 1] - v[a + 1];
+    const ey = yb - ya;
     const ez = v[b + 2] - v[a + 2];
     const fx = v[c] - v[a];
-    const fy = v[c + 1] - v[a + 1];
+    const fy = yc - ya;
     const fz = v[c + 2] - v[a + 2];
     let nx = ey * fz - ez * fy;
     let ny = ez * fx - ex * fz;
@@ -293,7 +309,7 @@ export function buildSkin(
     const snow = SNOW_MOST * snowShare(st, mid, ny, rib, every);
     for (const p of [a, q, r]) {
       const x = v[p];
-      const y = v[p + 1];
+      const y = p === a ? ya : p === b ? yb : yc;
       const z = v[p + 2];
       const dark = y < level.groundAt(x, z) ? FOOT + 0.2 : 1;
       // Streaked down the fall line: wet and iron stains off the joints.

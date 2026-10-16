@@ -170,7 +170,15 @@ export const TRAIL_LOOK: Record<TrailLevel, TrailLook> = {
   high: { stamp: true, fineSize: 2048, fineSpan: 160, coarseSize: 2048 },
 };
 
-export type RockLook = { near: number; mid: number; cheap: 16 | 32 };
+export type RockLook = {
+  near: number;
+  mid: number;
+  cheap: 16 | 32;
+  /** THE TALUS under the walls (`talus.ts`): how far from the lens its
+   * stones are drawn, m (sunk into the snow over the last quarter), and
+   * the share of them drawn, 0..1 — the smallest let go first. */
+  talus: { readonly reach: number; readonly share: number };
+};
 
 export type ForestLook = {
   /** The FULL tree runs out to here, m; past it the MID cut of the same
@@ -227,7 +235,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 2,
     casters: "sketch",
     wild: { forms: 1, near: 35 },
-    rocks: { near: 250, mid: 420, cheap: 32 },
+    rocks: { near: 250, mid: 420, cheap: 32, talus: { reach: 150, share: 0.35 } },
     grass: { reach: 18, share: 0.5 },
   },
   medium: {
@@ -237,7 +245,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 5,
     casters: "sketch",
     wild: { forms: 2, near: 60 },
-    rocks: { near: 280, mid: 560, cheap: 16 },
+    rocks: { near: 280, mid: 560, cheap: 16, talus: { reach: 250, share: 0.7 } },
     grass: { reach: 28, share: 0.75 },
   },
   high: {
@@ -247,7 +255,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 10,
     casters: "full",
     wild: { forms: 3, near: 90 },
-    rocks: { near: 300, mid: 700, cheap: 16 },
+    rocks: { near: 300, mid: 700, cheap: 16, talus: { reach: 340, share: 1 } },
     grass: { reach: 40, share: 1 },
   },
 };

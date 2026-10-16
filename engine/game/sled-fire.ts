@@ -168,9 +168,7 @@ function blowUp(
 /** THE BALL a machine's tank went up in, at the run's clock: its centre,
  * m, its radius, m, its glow 0..1 and its age and life, s — or null with
  * none burning. What the drawing sizes it by, and the heat is read off. */
-export function sledBallAt(
-  state: GameState,
-): {
+export function sledBallAt(state: GameState): {
   x: number;
   y: number;
   z: number;

@@ -855,7 +855,14 @@ export const STRINGS = {
   /** The phases of a load, in order; steps sharing a label are one PHASE
    * and one slot in the count. */
   loadLevel: "Raising the mountain",
+  loadSnow: "Laying the snow",
   loadScene: "Planting the forest",
+  /** Under the forest's bar: the trees in so far, of the map's. */
+  loadTrees: (planted: number, trees: number): string =>
+    `${planted.toLocaleString("en-US")} of ${trees.toLocaleString("en-US")} trees`,
+  /** The rest of the world built after the forest: the lifts, the gates,
+   * the people and the animals. */
+  loadLifts: "Opening the lifts",
   loadWarm: "Grooming the piste",
   /** The phase and where it sits in the plan — a count of PHASES, never of
    * seconds (see `run-loader.ts`). */

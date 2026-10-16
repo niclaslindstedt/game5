@@ -108,6 +108,27 @@ describe("a load, cut into phases (run-loader.ts)", () => {
     ...extra,
   });
 
+  it("reads the running step's own count — the trees planted of the forest's", () => {
+    let planted = 0;
+    const job = createLoad([
+      step("scene", "Forest", () => planted < 4, {
+        progress: () => planted / 4,
+        count: () => STRINGS.loadTrees(planted, 63896),
+      }),
+      step("build", "Lifts", () => false),
+    ]);
+    planted = 2;
+    expect(loadPhase(job)).toMatchObject({ done: 0.5, count: "2 of 63,896 trees" });
+    expect(STRINGS.loadTrees(31240, 63896)).toBe("31,240 of 63,896 trees");
+    planted = 4;
+    advanceLoad(
+      job,
+      () => true,
+      () => 0,
+    );
+    expect(loadPhase(job)).toMatchObject({ label: "Lifts", count: null });
+  });
+
   it("counts PHASES, not steps, and never reads past the last", () => {
     const job = createLoad([
       step("a", "One", () => false),

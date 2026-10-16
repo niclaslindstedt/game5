@@ -83,4 +83,18 @@ export const FLIP_MOVES = [
       steer: st.skier.airborne ? E.spinSteer(st, 2, 1) : 0,
     }),
   },
+  {
+    id: "spin-late",
+    title:
+      "a spin thrown late in a long flight: the edge pushed hard for a quarter second, then let go",
+    level: LIP,
+    place: () => ({ ...OFF_LIP(), vy: 12 }),
+    mode: "tricks",
+    seconds: 3.6,
+    window: [0.5, 3.1],
+    input: (t, st) => ({
+      ...IDLE,
+      steer: st.skier.airborne && t > 0.7 && t < 0.95 ? -1 : 0,
+    }),
+  },
 ];

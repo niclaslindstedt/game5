@@ -80,6 +80,11 @@ export const RESOLUTION_LEVELS: readonly ResolutionLevel[] = ["50", "60", "70", 
 export type SkyLevel = "plain" | "full";
 export const SKY_LEVELS: readonly SkyLevel[] = ["plain", "full"];
 
+/** HORIZON: the far ranges round the map — PAINTED a skyline baked once
+ * onto the dome, 3D the rings' own mesh standing to the horizon. */
+export type HorizonLevel = "painted" | "3d";
+export const HORIZON_LEVELS: readonly HorizonLevel[] = ["painted", "3d"];
+
 export type VideoSettings = {
   resolution: ResolutionLevel;
   distance: DistanceLevel;
@@ -90,6 +95,7 @@ export type VideoSettings = {
   spray: Tier;
   lamps: Tier;
   sky: SkyLevel;
+  horizon: HorizonLevel;
   antialias: boolean;
 };
 
@@ -389,6 +395,7 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     spray: "low",
     lamps: "low",
     sky: "plain",
+    horizon: "3d",
   },
   medium: {
     resolution: "100",
@@ -400,6 +407,7 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     spray: "medium",
     lamps: "medium",
     sky: "full",
+    horizon: "3d",
   },
   high: {
     resolution: "100",
@@ -411,6 +419,7 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     spray: "high",
     lamps: "high",
     sky: "full",
+    horizon: "3d",
   },
 };
 
@@ -456,6 +465,7 @@ export const PICTURE_LADDERS: { readonly [R in PictureRow]: readonly VideoSettin
   spray: TIERS,
   lamps: TIERS,
   sky: SKY_LEVELS,
+  horizon: HORIZON_LEVELS,
 };
 export const PICTURE_ROWS = Object.keys(PICTURE_LADDERS) as PictureRow[];
 
@@ -506,9 +516,10 @@ export function mergeVideo(parsed: unknown): VideoSettings {
   // every other row stood on LOW, so it is still that preset.
   const low = VIDEO_PRESETS.low;
   const wasLow = (Object.keys(low) as (keyof typeof low)[]).every(
-    (k) => k === "sky" || out[k] === low[k],
+    (k) => k === "sky" || k === "horizon" || out[k] === low[k],
   );
   out.sky = pick(blob.sky, SKY_LEVELS, wasLow && blob.sky === undefined ? "plain" : out.sky);
+  out.horizon = pick(blob.horizon, HORIZON_LEVELS, out.horizon);
   if (typeof blob.antialias === "boolean") out.antialias = blob.antialias;
   return out;
 }

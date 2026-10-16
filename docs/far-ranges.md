@@ -91,7 +91,7 @@ ranges' own mist is let go again with every 2.5 km past it.
 80 km, HIGH (and MAX) 320 × 46 to 100 km; the disc is 64 × 64 at every tier. A real face's country
 reaches 60 km.
 
-**A plain sky.** The SKY row's PLAIN puts the rings away and paints them on the dome instead
+**A painted horizon.** The HORIZON row's PAINTED puts the rings away and paints them on the dome instead
 (`far-silhouette.ts`, `sky-dome.ts`'s `paintSkyline`): each of 512 bearings is walked out from the
 map's edge over the same ground the rings stand on, the curve laid in, and the crest seen highest from
 an eye over the map's middle kept for two layers — within 12 km and past it — as its height and its
@@ -99,7 +99,8 @@ distance, baked once a map into a 512 × 1 texture. The dome turns each into an 
 lens stands and lays the far layer, then the near, over the sky as the far ground through the same
 air: snow at the crests and the woods' darker country a degree under them, each face lit as the crest
 runs and the sun stands to it, and the foot of a range seen through the valleys' air. The map's own
-disc still stands past the clipmap.
+disc still stands past the clipmap. Every preset stands the 3D rings, a PLAIN sky too; PAINTED is
+picked by hand.
 
 ## The lab
 

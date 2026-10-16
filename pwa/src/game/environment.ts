@@ -36,6 +36,7 @@ import {
   SKY_TIER,
   type DistanceLevel,
   type ShadowLook,
+  type HorizonLevel,
   type SkyLevel,
 } from "./settings-video.ts";
 import { createSkyGpu, type SkyGpu } from "./sky-gpu.ts";
@@ -101,6 +102,9 @@ export type Environment = {
   /** The SKY row: PLAIN draws the dome as the air's colour alone, on the
    * baked table, with no cloud pass. */
   setSky(sky: SkyLevel): void;
+  /** The HORIZON row: PAINTED the far ranges as a skyline on the dome, 3D
+   * the rings' own mesh. */
+  setHorizon(horizon: HorizonLevel): void;
   /** The mist as a lens over the snow sees it (`view-aloft.ts`), every frame. */
   setAloft(look: Pick<AloftLook, "mist" | "aloft">): void;
   /** The map the mountain's shadow is baked off and the far ranges are
@@ -371,9 +375,11 @@ export function createEnvironment(
     setSky(next) {
       plain = next === "plain";
       dome.setPlain(plain);
-      ranges.setPlain(plain);
-      dome.setSkyline(ranges.silhouette());
       skyTiers();
+    },
+    setHorizon(next) {
+      ranges.setPainted(next === "painted");
+      dome.setSkyline(ranges.silhouette());
     },
     setAloft(look) {
       haze.uMist.value = look.mist;

@@ -310,8 +310,7 @@ export function App() {
     const view: WorldRenderer = { ...renderer, load: build };
 
     const raceSeed = params.seed ?? nextSeedRef.current;
-    /** The options the free ride on the pause card's START AGAIN rides:
-     * the last one stood up, on the map it was stood up on. */
+    /** START AGAIN's free ride: the last one stood up, on its own map. */
     let freeAgain: CreateGameOptions | null = null;
     /** A free ride off the start card's answers — or, where the seed will
      * not build, the race fallback's map. */

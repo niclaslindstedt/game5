@@ -195,12 +195,44 @@ export function cornerGrip(
   speed = 0,
   edge = 0,
   technique: Technique = FREE,
+  boost = 1,
 ): number {
   const grip = gripAt(packed, scratch, footprintOf(spec));
   const hold =
-    grip.edge * chatterHold(spec, speed) * (1 + platformOf(edge, technique.platform)) * packed +
+    grip.edge *
+      chatterHold(spec, speed) *
+      boost *
+      (1 + platformOf(edge, technique.platform)) *
+      packed +
     grip.base * (1 - packed);
   return TUNING.g * Math.min(hold * TUNING.arcade.sideGrip, tipLimit(spec, Math.sign(edge)));
+}
+
+/** THE EDGE HELD AT SPEED under a run's `rules` at `speed` m/s: the
+ * multiplier on the edges' sideways hold (`TUNING.arcade.speedHold`) —
+ * 1 on a run that does not ask for it, and below its `from` on one that
+ * does. Read by the stations and the yaw's reach (`skier.ts`) and the
+ * balance leaned against it (`incline.ts`), so the three agree. */
+export function speedHoldOf(rules: { freeCarve?: boolean }, speed: number): number {
+  if (!rules.freeCarve) return 1;
+  const H = TUNING.arcade.speedHold;
+  const k = Math.min(1, Math.max(0, (Math.abs(speed) - H.from) / (H.full - H.from)));
+  return 1 + H.more * k * k * (3 - 2 * k);
+}
+
+const bent = new WeakMap<SkiSpec, SkiSpec>();
+
+/** THE PAIR AS IT CARVES under a run's `rules`: `spec` itself, or on a
+ * free ride's carve (`RunRules.freeCarve`) the same pair with its sidecut
+ * no longer than `TUNING.arcade.freeSidecut`. Only the carve's curvature
+ * reads it (`skier.ts`, `incline.ts`); the grip, the footprint and the
+ * look stay the pair's own. */
+export function bentSpecOf(spec: SkiSpec, rules: { freeCarve?: boolean }): SkiSpec {
+  const most = TUNING.arcade.freeSidecut;
+  if (!rules.freeCarve || spec.sidecut <= most) return spec;
+  let b = bent.get(spec);
+  if (!b) bent.set(spec, (b = { ...spec, sidecut: most }));
+  return b;
 }
 
 /** THE EDGE CUT HARD at `speed` m/s, rad: the back key held after the edge

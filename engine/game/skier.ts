@@ -92,6 +92,8 @@ import {
   flightGravity,
   harshSpeedOf,
   skidAngleAt,
+  bentSpecOf,
+  speedHoldOf,
 } from "./limits.ts";
 import { footprintOf } from "./footprint.ts";
 import { hullOf, probesOf } from "./suspension.ts";
@@ -273,13 +275,12 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // The tips loaded and the edge cut hard tighten the arc — as far as the
   // sidecut's geometry bends (`carveMost`), and never past it: the rest of
   // a line turned tighter is the skid's.
+  const arc = bentSpecOf(spec, state.rules);
   const kappa =
     Math.sign(c.edge) *
     Math.min(
-      Math.abs(carveCurvature(spec, c.edge)) *
-        (1 - S.tipLoad * c.lean) *
-        (1 + CV.tighten * c.carve),
-      carveMost(spec, c.edge),
+      Math.abs(carveCurvature(arc, c.edge)) * (1 - S.tipLoad * c.lean) * (1 + CV.tighten * c.carve),
+      carveMost(arc, c.edge),
     );
   // A pressed edge holds more (`carve.grip`).
   const pressed = 1 + CV.grip * c.carve;
@@ -386,8 +387,10 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     (1 - G.flatShare) * clamp(Math.sin(Math.abs(c.edge)) / Math.sin(edgeMostOf(spec, T)), 0, 1) +
     platform;
   // THE CHATTER (`TUNING.chatter`): the snow passing under the skis at
-  // speed shakes them, and an edge skipping off the snow holds less.
-  const shaken = chatterHold(spec, speed0);
+  // speed shakes them, and an edge skipping off the snow holds less; a
+  // free ride's edge holds more as he gathers speed (`speedHoldOf`).
+  const atSpeed = speedHoldOf(state.rules, speed0);
+  const shaken = chatterHold(spec, speed0) * atSpeed;
   let touching = 0;
   let loadSum = 0;
   let packedLoad = 0;
@@ -736,7 +739,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const packed = c.packed;
     // The balance he leans to (`incline.ts`), the wind's push across him
     // held by the edges too, so he leans INTO it (`air.side`).
-    const target = inclineTarget(c, spec, T, speed0, pressed, goal, air.side);
+    const target = inclineTarget(c, spec, T, speed0, pressed, goal, air.side, atSpeed, arc);
     const hold = rollHeld(rollRel, T);
     // Stated on the reference pair and scaled by this one's weight times
     // its height: the moment a bend puts on a body goes as both.
@@ -781,7 +784,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const flat = hypot(c.vx, c.vz);
     // A wind across him into the turn bends the path with the edges, one
     // out of it takes from what they can turn it by (`air.side`).
-    const held = cornerGrip(spec, packed, speed0, c.edge, T) * pressed;
+    const held = cornerGrip(spec, packed, speed0, c.edge, T, atSpeed) * pressed;
     const helped = air.side * Math.sign(way * kappa);
     const reach = Math.abs(way) > 1 ? Math.max(0, held * S.pathShare + helped) / Math.abs(way) : 0;
     const carved = clamp(way * kappa, -reach, reach);

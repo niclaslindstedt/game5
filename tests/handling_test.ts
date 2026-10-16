@@ -17,6 +17,7 @@ import {
   EAGLE,
   HARE,
   SKIS,
+  SKI_CATALOG,
   TUNING,
   chatterOf,
   cornerGrip,
@@ -167,5 +168,40 @@ describe("the bend at speed", () => {
     const slow = bend(PACKED, 30);
     settle(slow, 0.8, 0.6);
     expect(slow.skier.chatter).toBe(0);
+  });
+});
+
+describe("the edge held at speed (`speedHoldOf`, the free ride's)", () => {
+  // The heading the skier's way turns through in a second at full edge.
+  const turned = (kmh: number, held: boolean) => {
+    const state = createGame({ level: PITCH, spec: SKIS, mode: "free", crowd: 0, quiet: true });
+    expect(state.rules.freeCarve).toBe(true);
+    if (!held) delete state.rules.freeCarve;
+    placeRun(state, { x: PITCH.size / 2, z: 400, heading: 0, speed: kmh / 3.6 });
+    const way = () => Math.atan2(state.skier.vx, state.skier.vz);
+    const from = way();
+    settle(state, 1, 1);
+    return Math.abs(Math.atan2(Math.sin(way() - from), Math.cos(way() - from)));
+  };
+
+  it("bends a free ride's line at 120 km/h half again as far as the bare edge", () => {
+    expect(turned(120, true)).toBeGreaterThan(1.5 * turned(120, false));
+  });
+
+  it("turns every pair on a free ride at least near the all-mountain pair at 60 km/h", () => {
+    const at = (spec: (typeof SKI_CATALOG)[number]) => {
+      const state = createGame({ level: PITCH, spec, mode: "free", crowd: 0, quiet: true });
+      placeRun(state, { x: PITCH.size / 2, z: 400, heading: 0, speed: 60 / 3.6 });
+      const from = Math.atan2(state.skier.vx, state.skier.vz);
+      settle(state, 1, 1);
+      const d = Math.atan2(state.skier.vx, state.skier.vz) - from;
+      return Math.abs(Math.atan2(Math.sin(d), Math.cos(d)));
+    };
+    const chamois = at(SKIS);
+    for (const spec of SKI_CATALOG) expect(at(spec), spec.id).toBeGreaterThan(0.75 * chamois);
+  });
+
+  it("leaves the crawl as it was", () => {
+    expect(turned(10, true)).toBe(turned(10, false));
   });
 });

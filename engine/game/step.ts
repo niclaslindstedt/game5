@@ -445,6 +445,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     ...(base.avalanche && options.avalanche && !summer ? { avalanche: true } : {}),
     // ...and its weather moving over the ride (`front.ts`): the same.
     ...(base.front && options.front && !summer ? { front: true } : {}),
+    // ...and its edges held at speed (`speedHoldOf`): the free ride's alone.
+    ...(base.freeCarve ? { freeCarve: true } : {}),
     start: base.start,
     dealt: base.dealt,
     knock: base.knock,

@@ -83,6 +83,9 @@ const BAR_SVG_PX = 200;
  * −8 in every y below is for), so this one number bounds its travel in both
  * directions instead of one. */
 const BAR_ART_HALF = 17;
+/** ...and the room the art keeps off the ring's side at full edge, units:
+ * the pair's half-width with its tips swung out by the turn. */
+const BAR_ART_SIDE = 22;
 
 /** Which side of the glass a zone stands on (OPTIONS ▸ CONTROLS). */
 export type ZoneSide = "left" | "right";
@@ -119,6 +122,10 @@ export function BarZone({
    * that travel is the ring the player can already see. An inverted lean
    * slides it the other way, because the bar goes where the thumb went. */
   const leanSlide = (reachUnits - BAR_ART_HALF) * (feel.invertLean ? -1 : 1);
+  /** ...and SIDEWAYS with the edge, to the ring's side at full edge: the
+   * drawing goes where the thumb went, so the ring stays put until the
+   * thumb reaches its side (`trailAnchor`) and is dragged along only then. */
+  const edgeSlide = Math.max(0, edgeUnits - BAR_ART_SIDE);
   const barRef = useRef<HTMLDivElement>(null);
   const rotorRef = useRef<SVGGElement>(null);
   const originRef = useRef({ x: 0, y: 0 });
@@ -130,12 +137,12 @@ export function BarZone({
     touch.lean = lean;
     const rotor = rotorRef.current;
     if (rotor) {
-      // The pair seen from above: it turns with the edge and slides
-      // toward the skier (down) with the lean back, the whole way to the
-      // ring at the ends of its travel.
+      // The pair seen from above: it slides across and turns with the
+      // edge and slides toward the skier (down) with the lean back, the
+      // whole way to the ring at the ends of its travel.
       rotor.setAttribute(
         "transform",
-        `translate(0 ${(lean * leanSlide).toFixed(1)}) rotate(${(steer * BAR_LOCK_DEG).toFixed(1)} 50 50)`,
+        `translate(${(steer * edgeSlide).toFixed(1)} ${(lean * leanSlide).toFixed(1)}) rotate(${(steer * BAR_LOCK_DEG).toFixed(1)} 50 50)`,
       );
     }
   };

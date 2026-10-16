@@ -12,11 +12,15 @@
 // `cliff-60`, each `-oblique` too), a GULLY and a BUTTRESS (the most concave
 // and most convex rock across the slope near the rockiest face), the WALL
 // FOOT looked along and the TALUS ground below the tallest cliff, and a
-// skier-height CHASE down the piste where it runs nearest the rock.
+// skier-height CHASE down the piste where it runs nearest the rock. The
+// TALUS APRON came last: the stones the talus plan lays where they lie
+// thickest (`talus-plan.ts` — a pure function of the map too), since the
+// ground below the tallest cliff is often a groomed piste they keep off.
 
 import { cliffWalls, rockShare, type Level } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
+import { TALUS_TILE, talusTile } from "../game/talus-plan.ts";
 
 type P3 = { x: number; y: number; z: number };
 
@@ -209,6 +213,37 @@ export function rockScenes(level: Level, bed: Level, ridden: Level): RockScenes 
     return look(over(ex, ez, 12), target, 50);
   }
 
+  /** THE TALUS APRON: the 24 m square where the talus plan's stones lie
+   * thickest (their volume), looked up at from 32 m down its fall line and
+   * 12 m aside, 5 m up — the stones under the wall they fell off. None on a
+   * map that lays no talus. */
+  function talusApronView(): LensPose | null {
+    const C = 24;
+    const cols = Math.ceil(level.size / TALUS_TILE);
+    const cells = new Map<number, number>();
+    const span = Math.ceil(level.size / C);
+    for (let j = 0; j < cols; j++)
+      for (let i = 0; i < cols; i++)
+        for (const st of talusTile(level, i, j)) {
+          const key = Math.floor(st.z / C) * span + Math.floor(st.x / C);
+          cells.set(key, (cells.get(key) ?? 0) + st.sx * st.sy * st.sz);
+        }
+    let best = -1;
+    let most = 0;
+    for (const [key, v] of cells)
+      if (v > most) {
+        most = v;
+        best = key;
+      }
+    if (best < 0) return null;
+    const cx = ((best % span) + 0.5) * C;
+    const cz = (Math.floor(best / span) + 0.5) * C;
+    const d = downhill(cx, cz);
+    const ex = cx + d.x * 32 - d.z * 12;
+    const ez = cz + d.z * 32 + d.x * 12;
+    return look(over(ex, ez, 5), over(cx - d.x * 6, cz - d.z * 6, 1), 55);
+  }
+
   /** The foot of the rockiest face slanting away, from 30 m down the fall
    * line and 30 m aside, a skier's eye — where the wall meets the snow,
    * seen along it. */
@@ -355,6 +390,7 @@ export function rockScenes(level: Level, bed: Level, ridden: Level): RockScenes 
     buttress: buttressView,
     "wall-foot": wallFootView,
     talus: talusView,
+    "talus-apron": talusApronView,
     chase: chaseView,
     piste: pisteView,
     aerial: aerialView,
@@ -380,6 +416,7 @@ export function rockScenes(level: Level, bed: Level, ridden: Level): RockScenes 
     talus: tallest
       ? "the ground below the tallest cliff, where talus lies, from 50 m, 12 m up"
       : "the ground below the rockiest face's foot (no rocky cliff), from 50 m, 12 m up",
+    "talus-apron": "where the talus lies thickest, looked up at from 32 m down and 12 m aside, 5 m up",
     chase: "a skier's eye on the piste where rock is nearest it, looking 40 m down it",
     piste: "from the piste where it passes nearest the rockiest face",
     aerial: "150 m over the rockiest face, 200 m out",

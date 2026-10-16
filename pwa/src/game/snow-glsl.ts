@@ -77,7 +77,7 @@ import { SNOW_LAMPS_LIGHT } from "./snow-lamps-glsl.ts";
 import { SNOW_RELIEF_SAMPLE } from "./snow-relief-glsl.ts";
 import { SNOW_SUN_LIGHT, SUN_GLARE } from "./snow-sun-glsl.ts";
 import { SNOW_TRAIL_ALBEDO, SNOW_TRAIL_LIGHT, SNOW_TRAIL_SAMPLE } from "./snow-trail-glsl.ts";
-import { CALM_FROM, CALM_TO, STRATA_GLSL } from "./strata-glsl.ts";
+import { CALM_FROM, CALM_TO, ROCK_HAZE, STRATA_GLSL } from "./strata-glsl.ts";
 import { CALM_HELD, ROCK_SNOW } from "./rock-shapes.ts";
 
 // The vertex half (`snow-vertex-glsl.ts`), grafted beside the fragment's.
@@ -146,6 +146,8 @@ float snowRock;      // 0 snow .. 1 rock showing through a steep face
 float snowFoot;      // m a pixel spans on the ground
 float snowSkin;      // 0 .. 1 where the rock's skin lies (\`rockShare\`)
 vec3 snowSkinCol;    // the skin's own far colour there, beds and all
+float snowHazeKeep = 1.0; // the air laid thinner over the skin's bare stone
+#define HAZE_KEEP snowHazeKeep
 float snowGroomed;   // 0 .. 1 a piste machine's fresh swath (trailPackAt)
 float snowSelf;      // 0 .. 1 the sun let through by the deformable snow's own relief
 float snowBelt;      // 0 .. 1 a snowmobile's belt-packed floor (trailPackAt)
@@ -454,6 +456,7 @@ ${SLIDE_ALBEDO}
     float grain = mix(0.5, snowNoise(p * 0.6), 1.0 - smoothstep(0.5, 1.4, snowFoot * 0.6));
     vec3 rockAlb = mix(uRock.rgb * mix(0.7, 1.2, grain), snowSkinCol, snowSkin);
     alb = mix(alb, rockAlb, snowRock);
+    snowHazeKeep = mix(1.0, ${ROCK_HAZE.toFixed(2)}, snowRock * snowSkin);
   }
   diffuseColor.rgb = alb * ${GLARE.toFixed(3)};
 }

@@ -50,7 +50,7 @@ import {
   type RockMesh,
 } from "./rock-shapes.ts";
 import { summerShown } from "./season-look.ts";
-import { CALM_FROM, CALM_TO, FAR_EVEN, STRATA_GLSL, strataUniforms } from "./strata-glsl.ts";
+import { CALM_FROM, CALM_TO, FAR_EVEN, ROCK_HAZE, STRATA_GLSL, strataUniforms } from "./strata-glsl.ts";
 
 /** A tile's side, m. */
 const TILE = 192;
@@ -147,6 +147,9 @@ varying float vCalm;
 uniform vec2 uRockWind;
 uniform float uRockSummer;
 uniform float uFresh;
+// The air laid thinner over the bare stone (\`ROCK_HAZE\`, \`haze.ts\`).
+float rkHazeKeep = 1.0;
+#define HAZE_KEEP rkHazeKeep
 ${STRATA_GLSL}
 float rkHash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -327,6 +330,7 @@ rkSlope = vec2(0.0);
     * rkRock * (1.0 - 0.8 * vCalm);
   diffuseColor.rgb = mix(c, ${RIME_GLSL}, cover2);
   rkSlope *= 1.0 - cover2;
+  rkHazeKeep = mix(1.0, ${ROCK_HAZE.toFixed(2)}, rkRock * (1.0 - cover2));
 }
 `;
 const STRATA_NORMAL = /* glsl */ `
@@ -367,7 +371,11 @@ const TALUS_SINK = /* glsl */ `
 #include <begin_vertex>
 {
   float tlD = distance(stone.xyz, cameraPosition);
-  float tlGone = smoothstep(uTalus.x * 0.75, uTalus.x, tlD);
+  // Sunk out over the reach's last two fifths, and wherever the stone is
+  // under three pixels across (its radius at the frame's scale, a 720-line
+  // screen's): a stone a pixel wide only twinkles.
+  float tlPx = stone.w * projectionMatrix[1][1] * 360.0 / max(tlD, 1.0);
+  float tlGone = max(smoothstep(uTalus.x * 0.6, uTalus.x, tlD), 1.0 - smoothstep(1.5, 3.0, tlPx));
   float tlSnow = clamp(0.3 * (uSnowDial - 1.0) + uFresh, -0.1 * stone.w, 1.5);
   transformed.y -= tlSnow + tlGone * stone.w * 1.2;
 }

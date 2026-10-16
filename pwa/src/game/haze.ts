@@ -690,6 +690,12 @@ export const HAZE_FRAGMENT = /* glsl */ `
   // the ground behind it — or the lifted ground drowns the low sun's warm
   // air; gone where the air is thick enough to be the dome's horizon.
   hzCol *= pow(vec3(uAirLift), 1.0 - hzAir * hzAir * hzAir * hzAir);
+  // A material may keep some of its own colour through the air
+  // (\`HAZE_KEEP\`, 1 the air's whole share): the bare rock's, so a far
+  // face reads dark with white ledges rather than a pale wash.
+  #ifdef HAZE_KEEP
+    hzAir *= HAZE_KEEP;
+  #endif
   // Into the air's own light by the air between; then, where the DISTANCE
   // row's mist closes the ground, into what the dome shows behind it — so
   // the ground's last ring meets the far ground under the horizon, not a

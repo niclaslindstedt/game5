@@ -74,6 +74,14 @@ export const BAND_SNOW = 0.35;
 export const FAR_LEDGE = 1.3;
 export const FAR_DARK = 0.88;
 
+/** THE AIR OVER BARE ROCK: the share of the haze's own (`HAZE_KEEP`) laid
+ * over the bare stone of the skin and of the ground where it carries the
+ * skin's far face. A dark face 400 m off read as a pale wash under the
+ * whole share; a darker albedo flickered, the air laid thinner does not
+ * (it changes no contrast between neighbouring pixels the haze has not
+ * already flattened). */
+export const ROCK_HAZE = 0.6;
+
 /** The uniforms: the map's strata seed, and (dipX, dipZ, bed, on). */
 export type StrataUniforms = {
   uStSeed: { value: number };

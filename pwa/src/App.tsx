@@ -152,6 +152,7 @@ import { createShotRequest } from "./game/shot-request.ts";
 import { takeSnapshot, type HudSnapshot } from "./game/snapshot.ts";
 import { dealSeed, linkWorld, overLink, readParams, type MenuPage } from "./game/url-params.ts";
 import { createPictureAuto } from "./game/picture-auto.ts";
+import { createFrameGate } from "./game/frame-cap.ts";
 import { UpdateButton } from "./game/update-button.tsx";
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 
@@ -650,10 +651,9 @@ export function App() {
     // Walking a card on the keys is `menu-nav.ts`'s.
     const walk = walkCardsOnKeys(nav, () => shellRef.current !== "run");
 
-    // PRESET ▸ AUTO (`picture-auto.ts`): times the race under the front
-    // door and fits every picture row to this machine. Never over a race a
-    // link boots, a link's picture, a lab's `?probe=0` or the title scene
-    // (the stored picture stands until the door is first over the race).
+    // PRESET ▸ AUTO (`picture-auto.ts`): times the race under the front door and fits every picture
+    // row to this machine. Never over a race a link boots, a link's picture, a lab's `?probe=0` or
+    // the title scene (the stored picture stands until the door is first over the race).
     const pictureAuto = createPictureAuto(
       params.probe && !params.rides && !params.video && Object.keys(params.picture).length === 0,
       setSettings,
@@ -662,11 +662,12 @@ export function App() {
     let raf = 0;
     let last = performance.now();
     let frameMs = 1000 / 60;
+    const paced = createFrameGate(() => settingsRef.current.frameCap);
     const frame = (now: number): void => {
       raf = requestAnimationFrame(frame);
-      // CLAMPED AT BOTH ENDS: the ceiling is the long-frame guard, and the
-      // floor is the first callback after a build, whose timestamp lands
-      // BEHIND the clock read after it.
+      if (!paced(now)) return;
+      // CLAMPED AT BOTH ENDS: the ceiling is the long-frame guard, and the floor is the first
+      // callback after a build, whose timestamp lands BEHIND the clock read after it.
       const dtFrame = clamp((now - last) / 1000, 0, 0.1);
       frameMs = now - last || frameMs;
       last = now;

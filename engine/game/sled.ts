@@ -21,6 +21,7 @@
 // snowmobile never comes in here.
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
+import { inGrace } from "./machine-grace.ts";
 import { fromEuler, rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { standing } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
@@ -532,6 +533,8 @@ function mount(run: GameState, s: SledState): void {
  * thrown off waits for him to be stood up. What the HUD offers the press
  * on (`snapshot.ts`) is this same question. */
 export function sledWithin(run: GameState): boolean {
+  // Just stepped off one: the press leaves him be (`machine-grace.ts`).
+  if (inGrace(run)) return false;
   const s = run.sled;
   const c = run.skier;
   if (!s || s.rider || s.thrown) return false;

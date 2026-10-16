@@ -358,11 +358,18 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     };
     const first = createGame({ ...opts, level: syntheticLevel() });
     const ridden = { ask: "alpine:dealt:9", level: first.level };
-    expect(rideKept(ridden, first.level, "alpine:dealt:9")).toBe(first.level);
+    expect(rideKept(ridden, first.level, "alpine:dealt:9", opts)).toBe(first.level);
     // Another mountain, another map standing, or no ride yet: built afresh.
-    expect(rideKept(ridden, first.level, "alpine:dealt:10")).toBeUndefined();
-    expect(rideKept(ridden, syntheticLevel(), "alpine:dealt:9")).toBeUndefined();
-    expect(rideKept(null, first.level, "alpine:dealt:9")).toBeUndefined();
+    expect(rideKept(ridden, first.level, "alpine:dealt:10", opts)).toBeUndefined();
+    expect(rideKept(ridden, syntheticLevel(), "alpine:dealt:9", opts)).toBeUndefined();
+    expect(rideKept(null, first.level, "alpine:dealt:9", opts)).toBeUndefined();
+    // Another hour or another weather asked (the start card, after the main
+    // menu): stood up afresh under it, never the old day's map again.
+    const assist = { yaw: 1, air: 1 };
+    const night = freeGameOptions({ ...freshRide(), time: "night" }, 9, { spec: SKIS, assist });
+    expect(rideKept(ridden, first.level, "alpine:dealt:9", night)).toBeUndefined();
+    const storm = freeGameOptions({ ...freshRide(), weather: "storm" }, 9, { spec: SKIS, assist });
+    expect(rideKept(ridden, first.level, "alpine:dealt:9", storm)).toBeUndefined();
     // The pause card's PISTE MAP: a spot picked elsewhere on the same map.
     const moved = { ...freshRide(), spot: { seed: 9, x: 400, z: 700 } };
     const next = freeGameOptions(moved, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });

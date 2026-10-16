@@ -32,7 +32,7 @@ export const TALUS_SALT = 0x7a1a5;
 
 export const TALUS = {
   /** Candidates on a jittered lattice this many m apart. */
-  cell: 2.6,
+  cell: 2.1,
   /** How far below a wall's foot the blocks run out, m. */
   reach: 46,
   /** The steps the walk up the fall line takes looking for the wall, m. */
@@ -51,7 +51,7 @@ export const TALUS = {
   fine: 0.32,
   toe: 2.6,
   /** The share of the candidates kept at the top, falling to the toe. */
-  dense: 0.62,
+  dense: 0.75,
   /** The most stones a square lays; the smallest go first past it. */
   most: 700,
 } as const;
@@ -286,7 +286,7 @@ function planTile(level: Level, ti: number, tj: number): TalusStone[] {
         ux,
         uy,
         uz,
-        bury: (0.32 + 0.25 * rockDraw(h, 8)) * sy * 2,
+        bury: (0.22 + 0.2 * rockDraw(h, 8)) * sy * 2,
         shade: 0.62 + 0.4 * rockDraw(h, 9),
         warm: (rockDraw(h, 10) - 0.5) * 2,
         shape,

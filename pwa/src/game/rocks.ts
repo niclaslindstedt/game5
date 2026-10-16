@@ -50,7 +50,7 @@ import {
   type RockMesh,
 } from "./rock-shapes.ts";
 import { summerShown } from "./season-look.ts";
-import { CALM_FROM, CALM_TO, STRATA_GLSL, strataUniforms } from "./strata-glsl.ts";
+import { CALM_FROM, CALM_TO, FAR_EVEN, STRATA_GLSL, strataUniforms } from "./strata-glsl.ts";
 
 /** A tile's side, m. */
 const TILE = 192;
@@ -227,19 +227,27 @@ rkSlope = vec2(0.0);
   // the rock poking through in patches and its back eaten into, not a flat
   // white sheet the size of the facet — the snow broken by a noise a few
   // metres across, near only (calmed, the beds' tone carries it).
-  if (!wall) {
+  float patchy = smoothstep(0.3, 0.72,
+    0.6 * rkSoft(P * vec3(1.0, 2.2, 1.0) + 3.0, 3.1, px) + 0.4 * rkSoft(P + 17.0, 1.1, px));
+  float near = (1.0 - vCalm) * winter;
+  if (wall) {
+    // A wall's ledges and the shelf behind its lip, dusted the same way.
     float s0 = 1.0 - rkRock;
-    float near = (1.0 - vCalm) * winter;
+    float eat = near * smoothstep(0.35, 0.8, s0) * 0.5 * (1.0 - patchy);
+    diffuseColor.rgb = mix(diffuseColor.rgb, uRockStone * (0.7 + 0.4 * patchy), eat);
+    rkRock = max(rkRock, eat);
+  } else {
+    float s0 = 1.0 - rkRock;
     float smear = clamp(4.0 * s0 * (1.0 - s0), 0.0, 1.0) * near;
     float want = smoothstep(0.7, 0.92, F.y);
-    float s1 = mix(s0, want, 0.7 * smear);
-    float patchy = smoothstep(0.3, 0.72,
-      0.6 * rkSoft(P * vec3(1.0, 2.2, 1.0) + 3.0, 3.1, px) + 0.4 * rkSoft(P + 17.0, 1.1, px));
-    float eat = near * smoothstep(0.35, 0.8, s0) * 0.5 * (1.0 - patchy);
+    // Only ever taken off: a riser sheds its tread's snow, but no facet
+    // is whitened past its corners' paint (that drew flat sheets).
+    float s1 = mix(s0, min(s0, want), 0.7 * smear);
+    float eat = near * smoothstep(0.35, 0.8, s0) * 0.75 * smoothstep(0.75, 0.15, patchy);
     s1 *= 1.0 - eat;
     vec3 bare = clamp((diffuseColor.rgb - ${SNOW_GLSL} * s0) / max(1.0 - s0, 0.25), 0.0, 1.0);
     bare = mix(bare, uRockStone * (0.75 + 0.35 * patchy), smoothstep(0.55, 0.9, s0));
-    diffuseColor.rgb = mix(diffuseColor.rgb, mix(bare, ${SNOW_GLSL}, s1), max(smear, eat * 2.0));
+    diffuseColor.rgb = mix(diffuseColor.rgb, mix(bare, ${SNOW_GLSL}, s1), min(1.0, max(smear, eat * 2.0)));
     rkRock = 1.0 - s1;
   }
 
@@ -264,7 +272,7 @@ rkSlope = vec2(0.0);
   float u = vStrata.y * (wall ? 1.9 : 2.0);
   float fwU = abs(dFdx(u)) + abs(dFdy(u)) + 1e-6;
   float jd = wall
-    ? rkJoint(u, run, 0.0, L, 0.55, 0.15)
+    ? rkJoint(u, run, 0.0, L, 0.65, 0.12)
     : rkJoint(u, run, 1.0, floor(run / 3.0), 0.22, 0.38);
   float jw = wall ? 0.012 : 0.0;
   float crack = (1.0 - smoothstep(jw * 0.4, jw + 1.6 * fwU, jd)) * mid;
@@ -298,7 +306,8 @@ rkSlope = vec2(0.0);
     vec3 b = stBands(vStrata.x, fwW);
     float even = vStrata.z;
     vec3 snowC = ${SNOW_GLSL};
-    vec3 stone = clamp((c - snowC * even) / max(1.0 - even, 0.08), 0.0, 1.0);
+    float spread = ${FAR_EVEN.toFixed(2)} * even;
+    vec3 stone = clamp((c - snowC * spread) / max(1.0 - spread, 0.08), 0.0, 1.0);
     vec3 banded = stFar(stone, snowC, even, b, winter);
     c = mix(c, banded, vCalm);
   }
@@ -312,11 +321,13 @@ rkSlope = vec2(0.0);
     * smoothstep(0.42, 0.78, 0.6 * rkSoft(P + 2.0, 1.7, px) + 0.6 * rkSoft(P, 6.7, px) + 0.25 * ledgeTop)
     * winter;
   float lies = smoothstep(0.25, 0.6, F.y);
-  float dust = clamp(uFresh * 8.0, 0.0, 0.6) * smoothstep(0.4, 0.75, rkSoft(P + 11.0, 0.48, px) + 0.3 * lies)
+  float dust = clamp(uFresh * 5.0, 0.0, 0.4) * (0.3 + 0.7 * patchy) * smoothstep(0.4, 0.75, rkSoft(P + 11.0, 0.48, px) + 0.3 * lies)
     * (0.35 + 0.65 * lies) * winter;
   // Read off a facet's own normal, so faded as the facets are calmed: one
   // facet in a few pixels white and the next bare would twinkle.
-  float cover2 = clamp((wall ? 0.6 : 0.45) * rime + dust, 0.0, 1.0) * rkRock * (1.0 - 0.8 * vCalm);
+  // Dusted, never sheeted: broken where the rock pokes through.
+  float cover2 = clamp((wall ? 0.6 : 0.45) * rime + dust, 0.0, 0.7) * (0.45 + 0.55 * patchy)
+    * rkRock * (1.0 - 0.8 * vCalm);
   diffuseColor.rgb = mix(c, ${RIME_GLSL}, cover2);
   rkSlope *= 1.0 - cover2;
 }

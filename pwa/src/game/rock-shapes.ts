@@ -48,6 +48,10 @@ const FOOT = 0.45;
  * over a bed, its riser and the beds that shed it): the even cover a
  * calmed far face is painted with. */
 export const CALM_HELD = 0.06;
+/** Of a calmed face's even snow, the share kept spread over it — the rest
+ * is laid on its beds' treads by the shader (`strata-glsl.ts`' `stFar`):
+ * dark rock with white ledges, never a pale wash. */
+export const FAR_EVEN = 0.4;
 
 /** A CLIFF WALL'S BEDS: about `WALL_BED` m thick (0.45..1.55 of it), each
  * jutting `WALL_JUT` m out of the face at its top (the least and the most)
@@ -65,7 +69,7 @@ const WALL_BLOCK = 0.45;
  * MASSIVE (twice and more as thick) `WALL_MASSIVE` of the time and a ROOF
  * (an overhang over a deep recess) `WALL_ROOF` of it. */
 const WALL_BLOCKS = [1, 6] as const;
-const WALL_NOTCH = 0.22;
+const WALL_NOTCH = 0.07;
 const WALL_MASSIVE = 0.14;
 const WALL_ROOF = 0.16;
 
@@ -321,7 +325,8 @@ export function buildSkin(
       // pixel or two tall crawls as the lens moves.
       const even =
         SNOW_MOST * Math.max(0, Math.min(1, (g.y + CALM_HELD - S.slides) / (S.holds - S.slides)));
-      const c0 = (1 - even) * dark;
+      const spread = FAR_EVEN * even;
+      const c0 = (1 - spread) * dark;
       m.pos.push(x, y, z);
       m.nrm.push(nx, ny, nz);
       m.col.push(
@@ -331,9 +336,9 @@ export function buildSkin(
       );
       m.soft.push(g.x, g.y, g.z);
       m.calm.push(
-        stone[0] * c0 + over[0] * even,
-        stone[1] * c0 + over[1] * even,
-        stone[2] * c0 + over[2] * even,
+        stone[0] * c0 + over[0] * spread,
+        stone[1] * c0 + over[1] * spread,
+        stone[2] * c0 + over[2] * spread,
       );
       m.zone.push(zone);
       m.bed.push(v[p + 3], jointOf(st, x, z), even);

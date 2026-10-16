@@ -23,6 +23,9 @@
 
 import { ROCKS, strataOf, type Level } from "@engine";
 import * as THREE from "three";
+import { FAR_EVEN } from "./rock-shapes.ts";
+
+export { FAR_EVEN };
 
 const S = ROCKS.strata;
 const f = (n: number): string => (Number.isInteger(n) ? n.toFixed(1) : String(n));
@@ -68,9 +71,8 @@ export const BAND_SNOW = 0.35;
  * beds' snowy treads (`FAR_LEDGE`, on top of `BAND_SNOW`), the stone under
  * it darkened to `FAR_DARK` of its tone — `stFar`, which the skin's calm
  * and the ground under it (`snow-glsl.ts`) both paint with. */
-export const FAR_EVEN = 0.62;
-export const FAR_LEDGE = 0.9;
-export const FAR_DARK = 0.8;
+export const FAR_LEDGE = 1.3;
+export const FAR_DARK = 0.68;
 
 /** The uniforms: the map's strata seed, and (dipX, dipZ, bed, on). */
 export type StrataUniforms = {

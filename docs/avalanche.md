@@ -35,6 +35,7 @@ The research below is restated in our own words, with the numbers the model uses
 ### What holds a slope
 
 - **Groomed runs.** A groomed piste is packed through to the ground and controlled by the patrol before it opens, so the danger lies off it. In the model, a map's packed share at or past **0.5** holds (`packedHolds`).
+- **Rock walls.** A wall too steep and bare to carry a slab sheds its snow in small sluffs; a slab needs a snowpack lying on a slope it can rest on. In the model, no slab breaks on a rock wall (`rocks.ts`' `rockShare`, a rocky cliff's face) nor within **6 m** of one or of a piste (`keepOff`), and a slab's stauchwall and parcels stop where held snow begins, so no slab ever lies on a groomed run or a wall.
 - **Dense woods.** A dense forest anchors the snowpack; a few trees in a glade do not. In the model, **four trunks** within **9 m** hold a point (`anchorTrees`, `anchorReach`).
 
 ### The load: new snow and wind

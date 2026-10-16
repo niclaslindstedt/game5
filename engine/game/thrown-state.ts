@@ -44,6 +44,12 @@ export type Thrown = {
   /** Seconds he has lain STILL on the snow — every point under
    * `crash.restSpeed`, touching — without a break: what the reset waits on. */
   still: number;
+  /** Seconds since any point last touched the snow (0 while one does),
+   * and seconds he has been ON the snow since his last real flight — one
+   * longer than `crash.flightGap`, off a cliff, say: what every reset and
+   * the get-up wait on, so a long fall is seen to its landing. */
+  aloft: number;
+  ground: number;
   /** THE BLOWS THIS STEP, one per point in `RAGDOLL` order, m/s: the way
    * each point brought into the snow it was put back on, and into the
    * trunk it was pushed out of — 0 for none. Written by `stepRagdoll`, read

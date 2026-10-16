@@ -261,6 +261,8 @@ export function knockOf(
     // he is on his feet: the pose is held here.
     down: 10,
     still: 0,
+    aloft: 0,
+    ground: 0,
     impacts: new Array<number>(N).fill(0),
     struck: new Array<number>(N).fill(0),
     netted: 0,

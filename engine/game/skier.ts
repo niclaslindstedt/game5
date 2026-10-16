@@ -956,7 +956,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // ── The automatic reset's clocks (`run.ts` acts on them) ──────────────
   snowNormal(level, c, normal);
   const upright = uprightOn(level, rotate(c.q, { x: 0, y: 1, z: 0 }), normal);
-  c.overFor = upright < TUNING.reset.overUp ? c.overFor + dt : 0;
+  // Turned over in the AIR is not yet a fall — the landing decides (`crash.ts`)
+  // — so a long flight off a cliff is never stood up before the snow.
+  c.overFor = upright < TUNING.reset.overUp && !c.airborne ? c.overFor + dt : 0;
   c.stuckFor = input.tuck > 0.5 && c.speed < TUNING.reset.stuckSpeed ? c.stuckFor + dt : 0;
   stepTrench(state, moved, events);
   if (c.hitCooldown > 0) c.hitCooldown -= dt;

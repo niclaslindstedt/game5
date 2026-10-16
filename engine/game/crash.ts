@@ -564,6 +564,8 @@ export function bodyThrown(
     planted: 0,
     down: -1,
     still: 0,
+    aloft: 0,
+    ground: 0,
     impacts: new Array<number>(RAGDOLL.count).fill(0),
     struck: new Array<number>(RAGDOLL.count).fill(0),
     netted: 0,
@@ -606,8 +608,13 @@ export function stepThrown(state: GameState, b: Thrown): void {
  * the player (`player`) at `lieFor` s — longer when the grimbear took him,
  * so he is seen walking off — a rival once he has lain still. */
 export function crashOver(b: Thrown, player = false): boolean {
-  if (player) return b.t >= (b.cause === "maul" ? GRIMBEAR.lieFor : K.lieFor);
-  if (b.t >= K.lieMax) return true;
+  // Still falling — off a cliff, say — nobody is stood up in the air: the
+  // fall is seen to the snow and the body lain on it (`lieLong` the cap).
+  if (b.t >= K.lieLong) return true;
+  // (The grimbear stands over him, worrying him off the snow: his own clock.)
+  if (player && b.cause === "maul") return b.t >= GRIMBEAR.lieFor;
+  if (player) return b.t >= K.lieFor && b.ground >= K.lieGround;
+  if (b.t >= K.lieMax) return b.ground >= K.lieStill;
   return b.t >= K.lieMin && b.still >= K.lieStill;
 }
 
@@ -617,7 +624,7 @@ export function crashOver(b: Thrown, player = false): boolean {
  * found so (`rescue.ts`). The reset press itself never waits on it: a
  * fall he is off his skis in is final, and is answered at once. */
 export function mayGetUp(b: Thrown | null): boolean {
-  return b === null || b.t >= K.getUp;
+  return b === null || (b.t >= K.getUp && b.ground >= K.getUpGround);
 }
 
 /** The skis' share of the step's bookkeeping with nobody on them: nothing

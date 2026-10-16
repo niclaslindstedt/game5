@@ -17,7 +17,6 @@ import type { GameMode, GameState } from "@engine";
 import { setAttemptPool } from "./attempt-pool.ts";
 import type { LoadPlan } from "./app-load.ts";
 import { createBenchRun } from "./bench-run.ts";
-import type { GpuMode, Hideable } from "./benchmark-report.ts";
 import type { BenchmarkStatus } from "./benchmark.ts";
 import { DebugOverlay } from "./debug-hud.tsx";
 import type { DebugSnapshot } from "./debug-readout.ts";
@@ -27,6 +26,7 @@ import type { DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import { parallelMaps, type Settings } from "./settings.ts";
 import type { VideoSettings } from "./settings-video.ts";
 import { hudOver, type Shell } from "./shell.ts";
+import type { UrlParams } from "./url-params.ts";
 
 export type DevAppWorld = {
   renderer: WorldRenderer & DevRenderer;
@@ -44,15 +44,9 @@ export type DevAppWorld = {
   /** Back onto the developer page, over the front door. */
   toDevPage: () => void;
   video: () => VideoSettings;
-  /** `?bench=1`: run the benchmark the moment the app is up. */
-  benchNow: boolean;
-  /** The benchmark's GPU timer and A/B hide, off the URL. */
-  benchGpu: GpuMode;
-  benchHide: readonly Hideable[];
-  benchAb: boolean;
-  benchFrames: number | null;
-  benchVista: boolean;
-  benchSweep: number | null;
+  /** The benchmark's asks off the URL: `?bench=1` runs it the moment the
+   * app is up; its GPU timer, A/B hide, stretch, view and picture sweep. */
+  bench: Pick<UrlParams, "bench" | "gpu" | "hide" | "ab" | "frames" | "view" | "sweep">;
 };
 
 export type DevRig = {
@@ -99,16 +93,16 @@ export function useDevApp(settings: Pick<Settings, "developer">): DevApp {
       silence: world.silence,
       setStatus: setBench,
       video: world.video,
-      gpu: world.benchGpu,
-      hide: world.benchHide,
-      ab: world.benchAb,
-      frames: world.benchFrames,
-      vista: world.benchVista,
-      sweep: world.benchSweep,
+      gpu: world.bench.gpu,
+      hide: world.bench.hide,
+      ab: world.bench.ab,
+      frames: world.bench.frames,
+      vista: world.bench.view === "vista",
+      sweep: world.bench.sweep,
     });
     /** From the press to the way out — the load under the card included. */
     let benching = false;
-    let partByPart = world.benchAb;
+    let partByPart = world.bench.ab;
     const made: DevRig = {
       // Dark for the whole benchmark, load and warm-up included: an
       // instrument switched back on mid-run would be timed with it.
@@ -139,7 +133,7 @@ export function useDevApp(settings: Pick<Settings, "developer">): DevApp {
       },
     };
     rig.current = made;
-    if (world.benchNow) made.startBench();
+    if (world.bench.bench) made.startBench();
     return made;
   };
   return { bench, debug, rig, attach };

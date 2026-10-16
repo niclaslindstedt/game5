@@ -42,6 +42,8 @@ export type SkyDome = {
   follow(camera: THREE.Camera): void;
   /** The night's half of a look; the cloud's is `clouds`'s uniforms. */
   update(look: SkyLook): void;
+  /** The SKY row's PLAIN: the air's colour alone, nothing in it. */
+  setPlain(on: boolean): void;
   dispose(): void;
 };
 
@@ -97,6 +99,9 @@ export function createSkyDome(
       void main() {
         vec3 d = normalize(vDir);
         vec3 c = skyColour(d);
+        // A PLAIN SKY (the SKY row's) is the air's own colour and no more:
+        // nothing stands in it, so none of what follows is compiled.
+        #ifndef PLAIN_SKY
         // THE CLOUD FIELD in front (\`clouds.ts\`): the slab's picture read
         // where this pixel stands on the screen (MEDIUM, HIGH), or the
         // shell's layers read here (LOW) — premultiplied, and the share of
@@ -180,6 +185,7 @@ export function createSkyDome(
         // droplets' diffraction — a bluish-white aureole a few degrees
         // across and a reddish ring round it.
         c += moonCorona(th, hide, uMoonGlow);
+        #endif
         // UNDER THE TRUE HORIZON (\`uFar.x\` under the level: the Earth
         // curving away under a raised lens) the sky, its sun, moon, stars
         // and cloud end, and the far ground stands seen through the air
@@ -216,6 +222,12 @@ export function createSkyDome(
     mesh,
     follow(camera) {
       mesh.position.copy(camera.position);
+    },
+    setPlain(on) {
+      if (!!material.defines.PLAIN_SKY === on) return;
+      if (on) material.defines.PLAIN_SKY = 1;
+      else delete material.defines.PLAIN_SKY;
+      material.needsUpdate = true;
     },
     update(look) {
       // The slab is read (a program of its own) only when it is drawn.

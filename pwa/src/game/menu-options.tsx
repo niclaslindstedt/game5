@@ -63,6 +63,7 @@ import { shellContent } from "../shell-host.ts";
 import {
   DISTANCE_LEVELS,
   SHADOW_LEVELS,
+  SKY_LEVELS,
   RESOLUTION_LEVELS,
   TIERS,
   TRAIL_LEVELS,
@@ -71,6 +72,7 @@ import {
   type DistanceLevel,
   type ResolutionLevel,
   type ShadowLevel,
+  type SkyLevel,
   type Tier,
   type TrailLevel,
   type VideoSettings,
@@ -118,6 +120,11 @@ const SHADOW_WORD: Record<ShadowLevel, string> = {
 const SHADOW_STOPS: Stop<ShadowLevel>[] = SHADOW_LEVELS.map((id) => ({
   id,
   label: SHADOW_WORD[id],
+}));
+
+const SKY_STOPS: Stop<SkyLevel>[] = SKY_LEVELS.map((id) => ({
+  id,
+  label: id === "plain" ? STRINGS.optSkyPlain : STRINGS.optSkyFull,
 }));
 
 const LEVER_STOPS: Stop<LeverSide>[] = LEVER_SIDES.map((id) => ({
@@ -427,6 +434,13 @@ export function OptionsPage({
                 stops={DISTANCE_STOPS}
                 value={video.distance}
                 onPick={(distance) => setVideo({ distance })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optSky}
+                stops={SKY_STOPS}
+                value={video.sky}
+                onPick={(sky) => setVideo({ sky })}
                 onHint={setHint}
               />
               <StepRow

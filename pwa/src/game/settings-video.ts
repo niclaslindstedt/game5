@@ -74,6 +74,12 @@ export const TRAIL_LEVELS: readonly TrailLevel[] = ["off", ...TIERS];
 export type ResolutionLevel = "50" | "60" | "70" | "80" | "90" | "100";
 export const RESOLUTION_LEVELS: readonly ResolutionLevel[] = ["50", "60", "70", "80", "90", "100"];
 
+/** SKY: PLAIN the air's own colour from the horizon to the zenith as the
+ * hour and the weather light it, and nothing in it — no cloud, sun, moon,
+ * stars or contrails; FULL the whole sky. */
+export type SkyLevel = "plain" | "full";
+export const SKY_LEVELS: readonly SkyLevel[] = ["plain", "full"];
+
 export type VideoSettings = {
   resolution: ResolutionLevel;
   distance: DistanceLevel;
@@ -83,6 +89,7 @@ export type VideoSettings = {
   shadows: ShadowLevel;
   spray: Tier;
   lamps: Tier;
+  sky: SkyLevel;
   antialias: boolean;
 };
 
@@ -381,6 +388,7 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     shadows: "off",
     spray: "low",
     lamps: "low",
+    sky: "plain",
   },
   medium: {
     resolution: "100",
@@ -391,6 +399,7 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     shadows: "medium",
     spray: "medium",
     lamps: "medium",
+    sky: "full",
   },
   high: {
     resolution: "100",
@@ -401,6 +410,7 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     shadows: "high",
     spray: "high",
     lamps: "high",
+    sky: "full",
   },
 };
 
@@ -445,6 +455,7 @@ export const PICTURE_LADDERS: { readonly [R in PictureRow]: readonly VideoSettin
   shadows: SHADOW_LEVELS,
   spray: TIERS,
   lamps: TIERS,
+  sky: SKY_LEVELS,
 };
 export const PICTURE_ROWS = Object.keys(PICTURE_LADDERS) as PictureRow[];
 
@@ -491,6 +502,13 @@ export function mergeVideo(parsed: unknown): VideoSettings {
   out.shadows = pick(shadows, SHADOW_LEVELS, out.shadows);
   out.spray = pick(blob.spray, TIERS, out.spray);
   out.lamps = pick(blob.lamps, TIERS, out.lamps);
+  // A picture stored before the SKY row: the LOW preset's own plain sky if
+  // every other row stood on LOW, so it is still that preset.
+  const low = VIDEO_PRESETS.low;
+  const wasLow = (Object.keys(low) as (keyof typeof low)[]).every(
+    (k) => k === "sky" || out[k] === low[k],
+  );
+  out.sky = pick(blob.sky, SKY_LEVELS, wasLow && blob.sky === undefined ? "plain" : out.sky);
   if (typeof blob.antialias === "boolean") out.antialias = blob.antialias;
   return out;
 }

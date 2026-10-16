@@ -8,7 +8,8 @@
 //   * BONFIRE — a bonfire close, from 20 m and from 60 m;
 //   * NIGHT — both at hour 21: the light on the snow, the benches, the hut
 //     and the trees, the sparks;
-//   * MAP — the base from the air, its bonfires and a hut's fire far off;
+//   * MAP — each site's bonfire from the air (the base, half way up, the
+//     top), the mid and top ones from 20 m, and a hut's fire far off;
 //   * PEOPLE — the skiers round them (`civilian-fires.ts`): a camp fire's
 //     group close and from above, the view from a bench, a griller's hand,
 //     stick and sausage close up, one eating and one warming his hands, a
@@ -58,7 +59,7 @@ const GROUPS = {
   camp: ["camp-close", "camp-eye", "camp-bench", "camp-above"],
   bonfire: ["bonfire-close", "bonfire-20", "bonfire-60"],
   night: ["night-camp", "night-bench", "night-bonfire", "night-map"],
-  map: ["map-base", "map-hut"],
+  map: ["map-base", "map-mid", "map-top", "mid-20", "top-20", "map-hut"],
   people: [
     "people-camp",
     "people-above",
@@ -125,7 +126,47 @@ function fresh(): GameState {
 /** The camp fire the camp views are about: one by a hut with the most
  * benches, and the way from its hut to it. */
 const camp: Fire | undefined = [...camps].sort((a, b) => b.seats.length - a.seats.length)[0];
-const bonfire: Fire | undefined = bonfires[0];
+const bonfire: Fire | undefined = bonfires.find((f) => f.site === "base") ?? bonfires[0];
+/** The bonfires half way up and off the top station, where the map has them. */
+const midFire: Fire | undefined = bonfires.find((f) => f.site === "mid");
+const topFire: Fire | undefined = bonfires.find((f) => f.site === "top");
+
+/** The bearing from the village to fire `f`, turned round: a lens on it
+ * stands below it, looking up the mountain at it. */
+function fromBelow(f: Fire): number {
+  const v = level.resort?.village ?? f;
+  return Math.atan2(f.x - v.x, f.z - v.z) + Math.PI;
+}
+
+/** The lift station nearest fire `f`, and how far off it is. */
+function stationOf(f: Fire): { x: number; z: number; d: number } {
+  let best = { x: f.x, z: f.z + 1 };
+  let d = Infinity;
+  for (const l of level.resort?.lifts ?? []) {
+    for (const p of [l.top, l.bottom]) {
+      const e = Math.hypot(p.x - f.x, p.z - f.z);
+      if (e < d) [d, best] = [e, p];
+    }
+  }
+  return { x: best.x, z: best.z, d };
+}
+
+/** A lens high over the middle between fire `f` and the station nearest
+ * it, `up` m over the snow, looking down on both. */
+function overStation(f: Fire, up: number): LensPose {
+  const st = stationOf(f);
+  const mx = (f.x + st.x) / 2;
+  const mz = (f.z + st.z) / 2;
+  const a = Math.atan2(st.x - f.x, st.z - f.z) + Math.PI / 2;
+  const ex = mx + Math.sin(a) * up * 0.5;
+  const ez = mz + Math.cos(a) * up * 0.5;
+  return {
+    eye: { x: ex, y: level.groundAt(mx, mz) + up, z: ez },
+    target: { x: mx, y: level.groundAt(mx, mz), z: mz },
+    fov: 50,
+    roll: 0,
+  };
+}
 
 function hutWay(f: Fire): number {
   const hut = cabins.find((c) => c.id === f.building);
@@ -343,9 +384,39 @@ const VIEWS: Record<string, () => Promise<void>> = {
     const f = need(bonfire, "bonfire");
     const s = fresh();
     run(s, 1);
-    const v = level.resort?.village ?? f;
-    const a = Math.atan2(f.x - v.x, f.z - v.z) + Math.PI;
-    shoot(s, "base", round(f, a, 140, 70, 0, 55));
+    shoot(s, "base", round(f, fromBelow(f), 140, 70, 0, 55));
+  },
+  async "map-mid"() {
+    const f = need(midFire, "mid-mountain bonfire");
+    const s = fresh();
+    run(s, 1);
+    shoot(s, "mid", overStation(f, Math.max(90, stationOf(f).d * 1.6)));
+  },
+  async "map-top"() {
+    const f = need(topFire, "top bonfire");
+    const s = fresh();
+    run(s, 1);
+    shoot(s, "top", overStation(f, Math.max(90, stationOf(f).d * 1.6)));
+  },
+  async "mid-20"() {
+    const f = need(midFire, "mid-mountain bonfire");
+    const s = fresh();
+    run(s, 1);
+    shoot(
+      s,
+      "mid 20m",
+      round(f, Math.atan2(stationOf(f).x - f.x, stationOf(f).z - f.z) + 0.6, 8, 24, 0, 55),
+    );
+  },
+  async "top-20"() {
+    const f = need(topFire, "top bonfire");
+    const s = fresh();
+    run(s, 1);
+    shoot(
+      s,
+      "top 20m",
+      round(f, Math.atan2(stationOf(f).x - f.x, stationOf(f).z - f.z) + 0.6, 20, 3, 2.5, 50),
+    );
   },
   async "people-camp"() {
     const f = need(campPeople, "camp fire with people");

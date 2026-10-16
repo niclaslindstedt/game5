@@ -14,15 +14,23 @@
 //     hut's own fireplace, so it stands a few metres out from its front:
 //     far enough that the walls and the eaves are never in the heat, near
 //     enough to be the hut's.
-//   * A BONFIRE — the big fire the base keeps going on the valley floor
-//     at the bottom of the runs, which skiers come down to and stand round
-//     at the end of the day. Fire codes for an open bonfire cap its fuel
-//     at about four and a half metres across and two and a half tall, set
-//     at least fifteen metres from any building or anything that burns, in
-//     a pit a little wider than the fire; its flames stand three to five
-//     metres. Benches stand back where the heat is bearable — the radiant
-//     flux off a fire that size falls to a few kW/m², warm on the face, at
-//     four to six metres.
+//   * A BONFIRE — the big open fire a ski area keeps where skiers gather.
+//     Fire codes for an open bonfire cap its fuel at about four and a half
+//     metres across and two and a half tall, set at least fifteen metres
+//     from any building or anything that burns, in a pit a little wider
+//     than the fire; its flames stand three to five metres. Benches stand
+//     back where the heat is bearable — the radiant flux off a fire that
+//     size falls to a few kW/m², warm on the face, at four to six metres.
+//     WHERE a ski area keeps one follows where its skiers stop: the BASE
+//     (the plaza at the foot of the lifts, where the runs come home and
+//     the fire pits stand by the village's terraces — the commonest place
+//     by far), the MID-MOUNTAIN stop (the bench where the first lift tops
+//     out and the mountain restaurant stands, its deck with fire pits
+//     beside it) and the TOP (the warming fire or lean-to with a grill a
+//     short walk off the top station, where a northern area's skiers stop
+//     to grill before the run down). Each stands a little off the station
+//     or the runs, never on them: a skier sees it from the lift and skis
+//     to it.
 //
 // AND WHAT ONE DOES TO A SKIER WHO RIDES INTO IT (`burn`): his clothes take
 // fire. A body in a fire's flames or wearing burning clothes is under a
@@ -82,13 +90,25 @@ export const FIRE_KINDS: Readonly<Record<FireKind, FireDef>> = {
  *     wall the fire's middle stands, dealt between the two (never inside
  *     the roof's reach and `camp.eaves` past it); `camp.slope` the most the
  *     ground may lean (rise over run) under the fire and its benches.
- *   * `bonfire.least`/`most`: how many a ski area keeps at its base;
- *     `search` how far from the village they are looked for, on a grid of
- *     `step`; `building` the least gap to any building's walls (the fire
- *     code's fifteen metres), `apart` between two bonfires, `pad` from the
- *     helicopter's pad, the parked snowmobile and the balloon's site,
- *     `strip` from the airstrip's edge, `hub` outside the hub's open
- *     snow, `tunnel` from a wind tunnel's lane, `slope` as a camp fire's.
+ *   * `bonfire.least`/`most`: how many a ski area keeps in all; `sites`
+ *     where (`bonfireSites` in `fires.ts`): the BASE's beside the bottom
+ *     station nearest the village (`base.count` of them, the second dealt
+ *     at `base.second`), the TOP's off the highest lift's top station,
+ *     the MID-MOUNTAIN's off the lift top nearest half way up (between
+ *     `mid.band` of the way from the base to the top) at odds `mid.odds`.
+ *     Each site's spots are looked for out to `search` from its station on
+ *     a grid of `step`, the ones nearest `near` from it first (each nudged
+ *     by up to `jitter` by its hash), on ground no steeper than `slope`
+ *     and `station` from the station itself — the top's and the middle's
+ *     no more than `rise` over their station's snow, so a skier off the
+ *     lift glides to it and never climbs — and in the open first (no more
+ *     than `glade.trunks` trunks within `glade.reach`), in among the trees
+ *     only where the open has no room. Every site keeps `building`
+ *     from any building's walls (the fire code's fifteen metres), `apart`
+ *     between two bonfires, `pad` from the helicopter's pad, the parked
+ *     snowmobile and the balloon's site, `strip` from the airstrip's edge,
+ *     `hub` outside the hub's open snow, `tunnel` from a wind tunnel's
+ *     lane, `route` from a ski route's marked corridor.
  *   * `clear`: what a fire's middle keeps from a trunk, a post or a wall
  *     past its benches' ring, m. */
 export const FIRE_LAYOUT = {
@@ -96,15 +116,23 @@ export const FIRE_LAYOUT = {
   bonfire: {
     least: 2,
     most: 4,
-    search: 360,
+    sites: {
+      base: { count: 1, second: 0.5, near: 40, search: 280, slope: 0.15 },
+      top: { near: 45, search: 220, slope: 0.2 },
+      mid: { odds: 0.75, band: [0.25, 0.75] as const, near: 40, search: 200, slope: 0.2 },
+    },
     step: 8,
+    jitter: 40,
+    station: 25,
+    rise: 2,
+    glade: { reach: 20, trunks: 2 },
     building: 15,
     apart: 60,
     pad: 30,
     strip: 60,
     hub: 6,
     tunnel: 15,
-    slope: 0.15,
+    route: 12,
   },
   clear: 0.6,
 } as const;

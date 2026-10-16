@@ -61,6 +61,7 @@ import {
 import type { TerrainLook } from "./settings-video.ts";
 import type { TrailUniforms } from "./trail-map.ts";
 import type { DeformLook } from "./deform-field.ts";
+import { SNOW_SKIP } from "./snow-skip.ts";
 import { createTreeWells } from "./tree-wells.ts";
 import { trackFrameOf } from "./piste-tracks.ts";
 import { SUMMER_CHUNKS, type SummerTerrain } from "./summer-terrain.ts";
@@ -530,6 +531,7 @@ export function createTerrain(
     uReliefHalf: { value: options.n / 2 },
     uDeformMesh: { value: 0 },
     uBaseSpacing: { value: options.spacing },
+    uSnowSkip: SNOW_SKIP,
     ...options.summer?.uniforms,
   };
   // IN SUMMER the ground is grass, earth and rock (`summer-glsl.ts`).

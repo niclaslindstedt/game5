@@ -84,6 +84,9 @@ export type TrailUniforms = {
   uWorked: { value: number };
   /** 1 once a snowmobile's belt has been laid this run, else 0. */
   uBelted: { value: number };
+  /** 1 once a furrow or a berm has been stamped this run, else 0: until
+   * then both maps' depth and berm are nought, so they are not read. */
+  uFurrowed: { value: number };
   /** THE DEFORMABLE SNOW round the player (`deform-snow.ts`): its ring
    * buffer (height over the untouched snow, touched, firmness), the
    * window's centre, half-extent and cell, m, the ring's span, m, and 1
@@ -112,6 +115,7 @@ uniform float uMapSize;
 uniform vec2 uTrailScale;
 uniform float uWorked;
 uniform float uBelted;
+uniform float uFurrowed;
 uniform sampler2D uDeform;
 uniform vec4 uDeformBox;
 uniform float uDeformSpan;
@@ -143,8 +147,10 @@ float trailFineWeight(vec2 p) {
 // coarse: most of the snow on screen is round the skis, inside the window.
 vec2 trailAt(vec2 p) {
   float w = trailFineWeight(p);
-  vec2 v;
-  if (w >= 1.0) {
+  vec2 v = vec2(0.0);
+  if (uFurrowed < 0.5) {
+    // Nothing stamped yet (TRAILS off, or the run's first frames).
+  } else if (w >= 1.0) {
     v = textureLod(uTrailFine, (p - uFineOrigin) / uFineSpan, 0.0).rg;
   } else {
     v = textureLod(uTrailCoarse, p / uMapSize, 0.0).rg;
@@ -368,6 +374,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     uTrailScale: { value: new THREE.Vector2(TRAIL.maxDepth, TRAIL.maxBerm) },
     uWorked: { value: 0 },
     uBelted: { value: 0 },
+    uFurrowed: { value: 0 },
     uDeform: { value: NO_DEFORM },
     uDeformBox: { value: new THREE.Vector4(0, 0, 0, 1) },
     uDeformSpan: { value: 1 },
@@ -583,6 +590,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
         if (st.belt) uniforms.uBelted.value = 1;
       }
       if (groomed.length > 0) uniforms.uWorked.value = 1;
+      if (furrows.length > 0) uniforms.uFurrowed.value = 1;
       for (const list of [groomed, furrows]) {
         stampMesh.material = list === groomed ? groomMaterial : stampMaterial;
         draw(renderer, list, o);
@@ -610,6 +618,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
       pending = 0;
       uniforms.uWorked.value = 0;
       uniforms.uBelted.value = 0;
+      uniforms.uFurrowed.value = 0;
       wipe(renderer, coarse);
       wipe(renderer, fine);
       wipe(renderer, spare);

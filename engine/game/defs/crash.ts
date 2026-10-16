@@ -395,4 +395,13 @@ export const CRASH = {
    * `lieFor` s, however he lies. */
   getUp: 3,
   lieFor: 6,
+  /** ...and never while he is still FALLING: the engine stands the player
+   * up only once he has been `lieGround` s on the snow since his last
+   * flight, the tap and the tuck key only past `getUpGround` s, and a
+   * flight is one off the snow longer than `flightGap` s (a bounce in a
+   * tumble is not). Whatever he does, `lieLong` s ends it. */
+  lieGround: 3,
+  getUpGround: 1,
+  flightGap: 0.4,
+  lieLong: 30,
 };

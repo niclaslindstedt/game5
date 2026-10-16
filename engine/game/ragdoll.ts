@@ -413,6 +413,9 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
   )
     b.down = 0;
   b.still = touching && fastest < K.restSpeed ? b.still + dt : 0;
+  b.aloft = touching ? 0 : b.aloft + dt;
+  if (b.aloft > K.flightGap) b.ground = 0;
+  else if (touching) b.ground += dt;
 }
 
 // The limbs the muscles drive, each off the trunk point it hangs from.

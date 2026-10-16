@@ -550,12 +550,7 @@ export function App() {
       silence: audio.silence,
       toDevPage: () => setPage("dev"),
       video: () => videoOf(settingsRef.current),
-      benchNow: params.bench,
-      benchGpu: params.gpu,
-      benchHide: params.hide,
-      benchAb: params.ab,
-      benchFrames: params.frames,
-      benchVista: params.view === "vista",
+      bench: params,
     });
     pressRef.current = {
       stageFree: frees.stageFree,

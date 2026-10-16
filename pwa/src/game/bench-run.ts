@@ -39,6 +39,7 @@ import {
   type BenchmarkStatus,
   type BenchmarkWarmup,
 } from "./benchmark.ts";
+import { SWEEP, dealSweep, type SweepPicture } from "./picture-sweep.ts";
 import type { DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import type { VideoSettings } from "./settings-video.ts";
 import { STRINGS } from "./strings.ts";
@@ -72,6 +73,10 @@ export type BenchWorld = {
    * list's (`make bench --costs`), never a score to hold a run to. */
   frames: number | null;
   vista: boolean;
+  /** THE PICTURE SWEEP (`?sweep=`): this many random pictures, a block of
+   * frames each, every row priced off the lot (`picture-sweep.ts`) — a
+   * price list's, never a score, so it is not kept in the history. */
+  sweep: number | null;
 };
 
 export type BenchRun = {
@@ -101,9 +106,10 @@ export function vistaOf(level: Level): LensPose {
 }
 
 /** The pinned rows, and what a price list moved off them. */
-export function runRows(world: Pick<BenchWorld, "frames" | "vista">): ReportRow[] {
+export function runRows(world: Pick<BenchWorld, "frames" | "vista" | "sweep">): ReportRow[] {
   const rows = plannedRows({ ...BENCHMARK, frames: world.frames ?? BENCHMARK.frames });
   if (world.vista) rows.push({ label: "view", value: "vista" });
+  if (world.sweep) rows.push({ label: "sweep", value: `${world.sweep} random pictures` });
   return rows;
 }
 
@@ -122,13 +128,16 @@ export function createBenchRun(world: BenchWorld): BenchRun {
     world.renderer.setGpuTimer(world.gpu);
     world.renderer.setHidden(world.hide);
     let warm: BenchmarkWarmup | null = null;
+    const race = (level: Level = benchmarkLevel()): GameState =>
+      createGame({ seed: BENCHMARK.seed, level, sky: BENCHMARK.sky });
+    const pictures = world.sweep ? dealSweep(world.sweep) : null;
+    const draw = (picture: SweepPicture): void =>
+      world.renderer.setVideo({ ...picture, antialias: world.video().antialias });
+    // The sweep's first picture is the one warmed, so the lights compile
+    // what the first block draws.
+    if (pictures) draw(pictures[0]);
     world.begin({
-      build: () =>
-        createGame({
-          seed: BENCHMARK.seed,
-          level: benchmarkLevel(),
-          sky: BENCHMARK.sky,
-        }),
+      build: () => race(),
       camera: { rider: BENCHMARK.camera, craft: BENCHMARK.camera },
       after: [
         {
@@ -154,12 +163,23 @@ export function createBenchRun(world: BenchWorld): BenchRun {
           frames: world.frames ?? undefined,
           plan: ab ? [...runRows(world), { label: "a/b", value: "by part" }] : runRows(world),
           cycle: ab ? HIDEABLE.filter((h) => !world.hide.includes(h)) : undefined,
+          sweep: pictures
+            ? {
+                plan: { ...SWEEP, blocks: pictures.length },
+                pictures,
+                view: world.vista ? "vista" : "race",
+                apply: draw,
+                restart: () => race(world.current().level),
+              }
+            : undefined,
           onStatus: (status) => {
             world.setStatus(status);
+            // The picture the sweep dealt last is put back to the player's.
+            if (pictures && status.phase === "done") world.renderer.setVideo(world.video());
             // KEPT AT THE END, by the app rather than the card: a score is
             // only worth anything against a second one, and by the time that
             // second run is set up the first card is gone.
-            if (status.phase !== "done") return;
+            if (status.phase !== "done" || pictures) return;
             rememberBenchmark({
               at: Date.now(),
               index: status.index,
@@ -195,6 +215,7 @@ export function createBenchRun(world: BenchWorld): BenchRun {
       world.renderer.setGpuTimer("off");
       world.renderer.setHidden([]);
       if (world.vista) world.renderer.setOverride(null);
+      if (world.sweep) world.renderer.setVideo(world.video());
       world.setStatus(null);
     },
   };

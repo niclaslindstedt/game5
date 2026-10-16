@@ -43,7 +43,40 @@ live.
    `npx vitest run tests/video_test.ts`: every row is priced, the cheapest
    stop is 0/0, and neither cost nor benefit falls up a ladder.
 
-Why it is built this way, each point learned the hard way:
+### The sweep: every row in one long run (`--sweep`)
+
+`make bench ARGS="--gpu --sweep --width 1920 --height 1080"` prices the
+whole list a second way, and is the faster of the two. Per view (the race
+and the vista, `--views` to pick), it loads the page ONCE and draws the
+race in blocks of 40 frames (`SWEEP` in `picture-sweep.ts`), each under a
+picture dealt at random — every row at a stop, each row's stops dealt
+equally often and shuffled apart from the other rows' — letting the first
+12 frames of a block settle (a moved row rebuilds what it draws) and taking
+the median of the rest. The race is stood up again at the start every 1800
+frames so a long sweep keeps drawing the woods and the kicker. A
+least-squares fit over the blocks reads each stop's ms over its row's
+cheapest with a standard error, beside a slow drift in time and the place
+in the race loop, so neither the machine warming up nor the race moving on
+lines up with any stop; blocks a hitch spoiled are dropped.
+
+- `--blocks n` (default 240): the standard errors go as one over the root.
+  The report prints them; a stop whose ± is as big as its figure is not
+  priced yet — run more blocks.
+- Out: the report's PICTURE SWEEP table (wall, ±, the CPU's share, today's
+  price), `previews/picture-sweep.json` (`floorMs`, `costs` in
+  `PICTURE_PRICES`' shape — the dearer view's, levelled up each ladder —
+  and every view's blocks and fits), and the table to paste.
+- A DEVICE no lab drives: open the built site with `?bench=1&sweep=1`
+  (`&view=vista` for the other view), COPY DEBUG REPORT, save it, and
+  `make bench ARGS="--sweep --report FILE"` prints its table; `--sweep
+  --reprice` reprints the last JSON's.
+- What a figure means: the stop's cost AVERAGED over the pictures the other
+  rows were dealt (a main effect). Rows that multiply each other
+  (RESOLUTION and anything pixel-bound) read as at the middle of the other
+  ladders, which is what `pictureCost` adds up. LAMPS reads about nothing:
+  the race is by day.
+
+Why the `--costs` list is built this way, each point learned the hard way:
 
 - **Separate runs drift.** A laptop warms up over half an hour and every
   frame gets slower. Two runs minutes apart differ by more than a cheap

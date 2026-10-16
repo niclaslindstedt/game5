@@ -113,6 +113,7 @@ uniform vec4 uRock;
 uniform vec2 uRockSlope;
 uniform float uSastrugi;
 uniform vec2 uWindDir;
+uniform vec4 uSnowSkip;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
@@ -297,7 +298,10 @@ ${SNOW_TRAIL_SAMPLE}
   }
   // THE AVALANCHE: its bed, its walls and its debris (\`avalanche-glsl.ts\`).
 ${SLIDE_NORMAL}
+  snowBerm = 0.0;
+  if (uSnowSkip.y < 0.5) {
 ${SNOW_RELIEF_SAMPLE}
+  }
 
   // Ice is flat: the swells and the grain are the snow's, not the ice's.
   grad = mix(grad, g.rg, snowIce * 0.85);

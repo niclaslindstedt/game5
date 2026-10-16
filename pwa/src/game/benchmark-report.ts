@@ -190,6 +190,11 @@ export type GpuTotals = {
 export type GpuMode = "off" | "passes" | "split";
 export const GPU_MODES: readonly GpuMode[] = ["off", "passes", "split"];
 
+/** The snow shader's own A/B parts (`snow-skip.ts`): the ground's pixel
+ * drawn without its bump shadows, its micro-relief, its glitter and glare,
+ * or its furrows. */
+export const SNOW_PARTS = ["snow-bumps", "snow-relief", "snow-glitter", "snow-furrows"] as const;
+
 /** What an A/B run may be drawn WITHOUT (`?hide=`): a subsystem's objects,
  * or a pass the frame skips (its map left as it stood). */
 export type Hideable =
@@ -206,7 +211,8 @@ export type Hideable =
   | "wildlife"
   | "shadow"
   | "hero"
-  | "trail";
+  | "trail"
+  | (typeof SNOW_PARTS)[number];
 export const HIDEABLE: readonly Hideable[] = [
   "sky",
   "terrain",
@@ -222,6 +228,7 @@ export const HIDEABLE: readonly Hideable[] = [
   "shadow",
   "hero",
   "trail",
+  ...SNOW_PARTS,
 ];
 
 export function noGpu(): GpuTotals {

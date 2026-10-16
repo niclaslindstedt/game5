@@ -13,7 +13,7 @@ export const SNOW_TRAIL_SAMPLE = /* glsl */ `
   snowPress = clamp(tr.x / 0.14, 0.0, 1.0);
   snowWall = 0.0;
   snowWallUp = vec2(0.0);
-  if (snowDist < 220.0) {
+  if (snowDist < 220.0 && uSnowSkip.w < 0.5) {
     float fineW = trailFineWeight(p);
     float e = mix(mix(uCoarseTexel, uFineTexel * 0.75, fineW), uDeformBox.w, deformWeight(p));
     vec2 tg = vec2(trailRelief(p + vec2(e, 0.0)) - trailRelief(p - vec2(e, 0.0)),
@@ -50,7 +50,7 @@ export const SNOW_TRAIL_SAMPLE = /* glsl */ `
   snowTrench = smoothstep(0.16, 0.3, tr.x);
   snowHollow = 0.0;
   snowSpill = 0.0;
-  if (snowDist < 110.0 && (tr.x > 0.03 || tr.y > 0.003)) {
+  if (snowDist < 110.0 && (tr.x > 0.03 || tr.y > 0.003) && uSnowSkip.w < 0.5) {
     float ring = 0.0;
     float ringMax = 0.0;
     for (int i = 0; i < 6; i++) {

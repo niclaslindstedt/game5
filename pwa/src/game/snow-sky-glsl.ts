@@ -76,7 +76,7 @@ export const SNOW_SKY_LIGHT = /* glsl */ `
 {
   vec3 keyLit = directLight.color;
   float fade = 1.0 - smoothstep(70.0, 130.0, snowDist);
-  if (fade > 0.0 && dot(keyLit, keyLit) > 1e-8) {
+  if (fade > 0.0 && dot(keyLit, keyLit) > 1e-8 && uSnowSkip.x < 0.5) {
     vec2 bp = vSnowWorld.xz;
     vec2 bguv = (bp - uHeightOrigin + 0.5 * uCell) / (uHeightCount * uCell);
     vec2 macro = texture2D(uGround, bguv).rg;

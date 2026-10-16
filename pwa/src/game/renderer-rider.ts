@@ -7,6 +7,7 @@ import type * as THREE from "three";
 import type { GameState, Level, SkiSpec, SkierState } from "@engine";
 
 import type { GpuSlice, Hideable } from "./benchmark-report.ts";
+import { setSnowSkip } from "./snow-skip.ts";
 import type { BodyTrack, Pose, PoseTrack } from "./interp.ts";
 import type { SkisModel } from "./skis-body.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
@@ -68,6 +69,7 @@ export function hideSlices(
   hidden: ReadonlySet<Hideable>,
   hid: THREE.Object3D[],
 ): void {
+  setSnowSkip(hidden);
   for (const child of scene.children) {
     const slice = SLICE_OF_GROUP[child.name];
     if (slice !== undefined && hidden.has(slice)) {

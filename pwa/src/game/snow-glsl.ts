@@ -146,7 +146,7 @@ float snowRock;      // 0 snow .. 1 rock showing through a steep face
 float snowFoot;      // m a pixel spans on the ground
 float snowSkin;      // 0 .. 1 where the rock's skin lies (\`rockShare\`)
 vec3 snowSkinCol;    // the skin's own far colour there, beds and all
-float snowHazeKeep = 1.0; // the air laid thinner over the skin's bare stone
+float snowHazeKeep = 1.0; // the air laid thinner over the skin's stone
 #define HAZE_KEEP snowHazeKeep
 float snowGroomed;   // 0 .. 1 a piste machine's fresh swath (trailPackAt)
 float snowSelf;      // 0 .. 1 the sun let through by the deformable snow's own relief
@@ -277,7 +277,7 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
       float ny = inversesqrt(1.0 + dot(grad, grad));
       float even = clamp((ny + ${CALM_HELD.toFixed(3)} - ${ROCKS.skin.slides.toFixed(3)}) / ${(ROCKS.skin.holds - ROCKS.skin.slides).toFixed(3)}, 0.0, 1.0);
       vec3 b = stBands(stCoord(p, vSnowWorld.y), fwW);
-      snowSkinCol = stFar(uRockStone, vec3(${ROCK_SNOW.map((v) => v.toFixed(3)).join(", ")}), even, b, 1.0) / ${GLARE.toFixed(3)};
+      snowSkinCol = stFar(uRockStone, vec3(${ROCK_SNOW.map((v) => v.toFixed(3)).join(", ")}), even, b, 1.0, snowDist) / ${GLARE.toFixed(3)};
     }
   }
 

@@ -690,12 +690,6 @@ export const HAZE_FRAGMENT = /* glsl */ `
   // the ground behind it — or the lifted ground drowns the low sun's warm
   // air; gone where the air is thick enough to be the dome's horizon.
   hzCol *= pow(vec3(uAirLift), 1.0 - hzAir * hzAir * hzAir * hzAir);
-  // A material may keep some of its own colour through the air
-  // (\`HAZE_KEEP\`, 1 the air's whole share): the bare rock's, so a far
-  // face reads dark with white ledges rather than a pale wash.
-  #ifdef HAZE_KEEP
-    hzAir *= HAZE_KEEP;
-  #endif
   // Into the air's own light by the air between; then, where the DISTANCE
   // row's mist closes the ground, into what the dome shows behind it — so
   // the ground's last ring meets the far ground under the horizon, not a
@@ -712,7 +706,14 @@ export const HAZE_FRAGMENT = /* glsl */ `
   // ground, the disc past the wall and the rings past the map all fade on
   // one curve, with no band of mist between them.
   float hzMist = hazeMist(hzDist, hzRay.y);
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, max(hzAir, vec3(hzMist * uMistOpen)));
+  vec3 hzOver = max(hzAir, vec3(hzMist * uMistOpen));
+  // A material may keep some of its own colour through it (\`HAZE_KEEP\`,
+  // 1 the whole share): the bare rock's, so a far face reads as dark rock
+  // with white ledges and not the mist's pale wash.
+  #ifdef HAZE_KEEP
+    hzOver *= HAZE_KEEP;
+  #endif
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, hzOver);
   gl_FragColor.rgb = mix(gl_FragColor.rgb, hzFar, hzMist * (1.0 - uMistOpen));
   // THE LOW DECK OR VALLEY FOG SEEN FROM OUTSIDE IT (\`uSeaK\`): the
   // length of the view between its base and its top, its colour over what

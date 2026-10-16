@@ -315,7 +315,7 @@ rkSlope = vec2(0.0);
     vec3 snowC = ${SNOW_GLSL};
     float spread = ${FAR_EVEN.toFixed(2)} * even;
     vec3 stone = clamp((c - snowC * spread) / max(1.0 - spread, 0.08), 0.0, 1.0);
-    vec3 banded = stFar(stone, snowC, even, b, winter);
+    vec3 banded = stFar(stone, snowC, even, b, winter, distance(P, cameraPosition));
     c = mix(c, banded, vCalm);
   }
 

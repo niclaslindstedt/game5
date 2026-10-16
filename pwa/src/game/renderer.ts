@@ -225,13 +225,6 @@ export function createWorldRenderer(
   let wildlife: Wildlife | null = null;
   let crowd: CrowdView | null = null;
   let machines: Machines | null = null;
-  const fitMachines = (lv: Level, state: GameState, fx: { spray: Spray; cloud: SnowCloud }) => {
-    if (machines?.fits(state)) return; // another craft on the same map: built anew
-    machines?.group.removeFromParent();
-    machines?.dispose();
-    machines = createMachines(lv, state, env, { ...fx, snowAt: sampleSnow, wearing });
-    scene.add(machines.group);
-  };
   let clear: LineClear | undefined;
   /** The ridden booms' clear: the course's marks, never the trees — they
    * are pushed off the trunks instead (`trunks`, `camera-rigs.ts`). */
@@ -338,10 +331,9 @@ export function createWorldRenderer(
     for (const r of riders) r.model.dispose();
     for (const o of views) o?.removeFromParent();
     for (const r of riders) scene.remove(r.model.root);
-    // THE LAST FRAME'S RENDER LISTS hold every object it drew, and so every
-    // geometry, material and texture of the world just let go, until the
-    // scene is drawn again — which it is not while the next world is built
-    // behind a card. That was the whole old world held beside the new one.
+    // THE LAST FRAME'S RENDER LISTS hold every object it drew, and so every geometry, material and
+    // texture of the world just let go, until the scene is drawn again — which it is not while the
+    // next world is built behind a card. That was the whole old world held beside the new one.
     gl.renderLists.dispose();
     ghost?.dispose();
     ghost = null;
@@ -533,7 +525,8 @@ export function createWorldRenderer(
       cloud.setBudget(SPRAY_SHARE[video.spray]);
       scene.add(cloud.mesh);
       if (!(await prime(mine, ahead.machinePrimes(lv)))) return;
-      fitMachines(lv, state, { spray, cloud });
+      machines = createMachines(lv, state, env, { spray, cloud, snowAt: sampleSnow, wearing });
+      scene.add(machines.group);
       field = state.rivals;
       kit = playerKitOf(state);
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
@@ -541,7 +534,7 @@ export function createWorldRenderer(
       lastTick = -1;
       lastState = null;
       lens.snap();
-      await Promise.all([breathe(), machines?.ready]);
+      await Promise.all([breathe(), machines.ready]);
       if (mine !== loads || cold) return;
       await warm(state, mine);
     },
@@ -600,7 +593,7 @@ export function createWorldRenderer(
         lastTick = -1;
         lastState = state;
         pack = packFor(state);
-        if (machines) fitMachines(level, state, { spray, cloud }); // a wingsuit after skis
+        machines = machines?.refit(state) ?? null; // a wingsuit after skis: built anew
       }
       if (pack && Math.abs(sunNow(skyLevel ?? state.level, state.t).elevation - packSun) > 0.005) {
         pack = packFor(state);

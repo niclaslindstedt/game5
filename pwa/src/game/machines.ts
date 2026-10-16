@@ -163,8 +163,10 @@ export type Machines = {
   /** THE EXIT CUT's pace (`camera-exit.ts`): the run slowed for the leap out
    * of a craft's door, 1 otherwise. */
   exitPace(): number;
-  /** Whether these machines are the ones `state` rides (`machinesKey`). */
-  fits(state: GameState): boolean;
+  /** These machines where `state` rides what they were built for
+   * (`machinesKey`), else new ones built for it in their place, under the
+   * same parent, these taken down. */
+  refit(state: GameState): Machines;
   dispose(): void;
 };
 
@@ -186,7 +188,7 @@ export type MachineSnow = {
  * the run it is built with to decide what it builds — the craft the rules
  * allow, the bike, the wingsuit and its colourway. A new run on the map
  * standing (the pause card's PISTE MAP, PLAY again) that differs here is
- * built anew (`fits`, `renderer.ts`): a wingsuit stood up on a world built for a
+ * built anew (`refit`, `renderer.ts`): a wingsuit stood up on a world built for a
  * ride on skis would hang on its hover with no helicopter drawn under him. */
 function machinesKey(state: GameState, wearing?: () => Outfit): string {
   const r = state.rules;
@@ -657,7 +659,15 @@ export function createMachines(
     },
     slideLift: (x, z) => slide?.liftAt(x, z) ?? 0,
     exitPace: () => exitCut?.pace() ?? 1,
-    fits: (s) => machinesKey(s, fx.wearing) === builtFor,
+    refit(s) {
+      if (machinesKey(s, fx.wearing) === builtFor) return this;
+      const parent = group.parent;
+      group.removeFromParent();
+      this.dispose();
+      const made = createMachines(level, s, env, fx);
+      parent?.add(made.group);
+      return made;
+    },
     dispose() {
       if (exitCut) exitHud(0);
       haze.uMistAloft.value = 0;

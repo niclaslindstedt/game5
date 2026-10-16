@@ -404,6 +404,7 @@ export function App() {
     };
     /** A new race takes the engine, and all of the last one's goes with it. */
     const adopt = (next: GameState, ticket: RunTicket | null = null, rides = false): void => {
+      if (freeAgain?.level !== next.level) freeAgain = null; // its map let go on another
       show(next);
       manager.freshHand();
       book.arm(next, ticket);

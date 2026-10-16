@@ -44,6 +44,13 @@ export function resortCached(
   return cachedResort(resortKey(seed, regionId, attempts, version, face)) !== null;
 }
 
+/** LET GO OF THE RESORT KEPT unless it is seed `keep`'s: a page that has
+ * moved on to another mountain (built elsewhere, a worker's) would
+ * otherwise hold the last one's grids — tens of megabytes — for good. */
+export function releaseResort(keep: number): void {
+  if (cache !== null && cache.built.seed !== keep) cache = null;
+}
+
 /** The last resort built, for a lab that reads what its build did. */
 export function lastResort(): BuiltResort | null {
   return cache?.built ?? null;

@@ -300,6 +300,21 @@ export function createWorldRenderer(
   const nominalLoad = (totalMass(SKIS) * 9.81) / 6;
 
   function unload() {
+    const views = [
+      terrain?.group,
+      forest?.group,
+      gates?.group,
+      gates?.water?.group,
+      lifts?.group,
+      spray?.points,
+      cloud?.mesh,
+      wildlife?.group,
+      crowd?.group,
+      machines?.group,
+      gore?.group,
+    ];
+    // Their instance buffers, before a view's own dispose takes a mesh out.
+    for (const o of views) o?.traverse((n) => n instanceof THREE.InstancedMesh && n.dispose());
     terrain?.dispose();
     forest?.dispose();
     gates?.dispose();
@@ -313,23 +328,7 @@ export function createWorldRenderer(
     machines?.dispose();
     gore?.dispose();
     for (const r of riders) r.model.dispose();
-    for (const o of [
-      terrain?.group,
-      forest?.group,
-      gates?.group,
-      gates?.water?.group,
-      lifts?.group,
-      spray?.points,
-      cloud?.mesh,
-      wildlife?.group,
-      crowd?.group,
-      machines?.group,
-      gore?.group,
-    ]) {
-      if (!o) continue;
-      o.traverse((n) => n instanceof THREE.InstancedMesh && n.dispose()); // its buffers too
-      scene.remove(o);
-    }
+    for (const o of views) o?.removeFromParent();
     for (const r of riders) scene.remove(r.model.root);
     ghost?.dispose();
     ghost = null;

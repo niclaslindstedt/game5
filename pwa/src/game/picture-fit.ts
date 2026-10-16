@@ -109,6 +109,12 @@ export const FLOOR_MS = 3.81;
  *   vertex, no texture read), and OFF and LOW draw the bases' own groove in
  *   the fragment stage — too small to price apart, and OWED A GPU RE-PRICE
  *   with the row.
+ * The TRAILS prices leave out the TREE WELLS (`TRAIL_LOOK`'s `wells`,
+ *   MEDIUM and HIGH only): the benchmark's race is skied on the ordinary
+ *   snow, where no map has a well and the ground reads none, so they cost
+ *   the reference nothing. In a metre of powder they cost a refill of the
+ *   well map every 16 m the lens moves (about 6 ms of the processor's, a
+ *   hitch rather than a rate) and a few texture reads a pixel near the lens.
  * LAMPS: only after dark, and only where beams cross — his own headlamp is
  * always drawn, the floods and the field's lamps past the nearest are what
  * the lower stops give up, and LOW the snow's glitter in the beams. The

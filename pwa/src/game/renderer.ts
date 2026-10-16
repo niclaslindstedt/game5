@@ -376,7 +376,11 @@ export function createWorldRenderer(
     const look = terrainLook(video.terrain); // the whole reach: aloft draws past the stop's view
     const deformed = deform.build(video, look.spacing, summer(), map.uniforms);
     skiClear = createSkiClear(map.uniforms);
-    const options = { ...summerOptions(look, lv, video), deform: deformed };
+    const options = {
+      ...summerOptions(look, lv, video),
+      deform: deformed,
+      wells: TRAIL_LOOK[video.trails].wells,
+    };
     const ground = createTerrain(lv, env.haze, map.uniforms, options);
     ground.group.name = "terrain";
     scene.add(ground.group);

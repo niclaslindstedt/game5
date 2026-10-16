@@ -443,8 +443,10 @@ export function createReplayRig(): ReplayRig {
     },
     arm: (state, mode) => {
       // A run with nothing on its tape (a restart pressed straight after
-      // another) leaves the run before it standing.
+      // another) leaves the run before it standing — on this map only: the
+      // last map's run cannot be drawn on this one's world.
       if (filled(cut)) prior = cut;
+      if (prior && prior.run.level !== state.level) prior = null;
       cut = null;
       if (mode === null || !keepsReplay(mode)) {
         prior = null;
@@ -464,6 +466,9 @@ export function createReplayRig(): ReplayRig {
       if (!cut || state !== cut.run) return;
       cut.tape.record(driven);
       const at = cut.tape.steps() - 1;
+      // The run before is offered for this one's first seconds only; past
+      // them its recording, copies and all, is let go.
+      if (prior && at >= PREVIOUS * HZ) prior = null;
       cut.shots.step(state, at);
       cut.keys.step(state, at + 1);
       for (const e of state.events) {

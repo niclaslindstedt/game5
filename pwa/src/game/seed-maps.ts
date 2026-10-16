@@ -186,6 +186,23 @@ export function quietSeedMaps(ask: SeedAsk): void {
   pump();
 }
 
+/** THE START CARD LEFT FOR THE RIDER CARD on `ask`: the ride is decided
+ * but for the skier, and its world is about to be built behind the rider
+ * and gear cards (`free-stage.ts`) — the heaviest thing the tab does. So
+ * nothing more is built ahead, the map ahead is let go, and the worker goes
+ * the moment it has nothing left to hand this ride (it may be raising its
+ * very map), with the ski area it holds: on a phone the stage and a worker
+ * raising the next mountain beside it were more than the tab was given.
+ * Back on the start card, the card asks again (`wantSeed`). */
+export function leaveSeedCard(ask: SeedAsk): void {
+  const key = askKey(ask);
+  wanted = null;
+  if (busy && busy.key !== key) stop();
+  for (const k of [...levels.keys()]) if (k !== key) levels.delete(k);
+  if (ridden && ridden.key !== key) ridden = null;
+  pump();
+}
+
 /** A FREE RIDE IS UNDER WAY on `level`, the map `ask` names: if no chart
  * of it is held or kept, the worker paints one off that very map (never
  * building it again) and is let go — so the pause card's PISTE MAP and the

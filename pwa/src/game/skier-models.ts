@@ -349,6 +349,8 @@ export function attachModels(o: {
     dispose() {
       for (const m of mats) m.dispose();
       merged.dispose();
+      // The clone's skeletons are its own, and each holds a bone texture.
+      scene.traverse((n) => n instanceof THREE.SkinnedMesh && n.skeleton.dispose());
     },
   };
 }

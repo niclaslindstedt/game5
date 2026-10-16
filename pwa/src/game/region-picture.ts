@@ -29,6 +29,9 @@ export type RegionPicture = {
    * swims by, s: at 0 nothing changes; above it even an ungraded region
    * draws through the pass, at its own neutral grade. */
   setBuzz(buzz: number, t: number): void;
+  /** THE BLAZE over the picture (`grade-pass.ts`), or null: as the buzz,
+   * an ungraded region draws through the pass only while it burns. */
+  setBlaze(blaze: { heat: number; flash: number; smoke: number } | null, t: number): void;
   /** What the last frame's SCENE cost — the grade's own pass not counted. */
   info(): { calls: number; triangles: number; points: number };
   dispose(): void;
@@ -39,6 +42,7 @@ export function createRegionPicture(gl: THREE.WebGLRenderer, samples: number): R
   let graded = false;
   let grade: ColourGrade | null = null;
   let buzz = 0;
+  let burning = false;
   const size = new THREE.Vector2();
   const last = { calls: 0, triangles: 0, points: 0 };
   return {
@@ -59,8 +63,19 @@ export function createRegionPicture(gl: THREE.WebGLRenderer, samples: number): R
       }
       pass?.setBuzz(buzz, t);
     },
+    setBlaze(b, t) {
+      const on = !!b && b.heat + b.flash + b.smoke > 1e-3 && gradeSupported(gl);
+      if (!on && !burning) return;
+      burning = on;
+      if (on && !pass) {
+        pass = createGradePass(samples);
+        if (grade) pass.setGrade(grade);
+      }
+      if (on && b) pass?.setBlaze(b.heat, b.flash, b.smoke, t);
+      else pass?.setBlaze(0, 0, 0, t);
+    },
     draw(scene, camera, timer) {
-      if ((!graded && buzz === 0) || !pass) {
+      if ((!graded && buzz === 0 && !burning) || !pass) {
         gl.render(scene, camera);
         const r = gl.info.render;
         last.calls = r.calls;

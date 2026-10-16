@@ -764,6 +764,9 @@ export const STRINGS = {
   optShadowsHint:
     "The sun's shadows: every stop but OFF lays the mountain's own shade over the slopes behind its ridges; SKIERS casts the field alone; MEDIUM adds every tree's; HIGH draws every skier's shadow sharp in a map of his own.",
   optSpray: "SPRAY",
+  optSky: "SKY",
+  optSkyPlain: "PLAIN",
+  optSkyFull: "FULL",
   optLamps: "LAMPS",
   optLampsHint:
     "After dark, how many lamps light the snow at once: your own headlamp always, then the nearest. LOW also stops the snow glittering in the beams.",

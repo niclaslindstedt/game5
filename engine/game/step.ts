@@ -36,6 +36,7 @@ import {
   setAerials,
   setSkiJump,
   setSlopestyle,
+  releaseResort,
   withDay,
   withPlace,
   realFacePlace,
@@ -105,6 +106,7 @@ import { juryDay } from "./jury.ts";
 import { wellShareOf, withWells } from "./tree-well.ts";
 import { bedrockOf, withRock } from "./rock-ground.ts";
 import { stepRun } from "./run.ts";
+import { noteMachine, onMachine } from "./machine-grace.ts";
 import { enterLodge, freshAfterski, lodgesOf } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
 import { freshGore } from "./gore-state.ts";
@@ -516,6 +518,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const giant = options.mode === "giantSlalom";
   // (A map handed back off a run is taken under its rock skin, laid again below.)
   const built = bedrockOf(levelFor(options));
+  // A run on another mountain lets go of the ski area kept for the last one.
+  releaseResort(built.seed);
   // A SLALOM is set over the map (R31) — run one's course, or the second
   // run's — a DOWNHILL down its whole piste (R32), a SUPER-G from its
   // lowered start (R33), a GIANT SLALOM from its own — either run's — (R36),
@@ -792,7 +796,10 @@ export function step(state: GameState, input: SkierInput): GameState {
 
   // THE DRAFT in a ski-cross heat (`cross-heat.ts`), off where the four are.
   if (state.cross) stepDrafts(state);
+  // THE GRACE after stepping off a machine (`machine-grace.ts`).
+  const aboard = onMachine(state);
   stepRun(state, input, events, true);
+  noteMachine(state, aboard);
   // THE SCORE is the player's, kept on every run (`tricks.ts`).
   stepTricks(state, events);
   // A MOGULS RUN'S TURNS as the judges watch them (`mogul-turns.ts`).

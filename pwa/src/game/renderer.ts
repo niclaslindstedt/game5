@@ -187,6 +187,7 @@ export function createWorldRenderer(
   let watched: ReplayView | null = null;
   const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9, gl);
   env.setDistance(video.distance);
+  env.setSky(video.sky);
   /** Under SHADOWS HIGH every skier casts into a map of his own. */
   const hero = createHeroShadow(env.haze, shadowLook().hero);
   const heroModels: SkisModel[] = [];
@@ -307,6 +308,21 @@ export function createWorldRenderer(
   const nominalLoad = (totalMass(SKIS) * 9.81) / 6;
 
   function unload() {
+    const views = [
+      terrain?.group,
+      forest?.group,
+      gates?.group,
+      gates?.water?.group,
+      lifts?.group,
+      spray?.points,
+      cloud?.mesh,
+      wildlife?.group,
+      crowd?.group,
+      machines?.group,
+      gore?.group,
+    ];
+    // Their instance buffers, before a view's own dispose takes a mesh out.
+    for (const o of views) o?.traverse((n) => n instanceof THREE.InstancedMesh && n.dispose());
     terrain?.dispose();
     forest?.dispose();
     gates?.dispose();
@@ -320,24 +336,13 @@ export function createWorldRenderer(
     machines?.dispose();
     gore?.dispose();
     for (const r of riders) r.model.dispose();
-    for (const o of [
-      terrain?.group,
-      forest?.group,
-      gates?.group,
-      gates?.water?.group,
-      lifts?.group,
-      spray?.points,
-      cloud?.mesh,
-      wildlife?.group,
-      crowd?.group,
-      machines?.group,
-      gore?.group,
-    ]) {
-      if (!o) continue;
-      o.traverse((n) => n instanceof THREE.InstancedMesh && n.dispose()); // its buffers too
-      scene.remove(o);
-    }
+    for (const o of views) o?.removeFromParent();
     for (const r of riders) scene.remove(r.model.root);
+    // THE LAST FRAME'S RENDER LISTS hold every object it drew, and so every
+    // geometry, material and texture of the world just let go, until the
+    // scene is drawn again — which it is not while the next world is built
+    // behind a card. That was the whole old world held beside the new one.
+    gl.renderLists.dispose();
     ghost?.dispose();
     ghost = null;
     terrain = forest = gates = lifts = trail = spray = null;
@@ -733,6 +738,7 @@ export function createWorldRenderer(
       const looked = gaze.frame(ladder, rigPose, skier.lift, dt, box.height, level);
       if (looked && !planted && lens.rung() !== "orbit") aimLens(lens.camera, looked);
       afterski.sway(lens.camera, state, lens.rung(), planted !== null);
+      picture.setBlaze(machines?.blaze(planted !== null) ?? null, state.t);
 
       const eye = lens.camera.position;
       cullBehind(lens.camera, riders); // a rival clear behind the lens is left out
@@ -946,6 +952,7 @@ export function createWorldRenderer(
       env.setShadow(shadowLook());
       hero.setSize(shadowLook().hero);
       env.setDistance(video.distance);
+      env.setSky(video.sky);
       spray?.setBudget(SPRAY_SHARE[video.spray]);
       spray?.setFlight?.(SPRAY_GPU[video.spray]);
       cloud?.setBudget(SPRAY_SHARE[video.spray]);

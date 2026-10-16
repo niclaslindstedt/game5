@@ -207,12 +207,19 @@ export function rotorTurnMs(spool: number): number | null {
  * and the ENGINE's clock, so neither runs while the pause card holds the
  * race, and a clock gone backwards (a new race on the same map) lands
  * rather than slides. */
-let held: { level: Level; t: number; span: number; angle: number } | null = null;
+let held: { level: WeakRef<Level>; t: number; span: number; angle: number } | null = null;
+
+/** Whether a slot was cut for `level`. Every slot holds its map WEAKLY: a
+ * map left behind is let go while the next is built, not when the minimap
+ * next draws (a mountain's grids are tens of megabytes). */
+function isFor<T extends { level: WeakRef<Level> }>(slot: T | null, level: Level): slot is T {
+  return slot !== null && slot.level.deref() === level;
+}
 
 /** The window this snapshot shows, m — `spanFor`'s answer, chased. */
 function spanNow(level: Level, speedKmh: number, agl: number, t: number): number {
   const want = Math.max(spanFor(speedKmh), airSpanFor(agl, level.size));
-  if (held === null || held.level !== level || t < held.t) return want;
+  if (!isFor(held, level) || t < held.t) return want;
   const dt = Math.min(1, t - held.t);
   return held.span + (want - held.span) * (1 - Math.exp(-dt / ZOOM_LAG));
 }
@@ -224,7 +231,7 @@ function spanNow(level: Level, speedKmh: number, agl: number, t: number): number
  * difference to the new heading, and the number is allowed to grow. */
 function angleNow(level: Level, heading: number, t: number): number {
   const want = ((heading + Math.PI) * 180) / Math.PI;
-  if (held === null || held.level !== level || t < held.t) return want;
+  if (!isFor(held, level) || t < held.t) return want;
   const last = (held.angle * Math.PI) / 180;
   return held.angle + (angleDiff(last, (want * Math.PI) / 180) * 180) / Math.PI;
 }
@@ -241,7 +248,7 @@ export function project(pose: HudMinimap["pose"], x: number, z: number): [number
 }
 
 /** The piste's line, cut once per map. */
-let trackOf: { level: Level; d: string; width: number } | null = null;
+let trackOf: { level: WeakRef<Level>; d: string; width: number } | null = null;
 
 /** A centreline as an SVG path, every `TRACK_STRIDE`th station and the
  * last one always, so the line reaches its end whatever the stride; and
@@ -257,17 +264,25 @@ function pathOf(pts: readonly TrackPoint[]): string {
 }
 
 function trackLine(level: Level): { d: string; width: number } {
-  if (trackOf?.level === level) return trackOf;
+  if (isFor(trackOf, level)) return trackOf;
   const pts = level.track.points;
   let width = 0;
   for (let i = 0; i < pts.length; i += TRACK_STRIDE) width += pts[i].width;
-  trackOf = { level, d: pathOf(pts), width: width / Math.ceil(pts.length / TRACK_STRIDE) };
+  trackOf = {
+    level: new WeakRef(level),
+    d: pathOf(pts),
+    width: width / Math.ceil(pts.length / TRACK_STRIDE),
+  };
   return trackOf;
 }
 
 /** The resort's runs, lifts and tunnels, cut once per map. */
-let resortOf: { level: Level; runs: RunMark[]; lifts: LiftMark[]; tunnels: TunnelMark[] } | null =
-  null;
+let resortOf: {
+  level: WeakRef<Level>;
+  runs: RunMark[];
+  lifts: LiftMark[];
+  tunnels: TunnelMark[];
+} | null = null;
 
 /** A heading (0 is +z, clockwise from above) as the turn, degrees, of a
  * mark drawn pointing UP the world group: the group's up is −z, and
@@ -299,7 +314,7 @@ function resortLines(level: Level): {
   lifts: LiftMark[];
   tunnels: TunnelMark[];
 } {
-  if (resortOf?.level === level) return resortOf;
+  if (isFor(resortOf, level)) return resortOf;
   const resort = level.resort;
   const runs: RunMark[] = (resort?.runs ?? [])
     .filter((r) => r.points.length > 1)
@@ -324,7 +339,7 @@ function resortLines(level: Level): {
     a: [l.bottom.x, l.bottom.z] as [number, number],
     b: [l.top.x, l.top.z] as [number, number],
   }));
-  resortOf = { level, runs, lifts, tunnels: tunnelMarks(level) };
+  resortOf = { level: new WeakRef(level), runs, lifts, tunnels: tunnelMarks(level) };
   return resortOf;
 }
 
@@ -388,7 +403,7 @@ export function buildMinimap(state: GameState): HudMinimap {
   // first: the plate is turned to the way he GOES, so down stays up.
   const facing = skier.heading + (skier.switched ? Math.PI : 0);
   const angle = angleNow(level, ridden ? ridden.heading : facing, state.t);
-  held = { level, t: state.t, span, angle };
+  held = { level: new WeakRef(level), t: state.t, span, angle };
   const scale = VIEW / span;
   const pose = ridden
     ? { x: ridden.x, z: ridden.z, angle, scale }

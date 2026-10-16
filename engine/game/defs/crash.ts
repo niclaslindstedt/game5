@@ -237,6 +237,9 @@ export const CRASH = {
     // caught on its ring or its bed and the body stumbled on into it, low,
     // barely off the snow.
     fire: { pitch: 0.6, side: 0.2, up: 0.2 },
+    // Blown off a snowmobile whose tank went up under him (`sled-fire.ts`):
+    // thrown up off the seat, head over heels backward and over onto a side.
+    blast: { pitch: -0.9, side: 0.8, up: 2.5 },
   },
   topple: 3,
   /** THE BODY (`ragdoll.ts`): thirteen points — the hips, the shoulders,
@@ -395,4 +398,13 @@ export const CRASH = {
    * `lieFor` s, however he lies. */
   getUp: 3,
   lieFor: 6,
+  /** ...and never while he is still FALLING: the engine stands the player
+   * up only once he has been `lieGround` s on the snow since his last
+   * flight, the tap and the tuck key only past `getUpGround` s, and a
+   * flight is one off the snow longer than `flightGap` s (a bounce in a
+   * tumble is not). Whatever he does, `lieLong` s ends it. */
+  lieGround: 3,
+  getUpGround: 1,
+  flightGap: 0.4,
+  lieLong: 30,
 };

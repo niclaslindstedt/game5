@@ -29,6 +29,9 @@ import {
   weatherOf,
   weatherFor,
   withDay,
+  withSky,
+  drySummer,
+  summerOf,
   airTempAt,
   freeRuns,
   skiRoutesOf,
@@ -889,8 +892,30 @@ export type RiddenMap = { ask: string; level: Level };
  * the same mountain — the pause card's PISTE MAP picking another run or
  * start. Ridden again as it is (`freeAgainOptions`), so nothing is generated
  * or built and the ride only moves the rider. */
-export function rideKept(ridden: RiddenMap | null, current: Level, ask: string): Level | undefined {
-  return ridden && ridden.level === current && ridden.ask === ask ? current : undefined;
+export function rideKept(
+  ridden: RiddenMap | null,
+  current: Level,
+  ask: string,
+  options: CreateGameOptions,
+): Level | undefined {
+  return ridden && ridden.level === current && ridden.ask === ask && sameSky(current, options)
+    ? current
+    : undefined;
+}
+
+/** Whether the day and the sky `options` ask for are the ones `level`
+ * already stands under — a ride asked under another hour, date or weather
+ * (the start card's, after the main menu) is never the map standing. */
+function sameSky(level: Level, options: CreateGameOptions): boolean {
+  const dayed = options.day ? withDay(level, options.day) : level;
+  const skied = options.sky ? withSky(dayed, options.sky) : dayed;
+  // Laid on as `createGame` lays it: a summer's sky dried off.
+  const asked = summerOf(options) ? drySummer(skied) : skied;
+  return (
+    asked.sun.hour === level.sun.hour &&
+    asked.sun.dayOfYear === level.sun.dayOfYear &&
+    JSON.stringify(weatherOf(asked)) === JSON.stringify(weatherOf(level))
+  );
 }
 
 /** A ride stood on a link's real `face` — a link to one of the free

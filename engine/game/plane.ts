@@ -33,6 +33,7 @@
 // stream, and a run that never asked for a plane never comes in here.
 
 import { keptDown } from "./rescue.ts";
+import { inGrace } from "./machine-grace.ts";
 import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import {
   fromEuler,
@@ -858,6 +859,8 @@ function stepOff(run: GameState, p: PlaneState, events: GameEvent[]): void {
  * every lift, tunnel and other machine, within `PLANE.board.reach` of the
  * parked plane's door and slower than `PLANE.board.fastest`. */
 export function planeWithin(run: GameState): boolean {
+  // Just stepped off one: the press leaves him be (`machine-grace.ts`).
+  if (inGrace(run)) return false;
   const p = run.plane;
   const c = run.skier;
   if (!p || p.rider || p.mode !== "parked") return false;

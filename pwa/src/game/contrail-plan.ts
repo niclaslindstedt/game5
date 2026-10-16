@@ -39,7 +39,7 @@ import {
   type WeatherKind,
 } from "@engine";
 
-import { cloudHash, veerAloft, windAloft } from "./cloud-field.ts";
+import { CLOUD_DRIFT, cloudHash, veerAloft, windAloft } from "./cloud-field.ts";
 
 /** THE NUMBERS. Their sources are `docs/contrails.md`'s. */
 export const CONTRAIL = {
@@ -399,7 +399,8 @@ export function trailFrameOf(
     sea,
     wind(altitude) {
       const over = Math.max(0, altitude - floor);
-      const speed = windAloft(w.wind, over, 10);
+      // Drifted as the cirrus beside it is (`CLOUD_DRIFT`).
+      const speed = windAloft(w.wind, over, 10) * CLOUD_DRIFT;
       const to = from + Math.PI + veerAloft(over, lat);
       return [Math.sin(to) * speed, Math.cos(to) * speed];
     },

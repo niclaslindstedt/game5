@@ -38,6 +38,7 @@
 // stream, and a run whose rules carry no helicopter never comes in here.
 
 import { keptDown } from "./rescue.ts";
+import { inGrace } from "./machine-grace.ts";
 import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import {
   fromAxisAngle,
@@ -851,6 +852,8 @@ function drop(run: GameState, h: HeliState, events: GameEvent[]): void {
  * parked helicopter's seat and slower than `HELI.board.fastest`. What the
  * HUD offers the press on (`snapshot.ts`) is this same question. */
 export function heliWithin(run: GameState): boolean {
+  // Just stepped off one: the press leaves him be (`machine-grace.ts`).
+  if (inGrace(run)) return false;
   const h = run.heli;
   const c = run.skier;
   if (!h || h.rider || h.mode !== "parked") return false;

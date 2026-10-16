@@ -416,7 +416,8 @@ export function rockScenes(level: Level, bed: Level, ridden: Level): RockScenes 
     talus: tallest
       ? "the ground below the tallest cliff, where talus lies, from 50 m, 12 m up"
       : "the ground below the rockiest face's foot (no rocky cliff), from 50 m, 12 m up",
-    "talus-apron": "where the talus lies thickest, looked up at from 32 m down and 12 m aside, 5 m up",
+    "talus-apron":
+      "where the talus lies thickest, looked up at from 32 m down and 12 m aside, 5 m up",
     chase: "a skier's eye on the piste where rock is nearest it, looking 40 m down it",
     piste: "from the piste where it passes nearest the rockiest face",
     aerial: "150 m over the rockiest face, 200 m out",

@@ -134,7 +134,16 @@ const GROUPS = {
     region: "continental",
     hour: 11,
     weather: "clear",
-    scenes: ["foot", "face-150", "cliff", "cliff-20", "cliff-60-oblique", "gully", "talus", "talus-apron"],
+    scenes: [
+      "foot",
+      "face-150",
+      "cliff",
+      "cliff-20",
+      "cliff-60-oblique",
+      "gully",
+      "talus",
+      "talus-apron",
+    ],
   },
   maritime: {
     seed: 38,

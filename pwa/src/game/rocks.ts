@@ -50,7 +50,14 @@ import {
   type RockMesh,
 } from "./rock-shapes.ts";
 import { summerShown } from "./season-look.ts";
-import { CALM_FROM, CALM_TO, FAR_EVEN, ROCK_HAZE, STRATA_GLSL, strataUniforms } from "./strata-glsl.ts";
+import {
+  CALM_FROM,
+  CALM_TO,
+  FAR_EVEN,
+  ROCK_HAZE,
+  STRATA_GLSL,
+  strataUniforms,
+} from "./strata-glsl.ts";
 
 /** A tile's side, m. */
 const TILE = 192;

@@ -50,7 +50,6 @@
 //     `skier.ts` off the knees' own depth under the untouched surface).
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
-import { PISTE_DAY } from "./defs/piste-day.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { groomedFresh } from "./groomed.ts";
 import { keptAt } from "./kept-ground.ts";
@@ -143,38 +142,11 @@ export function powderFloor(packed: number, scale = 1, depth = 1): number {
 /** THE NEW SNOW over the groomer (`GameState.fresh`, `snowfall.ts`): the
  * share of a surface `packed` 0..1 that still skis as packed under `fresh`
  * m of new fall — the whole of it under none, none of it once
- * `snow.freshBury` has fallen — and with `loose` 0..1 of it skied up or
- * softened to loose snow over its base by the day (`piste-day.ts`). Every station, the hull, a stood skier and
+ * `snow.freshBury` has fallen. Every station, the hull, a stood skier and
  * a thrown body read the surface through this, so the sink, the drag, the
  * grip and the hiss (`SkierState.packed`) all feel the same layer. */
-export function packedUnder(packed: number, fresh: number, loose = 0): number {
-  // THE DAY'S PISTE (`piste-day.ts`): a share of a skied-up or sun-softened
-  // groomer is loose snow over its base, and reads as such.
-  const p = loose > 0 ? packed * (1 - loose) : packed;
-  return fresh > 0 ? p * Math.max(0, 1 - fresh / S.freshBury) : p;
-}
-
-/** THE LOOSE SHARE of the groomer on a run (`PisteDay.loose`): 0 on a run
- * that was not dealt the day's piste. */
-export function looseOf(state: Pick<GameState, "piste">): number {
-  return state.piste ? state.piste.loose : 0;
-}
-
-/** THE REFROZEN PISTE under a station standing on `packed` 0..1 of
- * groomer: the share of bare ice's grip it stands at (`onIce`), 0 on a run
- * that was not dealt the day's piste, in a cell the machines have groomed
- * since (`groomed.ts` — milled snow is not ice) and on the ground the lift
- * staff keep (`kept-ground.ts`). */
-export function pisteIce(
-  state: Pick<GameState, "level" | "groomed" | "piste">,
-  x: number,
-  z: number,
-  packed: number,
-): number {
-  const ice = state.piste ? state.piste.ice : 0;
-  if (ice <= 0 || packed <= 0) return 0;
-  if (state.groomed && groomedFresh(state.groomed, x, z) !== undefined) return 0;
-  return keptAt(state.level, x, z) ? 0 : ice * packed;
+export function packedUnder(packed: number, fresh: number): number {
+  return fresh > 0 ? packed * Math.max(0, 1 - fresh / S.freshBury) : packed;
 }
 
 /** THE PACKED SHARE UNDER A PLAN POINT on a run, the new snow over it
@@ -182,43 +154,27 @@ export function pisteIce(
  * packed through and carries only what has fallen since; so, on a run
  * dealt the day's piste, is the ground round the lifts the staff keep clear
  * (`kept-ground.ts`), under only what has fallen since the ride began;
- * anywhere else it is the map's own packed field under the whole fall, as
- * skied up as the day has made it (`packedUnder`, `PisteDay.loose`). */
+ * anywhere else it is the map's own packed field under the whole fall
+ * (`packedUnder`). */
 export function packedSnow(
   state: Pick<GameState, "level" | "fresh" | "groomed" | "piste" | "machineSnow" | "summer">,
   x: number,
   z: number,
-  looseShare = 1,
 ): number {
   // IN SUMMER (`summer.ts`) the snow is gone: the ground is as hard as the
   // hardest packed snow, and nothing sinks into it.
   if (state.summer) return 1;
-  const p = snowPacked(state, x, z, looseShare);
+  const p = snowPacked(state, x, z);
   // A wall's ROCK (`rock-ground.ts`) is as hard as anything gets: nothing
   // sinks into it, whatever has fallen on it — it slides off a wall.
   const rock = state.level.rockAt ? state.level.rockAt(x, z) : 0;
   return rock > p ? rock : p;
 }
 
-/** THE PACKED SHARE AN EDGE READS at a plan point: `packedSnow`'s, but
- * with only `PISTE_DAY.edge` of the day's loose share (`PisteDay.loose`)
- * counted as loose. The day's skied-up heaps and its slush are a few
- * centimetres over the groomed base, and a tipped edge cuts through them
- * into it: the sink, the drag and the hiss feel the loose layer, the
- * edge's bite mostly does not. New snow and powder are what they are. */
-export function edgeSnow(
-  state: Pick<GameState, "level" | "fresh" | "groomed" | "piste" | "machineSnow" | "summer">,
-  x: number,
-  z: number,
-): number {
-  return packedSnow(state, x, z, PISTE_DAY.edge);
-}
-
 function snowPacked(
   state: Pick<GameState, "level" | "fresh" | "groomed" | "piste" | "machineSnow">,
   x: number,
   z: number,
-  looseShare: number,
 ): number {
   // A WHALE of machine snow (`snow-guns.ts`) is heavy loose snow heaped on
   // whatever lies under it, and reads as new snow over it.
@@ -228,7 +184,7 @@ function snowPacked(
   if (state.piste && keptAt(state.level, x, z)) {
     return packedUnder(1, Math.max(0, state.fresh - state.piste.fresh) + heap);
   }
-  return packedUnder(state.level.packedAt(x, z), state.fresh + heap, looseOf(state) * looseShare);
+  return packedUnder(state.level.packedAt(x, z), state.fresh + heap);
 }
 
 /** The run's snow dial with `fresh` m of new snow laid over the powder: a

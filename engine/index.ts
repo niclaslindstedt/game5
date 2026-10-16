@@ -506,8 +506,6 @@ export {
   settleShare,
   packedUnder,
   packedSnow,
-  looseOf,
-  pisteIce,
   depthUnder,
   type Grip,
 } from "./game/snow.ts";

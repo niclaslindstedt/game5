@@ -9,7 +9,7 @@
 // station and along a cat track — or down a village street — has no pitch that would carry a rider
 // through it — so it is shovelled, milled and ploughed, and stays the
 // night's packed snow under only what has come down since the ride began
-// (`snow.ts`'s `packedSnow`, `pisteIce`).
+// (`snow.ts`'s `packedSnow`).
 //
 // A pure function of the map — the lifts it publishes and the rule book's
 // measures — baked once per map into a set of cells (`groomed.ts`'s) and

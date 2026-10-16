@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE PISTE THROUGH THE DAY (`engine/game/piste-day.ts`): a free ride's
 // runs as the hour and the sky have left them since the night's grooming —
-// the corduroy whole at the first chair, skied up through the day, a
-// snowing sky's new snow on them, a spring sun's slush and its evening
-// freeze — a pure function of the map, dealt only to a run whose rules have
+// the corduroy whole at the first chair, skied up through the day as drawn,
+// a snowing sky's new snow on them — and never a grip lost to the hour: no
+// slush, no evening refreeze — a pure function of the map, dealt only to a
+// run whose rules have
 // the ski area's machines, read by the physics through `snow.ts` and by the
 // picture through `snowpack.ts`.
 
@@ -18,7 +19,6 @@ import {
   createGame,
   packedSnow,
   pisteDayOf,
-  pisteIce,
   placeRun,
   step,
   type GameState,
@@ -34,13 +34,8 @@ import { flatLevel } from "./support/synthetic.ts";
 const FALL: Partial<Record<WeatherKind, number>> = { flurries: 0.17, snow: 0.5, storm: 0.88 };
 
 /** A map's day: `hour` on `dayOfYear` at `latitude` under `kind`. */
-function dayOf(kind: WeatherKind, hour: number, dayOfYear = 30, latitude = 46, temp?: number) {
-  const weather: Weather = {
-    ...CLEAR_WEATHER,
-    kind,
-    snowfall: FALL[kind] ?? 0,
-    ...(temp === undefined ? {} : { temp }),
-  };
+function dayOf(kind: WeatherKind, hour: number, dayOfYear = 30, latitude = 46) {
+  const weather: Weather = { ...CLEAR_WEATHER, kind, snowfall: FALL[kind] ?? 0 };
   return pisteDayOf({ sun: { hour, dayOfYear, latitude }, weather });
 }
 
@@ -50,8 +45,6 @@ describe("the runs through a day", () => {
       const p = dayOf(kind, PISTE_DAY.groomed);
       expect(p.worn).toBe(0);
       expect(p.fresh).toBe(0);
-      expect(p.loose).toBe(0);
-      expect(p.ice).toBe(0);
     }
   });
 
@@ -80,32 +73,6 @@ describe("the runs through a day", () => {
     // whole day's fall.
     expect(snow).toBeLessThan(0.1);
     expect(storm).toBeLessThan(0.3);
-  });
-
-  it("go soft under a spring sun and freeze hard as it goes", () => {
-    const noon = dayOf("clear", 13, 80);
-    expect(noon.soft).toBeGreaterThan(0.6);
-    expect(noon.hard).toBe(0);
-    const evening = dayOf("clear", 19, 80);
-    expect(evening.soft).toBeLessThan(0.1);
-    expect(evening.hard).toBeGreaterThan(0.6);
-    expect(evening.ice).toBeGreaterThan(0);
-    // A lid over the sun, a snowing sky or a midwinter sun in the far north
-    // keep the groomer cold.
-    expect(dayOf("overcast", 13, 80).soft).toBeLessThan(noon.soft / 2);
-    expect(dayOf("snow", 13, 80).soft).toBe(0);
-    expect(dayOf("clear", 13, 30, 66).soft).toBe(0);
-  });
-
-  it("go soft only near the melting point, and freeze only once the air goes under it", () => {
-    // A spring sun in deep cold leaves the groomer firm...
-    expect(dayOf("clear", 13, 80, 46, -15).soft).toBe(0);
-    // ...air over zero softens it under a lid too...
-    expect(dayOf("overcast", 15, 80, 46, 8).soft).toBeGreaterThan(0.6);
-    // ...and a warm evening leaves it slush rather than ice.
-    const warm = dayOf("clear", 19, 80, 46, 14);
-    expect(warm.soft).toBeGreaterThan(0.6);
-    expect(warm.ice).toBe(0);
   });
 
   it("is the same deal every time it is asked", () => {
@@ -153,56 +120,37 @@ describe("under the skis", () => {
     return s;
   }
 
-  it("ski the packed share of the groomer the day has left", () => {
-    const morning = ridden(9);
-    const afternoon = ridden(16);
+  it("ski the groomer whole at any hour", () => {
     const x = SCHUSS.size / 2;
-    expect(packedSnow(morning, x, 400)).toBe(1);
-    expect(packedSnow(afternoon, x, 400)).toBeCloseTo(1 - afternoon.piste!.loose, 9);
-    expect(packedSnow(afternoon, x, 400)).toBeLessThan(0.9);
+    for (const [hour, dayOfYear] of [
+      [9, 30],
+      [16, 30],
+      [19, 30],
+      [15, 80],
+      [19, 80],
+      [21, 80],
+    ]) {
+      expect(packedSnow(ridden(hour, dayOfYear), x, 400)).toBe(1);
+    }
   });
 
-  it("are slower to run on in the skied-up afternoon than on the morning's corduroy", () => {
+  it("run as fast and carve as hard on a spring evening as on the morning's corduroy", () => {
     const speedAfter = (s: GameState): number => {
       const steps = Math.round(8 * TUNING.physicsHz);
       for (let i = 0; i < steps; i++) step(s, { ...NEUTRAL_INPUT, tuck: 1 });
       return s.skier.speed;
     };
-    expect(speedAfter(ridden(16))).toBeLessThan(speedAfter(ridden(9)));
-  });
-
-  it("carve through a slushy afternoon's loose snow into the base under it", () => {
-    // The day's loose layer is a few centimetres over the groomer: a full
-    // edge at speed still turns hard on it, a little softer than on the
-    // morning's corduroy — never the half-powder skid it once read as.
+    expect(speedAfter(ridden(19, 80))).toBeCloseTo(speedAfter(ridden(9, 80)), 9);
     const FLAT = flatLevel({ packed: 1, grade: 0, size: 3000 });
-    const turnG = (piste: boolean): number => {
-      const level: Level = { ...FLAT, sun: { ...FLAT.sun, hour: 15, dayOfYear: 80 } };
-      const s = createGame({ level, piste, rivals: 0, countdown: 0, quiet: true });
-      if (piste) expect(s.piste!.loose).toBeGreaterThan(0.4);
+    const turnG = (hour: number): number => {
+      const level: Level = { ...FLAT, sun: { ...FLAT.sun, hour, dayOfYear: 80 } };
+      const s = createGame({ level, piste: true, rivals: 0, countdown: 0, quiet: true });
       placeRun(s, { x: level.size / 2, z: 600, heading: 0, speed: 14 });
       const turn = { ...NEUTRAL_INPUT, steer: 1 };
-      for (let i = 0; i < TUNING.physicsHz / 2; i++) step(s, turn);
-      const h0 = s.skier.heading;
-      let v = 0;
-      const n = TUNING.physicsHz / 2;
-      for (let i = 0; i < n; i++) {
-        step(s, turn);
-        v += s.skier.speed / n;
-      }
-      return (v * Math.abs(angleDiff(s.skier.heading, h0)) * 2) / TUNING.g;
+      for (let i = 0; i < TUNING.physicsHz; i++) step(s, turn);
+      return s.skier.heading;
     };
-    const slush = turnG(true);
-    expect(slush).toBeGreaterThan(0.8);
-    expect(slush).toBeGreaterThan(turnG(false) * 0.6);
-  });
-
-  it("hold less edge on a spring evening's refrozen groomer", () => {
-    const evening = ridden(19, 80);
-    const morning = ridden(9, 80);
-    const x = SCHUSS.size / 2;
-    expect(pisteIce(evening, x, 400, 1)).toBeGreaterThan(0);
-    expect(pisteIce(morning, x, 400, 1)).toBe(0);
+    expect(turnG(19)).toBeCloseTo(turnG(9), 9);
   });
 });
 
@@ -228,7 +176,6 @@ describe("the stations, kept clear", () => {
     expect(packedSnow(s, lift.top.x, lift.top.z)).toBe(1);
     expect(packedSnow(s, (ramp.from.x + ramp.to.x) / 2, (ramp.from.z + ramp.to.z) / 2)).toBe(1);
     expect(packedSnow(s, lift.bottom.x, lift.bottom.z)).toBe(1);
-    expect(pisteIce(s, lift.top.x, lift.top.z, 1)).toBe(0);
     // ...and so are the transport lanes between the runs, the machines' roads.
     for (const lane of level.resort!.runs.filter((r) => r.kind === "road")) {
       const at = lane.points[Math.floor(lane.points.length / 2)];
@@ -270,22 +217,17 @@ describe("the stations, kept clear", () => {
 describe("as drawn", () => {
   const level = levelFor(LEVEL_SEEDS[0]);
 
-  it("turns a sun-softened groomer wet and a frozen one hard", () => {
+  it("heaps a skied-up groomer's share as loose snow, never wet or glazed", () => {
     // A spot the map packed through.
     const at = level.track.points[Math.floor(level.track.points.length / 3)];
     const plain = snowMix(snowpackOf(level, { weather: CLEAR_WEATHER }), at.x, at.z);
-    const slush = snowMix(
-      snowpackOf(level, { weather: CLEAR_WEATHER, piste: { worn: 0.5, soft: 1, hard: 0 } }),
+    const worn = snowMix(
+      snowpackOf(level, { weather: CLEAR_WEATHER, piste: { worn: 1 } }),
       at.x,
       at.z,
     );
-    const froze = snowMix(
-      snowpackOf(level, { weather: CLEAR_WEATHER, piste: { worn: 0.8, soft: 0, hard: 1 } }),
-      at.x,
-      at.z,
-    );
-    expect(slush.wet).toBeGreaterThan(plain.wet);
-    expect(slush.groomed).toBeLessThan(plain.groomed);
-    expect(froze.hard).toBeGreaterThan(plain.hard);
+    expect(worn.groomed).toBeLessThan(plain.groomed);
+    expect(worn.wet).toBe(plain.wet);
+    expect(worn.hard).toBe(plain.hard);
   });
 });

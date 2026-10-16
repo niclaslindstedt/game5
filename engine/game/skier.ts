@@ -73,9 +73,7 @@ import {
   gripAt,
   holeSink,
   onRock,
-  pisteIce,
   platformOf,
-  edgeSnow,
   packedSnow,
   restSinkOf,
   settleShare,
@@ -440,14 +438,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const ay = c.y + fwd.y * p.bz + acrossY * p.bx + dy * -(p.by + drop);
     const az = c.z + fwd.z * p.bz + acrossZ * p.bx + dz * -(p.by + drop);
     const packed = packedSnow(state, ax, az);
-    // THE DAY'S LOOSE LAYER (`piste-day.ts`) is a few centimetres over the
-    // groomer: the sink and the drag feel it, but the edge cuts through it,
-    // so the grip, the carve and the lean (`SkierState.packed`) read the
-    // base under it (`edgeSnow`).
-    const edgePacked = state.piste ? edgeSnow(state, ax, az) : packed;
-    let ice = level.iceAt ? level.iceAt(ax, az) : 0;
+    const ice = level.iceAt ? level.iceAt(ax, az) : 0;
     const bare = level.bareRockAt ? level.bareRockAt(ax, az) : 0;
-    if (state.piste) ice = Math.max(ice, pisteIce(state, ax, az, packed)); // the evening's refreeze
     // In a TREE WELL the snow is loose to the bottom (`tree-well.ts`).
     const loose = level.wells ? Math.max(bottomless, wellLoose(level, ax, az)) : bottomless;
     // A bogged skier (`trench.ts`) hangs in the hole he has sunk into.
@@ -514,7 +506,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     contact.touching = true;
     contact.load = load;
     loadSum += load;
-    packedLoad += load * edgePacked;
+    packedLoad += load * packed;
 
     // THE SIDECUT AS GEOMETRY: a ski on its edge is bent into an arc of
     // curvature κ, so its tip's line points inside the boot's by κ times
@@ -553,7 +545,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const vf = pvx * tx + pvy * ty + pvz * tz;
     const vl = pvx * side.x + pvy * side.y + pvz * side.z;
     if (Math.abs(vl) > slipWorst) slipWorst = Math.abs(vl);
-    gripAt(edgePacked, grip, fit);
+    gripAt(packed, grip, fit);
     if (ice > 0 || bare > 0) onRock(grip, bare, ice);
     // THE EDGE holds sideways, as much as it is stood on; the BASE holds
     // in powder whatever the edge is doing; either lets go progressively.
@@ -695,7 +687,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   }
   c.skiCompression[0] = skiL;
   c.skiCompression[1] = skiR;
-  c.packed = loadSum > 0 ? packedLoad / loadSum : edgeSnow(state, c.x, c.z);
+  c.packed = loadSum > 0 ? packedLoad / loadSum : packedSnow(state, c.x, c.z);
   c.sideSlip = touching > 0 ? slipWorst : 0;
   const grounded = touching > 0;
   // THE TURN'S BALANCE: the lean at which the snow's grip across the skis

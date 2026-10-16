@@ -29,7 +29,7 @@ export const SNOW_RELIEF_SAMPLE = /* glsl */ `
     vec2 alg = vec2(acr.y, -acr.x);
     float k = snowWorked * midFade;
     // Slush heaps the higher; frozen, they keep the shape they had.
-    grad += snowNoiseGrad(p * 0.55 + 3.1, 0.3) * 0.55 * 0.16 * k * (1.0 + 0.8 * snowSoft);
+    grad += snowNoiseGrad(p * 0.55 + 3.1, 0.3) * 0.55 * 0.16 * k;
     grad += snowNoiseGrad(p * 1.4 + 8.3, 0.25) * 1.4 * 0.05 * k * nearFade;
     vec2 q = vec2(dot(p, acr) * 5.0, dot(p, alg) * 0.22);
     vec2 sg = snowNoiseGrad(q, 0.3);

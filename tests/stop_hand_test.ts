@@ -160,7 +160,6 @@ describe("the one-key brake on firm snow", () => {
   ] as const) {
     it(`zig-zags from ${Math.round(v0 * 3.6)} km/h on ${deg}°, stops and stays stood`, () => {
       const state = stage(deg, 0, v0, 1, FIRM);
-      expect(state.piste?.loose ?? 0).toBeLessThan(0.1);
       const hand = createStopHand();
       const run = ride(state, hand, BACK, 25, () => hand.mode === "stopped");
       expect(run.thrown).toBe(false);

@@ -51,7 +51,7 @@ export const CALM_HELD = 0.06;
 /** Of a calmed face's even snow, the share kept spread over it — the rest
  * is laid on its beds' treads by the shader (`strata-glsl.ts`' `stFar`):
  * dark rock with white ledges, never a pale wash. */
-export const FAR_EVEN = 0.4;
+export const FAR_EVEN = 0.75;
 
 /** A CLIFF WALL'S BEDS: about `WALL_BED` m thick (0.45..1.55 of it), each
  * jutting `WALL_JUT` m out of the face at its top (the least and the most)
@@ -203,7 +203,6 @@ export function buildSkin(
   i1: number,
   j1: number,
   every = 1,
-  relief = 1,
 ): void {
   const S = ROCKS.skin;
   // Laid off the map under the skin the physics rides (`withRock`).
@@ -257,25 +256,13 @@ export function buildSkin(
   const over = summerShown() ? LEDGE : SNOW;
   const SNOW_MOST = summerShown() ? 0.5 : 1;
   const g = { x: 0, y: 1, z: 0 };
-  // THE FARTHEST CUT BAND-LIMITED (`relief` under 1): its ledges' lift
-  // over the ground eased toward the skin's mean, so a stair of risers a
-  // pixel or two tall stops crawling over the snow behind it — the beds are
-  // carried there by the shader's tone (`stFar`). A function of the point
-  // alone, so two triangles sharing a corner still share it.
-  const MEAN = 0.6;
-  const yOf = (v: SliceVerts, p: number): number => {
-    if (relief >= 1) return v[p + 1];
-    const g0 = level.groundAt(v[p], v[p + 2]);
-    const lift = v[p + 1] - g0;
-    return lift <= MEAN ? v[p + 1] : g0 + MEAN + (lift - MEAN) * relief;
-  };
   const emit = (v: SliceVerts, k: number, mid: number): void => {
     const a = 0;
     const b = F * (k - 1);
     const c = F * k;
-    const ya = yOf(v, a);
-    const yb = yOf(v, b);
-    const yc = yOf(v, c);
+    const ya = v[a + 1];
+    const yb = v[b + 1];
+    const yc = v[c + 1];
     const ex = v[b] - v[a];
     const ey = yb - ya;
     const ez = v[b + 2] - v[a + 2];

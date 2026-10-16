@@ -72,7 +72,7 @@ export const BAND_SNOW = 0.35;
  * it darkened to `FAR_DARK` of its tone — `stFar`, which the skin's calm
  * and the ground under it (`snow-glsl.ts`) both paint with. */
 export const FAR_LEDGE = 1.3;
-export const FAR_DARK = 0.68;
+export const FAR_DARK = 0.88;
 
 /** The uniforms: the map's strata seed, and (dipX, dipZ, bed, on). */
 export type StrataUniforms = {

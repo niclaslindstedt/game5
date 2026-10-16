@@ -59,9 +59,6 @@ const SLICE = 1.5;
 /** Within this of the lens a tile is built whole at once, whatever it
  * costs, m: a crag appearing that close would be seen. */
 const NOW = 110;
-/** The farthest cut's ledges, as a share of their lift (\`buildSkin\`'s
- * \`relief\`): band-limited, so they stop crawling at a kilometre. */
-const FAR_RELIEF = 0.4;
 /** How far past the reach a built tile is kept, m, before it is let go. */
 const KEEP = 2 * TILE;
 /** A cut: out to `out` m off a tile's nearest corner its lattice is
@@ -556,7 +553,6 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
       i0 + n,
       t.j * n + end,
       cuts[k].every,
-      k === cuts.length - 1 ? FAR_RELIEF : 1,
     );
     t.done = end;
     if (t.done < n) return false;

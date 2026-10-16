@@ -235,7 +235,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 2,
     casters: "sketch",
     wild: { forms: 1, near: 35 },
-    rocks: { near: 250, mid: 420, cheap: 32, talus: { reach: 150, share: 0.35 } },
+    rocks: { near: 250, mid: 420, cheap: 32, talus: { reach: 110, share: 0.35 } },
     grass: { reach: 18, share: 0.5 },
   },
   medium: {
@@ -245,7 +245,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 5,
     casters: "sketch",
     wild: { forms: 2, near: 60 },
-    rocks: { near: 280, mid: 560, cheap: 16, talus: { reach: 250, share: 0.7 } },
+    rocks: { near: 280, mid: 560, cheap: 16, talus: { reach: 160, share: 0.7 } },
     grass: { reach: 28, share: 0.75 },
   },
   high: {
@@ -255,7 +255,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 10,
     casters: "full",
     wild: { forms: 3, near: 90 },
-    rocks: { near: 300, mid: 700, cheap: 16, talus: { reach: 340, share: 1 } },
+    rocks: { near: 300, mid: 700, cheap: 16, talus: { reach: 200, share: 1 } },
     grass: { reach: 40, share: 1 },
   },
 };

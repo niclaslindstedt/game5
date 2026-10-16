@@ -53,6 +53,7 @@ import { compileByParts, compiled } from "./scene-compile.ts";
 import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, type Forest, type ForestOptions } from "./forest.ts";
+import { createBuildCount } from "./build-count.ts";
 import { createHurtLens } from "./xray-scene.ts";
 import { wrecked } from "./impact-forecast.ts";
 import { frameStart, startMoment } from "./camera-start.ts";
@@ -80,6 +81,7 @@ import {
 import { createRegionPicture } from "./region-picture.ts";
 import { createAfterskiView } from "./afterski-view.ts";
 import { hideSlices, runsOf, SLICE_OF_GROUP, thrownEffects, type Rider } from "./renderer-rider.ts";
+import { freshRider } from "./renderer-rider.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
 import { dealtKit, type SkierDress } from "./skier-dress.ts";
@@ -357,6 +359,7 @@ export function createWorldRenderer(
   void paintAhead(); // the map-free textures, painted off the thread from the start
   /** A breath between two heavy builders (paced while cold); false once superseded. */
   const rest = (mine: number): Promise<boolean> => breathe().then(() => mine === loads);
+  const told = createBuildCount(); // what the loading card is told (`building`)
   /** The pieces `world-prime.ts` names, a breath round each; false once superseded. */
   const prime = (mine: number, pieces: ahead.Prime[]) => ahead.primed(pieces, () => rest(mine));
   /** Whether the world standing has had its shaders compiled. */
@@ -409,23 +412,7 @@ export function createWorldRenderer(
     castInLight(model.root, env.haze);
     model.root.name = "field";
     scene.add(model.root);
-    return {
-      model,
-      spec,
-      kit: kitOf(i),
-      track: createTrack(),
-      pen: createPen(16),
-      drawn: { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } },
-      sink: 0,
-      wasAirborne: false,
-      vy: 0,
-      airTime: 0,
-      wasThrown: false,
-      bodyDown: false,
-      plume: 0,
-      bodyPen: createPen(1),
-      body: createBodyTrack(),
-    };
+    return freshRider(model, spec, kitOf(i));
   }
 
   /** THE RUN'S SNOWPACK: the map under its sky, the dial, the new snow, the day. */
@@ -467,6 +454,7 @@ export function createWorldRenderer(
     gl,
     async load(state, cold = false) {
       const mine = ++loads;
+      told.at("snow");
       unload();
       warmed = !cold;
       level = state.level;
@@ -480,9 +468,14 @@ export function createWorldRenderer(
       if (!(await prime(mine, groundPrimes(lv)))) return;
       terrain = buildTerrain(lv, trail);
       if (!(await rest(mine))) return;
-      forest = createForest(lv, env.haze, forestOptions());
+      told.at("forest");
+      const plot = await told.sow(lv, () => rest(mine)); // counted on the card
+      if (!plot) return;
+      forest = createForest(lv, env.haze, forestOptions(), plot);
+      told.at("lifts");
       forest.group.name = "forest";
       scene.add(forest.group);
+      if (!(await told.shown(() => rest(mine)))) return; // the card says so
       if (!(await prime(mine, ahead.gatePrimes(lv)))) return;
       await paints;
       if (mine !== loads) return;
@@ -536,6 +529,7 @@ export function createWorldRenderer(
       lens.snap();
       await Promise.all([breathe(), machines.ready]);
       if (mine !== loads || cold) return;
+      told.at("groom");
       await warm(state, mine);
     },
 
@@ -545,8 +539,11 @@ export function createWorldRenderer(
       if (state.level !== level) return api.load(state);
       if (warmed) return;
       warmed = true;
+      told.at("groom");
       await warm(state, loads);
     },
+
+    building: () => told.read(),
 
     clear() {
       loads++;

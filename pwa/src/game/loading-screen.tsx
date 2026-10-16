@@ -10,7 +10,8 @@
 //
 // The card is the app's own MARK — the two trails, laid over and over
 // (`mark-trails.tsx`) — with the word under it, then the phase being paid
-// for and where it sits in the count, then a bar for that phase alone.
+// for and where it sits in the count, then a bar for that phase alone, and
+// under it the phase's own count where its work has one (the trees planted).
 //
 // THE COUNT IS OF PHASES, NEVER OF SECONDS. A load's cost is dominated by
 // generating the map, which finishes when it finishes, so one bar across the
@@ -91,6 +92,7 @@ export function LoadingScreen({
           {phase ? STRINGS.loadStep(phase.label, phase.at, phase.of) : " "}
         </p>
         <LoadBar phase={phase} />
+        <p class="loading-count">{phase?.count ?? " "}</p>
       </div>
     </div>
   );

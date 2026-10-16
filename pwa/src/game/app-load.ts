@@ -12,21 +12,24 @@
 // surface it lifts onto are `App.tsx`'s, built once on mount and outliving
 // every card.
 //
-// THREE PHASES, and the card counts them (`loading-screen.tsx`):
+// FIVE PHASES, and the card counts them (`loading-screen.tsx`):
 //
 //   the mountain  `generateLevel` and `createGame` — the map raised off its
 //                 seed, the piste laid and graded into it, the field stood
 //                 on the start line. The map is generated on a worker
 //                 (`map-build.ts`) wherever it costs seconds, and the bar
 //                 follows the generator's own word on how far it has got.
-//   the forest    `WorldRenderer.load` — the terrain mesh, the trees, the
-//                 trail map, the checkpoints. ASYNCHRONOUS: the step kicks
-//                 it off and then says "more to do" every frame until the
-//                 promise has settled, so the card keeps drawing while it
-//                 builds.
-//   the track     the first draw of the new world, which is where the
-//                 driver compiles every shader in it — paid for under the
-//                 card rather than out of the player's first second.
+//   the snow, the forest, the lifts
+//                 `WorldRenderer.load`, one ASYNCHRONOUS build read stage by
+//                 stage (`WorldRenderer.building`): the ground and its trail
+//                 maps; the trees, planted a slice a breath and COUNTED on
+//                 the card; then the gates, the lifts, the wildlife, the
+//                 people and the machines. Each step says "more to do" every
+//                 frame until the build has passed its stage, so the card
+//                 keeps drawing while it builds.
+//   the piste     every shader in the new world compiled, then its first
+//                 draw — paid for under the card rather than out of the
+//                 player's first second.
 
 import {
   createGame,
@@ -43,7 +46,7 @@ import type { MapJob, MapOrder } from "./map-order.ts";
 
 import type { PinnedSkier } from "./pinned.ts";
 import { withJumpContest } from "./ski-jump-run.ts";
-import type { WorldRenderer } from "./renderer-api.ts";
+import type { BuildStage, WorldRenderer } from "./renderer-api.ts";
 import type { Cameras } from "./settings.ts";
 import {
   advanceLoad,
@@ -59,6 +62,9 @@ import { STRINGS } from "./strings.ts";
 // What is drawn on the snow is solid (`drawn-solids.ts`), registered
 // before any run is stood up.
 import "./drawn-solids.ts";
+
+/** The renderer's stages, in the order a load passes them. */
+const STAGES: readonly BuildStage[] = ["snow", "forest", "lifts", "groom"];
 
 /** One thing a load is asked to stand up. */
 export type LoadPlan = {
@@ -86,7 +92,7 @@ export type LoadPlan = {
   camera: Cameras;
   /** Run on the frame the card lifts. */
   done: () => void;
-  /** Steps paid for under the card after the three every load makes — the
+  /** Steps paid for under the card after the ones every load makes — the
    * benchmark's warm-up (`bench-run.ts`), and nothing else today. */
   after?: LoadStep[];
 };
@@ -103,7 +109,7 @@ export type LoadWorld = {
   buildMap: (order: MapOrder) => MapJob;
 };
 
-/** THE THREE STEPS EVERY LOAD IS MADE OF. */
+/** THE STEPS EVERY LOAD IS MADE OF. */
 export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
   const { renderer } = world;
   let built: GameState | null = null;
@@ -132,6 +138,14 @@ export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
     }
     if (typeof face === "object") throw new Error(face.failed);
     return true;
+  };
+  /** Whether the renderer's build is still at `stage` (or short of it);
+   * THROWS if the build failed. A build that resolved has passed them all. */
+  const building = (stage: BuildStage): boolean => {
+    if (typeof scene === "object" && scene !== null) throw new Error(scene.failed);
+    if (scene !== "pending") return false;
+    const at = renderer.building()?.stage ?? "snow";
+    return STAGES.indexOf(at) <= STAGES.indexOf(stage);
   };
   return [
     {
@@ -163,7 +177,7 @@ export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
     },
     {
       id: "scene",
-      label: STRINGS.loadScene,
+      label: STRINGS.loadSnow,
       run: () => {
         if (scene === null) {
           if (built) world.adopt(built);
@@ -177,9 +191,35 @@ export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
             },
           );
         }
-        if (typeof scene === "object") throw new Error(scene.failed);
-        return scene === "pending";
+        return building("snow");
       },
+      waiting: () => scene === "pending",
+    },
+    {
+      id: "forest",
+      label: STRINGS.loadScene,
+      run: () => building("forest"),
+      // The trees planted of the forest's, counted by the renderer itself.
+      progress: () => {
+        const at = renderer.building();
+        return at === null || at.trees === 0 ? 1 : at.planted / at.trees;
+      },
+      count: () => {
+        const at = renderer.building();
+        return at === null ? null : STRINGS.loadTrees(at.planted, at.trees);
+      },
+      waiting: () => scene === "pending",
+    },
+    {
+      id: "lifts",
+      label: STRINGS.loadLifts,
+      run: () => building("lifts"),
+      waiting: () => scene === "pending",
+    },
+    {
+      id: "groom",
+      label: STRINGS.loadWarm,
+      run: () => building("groom"),
       waiting: () => scene === "pending",
     },
     {

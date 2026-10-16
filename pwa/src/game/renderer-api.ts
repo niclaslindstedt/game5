@@ -21,6 +21,11 @@ import type { SnowKind, SnowpackOptions } from "./snowpack.ts";
 /** The camera ladder, nearest first. */
 export type CameraRung = "tips" | "helmet" | "chase" | "far" | "high" | "orbit";
 
+/** The stages of `WorldRenderer.load`, in order: the ground and its trail
+ * maps, the trees, everything else on the mountain, and the shaders
+ * compiled. A world built cold stops at `lifts` until `finish`. */
+export type BuildStage = "snow" | "forest" | "lifts" | "groom";
+
 export interface WorldRenderer {
   /** Build (or rebuild, for a new level) everything that depends on the map.
    * Heavy: the loading card calls it behind a frame so the card can paint. */
@@ -30,6 +35,10 @@ export interface WorldRenderer {
    * world up while they are up and the loading card pays only for this. A
    * world not built cold (or another map) is loaded whole. */
   finish(state: GameState): Promise<void>;
+  /** How far the last `load` has got: the stage it is in, and its forest —
+   * how many trees it grows and how many are planted so far. Null before
+   * any load. */
+  building(): { stage: BuildStage; planted: number; trees: number } | null;
   /** Throw the world away, and any load of one in flight. */
   clear(): void;
   /** Draw one frame of `state`. `alpha` is the accumulator's leftover share of

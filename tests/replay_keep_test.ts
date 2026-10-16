@@ -15,7 +15,7 @@ import {
   type GameState,
 } from "@engine";
 import { snapInput } from "../pwa/src/game/ghost.ts";
-import { KEEP, createKeyframes, spacingAt } from "../pwa/src/game/replay-keep.ts";
+import { KEEP, createKeyframes, spacingAt, standUp } from "../pwa/src/game/replay-keep.ts";
 import { CRASH, createReplayRig } from "../pwa/src/game/replay.ts";
 import { TRANSPORT, createReplayRun } from "../pwa/src/game/replay-run.ts";
 import { diedOf } from "../pwa/src/game/hud-wreck.ts";
@@ -164,6 +164,45 @@ describe("an instant replay of a death", () => {
     expect(handed).toBe(1);
     expect(clock).toBeGreaterThanOrEqual(TRANSPORT.handBack * 1000);
     now.mockRestore();
+  });
+});
+
+describe("what a copy holds", () => {
+  it("packs a crowd's rows and stands every one up as it was", () => {
+    const free = createGame({
+      level: syntheticLevel(),
+      seed: 3,
+      mode: "free",
+      quiet: true,
+      crowd: 40,
+    });
+    const keys = createKeyframes(free);
+    const amateurs = free.crowd!.amateurs;
+    expect(amateurs.length).toBeGreaterThanOrEqual(16);
+    const back = standUp(keys.first());
+    expect(back.crowd!.amateurs).toEqual(amateurs);
+    expect(back.crowd!.amateurs[0]).not.toBe(amateurs[0]);
+    // The knobs are shared: replaced whole by the run, never written in place.
+    expect(back.crowd!.amateurs[0].knobs).toBe(amateurs[0].knobs);
+  });
+
+  it("deals a stream's draws back across its log's pages", () => {
+    const free = createGame({
+      level: syntheticLevel(),
+      seed: 3,
+      mode: "free",
+      quiet: true,
+      crowd: 20,
+    });
+    const keys = createKeyframes(free);
+    const rng = free.crowd!.rng;
+    const drawn: number[] = [];
+    for (let i = 0; i < 20_000; i++) drawn.push(i % 3 === 0 ? rng.range(0, 5) : rng.next());
+    const replayed = standUp(keys.first()).crowd!.rng;
+    const again = drawn.map((_, i) => (i % 3 === 0 ? replayed.range(0, 5) : replayed.next()));
+    expect(again).toEqual(drawn);
+    // Past the log's end it deals zeros rather than throwing.
+    expect(replayed.next()).toBe(0);
   });
 });
 

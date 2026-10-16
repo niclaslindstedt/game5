@@ -36,6 +36,7 @@ import {
   setAerials,
   setSkiJump,
   setSlopestyle,
+  releaseResort,
   withDay,
   withPlace,
   realFacePlace,
@@ -517,6 +518,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const giant = options.mode === "giantSlalom";
   // (A map handed back off a run is taken under its rock skin, laid again below.)
   const built = bedrockOf(levelFor(options));
+  // A run on another mountain lets go of the ski area kept for the last one.
+  releaseResort(built.seed);
   // A SLALOM is set over the map (R31) — run one's course, or the second
   // run's — a DOWNHILL down its whole piste (R32), a SUPER-G from its
   // lowered start (R33), a GIANT SLALOM from its own — either run's — (R36),

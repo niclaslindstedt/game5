@@ -130,16 +130,17 @@ export const TRICKS = {
    * body's rate gathers at `flipSet` / `spinSet` rad/s² (the reference
    * pair's, scaled by the root of each pair's own inertia against it) toward
    * a cruise of `flipRate` / `spinRate` rad/s — the spin's half of it at the
-   * gate and the whole at the edge's end — the spin's twice as quick as
-   * the loop's, since a skier winds a spin up far faster than he throws a
-   * loop. A tap a twentieth of a second long sets a spin of about 4 rad/s,
-   * a 360 off a park kicker's two seconds, and a long flight's 1080 wants
-   * the edge held under a fifth of a second; the whole window held, a fast double. A backflip off the jump
+   * gate and the whole at the edge's end — the spin's a little over half
+   * the loop's, so a held edge winds a spin a skier can count round and
+   * still stop square, yet a flat hop's 180 is in reach. A tap a tenth of a
+   * second long sets a spin of about 2 rad/s, a 360 off a park kicker's two
+   * seconds, and a long flight's 1080 wants the edge held about a third of
+   * a second. A backflip off the jump
    * key's own pop on the flat, about 1.1 s up, wants the lean held about
    * half the window. */
   flipRate: 10,
   flipSet: 25,
-  spinRate: 10,
+  spinRate: 6,
   spinSet: 25,
   /** WHAT THE BODY'S SHAPE DOES TO IT: the inertia about the side axis
    * tucked is about two thirds of the body laid out, so the lean held the

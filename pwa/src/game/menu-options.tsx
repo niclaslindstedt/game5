@@ -64,6 +64,8 @@ import {
   DISTANCE_LEVELS,
   SHADOW_LEVELS,
   SKY_LEVELS,
+  HORIZON_LEVELS,
+  type HorizonLevel,
   RESOLUTION_LEVELS,
   TIERS,
   TRAIL_LEVELS,
@@ -125,6 +127,10 @@ const SHADOW_STOPS: Stop<ShadowLevel>[] = SHADOW_LEVELS.map((id) => ({
 const SKY_STOPS: Stop<SkyLevel>[] = SKY_LEVELS.map((id) => ({
   id,
   label: id === "plain" ? STRINGS.optSkyPlain : STRINGS.optSkyFull,
+}));
+const HORIZON_STOPS: Stop<HorizonLevel>[] = HORIZON_LEVELS.map((id) => ({
+  id,
+  label: id === "painted" ? STRINGS.optHorizonPainted : STRINGS.optHorizon3d,
 }));
 
 const LEVER_STOPS: Stop<LeverSide>[] = LEVER_SIDES.map((id) => ({
@@ -441,6 +447,13 @@ export function OptionsPage({
                 stops={SKY_STOPS}
                 value={video.sky}
                 onPick={(sky) => setVideo({ sky })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optHorizon}
+                stops={HORIZON_STOPS}
+                value={video.horizon}
+                onPick={(horizon) => setVideo({ horizon })}
                 onHint={setHint}
               />
               <StepRow

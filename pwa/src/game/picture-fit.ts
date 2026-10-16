@@ -214,6 +214,15 @@ export const PICTURE_PRICES: PriceList = {
     plain: { cost: 0, benefit: 0 },
     full: { cost: 0.26, benefit: 14 },
   },
+  // SOFTWARE-SCALED, AN ESTIMATE OWED A REAL GPU'S RE-PRICE: the pinned
+  // race on the LOW preset at 640 × 360 in software GL, 1067 ms a frame
+  // with the rings' mesh against 1033 with the skyline painted — 34 ms,
+  // about 0.06 ms at 1280 × 720. 3D's worth is ridges that stand apart as
+  // the lens moves and meet the map's own ground with no seam.
+  horizon: {
+    painted: { cost: 0, benefit: 0 },
+    "3d": { cost: 0.06, benefit: 5 },
+  },
 };
 
 /** The frame the fit aims a drained frame at, ms: sixty a second, with a

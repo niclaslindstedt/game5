@@ -72,11 +72,11 @@ export type FarRanges = {
   setLevel(level: Level | null, key: Dir | null, grid?: FarGrid | null): void;
   /** The DISTANCE row's tier of rings. */
   setTier(tier: Tier): void;
-  /** A PLAIN sky's (the SKY row's): the rings put away and the skyline
-   * baked for the dome to paint instead (`far-silhouette.ts`); the map's
-   * own disc still stands past the clipmap. */
-  setPlain(on: boolean): void;
-  /** The baked skyline for the dome, while the sky is plain (else null). */
+  /** The HORIZON row's PAINTED: the rings put away and the skyline baked
+   * for the dome to paint instead (`far-silhouette.ts`); the map's own
+   * disc still stands past the clipmap. */
+  setPainted(on: boolean): void;
+  /** The baked skyline for the dome, while it is painted (else null). */
   silhouette(): THREE.DataTexture | null;
   /** The light of this frame, and the horizons marched on a little. */
   update(look: SkyLook): void;
@@ -227,10 +227,10 @@ export function createFarRanges(haze: HazeUniforms): FarRanges {
   let rings: Part | null = null;
   let disc: Part | null = null;
   let ground: ((x: number, z: number) => number) | null = null;
-  let plain = false;
+  let painted = false;
   let skyline: THREE.DataTexture | null = null;
   const bakeSkyline = (): void => {
-    if (skyline || !plain || !level || !frame || !grid) return;
+    if (skyline || !painted || !level || !frame || !grid) return;
     const sil = silhouetteOf(level, frame, grid);
     skyline = new THREE.DataTexture(sil.data, sil.bins, 1, THREE.RGBAFormat, THREE.FloatType);
     skyline.needsUpdate = true;
@@ -344,12 +344,12 @@ export function createFarRanges(haze: HazeUniforms): FarRanges {
       haze.uFarRimSpan.value.set(rim.rise, rim.drop);
       bakeSkyline();
     },
-    setPlain(on) {
-      plain = on;
+    setPainted(on) {
+      painted = on;
       bakeSkyline();
     },
     silhouette() {
-      return plain ? skyline : null;
+      return painted ? skyline : null;
     },
     setTier(next) {
       if (next === tier) return;
@@ -358,8 +358,8 @@ export function createFarRanges(haze: HazeUniforms): FarRanges {
     },
     update(look) {
       group.visible = forced ?? true;
-      // A plain sky paints the rings on the dome; the map's own disc stays.
-      if (rings) rings.mesh.visible = !plain;
+      // A painted horizon puts the rings on the dome; the map's own disc stays.
+      if (rings) rings.mesh.visible = !painted;
       const k = look.key;
       own.uKeyDir.value.set(k.x, k.y, k.z);
       own.uSkyLight.value.set(...look.skyLight);

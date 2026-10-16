@@ -118,8 +118,8 @@ export const FIRE_LAYOUT = {
     most: 4,
     sites: {
       base: { count: 1, second: 0.5, near: 40, search: 280, slope: 0.15 },
-      top: { near: 45, search: 220, slope: 0.2 },
-      mid: { odds: 0.75, band: [0.25, 0.75] as const, near: 40, search: 200, slope: 0.2 },
+      top: { near: 45, search: 220, slope: 0.15 },
+      mid: { odds: 0.75, band: [0.25, 0.75] as const, near: 40, search: 200, slope: 0.15 },
     },
     step: 8,
     jitter: 40,

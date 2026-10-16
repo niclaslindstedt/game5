@@ -163,6 +163,10 @@ export type Machines = {
   /** THE EXIT CUT's pace (`camera-exit.ts`): the run slowed for the leap out
    * of a craft's door, 1 otherwise. */
   exitPace(): number;
+  /** These machines where `state` rides what they were built for
+   * (`machinesKey`), else new ones built for it in their place, under the
+   * same parent, these taken down. */
+  refit(state: GameState): Machines;
   dispose(): void;
 };
 
@@ -180,6 +184,18 @@ export type MachineSnow = {
   wearing?: () => Outfit;
 };
 
+/** WHAT THE MACHINES ARE BUILT FOR: everything `createMachines` reads off
+ * the run it is built with to decide what it builds — the craft the rules
+ * allow, the bike, the wingsuit and its colourway. A new run on the map
+ * standing (the pause card's PISTE MAP, PLAY again) that differs here is
+ * built anew (`refit`, `renderer.ts`): a wingsuit stood up on a world built for a
+ * ride on skis would hang on its hover with no helicopter drawn under him. */
+function machinesKey(state: GameState, wearing?: () => Outfit): string {
+  const r = state.rules;
+  const suit = state.wingsuit && wearing ? suitOf(wearing()) : null;
+  return [r.heli, r.sled, r.groomer, !!state.bike, !!state.wingsuit, suit].join("|");
+}
+
 export function createMachines(
   level: Level,
   state: GameState,
@@ -187,6 +203,7 @@ export function createMachines(
   fx: MachineSnow,
 ): Machines {
   const haze = env.haze;
+  const builtFor = machinesKey(state, fx.wearing);
   const group = new THREE.Group();
   group.name = "machines";
   const heli: HeliScene | null = state.rules.heli ? createHeliScene(level, haze) : null;
@@ -642,6 +659,15 @@ export function createMachines(
     },
     slideLift: (x, z) => slide?.liftAt(x, z) ?? 0,
     exitPace: () => exitCut?.pace() ?? 1,
+    refit(s) {
+      if (machinesKey(s, fx.wearing) === builtFor) return this;
+      const parent = group.parent;
+      group.removeFromParent();
+      this.dispose();
+      const made = createMachines(level, s, env, fx);
+      parent?.add(made.group);
+      return made;
+    },
     dispose() {
       if (exitCut) exitHud(0);
       haze.uMistAloft.value = 0;

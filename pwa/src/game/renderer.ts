@@ -331,10 +331,9 @@ export function createWorldRenderer(
     for (const r of riders) r.model.dispose();
     for (const o of views) o?.removeFromParent();
     for (const r of riders) scene.remove(r.model.root);
-    // THE LAST FRAME'S RENDER LISTS hold every object it drew, and so every
-    // geometry, material and texture of the world just let go, until the
-    // scene is drawn again — which it is not while the next world is built
-    // behind a card. That was the whole old world held beside the new one.
+    // THE LAST FRAME'S RENDER LISTS hold every object it drew, and so every geometry, material and
+    // texture of the world just let go, until the scene is drawn again — which it is not while the
+    // next world is built behind a card. That was the whole old world held beside the new one.
     gl.renderLists.dispose();
     ghost?.dispose();
     ghost = null;
@@ -594,6 +593,7 @@ export function createWorldRenderer(
         lastTick = -1;
         lastState = state;
         pack = packFor(state);
+        machines = machines?.refit(state) ?? null; // a wingsuit after skis: built anew
       }
       if (pack && Math.abs(sunNow(skyLevel ?? state.level, state.t).elevation - packSun) > 0.005) {
         pack = packFor(state);

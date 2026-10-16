@@ -753,6 +753,7 @@ export {
   stepRivals,
 } from "./game/rivals.ts";
 export { stepRun } from "./game/run.ts";
+export { MACHINE_GRACE, inGrace, onMachine } from "./game/machine-grace.ts";
 export { HELI } from "./game/defs/heli.ts";
 export { HELI_BLADES, HELI_GRIP } from "./game/defs/heli-grip.ts";
 export { WRECK, fireFlux, fireballAt, fireballGrowth, fireballOf } from "./game/defs/heli-wreck.ts";

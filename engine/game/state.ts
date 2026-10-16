@@ -969,6 +969,9 @@ export type GameState = ContestState & {
   groomers?: GroomerState[];
   groomed?: GroomedSnow;
   machineSnow?: import("./snow-guns.ts").MachineSnow;
+  /** WHEN HE LAST STEPPED OFF a machine (`machine-grace.ts`), run seconds;
+   * absent until he first does. */
+  leftMachine?: number;
   /** OPEN DOORS by building id (`setDoor`); the leaves and move (`doorway.ts`). */
   doors?: string[];
   doorway?: import("./door-state.ts").Doorway;

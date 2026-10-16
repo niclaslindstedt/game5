@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  MACHINE_GRACE,
   NEUTRAL_INPUT,
   SLED,
   clipCrowd,
@@ -215,6 +216,11 @@ describe("riding it", () => {
     ride(s, 1, ask());
     expect(s.sled!.rider).toBe(false);
     expect(Math.hypot(s.skier.x - s.sled!.x, s.skier.z - s.sled!.z)).toBeGreaterThan(0.6);
+    // Inside the grace after stepping off, the press leaves him be...
+    ride(s, 1 / 120, ask({ machine: true }));
+    expect(s.sled!.rider).toBe(false);
+    // ...and past it, the press puts him back on.
+    ride(s, MACHINE_GRACE, ask());
     ride(s, 1 / 120, ask({ machine: true }));
     expect(s.sled!.rider).toBe(true);
   });

@@ -275,12 +275,19 @@ describe("fitting the picture to the machine (picture-fit.ts)", () => {
     expect(pictureWorth(fit)).toBeGreaterThan(pictureWorth(bottom()));
   });
 
-  it("never gives a slower machine more of the look than a faster one", () => {
-    let last = Infinity;
-    for (const measured of [4, 8, 12, 16, 20, 30, 45, 60]) {
-      const worth = pictureWorth(fitPicture(DEFAULT_VIDEO, measured));
-      expect(worth, `${measured} ms`).toBeLessThanOrEqual(last);
-      last = worth;
+  it("never gives a slower machine more of the look than a faster one, nor a picture over its budget", () => {
+    for (const at of [DEFAULT_VIDEO, top()]) {
+      let last = Infinity;
+      for (let measured = 4; measured <= 60; measured += 0.25) {
+        const fit = fitPicture(at, measured);
+        const scale = measured / pictureCost(at);
+        if (FLOOR_MS * scale <= FIT_BUDGET_MS) {
+          expect(pictureCost(fit) * scale, `${measured} ms`).toBeLessThanOrEqual(FIT_BUDGET_MS);
+        }
+        const worth = pictureWorth(fit);
+        expect(worth, `${measured} ms`).toBeLessThanOrEqual(last);
+        last = worth;
+      }
     }
     // A machine no fit can save gets the cheapest picture there is: every
     // row at its cheapest, bar a stop that measured free over the one under
@@ -336,6 +343,42 @@ describe("fitting the picture to the machine (picture-fit.ts)", () => {
       },
     };
     expect(fitPicture(DEFAULT_VIDEO, 500, FIT_BUDGET_MS, prices).trails).toBe("off");
+  });
+
+  it("looks past a stop that saves next to nothing to the one that does", () => {
+    // Only SHADOWS and the SKY cost anything, and one of them has to go.
+    // SKIERS costs what MEDIUM does and shows half as much: the saving is
+    // at OFF, and a fit that only looked one stop down would give up the
+    // sky — worth more a millisecond — to keep the shadow pass.
+    const free = Object.fromEntries(
+      PICTURE_ROWS.map((row) => [
+        row,
+        Object.fromEntries(
+          (PICTURE_LADDERS[row] as readonly string[]).map((stop, i) => [
+            stop,
+            { cost: 0, benefit: i },
+          ]),
+        ),
+      ]),
+    ) as unknown as typeof PICTURE_PRICES;
+    const prices = {
+      ...free,
+      shadows: {
+        off: { cost: 0, benefit: 0 },
+        skiers: { cost: 1.59, benefit: 22 },
+        medium: { cost: 1.6, benefit: 40 },
+        high: { cost: 1.6, benefit: 44 },
+      },
+      sky: {
+        plain: { cost: 0, benefit: 0 },
+        full: { cost: 1.6, benefit: 60 },
+      },
+    };
+    const at = top();
+    const cost = pictureCost(at, prices);
+    const fit = fitPicture(at, cost, cost - 1.5, prices);
+    expect(fit.shadows).toBe("off");
+    expect(fit.sky).toBe("full");
   });
 
   it("keeps the canvas's antialiasing, whatever it fits", () => {

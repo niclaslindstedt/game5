@@ -267,7 +267,7 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.run(s, 0.4, still);
     st.shoot(s, "stood-up-at-the-top", "chase");
   },
-  // ── THE MISS, FRAME BY FRAME: THE DIVE PAST HIM ────────────────────────
+  // ── THE MISS, FRAME BY FRAME: THE DIVE PAST HIM, AND AFTER HIM ─────────
   miss(st) {
     const s = ambush(st, "hunt", false);
     if (!st.until(s, isPhase("run"), 60, bot)) return;
@@ -282,7 +282,13 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
       st.shoot(s, `+${t}s`, lens);
     }
     st.shoot(s, "from-the-chase", "chase");
-    if (st.until(s, isPhase("halt", 0.5), 4, bot))
+    // Up again and after him, falling behind, until he tires.
+    st.until(s, isPhase("run", 0.6), 3, bot);
+    st.shoot(s, "after-him", "chase");
+    st.shoot(s, "after-him-side", aroundBeast(-6, 1.6, 0, 50));
+    st.run(s, 3, bot);
+    st.shoot(s, "still-after-him", aroundBeast(-2, 2.6, 8, 60));
+    if (st.until(s, isPhase("halt", 0.5), 12, bot))
       st.shoot(s, "roaring-after-him", aroundBeast(-4, 1.4, -4, 45));
   },
   // ── AFTER THE CATCH: THE CHASE THAT COMES UP SHORT ─────────────────────

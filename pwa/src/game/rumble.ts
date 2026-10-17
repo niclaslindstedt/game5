@@ -171,6 +171,11 @@ export function rumbleForEvent(event: GameEvent): Rumble | null {
       }
       return null;
 
+    // THE GRIMBEAR'S PAW glancing off him on a miss: a short shove, the
+    // skier still on his feet.
+    case "grimbear":
+      return event.phase === "miss" ? { ms: 90, strength: 0.5 } : null;
+
     default:
       return null;
   }

@@ -758,8 +758,8 @@ export function freeGameOptions(
     // bar up takes him off — stood up over the unload, thrown off anywhere
     // else — and untouched he rides round and back down.
     chairHands: true,
-    // THE GRIMBEAR, now and then.
-    grimbear: random() < GRIMBEAR_ODDS ? "hunt" : undefined,
+    // THE GRIMBEAR, now and then — never SAFE FOR WORK.
+    grimbear: random() < GRIMBEAR_ODDS && !skier.sfw ? "hunt" : undefined,
     // THE PISTE MACHINES, out working the runs if the ride is after dark.
     groomer: "night",
     // THE AVALANCHES: the loaded slopes off the groomed runs may slide,

@@ -37,6 +37,9 @@ export type GrimbearState = {
   lands: boolean;
   /** How many times he has broken cover this run. */
   sightings: number;
+  /** Whether the run he is on already missed — he runs after the skier
+   * now, as a chase does, and no longer dives. */
+  missed: boolean;
 };
 
 /** THE GRIMBEAR'S EVENT (`grimbear.ts`): out of the trees, over the skier

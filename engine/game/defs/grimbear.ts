@@ -30,17 +30,18 @@ export const GRIMBEAR = {
   giveUp: 150,
   passed: 6,
   /** He breaks cover when the skier is this many seconds from passing
-   * him, or nearer than `near` m: a hunt in good time to meet him, a chase
-   * only as he goes by, to run after him. */
-  trigger: { hunt: 2.4, chase: 0.6 },
-  near: { hunt: 28, chase: 12 },
+   * him, or nearer than `near` m: a hunt in good time to meet him — early
+   * enough to run at him at a little over his own pace rather than burst
+   * out at a sprint — a chase only as he goes by, to run after him. */
+  trigger: { hunt: 4.2, chase: 0.6 },
+  near: { hunt: 45, chase: 12 },
   /** THE RUN: a sprinter's top speed, m/s, reached at `accel` m/s², and
    * turned at most `turn` rad/s. A hunt is not held to it: he runs the
    * skier down at `outrun` times the skier's own speed, whatever it is. */
   sprint: 11,
-  accel: 9,
+  accel: 6,
   turn: 5,
-  outrun: 1.3,
+  outrun: 1.08,
   /** How far ahead along the skier's way he aims, s at most. */
   lead: 2.5,
   /** A CHASE (every sighting after the catch): he runs after the skier, at
@@ -58,9 +59,15 @@ export const GRIMBEAR = {
    * at a spot `wide` m to his own side of where the skier will be and
    * `behind` m behind it, at `dive` times his pace, never nearer him than
    * `clear` m however he turns — swipes the air there and stumbles on
-   * past, slowing at `skid` m/s² from `diveFor` s in, and pulls up roaring
-   * after `missFor` s. A run that misses leaves him hunting the next
-   * time. */
+   * past, slowing at `skid` m/s² from `diveFor` s in; his paw glances off
+   * the skier, shoving him `nudge` m/s across his way — never off his feet.
+   * After `missFor` s he is up and RUNS AFTER HIM as a chase does, but
+   * unheld by his sprint: at `pursue` of the skier's speed `tail` m behind
+   * him, `gain` more a metre further back, up to `catchUp` of it and
+   * `pursueTop` m/s at most — so he makes up the ground the dive lost and
+   * hangs a few strides behind, never on him — for `pursueFor` s, and
+   * pulls up roaring. A run that misses
+   * leaves him hunting the next time. */
   miss: 0.8,
   lunge: 3.2,
   wide: 2.2,
@@ -69,7 +76,14 @@ export const GRIMBEAR = {
   clear: 1.8,
   diveFor: 0.35,
   skid: 12,
-  missFor: 1.5,
+  missFor: 0.6,
+  nudge: 1.6,
+  pursue: 0.95,
+  tail: 6,
+  gain: 0.03,
+  catchUp: 1.2,
+  pursueTop: 20,
+  pursueFor: 9,
   /** How long he stands over the skier, s, then walks off at `walk` m/s
    * for `leaveFor` s, or until he is `gone` m away. */
   maulFor: 4,

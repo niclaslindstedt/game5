@@ -12,6 +12,7 @@ import {
   GRIMBEAR,
   TUNING,
   createGame,
+  placeRun,
   step,
   stepGrimbear,
   NEUTRAL_INPUT,
@@ -19,7 +20,7 @@ import {
   type GameState,
   type Level,
 } from "@engine";
-import { SLOPE, syntheticLevel } from "./support/synthetic.ts";
+import { SLOPE, flatLevel, syntheticLevel } from "./support/synthetic.ts";
 import {
   GRIMBEAR_ODDS,
   freeGameOptions,
@@ -180,7 +181,7 @@ describe("the hunt", () => {
 
 describe("the miss", () => {
   for (const speed of [8, 15, 30]) {
-    it(`dives past a skier at ${speed} m/s, swiping air, and is still hunting`, () => {
+    it(`dives past a skier at ${speed} m/s, swiping air, runs after him and is still hunting`, () => {
       const state = rigged(false);
       const b = state.grimbear!;
       b.wait = 0;
@@ -191,22 +192,65 @@ describe("the miss", () => {
       c.vz = speed;
       const seen: string[] = [];
       let nearest = Infinity;
-      for (let i = 0; i < Math.round(10 / TUNING.dt); i++) {
+      let after = 0;
+      for (let i = 0; i < Math.round(24 / TUNING.dt); i++) {
         state.t += TUNING.dt;
-        c.z += speed * TUNING.dt;
+        c.x += c.vx * TUNING.dt;
+        c.z += c.vz * TUNING.dt;
         state.events.length = 0;
         stepGrimbear(state, state.events);
         for (const e of state.events) if (e.kind === "grimbear") seen.push(e.phase);
         if (b.phase === "run" || b.phase === "miss")
           nearest = Math.min(nearest, Math.hypot(b.x - c.x, b.z - c.z));
+        if (b.phase === "run" && b.missed) after += TUNING.dt;
       }
-      expect(seen.slice(0, 3)).toEqual(["burst", "miss", "halt"]);
+      expect(seen.slice(0, 2)).toEqual(["burst", "miss"]);
+      // Up again and after him — not turned for home — until he tires or
+      // the skier is out of sight.
+      expect(after).toBeGreaterThan(2);
+      expect(["halt", "gone"]).toContain(seen[2]);
+      expect(seen).not.toContain("maul");
       expect(c.thrown).toBeNull();
       // He came for him — within a lunge — and went by, never on him.
       expect(nearest).toBeLessThan(GRIMBEAR.lunge + 0.5);
       expect(nearest).toBeGreaterThan(GRIMBEAR.reach);
       expect(b.hunt).toBe(true);
       expect(b.top).toBe(false);
+    });
+  }
+
+  for (const speed of [10, 15, 22]) {
+    it(`shoves a skier at ${speed} m/s aside, on his feet, and runs on after him`, () => {
+      // A packed strip falling at a steady grade, one trunk beside the line.
+      const level = flatLevel({ grade: 0.12, slopeFrom: 0 });
+      const X = level.spawn.x;
+      level.trees = [
+        { x: X + 9, z: 1000, y: level.groundAt(X + 9, 1000), height: 12, radius: 0.35, crown: 3 },
+      ];
+      const state = createGame({ level, mode: "free", quiet: true, grimbear: "hunt", crowd: 0 });
+      const b = state.grimbear!;
+      b.rng.chance = () => true;
+      b.wait = 0;
+      placeRun(state, { x: X, z: 920, heading: 0, speed });
+      const c = state.skier;
+      let before = 0;
+      let shove = NaN;
+      for (let i = 0; i < Math.round(10 / TUNING.dt) && Number.isNaN(shove); i++) {
+        before = c.vx;
+        step(state, NEUTRAL_INPUT);
+        if (state.events.some((e) => e.kind === "grimbear" && e.phase === "miss"))
+          shove = c.vx - before;
+      }
+      // Pushed across his way, away from the beast.
+      expect(Math.abs(shove)).toBeGreaterThan(GRIMBEAR.nudge * 0.6);
+      let chased = 0;
+      for (let i = 0; i < Math.round(6 / TUNING.dt); i++) {
+        step(state, NEUTRAL_INPUT);
+        expect(state.events.some((e) => e.kind === "wipeout")).toBe(false);
+        if (b.phase === "run" && b.missed) chased += TUNING.dt;
+      }
+      expect(c.thrown).toBeNull();
+      expect(chased).toBeGreaterThan(4);
     });
   }
 
@@ -262,6 +306,27 @@ describe("after the catch", () => {
     const events = glide(state, state.skier.z, 0.1, 6);
     expect(events.some((e) => e.kind === "grimbear" && e.phase === "halt")).toBe(true);
     expect(state.skier.thrown).toBeNull();
+  });
+});
+
+describe("safe for work", () => {
+  it("keeps him out of the woods, whatever is asked", () => {
+    const state = createGame({
+      level: woods(),
+      mode: "free",
+      quiet: true,
+      grimbear: "hunt",
+      crowd: 0,
+      sfw: true,
+    });
+    expect(state.grimbear).toBeUndefined();
+  });
+
+  it("is never dealt by the app", () => {
+    const skier = { spec: SKIS, assist: { yaw: 1, air: 1 }, sfw: true };
+    for (let i = 0; i < 50; i++) {
+      expect(freeGameOptions(freshRide(), i, skier, () => 0).grimbear).toBeUndefined();
+    }
   });
 });
 

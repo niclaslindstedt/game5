@@ -82,6 +82,8 @@ export const SLICE_OF_GROUP: Readonly<Record<string, GpuSlice & Hideable>> = {
   terrain: "terrain",
   water: "water",
   forest: "forest",
+  // Inside the "forest" group, beside the woods (`rocks.ts`).
+  rocks: "rocks",
   field: "field",
   ghost: "field",
   checkpoints: "checkpoints",

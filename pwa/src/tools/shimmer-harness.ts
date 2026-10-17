@@ -62,6 +62,11 @@ export type ShimmerRow = {
   /** The crag's pixels the snow blinks over (in front, behind, in front
    * again over three frames), %. */
   blink: number;
+  /** The mean second difference over the crag's pixels alone, ×1000, and
+   * the crag's share of the whole flicker, % — whether the rock or
+   * something else (the woods far out, the falling snow) is what moves. */
+  cragFlicker: number;
+  cragShare: number;
   /** How far the lens stood from what it looked at, m. */
   range: number;
 };
@@ -273,6 +278,7 @@ window.__shimmer = {
       let cragN = 0;
       let through = 0;
       let blink = 0;
+      let cragSum = 0;
       const paint = readCtx.createImageData(cellW, cellH);
       for (let i = 0; i < cellW * cellH; i++) {
         let d = 0;
@@ -295,7 +301,10 @@ window.__shimmer = {
         // The crag, and the snow drawn in front of it.
         const crag = Math.abs(crags[i] - empty[i]) > 0.01;
         const snow = crag && seen[0][i] - crags[i] > 0.15;
-        if (crag) cragN++;
+        if (crag) {
+          cragN++;
+          cragSum += d;
+        }
         if (snow) through++;
         // A BLINK: the snow in front of the rock in one frame and behind it
         // in the next and in front again (or the other way round) — what a
@@ -329,6 +338,8 @@ window.__shimmer = {
         crag: (cragN / (cellW * cellH)) * 100,
         through: cragN ? (through / cragN) * 100 : 0,
         blink: cragN ? (blink / cragN) * 100 : 0,
+        cragFlicker: cragN ? (cragSum / cragN) * 1000 : 0,
+        cragShare: sum ? (cragSum / sum) * 100 : 0,
         range: Math.hypot(
           shot.pose.target.x - shot.pose.eye.x,
           shot.pose.target.z - shot.pose.eye.z,

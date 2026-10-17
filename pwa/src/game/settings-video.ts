@@ -191,6 +191,16 @@ export const TRAIL_LOOK: Record<TrailLevel, TrailLook> = {
   high: { stamp: true, fineSize: 2048, fineSpan: 160, coarseSize: 2048, wells: true },
 };
 
+export type RockLook = {
+  near: number;
+  mid: number;
+  cheap: 16 | 32;
+  /** THE TALUS under the walls (`talus.ts`): how far from the lens its
+   * stones are drawn, m (sunk into the snow over the last quarter), and
+   * the share of them drawn, 0..1 — the smallest let go first. */
+  talus: { readonly reach: number; readonly share: number };
+};
+
 export type ForestLook = {
   /** The FULL tree runs out to here, m; past it the MID cut of the same
    * variant, to `mid`; past that the far band's sketch. WHICH trees cast is
@@ -228,6 +238,14 @@ export type ForestLook = {
    * from the lens an animal or a bird is drawn at its NEAR cut, m, before
    * the FAR one takes over. */
   wild: WildLook;
+  /** THE CRAGS ride the same row (`rocks.ts`): a tile whose nearest corner
+   * is within `near` m of the lens is built on the physics' own lattice,
+   * every bed (so the rock drawn is the rock met — never under 250 m, the
+   * reach the rock eval lab holds that to); out to `mid` m on a `cheap` m
+   * lattice, its beds taken two at a time for a 16 m one and four for a
+   * 32 m one; past that on a lattice twice as coarse with the beds twice as
+   * many to a ledge. */
+  rocks: RockLook;
   /** THE SUMMER GRASS rides the row too (the meadow is the summer's woods
    * to a rider's eye, `summer-grass.ts`): how far from the lens the tufts
    * stand, m, and the share of the cells that grow one, 0..1. Its price in
@@ -253,6 +271,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 2,
     casters: "sketch",
     wild: { forms: 1, near: 35 },
+    rocks: { near: 250, mid: 420, cheap: 32, talus: { reach: 110, share: 0.35 } },
     grass: { reach: 18, share: 0.5 },
   },
   medium: {
@@ -264,6 +283,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 5,
     casters: "sketch",
     wild: { forms: 2, near: 60 },
+    rocks: { near: 280, mid: 560, cheap: 16, talus: { reach: 160, share: 0.7 } },
     grass: { reach: 28, share: 0.75 },
   },
   high: {
@@ -275,6 +295,7 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
     variants: 10,
     casters: "full",
     wild: { forms: 3, near: 90 },
+    rocks: { near: 300, mid: 700, cheap: 16, talus: { reach: 200, share: 1 } },
     grass: { reach: 40, share: 1 },
   },
 };

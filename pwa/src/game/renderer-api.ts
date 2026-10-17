@@ -114,8 +114,8 @@ export interface DevRenderer {
   /** The scene walked and bucketed by subsystem (`scene-tally.ts`) — a walk
    * of the whole graph, so never from a frame being timed. */
   sceneTally(): SceneShare[];
-  /** A named subsystem's group (`forest`, `terrain`…) — for a lab that
-   * measures what it holds, never for drawing. */
+  /** A named subsystem's group (`forest`, `rocks`, `terrain`…) — for a lab
+   * that measures what it holds, never for drawing. */
   group(name: string): THREE.Object3D | undefined;
   /** The snow in the air the last frame drew — the spray's grains and the
    * cloud's puffs (`plume-probe.ts`) — for the snow eval lab's film score. */

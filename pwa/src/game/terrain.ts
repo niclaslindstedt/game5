@@ -63,6 +63,9 @@ import type { TrailUniforms } from "./trail-map.ts";
 import type { DeformLook } from "./deform-field.ts";
 import { SNOW_SKIP } from "./snow-skip.ts";
 import { createTreeWells } from "./tree-wells.ts";
+import { rockShareNodes } from "./rock-share-nodes.ts";
+import { rockTone } from "./rock-shapes.ts";
+import { strataUniforms } from "./strata-glsl.ts";
 import { trackFrameOf } from "./piste-tracks.ts";
 import { SUMMER_CHUNKS, type SummerTerrain } from "./summer-terrain.ts";
 import type { Grass, GrassLook } from "./summer-grass.ts";
@@ -363,7 +366,8 @@ function stampGround(level: Level, stamp: GroundStamp, ground: Uint16Array, dir:
       if (!stamp.at(f.originX + c * f.cell, f.originZ + r * f.cell, out)) continue;
       const k = r * f.cols + c;
       const was = THREE.DataUtils.fromHalfFloat(ground[k * 4 + 2]);
-      ground[k * 4 + 2] = h(Math.max(was, out.packed));
+      // The rock's share (below nought) stays where nothing is packed.
+      if (out.packed > 0) ground[k * 4 + 2] = h(Math.max(was, out.packed));
       if (out.packed > 0.5) {
         dir[k * 4] = Math.round((Math.cos(2 * out.heading) * 0.5 + 0.5) * 255);
         dir[k * 4 + 1] = Math.round((Math.sin(2 * out.heading) * 0.5 + 0.5) * 255);
@@ -411,6 +415,10 @@ function groundTextures(level: Level) {
   height.needsUpdate = true;
 
   const forest = made.forest ?? forestDensity(level);
+  // THE ROCK'S SHARE rides the packed channel below nought (a node is one
+  // or the other: no rock is laid on packed snow, \`rockShare\`), so the
+  // ground's shader knows where the skin lies with no texture of its own.
+  const rock = rockShareNodes(level);
   const support = regionOf(level).crust?.packed ?? 0;
   const ground = new Uint16Array(f.cols * f.rows * 4);
   const h = THREE.DataUtils.toHalfFloat;
@@ -432,7 +440,8 @@ function groundTextures(level: Level) {
         level.crust ? level.crust.data[k] * support : 0,
         level.ice ? level.ice.data[k] : 0,
       );
-      ground[k * 4 + 2] = h(wild > 0 ? Math.max(0, packed - wild) : packed);
+      const snow = wild > 0 ? Math.max(0, packed - wild) : packed;
+      ground[k * 4 + 2] = h(rock && rock[k] > 0 && snow <= 0 ? -rock[k] : snow);
       ground[k * 4 + 3] = h(forest[k]);
     }
   }
@@ -479,7 +488,7 @@ function groundTextures(level: Level) {
     1 / (tf.cols * tf.cell),
     1 / (tf.rows * tf.cell),
   );
-  return { height, ground: groundTex, dir, frame, frameBox };
+  return { height, ground: groundTex, dir, frame, frameBox, rock: rock !== null };
 }
 
 /** R21 — the wind crust and the river's ice on the ground's grid, folded
@@ -513,6 +522,14 @@ export function createTerrain(
   // wood drawn down into them.
   const wells = createTreeWells(level, haze, options.wells ?? true);
   group.add(wells.group);
+  // THE ROCK'S SKIN AS THE GROUND DRAWS IT (\`snow-glsl.ts\`'s \`snowSkin\`):
+  // its share off the texture, its beds as tone. The rock eval lab turns it
+  // off to price it (\`rockGround\`).
+  const strata = strataUniforms(level, !!look.rock && tex.rock);
+  const strataOn = strata.uStrata.value.w;
+  group.userData.rockGround = (on: boolean): void => {
+    strata.uStrata.value.w = on ? strataOn : 0;
+  };
   const shared = {
     ...wells.uniforms,
     uHeight: { value: tex.height },
@@ -525,6 +542,9 @@ export function createTerrain(
     uIceTone: { value: new THREE.Vector3(...look.ice) },
     uRock: { value: new THREE.Vector4(...(look.rock?.tone ?? [0, 0, 0]), look.rock ? 1 : 0) },
     uRockSlope: { value: new THREE.Vector2(look.rock?.from ?? 1, look.rock?.to ?? 2) },
+    // The skin's own stone and beds, for its far colour (\`strata-glsl.ts\`).
+    uRockStone: { value: new THREE.Vector3(...rockTone(look.rock?.tone ?? [0, 0, 0])) },
+    ...strata,
     uSastrugi: { value: look.sastrugi },
     uWindDir: { value: new THREE.Vector2(Math.sin(wind), Math.cos(wind)) },
     uHeightOrigin: { value: new THREE.Vector2(f.originX, f.originZ) },

@@ -8,7 +8,9 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import { InstanceReach, nearOf } from "../pwa/src/game/instance-reach.ts";
-import { CUTS, cutOf } from "../pwa/src/game/rocks.ts";
+import { CUTS, cutOf, cutsOf } from "../pwa/src/game/rocks.ts";
+import { FOREST_LOOK } from "../pwa/src/game/settings-video.ts";
+import { ROCKS } from "@engine";
 import {
   GROOMER_FAR,
   GROOMER_MARGIN,
@@ -112,6 +114,21 @@ describe("rock cuts", () => {
     expect(cutOf(edge - 60, 1)).toBe(0);
     // Far past a band, straight to the cut it asks.
     expect(cutOf(5000, 0)).toBe(2);
+  });
+
+  it("reads the FOREST row: the physics' lattice near on every row, cheaper further out lower down", () => {
+    for (const row of ["low", "medium", "high"] as const) {
+      const cuts = cutsOf(FOREST_LOOK[row].rocks);
+      // The rock drawn within 250 m is the rock met (the eval lab's reach).
+      expect(cuts[0].cell).toBe(ROCKS.skin.cell);
+      expect(cuts[0].every).toBe(1);
+      expect(cuts[0].out).toBeGreaterThanOrEqual(250);
+      // Every cut tiles a 192 m tile whole.
+      for (const c of cuts) expect(192 % c.cell).toBe(0);
+    }
+    const low = cutsOf(FOREST_LOOK.low.rocks);
+    expect(low[1].cell).toBeGreaterThan(CUTS[1].cell);
+    expect(low[1].out).toBeLessThan(CUTS[1].out);
   });
 });
 

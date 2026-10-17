@@ -55,8 +55,8 @@ real race, venue, product or person — the repo is public and the rule is in
 A session handed "implement <discipline>" and its spec, with none of the
 history behind it, works in this order:
 
-1. **Read**: `AGENTS.md` (the router: the rules of the repo, the labs table,
-   where code goes), the discipline's spec, `docs/disciplines.md` (the
+1. **Read**: `AGENTS.md` (the router: the rules of the repo), `docs/labs.md`
+   (the labs table), `docs/code-map.md` (where code goes), the discipline's spec, `docs/disciplines.md` (the
    research so far, and the SLALOM section as the worked example of what a
    finished discipline's research looks like), and
    `engine/mapgen/discipline-rules.ts` (R31, the slalom's course rule — the

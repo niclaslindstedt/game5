@@ -36,7 +36,7 @@ make sim         # the balance sweep (also a CI job)
 ## The workflow
 
 1. **Fork and branch.** Branch from `main`, named `<type>/<short-topic>` — e.g. `feat/skid-spray`, `fix/roller-launch-pitch`.
-2. **Change the code.** Where things go is mapped in [AGENTS.md](AGENTS.md) ("Where new code goes") — the short version: the mountain, the skier, the snow and the race in `engine/`, rendering in `pwa/src/game/`, never physics in the renderer.
+2. **Change the code.** Where things go is mapped in [AGENTS.md](AGENTS.md) ("Where new code goes") and, file by file, in [docs/code-map.md](docs/code-map.md) — the short version: the mountain, the skier, the snow and the race in `engine/`, rendering in `pwa/src/game/`, never physics in the renderer.
 3. **For skis, snow or generator changes, run the labs before and after.** `make sim` prints the finishes / pace / air table; `make level` draws the mountain and `make ride` the skier on the snow. Paste both tables in the PR description. A change that makes the bot stop finishing runs, or a skier who stops floating up onto the powder at speed, is a regression until argued otherwise.
 4. **Add or update tests.** Physics moments (the launch, the landing, the carve, the skid, the bog-down in powder, the caught edge) and generator rules are test-covered; a behavior change without a matching test change is incomplete. Tests live in `tests/*_test.ts` (see AGENTS.md → Test conventions).
 5. **Drop a changeset fragment** for anything user-visible: a file in `.changes/unreleased/` named `<unix-ts>-<slug>.md`:

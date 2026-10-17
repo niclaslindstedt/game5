@@ -264,6 +264,7 @@ When a session touched `AGENTS.md`, or noticed a section it never used, ask:
 | A procedure with steps, commands or a checklist | a skill — AGENTS.md holds no procedures |
 | A trap that bites BEFORE a skill is loaded (an import direction, a budget) | stays in AGENTS.md |
 | A pointer table (which doc, which skill, where new code goes) | stays in AGENTS.md — that IS the router |
+| A reference catalog or a long table (what is built, every lab's invocation, every file's home) | a `docs/` page; AGENTS.md keeps a short index by owner pointing at it, and `tests/skills_test.ts` holds the page's owner column |
 | Already stated in a skill | delete the AGENTS.md copy, keep the pointer |
 
 **Move it into an EXISTING skill wherever one fits.** A new skill is its own

@@ -172,6 +172,6 @@ make resort SEED=7   # the whole ski area a seed builds: the runs, the lifts, th
 make ride            # the skier on the snow in profile, one staged scenario at a time
 ```
 
-The README's Usage table lists every target; [AGENTS.md](../AGENTS.md) says which one a change owes. The browser-driven labs (`make screenshots`, `make profile`, `make world`, `make audition ARGS=--meter`) need `npm i --no-save playwright-core` and a Chromium (`CHROMIUM_PATH`).
+The README's Usage table lists every target; [docs/labs.md](labs.md) says which one a change owes. The browser-driven labs (`make screenshots`, `make profile`, `make world`, `make audition ARGS=--meter`) need `npm i --no-save playwright-core` and a Chromium (`CHROMIUM_PATH`).
 
 The desktop app (`make tauri`) and the store app (`make native-*`) wrap the same built site — [platforms.md](platforms.md).

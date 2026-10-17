@@ -155,13 +155,10 @@ describe("the strokes off the jump key on a free ride", () => {
     expect(state.skier.switched).toBe(true);
   });
 
-  it("thrown harder, a 360, ridden away forward", () => {
-    const { state, events, line } = popped((t, s) =>
-      t >= late ? { steer: spinSteer(s, 2, 1) } : {},
-    );
-    expect(wipeouts(events)).toHaveLength(0);
-    expect(line).toBe("BIG AIR + 360 + CLEAN LANDING");
-    expect(state.skier.switched).toBe(false);
+  it("thrown harder, a pop off the flat is too short a flight for a 360", () => {
+    const { events, line } = popped((t, s) => (t >= late ? { steer: spinSteer(s, 2, 1) } : {}));
+    expect(line).not.toContain("360");
+    expect(wipeouts(events).length).toBeGreaterThan(0);
   });
 
   it("the lean held off the pop is a loop that only its timing lands, back or forward", () => {

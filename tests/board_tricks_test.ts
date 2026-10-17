@@ -167,14 +167,16 @@ describe("the board's spins", () => {
 
   it("popped off the nose it is a NOLLIE spin, off the tail no word at all", () => {
     const popped = (lean: number): string => {
-      const state = staged(LYNX, { x: 1500, z: 200, heading: 0, speed: 12 });
+      // A full pop down a gentle pitch: a flat hop is too short a flight
+      // for a half turn at the spin's rate.
+      const state = staged(LYNX, { x: 1500, z: 200, heading: 0, speed: 12 }, 0.1);
       let air = -1;
       ride(state, 3.5, (t) => {
         if (air < 0 && state.skier.airborne) air = t;
         const up = air >= 0 ? t - air : -1;
         return {
-          lean: t < 1.0 ? lean : 0,
-          jump: t > 0.3 && t < 1.0,
+          lean: t < 1.3 ? lean : 0,
+          jump: t > 0.3 && t < 1.3,
           // Thrown once the hop round has let the edge go, let go at the half turn.
           steer: up >= 0.2 && Math.abs(state.tricks.spinDone) < Math.PI * 0.5 ? 1 : 0,
         };

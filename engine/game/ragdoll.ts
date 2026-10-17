@@ -51,7 +51,7 @@ import { ragdollOutOfStrip } from "./airstrip-solids.ts";
 import { ragdollOutOfRescue } from "./rescue-call.ts";
 import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
-import { liftedOnto } from "./rock-ground.ts";
+import { liftedOnto, stoppedOnRock } from "./rock-ground.ts";
 import { holdStance } from "./board-crash.ts";
 import { airDrag } from "./ragdoll-air.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
@@ -280,7 +280,9 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
         P[j + 2] = tree.z + (dz / d) * reach;
       }
       if (P[j + 1] < hold[i]) {
-        liftedOnto(level, P[j], P[j + 2], hold[i] - P[j + 1], L, j);
+        if (!stoppedOnRock(level, P, L, j, hold[i] - P[j + 1])) {
+          liftedOnto(level, P[j], P[j + 2], hold[i] - P[j + 1], L, j);
+        }
         pushed[i] += hold[i] - P[j + 1];
         P[j + 1] = hold[i];
       }

@@ -149,7 +149,18 @@ describe("the rock underfoot", () => {
   it("is hard and scraping: nothing sinks into bare rock, and a blow on it is a crag's", () => {
     const s = createGame({ level: base, mode: "free", crowd: 0, quiet: true, snowDepth: 2 });
     let bare = 0;
-    for (const p of spots) {
+    // The bare stone round each wall spot: a riser's face (a tread holds
+    // snow, so the spot itself may be white).
+    const risers = spots.map((p) => {
+      for (let dz = -6; dz <= 6; dz += 1.5) {
+        for (let dx = -6; dx <= 6; dx += 1.5) {
+          if ((s.level.bareRockAt!(p.x + dx, p.z + dz) ?? 0) >= 0.9)
+            return { x: p.x + dx, z: p.z + dz };
+        }
+      }
+      return p;
+    });
+    for (const p of risers) {
       if ((s.level.bareRockAt!(p.x, p.z) ?? 0) < 0.9) continue;
       bare++;
       expect(packedSnow(s, p.x, p.z)).toBe(1);

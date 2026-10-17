@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
+.PHONY: contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
 
 build:
 	npm run build
@@ -531,6 +531,24 @@ snowfall:
 # SEED=n; ARGS="--face=alpine-1 --along --step=0.5 --frames=16 --json".
 shimmer:
 	npm run shimmer -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE ROCK EVAL LAB: the mountain's rock (the walls' skin and the cliffs)
+# drawn through the game's renderer from FIXED SCENES on fixed maps (the foot
+# of the rockiest face, the face from 40 m to 1200 m, the skyline, the cliff
+# walls close and slanting, a gully, a buttress, the wall foot, the talus
+# ground, a skier's chase, the piste, the air, the valley; a low sun, night,
+# falling snow, every country, a real face, summer), every scene read from
+# nothing, priced with and without the rock and the ground (calls,
+# triangles, ms, settle, held memory), the drawn rock held to the ridden
+# within 250 m and 50 m (the PHYSICS GAP), the faces' SHIMMER, the
+# APPROACH's pops and `make shimmer`'s FLICKER — so ways of building rock
+# can be compared on the same pictures and numbers (previews/rock-eval/:
+# index.html by group, scenes.html by lens). Its own bundle from
+# pwa/rock-eval-preview.html. ARGS="--groups=alpine --scenes=foot,face-150
+# --json=FILE --compare=FILE"; --order-check the quick proof that no reading
+# hangs on the order the scenes are drawn in.
+rock-eval:
+	npm run rock-eval -- $(ARGS)
 
 # THE ALOFT LAB: what a lens high over the snow sees at each DISTANCE stop
 # (`view-aloft.ts`: the reach growing with the height, the ground's fine

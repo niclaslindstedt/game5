@@ -62,6 +62,8 @@
 // grey. So the tone is pushed past white and the tone mapper takes the lit
 // side down to a bright, unclipped white.
 
+import { ROCKS } from "@engine";
+
 import { DEFORM_SHADE_GLSL } from "./deform-glsl.ts";
 import { SNOW_GLINTS_GLSL, SNOW_NOISE_GLSL } from "./snow-noise-glsl.ts";
 import { FRESH_LOOK, LOOSE, TRAIL } from "./trail-stamp.ts";
@@ -75,6 +77,8 @@ import { SNOW_LAMPS_LIGHT } from "./snow-lamps-glsl.ts";
 import { SNOW_RELIEF_SAMPLE } from "./snow-relief-glsl.ts";
 import { SNOW_SUN_LIGHT, SUN_GLARE } from "./snow-sun-glsl.ts";
 import { SNOW_TRAIL_ALBEDO, SNOW_TRAIL_LIGHT, SNOW_TRAIL_SAMPLE } from "./snow-trail-glsl.ts";
+import { CALM_FROM, CALM_TO, STRATA_GLSL } from "./strata-glsl.ts";
+import { CALM_HELD, ROCK_SNOW } from "./rock-shapes.ts";
 
 // The vertex half (`snow-vertex-glsl.ts`), grafted beside the fragment's.
 export { SNOW_VERTEX_BEGIN, SNOW_VERTEX_PARS, SNOW_VERTEX_PLACE } from "./snow-vertex-glsl.ts";
@@ -111,6 +115,8 @@ uniform vec3 uCrustTone;
 uniform vec3 uIceTone;
 uniform vec4 uRock;
 uniform vec2 uRockSlope;
+uniform vec3 uRockStone;
+${STRATA_GLSL}
 uniform float uSastrugi;
 uniform vec2 uWindDir;
 uniform vec4 uSnowSkip;
@@ -138,6 +144,11 @@ float snowBerm;      // 0 off the plough's berm .. 1 on its crest
 float snowCrust;     // 0 powder .. 1 a wind slab (R21)
 float snowIce;       // 0 snow .. 1 a frozen river's bare ice (R21)
 float snowRock;      // 0 snow .. 1 rock showing through a steep face
+float snowFoot;      // m a pixel spans on the ground
+float snowSkin;      // 0 .. 1 where the rock's skin lies (\`rockShare\`)
+vec3 snowSkinCol;    // the skin's own far colour there, beds and all
+float snowHazeKeep = 1.0; // the air laid thinner over the skin's stone
+#define HAZE_KEEP snowHazeKeep
 float snowGroomed;   // 0 .. 1 a piste machine's fresh swath (trailPackAt)
 float snowSelf;      // 0 .. 1 the sun let through by the deformable snow's own relief
 float snowBelt;      // 0 .. 1 a snowmobile's belt-packed floor (trailPackAt)
@@ -180,7 +191,8 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   // New snow over the groomer (\`uFresh\`) buries its look — the comb's
   // corduroy first, the grey of worked snow by a few centimetres — while
   // the physics still feels the hard base under it (\`packedUnder\`).
-  snowPacked = g.b * (1.0 - smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh));
+  // The packed share, and below nought the rock's (\`terrain.ts\`).
+  snowPacked = max(g.b, 0.0) * (1.0 - smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh));
   // A PISTE MACHINE'S SWATH (\`groomer.ts\`): packed through wherever the
   // tiller went, on the piste or off it, and only the snow since on it. On
   // a night the machines work, the rest of the piste is the day's: skied
@@ -214,7 +226,7 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   snowCombed = uPiste.y * untouched * untouched * notSwath;
   // The new snow a busy piste has taken: not a smooth blanket but skied
   // into heaps and troughs as it lands.
-  snowChop = uPiste.x * g.b * smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh) * (1.0 - snowGroomed);
+  snowChop = uPiste.x * max(g.b, 0.0) * smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh) * (1.0 - snowGroomed);
   snowForest = g.a;
   vec2 grad = g.rg;
   // The crust and the ice, one signed share in the track map's alpha
@@ -226,8 +238,9 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
   {
     vec2 du = vec2(0.5 / uHeightCount.x, 0.0);
     vec2 dv = vec2(0.0, 0.5 / uHeightCount.y);
-    vec2 pg = vec2(texture2D(uGround, guv + du).b - texture2D(uGround, guv - du).b,
-                   texture2D(uGround, guv + dv).b - texture2D(uGround, guv - dv).b) / uCell;
+    vec4 nb = max(vec4(texture2D(uGround, guv + du).b, texture2D(uGround, guv - du).b,
+                       texture2D(uGround, guv + dv).b, texture2D(uGround, guv - dv).b), 0.0);
+    vec2 pg = vec2(nb.x - nb.y, nb.z - nb.w) / uCell;
     grad -= ${LOOSE.toFixed(3)} * pg;
   }
   // Past the map the ground's texture is clamped; the ridge's slope is
@@ -239,6 +252,31 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     grad = mix(grad, -vn.xz / max(vn.y, 0.2), smoothstep(0.0, 30.0, past));
   }
   snowRock = uRock.w * smoothstep(uRockSlope.x, uRockSlope.y, length(grad)) * (1.0 - snowPacked);
+  // WHERE THE SKIN LIES (\`rockShare\`, carried below nought in the packed
+  // channel): the rock there is the skin's own as it is calmed far out
+  // (\`strata-glsl.ts\`), so the ground carries its beds past its reach and
+  // shows the same rock where it pokes through it.
+  // Near, the skin itself is drawn and the ground under it is left as it
+  // was; it takes the skin's colour on as the skin is calmed, so where it
+  // pokes through the skin it is the skin's colour.
+  snowSkin = uStrata.w * smoothstep(${ROCKS.skin.from.toFixed(3)}, 0.45, -g.b)
+    * smoothstep(${CALM_FROM.toFixed(1)}, ${CALM_TO.toFixed(1)}, snowDist);
+  snowRock = max(snowRock, snowSkin * uRock.w);
+  snowSkinCol = vec3(0.0);
+  {
+    // Its beds as tone (\`stBands\`), over the pixel's footprint on the bed
+    // coordinate (worked out off the slope: no derivative is taken in a
+    // branch), and its snow as the calmed skin's even cover (\`rock-shapes.ts\`).
+    vec2 slopeW = grad - uStrata.xy;
+    snowFoot = length(fwidth(p));
+    float fwW = sqrt(1.0 + dot(slopeW, slopeW)) * snowFoot;
+    if (snowSkin > 0.0) {
+      float ny = inversesqrt(1.0 + dot(grad, grad));
+      float even = clamp((ny + ${CALM_HELD.toFixed(3)} - ${ROCKS.skin.slides.toFixed(3)}) / ${(ROCKS.skin.holds - ROCKS.skin.slides).toFixed(3)}, 0.0, 1.0);
+      vec3 b = stBands(stCoord(p, vSnowWorld.y), fwW);
+      snowSkinCol = stFar(uRockStone, vec3(${ROCK_SNOW.map((v) => v.toFixed(3)).join(", ")}), even, b, 1.0, snowDist) / ${GLARE.toFixed(3)};
+    }
+  }
 
   // THE SNOW'S AGE, here: only the loose snow (the groomer is the night's,
   // the ice and the rock are not snow), the run's own fall making it new
@@ -405,7 +443,14 @@ ${SLIDE_ALBEDO}
   if (snowIce > 0.0) {
     alb = mix(alb, uIceTone * mix(0.9, 1.05, snowNoise(p * 0.05)), snowIce * (1.0 - snowPress * 0.6));
   }
-  if (snowRock > 0.0) alb = mix(alb, uRock.rgb * mix(0.7, 1.2, snowNoise(p * 0.6)), snowRock);
+  if (snowRock > 0.0) {
+    // The rock showing through, its grain gone to its mean where a pixel
+    // spans it; and where the skin lies, the skin's own far colour.
+    float grain = mix(0.5, snowNoise(p * 0.6), 1.0 - smoothstep(0.5, 1.4, snowFoot * 0.6));
+    vec3 rockAlb = mix(uRock.rgb * mix(0.7, 1.2, grain), snowSkinCol, snowSkin);
+    alb = mix(alb, rockAlb, snowRock);
+    snowHazeKeep = mix(1.0, stHazeKeep(snowDist), snowSkin);
+  }
   diffuseColor.rgb = alb * ${GLARE.toFixed(3)};
 }
 `;

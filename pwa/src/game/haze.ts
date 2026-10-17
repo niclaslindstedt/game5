@@ -155,6 +155,9 @@ export type HazeUniforms = {
   /** THE NEW SNOW over the run, m (`GameState.fresh`): what buries the
    * groomer's look. The run's, not the sky's — the renderer writes it. */
   uFresh: { value: number };
+  /** THE RUN'S SNOW DIAL (`GameState.snowDepth`, 1 the ordinary snow): how
+   * deep the loose snow lies — what buries the talus's stones. */
+  uSnowDial: { value: number };
   /** THE PISTE THROUGH THE DAY (`GameState.piste`, `piste-day.ts`): how
    * skied up, sun-softened and refrozen the groomer is, each 0..1, and 1
    * in `w` on a run dealt it — all nought on one that was not. The
@@ -235,8 +238,10 @@ export function setRunSnow(
   day: { worn: number } | undefined,
   age?: SnowAge | null,
   tracks?: Tracks,
+  dial = 1,
 ): void {
   u.uFresh.value = fresh;
+  u.uSnowDial.value = dial;
   u.uTracks.value.set(tracks?.many ?? 0, tracks?.churn ?? 0);
   if (day) u.uPiste.value.set(day.worn, 1);
   else u.uPiste.value.set(0, 0);
@@ -297,6 +302,7 @@ export function createHazeUniforms(): HazeUniforms {
     uFlat: { value: 0 },
     uGlitter: { value: 1 },
     uFresh: { value: 0 },
+    uSnowDial: { value: 1 },
     uPiste: { value: new THREE.Vector2(0, 0) },
     uSnowAge: { value: new THREE.Vector4(0, 0, 0, 0) },
     uSnowAge2: { value: new THREE.Vector4(0, 0, 0, -1) },
@@ -708,7 +714,14 @@ export const HAZE_FRAGMENT = /* glsl */ `
   // ground, the disc past the wall and the rings past the map all fade on
   // one curve, with no band of mist between them.
   float hzMist = hazeMist(hzDist, hzRay.y);
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, max(hzAir, vec3(hzMist * uMistOpen)));
+  vec3 hzOver = max(hzAir, vec3(hzMist * uMistOpen));
+  // A material may keep some of its own colour through it (\`HAZE_KEEP\`,
+  // 1 the whole share): the bare rock's, so a far face reads as dark rock
+  // with white ledges and not the mist's pale wash.
+  #ifdef HAZE_KEEP
+    hzOver *= HAZE_KEEP;
+  #endif
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, hzCol, hzOver);
   gl_FragColor.rgb = mix(gl_FragColor.rgb, hzFar, hzMist * (1.0 - uMistOpen));
   // THE LOW DECK OR VALLEY FOG SEEN FROM OUTSIDE IT (\`uSeaK\`): the
   // length of the view between its base and its top, its colour over what

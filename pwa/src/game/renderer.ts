@@ -754,7 +754,7 @@ export function createWorldRenderer(
         filled = state.fresh;
       }
       timer.pop();
-      setRunSnow(env.haze, state.fresh, state.piste, pack?.age, pack?.tracks);
+      setRunSnow(env.haze, state.fresh, state.piste, pack?.age, pack?.tracks, state.snowDepth);
       const trailed = performance.now();
       // THE VIEW ALOFT (`view-aloft.ts`): the reach grows with the height over the snow.
       const eyeAt = lens.camera.position;
@@ -850,9 +850,9 @@ export function createWorldRenderer(
       }
       if (present) timer.frame(hiddenTag);
     },
-
     cost: () => cost,
     sceneTally: () => tallyScene(scene, lens.camera),
+    group: (name) => scene.getObjectByName(name),
     plumes: () => plumeBits(spray, cloud?.mesh ?? null),
     skisUnder: () =>
       terrain && level && riders[0]

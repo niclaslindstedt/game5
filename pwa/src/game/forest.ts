@@ -299,7 +299,7 @@ export function createForest(
   const group = new THREE.Group();
   // THE CRAGS on the drops stand with the woods, out to the whole view,
   // and the far share is the share of their blocks (`rocks.ts`).
-  const rocks = createRocks(level, haze);
+  const rocks = createRocks(level, haze, initial.rocks);
   group.add(rocks.group);
   const plot = sown ?? plantForest(level);
   plot.step(() => true); // the rest of it, whole
@@ -785,6 +785,7 @@ export function createForest(
         dropShapes(shapes);
         shapes = buildShapes(next.variants);
       }
+      rocks.setLook(next.rocks);
       options = { ...next };
       Object.assign(aloft, { far: options.far, lift: 0, view: options.view });
       tick++;

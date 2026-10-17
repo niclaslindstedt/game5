@@ -41,6 +41,7 @@ import {
   type Level,
 } from "@engine";
 
+import type { Presses } from "./app-presses.ts";
 import type { Loader } from "./app-load.ts";
 import type { FreeStage } from "./free-stage.ts";
 import { buildAhead } from "./map-build.ts";
@@ -86,11 +87,9 @@ export type PinnedRuns = {
   second: () => void;
   /** The cards before RIDE are up on this pinned map (or trick map) — its
    * map is ordered ahead on a worker unless it is standing already — or,
-   * with null, they are down and nothing is held (`map-build.ts`). */
-  ahead: (
-    pick: { pin: PinnedLevel; mode: PinnedLevel["mode"] } | { map: TrickMap } | null,
-    covered: boolean,
-  ) => void;
+   * with null, they are down and nothing is held (`map-build.ts`). The
+   * front door's QUICK START orders its map the same way (`order`). */
+  ahead: Presses["mapAhead"];
   /** The run on the snow is no longer a pinned one: nothing to stand up
    * again. */
   clear: () => void;
@@ -159,6 +158,7 @@ export function createPinnedRuns(world: {
       if (pin && covered) world.stage.want(raceOptions(pin.pin, pin.mode, null), "");
       else world.stage.drop();
       if (!pick) return buildAhead(null);
+      if ("order" in pick) return buildAhead(pick.order);
       if ("pin" in pick) return buildAhead(pin ? pinOrder(pick.pin) : null);
       buildAhead(trickStanding(pick.map) ? null : trickOrder(pick.map));
     },

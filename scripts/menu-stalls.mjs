@@ -10,6 +10,11 @@
 //
 //   node scripts/menu-stalls.mjs [--flow=free,race] [--cpu=4] [--json=FILE]
 //
+// The `quick` flow presses QUICK START on the front door after `--door`
+// seconds there (0: at once) and times the loading card to the run's first
+// frame, writing down what the card said along the way (`--shots=DIR` keeps
+// a picture of it a second).
+//
 // A row a card: the time until its stage is ready, the frames longer than
 // 50 ms, the longest frame and the blocked time (the sum of every frame's
 // gap past 50 ms), first on arriving and then over the drag; the `ride` row's
@@ -26,10 +31,12 @@ import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist
 const args = parseArgs(
   process.argv.slice(2),
   {
-    flow: { kind: "string", default: "free,race", help: "the flows walked: free, race" },
+    flow: { kind: "string", default: "free,race", help: "the flows walked: free, race, quick" },
     cpu: { kind: "number", default: 4, help: "the processor's throttle, × slower" },
     settle: { kind: "number", default: 4, help: "seconds watched on arriving at a card" },
     json: { kind: "string", default: "", help: "write the rows to this file" },
+    door: { kind: "number", default: 0, help: "quick: seconds on the front door before the press" },
+    shots: { kind: "string", default: "", help: "quick: a picture of the loading card a second" },
     compare: { kind: "string", default: "", help: "a file written by --json: show it beside" },
   },
   "node scripts/menu-stalls.mjs [--flow=free,race] [--cpu=4] [--json=FILE] [--compare=FILE]",
@@ -79,8 +86,58 @@ const sum = (gaps) => {
   };
 };
 
+/** QUICK START off the front door: the loading card timed, and read. */
+async function quick(page) {
+  await page.goto(`${site.url}?probe=0&menu=root`, { waitUntil: "load" });
+  const tile = page.locator('[data-menu="quick"]');
+  await tile.waitFor({ timeout: 120000 });
+  // A press while the door is still coming in is lost: a second for that.
+  await page.waitForTimeout(1000 + args.door * 1000);
+  await watch(page);
+  const at = Date.now();
+  await tile.click();
+  const said = [];
+  let shot = 0;
+  for (;;) {
+    const read = await page.evaluate(() => {
+      const text = (sel) => globalThis.document.querySelector(sel)?.textContent?.trim() ?? "";
+      const fill = globalThis.document.querySelector(".loading-bar-fill");
+      return {
+        ready: globalThis.__SH_READY__ === true,
+        step: text(".loading-step"),
+        detail: text(".loading-count"),
+        bar: fill ? globalThis.getComputedStyle(fill).transform : "",
+      };
+    });
+    if (read.ready) break;
+    const t = Date.now() - at;
+    const line = `${read.step} | ${read.detail}`;
+    if (said.at(-1)?.line !== line) said.push({ t, line });
+    if (args.shots && t >= shot * 1000) {
+      await page.screenshot({
+        path: join(args.shots, `quick-${String(shot).padStart(2, "0")}.png`),
+      });
+      shot++;
+    }
+    if (t > 300000) throw new Error("the load did not finish");
+    await page.waitForTimeout(100);
+  }
+  const ready = Date.now() - at;
+  for (const s of said) console.log(`  ${(s.t / 1000).toFixed(1).padStart(6)} s  ${s.line}`);
+  return { flow: "quick", card: "ride", ready, arrive: sum(await stop(page)), drag: null };
+}
+
 const rows = [];
 for (const flow of String(args.flow).split(",")) {
+  if (flow === "quick") {
+    const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
+    page.on("pageerror", (e) => console.error(`  pageerror: ${e.message}`));
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: args.cpu });
+    rows.push(await quick(page));
+    await page.close();
+    continue;
+  }
   const plan = FLOWS[flow];
   const page = await browser.newPage({
     viewport: { width: 844, height: 390 },

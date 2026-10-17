@@ -77,9 +77,13 @@ export type LoadStep = {
    * them would be a number the card was making up. What the card does
    * instead is `expectedMs` on the phase. */
   progress?: () => number;
-  /** A COUNT of the work, in the player's words — the trees planted of
-   * the forest's — read under the bar while this step is paid for. */
-  count?: () => string | null;
+  /** WHAT THE WORK IS DOING, in the player's words — the stage the map is
+   * on, the trees planted of the forest's — read under the bar while this
+   * step is paid for. */
+  detail?: () => string | null;
+  /** What this step typically costs, ms — its share of the whole load's
+   * bar until this machine has run a load and measured it (`expected`). */
+  typicalMs?: number;
   /** Do as much of this step as `budget` allows. Returns true while there
    * is more of it left to do — which is how a step that can be cut up
    * (standing the trees up, a handful at a time) says so.
@@ -107,6 +111,10 @@ export type LoadJob = {
    * and the thing to look at when one gets slow — and written back out as
    * the next load's `expected` (`loadTimes`). */
   spent: number[];
+  /** When each step was first paid for, on the caller's clock, or null
+   * before it was: a step with nothing to count fills its share of the bar
+   * against the time it has been running, waiting included. */
+  began: (number | null)[];
   /** What each step cost LAST TIME ON THIS MACHINE, ms, by step id. The only
    * thing a phase that cannot count its own work has to fill a bar from, and
    * empty until a machine has stood a run up once. */
@@ -130,7 +138,14 @@ export function createLoad(
   steps: readonly LoadStep[],
   expected: Readonly<Record<string, number>> = {},
 ): LoadJob {
-  return { steps, at: 0, spent: steps.map(() => 0), expected, failed: null };
+  return {
+    steps,
+    at: 0,
+    spent: steps.map(() => 0),
+    began: steps.map(() => null),
+    expected,
+    failed: null,
+  };
 }
 
 /** What this load cost, by step id — the next one's `expected`. Only worth
@@ -161,8 +176,13 @@ export type LoadPhase = {
    * keeps rather than the blocked main thread. Null until a machine has run
    * a load once, which is the one case with nothing to say at all. */
   expectedMs: number | null;
-  /** The running step's own count (`LoadStep.count`), or null. */
-  count: string | null;
+  /** What the running step is doing (`LoadStep.detail`), or null. */
+  detail: string | null;
+  /** How far through the WHOLE load it is, 0–1: every step weighted by
+   * what it cost last time on this machine (or typically costs, before
+   * that), the finished ones whole and the running one by its own count —
+   * or, where it has none, by the time it has run against its weight. */
+  overall: number;
 };
 
 /** Where the card says the load has got to: the phase being paid for, and
@@ -179,7 +199,7 @@ export type LoadPhase = {
  * `at` is 1-based and holds at the last phase once the load is done, so the
  * card never reads `(6/5)` on the frame it lifts.
  */
-export function loadPhase(job: LoadJob): LoadPhase {
+export function loadPhase(job: LoadJob, now?: number): LoadPhase {
   const labels: string[] = [];
   let at = 0;
   const here = Math.min(job.at, job.steps.length - 1);
@@ -222,8 +242,34 @@ export function loadPhase(job: LoadJob): LoadPhase {
     of: labels.length,
     done: countable ? clamp01(done / (to - from + 1)) : null,
     expectedMs,
-    count: job.steps[here].count?.() ?? null,
+    detail: job.steps[here].detail?.() ?? null,
+    overall: loadShare(job, now),
   };
+}
+
+/** How much of an estimate a step with nothing to count may claim before it
+ * ends: the rest of its share belongs to it actually finishing, or the bar
+ * would arrive and sit there reading as a hung game. */
+const ESTIMATE_FILL = 0.9;
+
+/** How far through the whole load `job` is, 0–1 (`LoadPhase.overall`). */
+export function loadShare(job: LoadJob, now?: number): number {
+  if (job.at >= job.steps.length) return 1;
+  const weight = job.steps.map((s) => job.expected[s.id] ?? s.typicalMs ?? 0);
+  const total = weight.reduce((a, b) => a + b, 0);
+  if (total <= 0) return job.at / job.steps.length;
+  let done = 0;
+  for (let i = 0; i < job.at; i++) done += weight[i];
+  const step = job.steps[job.at];
+  const w = weight[job.at];
+  let part = 0;
+  if (step.progress) part = clamp01(step.progress());
+  else {
+    const began = job.began[job.at];
+    if (began !== null && now !== undefined && w > 0)
+      part = Math.min(ESTIMATE_FILL, (now - began) / w);
+  }
+  return clamp01((done + w * part) / total);
 }
 
 function clamp01(v: number): number {
@@ -254,6 +300,7 @@ export function advanceLoad(job: LoadJob, budget: () => boolean, clock: () => nu
   while (job.at < job.steps.length) {
     const at = job.at;
     const started = clock();
+    job.began[at] ??= started;
     let more: boolean;
     try {
       more = job.steps[at].run(budget);

@@ -10,34 +10,22 @@
 //
 // The card is the app's own MARK — the two trails, laid over and over
 // (`mark-trails.tsx`) — with the word under it, then the phase being paid
-// for and where it sits in the count, then a bar for that phase alone, and
-// under it the phase's own count where its work has one (the trees planted).
+// for and where it sits in the count, then ONE bar for the whole load, and
+// under it what the work is doing right now: the stage the generator is on,
+// the trees planted of the forest's.
 //
-// THE COUNT IS OF PHASES, NEVER OF SECONDS. A load's cost is dominated by
-// generating the map, which finishes when it finishes, so one bar across the
-// whole load would reach nine tenths and sit there. A bar PER PHASE only ever
-// has to be right about the phase it is under, and `(2/3)` beside it is a
-// fact about the plan rather than a promise about the clock.
+// THE BAR IS THE WHOLE LOAD, each step weighted by what it cost the last
+// time this machine stood a run up (or what it typically costs, before
+// that — `run-loader.ts`'s `loadShare`). The steps that can count their own
+// work fill their share by that count: the generator by the stage it has
+// reached, the forest by its trees. The ones that cannot run their share
+// against the time they have been at it, and stop short of its end until
+// they really finish. A layout the generator throws away takes its share of
+// the bar back with it, and the line under the bar says which layout it is
+// on now.
 //
-// A bar is filled one of three ways, and which one is not a style choice — it
-// is how much this phase can honestly say about itself:
-//
-//   measured  — the work counts itself (trees stood up out of a forest), so
-//               the fill sits at exactly that.
-//   estimated — nothing inside the phase can be counted, but the same phase
-//               on this machine took a known time last time, so the fill runs
-//               against that clock. It is held short of full until the phase
-//               really ends, because an estimate that reached the end of the
-//               bar and stopped would read as a hung game.
-//   sweeping  — a machine that has never stood a race up has neither. A band
-//               travels the bar and claims nothing at all.
-//
-// EVERY ONE OF THEM IS A TRANSFORM, and that is the whole reason the card
-// works. The phases that need a bar most are single indivisible calls that
-// hold the main thread for seconds at a stretch, and anything animated on
-// that thread — a width, a stroke — freezes solid for exactly as long as the
-// player most needs to see something moving. Browsers run transforms on the
-// compositor, so these keep going through a block that stops everything else.
+// IT IS A TRANSFORM, which the compositor eases between the values it is
+// handed — so it moves on through a frame the main thread holds.
 
 import { MarkTrails } from "./mark-trails.tsx";
 import type { LoadPhase } from "./run-loader.ts";
@@ -92,45 +80,16 @@ export function LoadingScreen({
           {phase ? STRINGS.loadStep(phase.label, phase.at, phase.of) : " "}
         </p>
         <LoadBar phase={phase} />
-        <p class="loading-count">{phase?.count ?? " "}</p>
+        <p class="loading-count">{phase?.detail ?? " "}</p>
       </div>
     </div>
   );
 }
 
-/** How far into a phase's own bar the estimate is allowed to run. The last
- * tenth belongs to the phase actually ending: a bar that arrived at the far
- * end and sat there is the exact reading — "this is finished and nothing is
- * happening" — that a card exists to avoid giving. */
-const ESTIMATE_FILL = 0.9;
-
 function LoadBar({ phase }: { phase: LoadPhase | null }) {
-  // Keyed on the phase so each one starts its own bar from nothing: without
-  // it the estimate's animation would be inherited part-run by the phase
-  // after it, and a measured fill would slide backwards from the last one's
-  // full bar rather than growing from empty.
-  const key = phase ? `${phase.at}/${phase.of}` : "none";
-  const measured = phase?.done ?? null;
-  const estimateMs = measured === null ? (phase?.expectedMs ?? null) : null;
-  const mode = measured !== null ? "measured" : estimateMs !== null ? "estimated" : "sweeping";
   return (
-    <div class={`loading-bar loading-bar-${mode}`} aria-hidden="true">
-      <div
-        key={key}
-        class="loading-bar-fill"
-        style={
-          measured !== null
-            ? { transform: `scaleX(${measured})` }
-            : estimateMs !== null
-              ? {
-                  animationDuration: `${Math.max(1, estimateMs)}ms`,
-                  // The estimate's own ceiling, read by the keyframes so the
-                  // fraction lives here rather than twice over in the CSS.
-                  "--load-fill": ESTIMATE_FILL,
-                }
-              : undefined
-        }
-      />
+    <div class="loading-bar" aria-hidden="true">
+      <div class="loading-bar-fill" style={{ transform: `scaleX(${phase?.overall ?? 0})` }} />
     </div>
   );
 }

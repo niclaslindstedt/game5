@@ -79,8 +79,8 @@ import {
   type AgainAt,
   freeGameOptions,
   freeRestart,
-  quickRide,
 } from "./game/free-ride.ts";
+import { useQuickRide } from "./game/use-quick.ts";
 import { createFreeRides } from "./game/app-free.ts";
 import { createWorldBuild } from "./game/world-build.ts";
 import { outfitKey } from "./game/dress.ts";
@@ -831,6 +831,7 @@ export function App() {
 
   /** The start card's map: its own, or the free ride's first (`FREE_SEEDS`). */
   const startSeed = settings.ride.seed ?? FIRST_FREE_SEED;
+  const quick = useQuickRide(settings.ride);
   useAhead({
     page,
     shell,
@@ -838,7 +839,10 @@ export function App() {
     mode: modeRef,
     linkSeed: params.seed,
     freeOptions: () => freeGameOptions(settings.ride, startSeed, skierOf(settings, "free")),
+    quickOptions: () => quick.options(skierOf(settings, "free")),
+    quickKey: quick.dealt,
     presses: pressRef,
+    live: input !== null,
   });
   /** Onto the snow on a FREE RIDE: the start card's ride (or the pause card's
    * PISTE MAP's, or QUICK START's dealt one), on the pair the ski card holds. */
@@ -943,7 +947,7 @@ export function App() {
           pinned={params.seed !== null}
           onRace={() => setPage("races")}
           onFree={() => picks.openCard("free", "world")}
-          onQuick={() => freeRide(quickRide(settings.ride))}
+          onQuick={() => (freeRide(quick.next()), quick.ridden())}
           tricks={tricksTile(settings.trickMap, params.seed)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}

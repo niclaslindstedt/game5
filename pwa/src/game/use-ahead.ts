@@ -13,6 +13,9 @@
 //     late. The start card keeps only its map (its own worker's) and its
 //     chart; the rider card's stage covers the screen while the world is
 //     built behind it.
+//   * QUICK START's map, from the front door: its next ride is dealt
+//     before it is pressed (`App.tsx`), so its mountain is raised on a
+//     worker while the door is up and the press finds it built.
 //   * A PINNED RUN's map (a race's, a trick map's): ordered on a worker of
 //     its own from the level card or the trick map card on, the rider and
 //     gear cards keeping it (`map-build.ts`'s `buildAhead`) — and a race's
@@ -26,6 +29,7 @@ import { useEffect } from "preact/hooks";
 
 import type { Presses } from "./app-presses.ts";
 import { cardPick } from "./jump-hills.ts";
+import { gameOrder } from "./map-order.ts";
 import { pinnedPress } from "./pinned.ts";
 import type { Settings } from "./settings.ts";
 import type { Shell } from "./shell.ts";
@@ -42,7 +46,14 @@ export function useAhead(p: {
   linkSeed: number | null;
   /** The free ride the start card has stood up so far, on its map. */
   freeOptions: () => CreateGameOptions;
+  /** QUICK START's next ride. */
+  quickOptions: () => CreateGameOptions;
+  /** Changes when QUICK START's next ride is dealt anew. */
+  quickKey: number;
   presses: { current: Presses };
+  /** Whether the presses are wired yet: the render stack is fetched after
+   * the first frame, and an order handed over before it is lost. */
+  live: boolean;
 }): void {
   const { page, shell, settings } = p;
   useEffect(() => {
@@ -53,7 +64,7 @@ export function useAhead(p: {
     if (page === "start") return;
     p.presses.current.stageFree(free && cards ? p.freeOptions() : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the ride's own fields
-  }, [page, shell, settings.ride, settings.outfit]);
+  }, [page, shell, settings.ride, settings.outfit, p.live]);
   useEffect(() => {
     const m = p.mode.current;
     const cards =
@@ -61,10 +72,17 @@ export function useAhead(p: {
       (page === "levels" || page === "tricks" || page === "dress" || page === "skis");
     const pin = cards && m !== "free" ? pinnedPress(settings, m, p.linkSeed) : null;
     const trick = cards && !pin && isTrickRun(m) && p.linkSeed === null;
+    const door = shell === "menu" && page === "root";
     p.presses.current.mapAhead(
-      pin ? { pin: pin[0], mode: pin[1] } : trick ? { map: cardPick(m, settings) } : null,
+      pin
+        ? { pin: pin[0], mode: pin[1] }
+        : trick
+          ? { map: cardPick(m, settings) }
+          : door
+            ? { order: gameOrder(p.quickOptions()) }
+            : null,
       page === "dress" || page === "skis",
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the picks are the settings' own
-  }, [page, shell, settings.raceMap, settings.trickMap, settings.jumpHill]);
+  }, [page, shell, settings.raceMap, settings.trickMap, settings.jumpHill, p.quickKey, p.live]);
 }

@@ -4,7 +4,7 @@
 // alone, DOM-free, so the load's sequencing (`app-load.ts`) can name them
 // without learning there is a worker (`map-build.ts`, `map-worker.ts`).
 
-import type { CreateGameOptions, GenerateOptions, Level, PortableLevel } from "@engine";
+import type { CreateGameOptions, GenerateOptions, Level, MapWork, PortableLevel } from "@engine";
 
 /** WHAT TO BUILD: a map the generator is asked for directly (a pinned or a
  * trick map's row), or the map a run of a mode is skied on (`levelFor`). */
@@ -28,6 +28,9 @@ export const faceOfOrder = (order: MapOrder): string | undefined =>
 export type MapJob = {
   /** How far the generator has got, 0–1. */
   share: () => number;
+  /** Where it is — the stage, the attempt and how far through it — where
+   * the generator has said; null before it has, and for a map built here. */
+  work?: () => MapWork | null;
   /** The map, once it is built. */
   level: () => Level | undefined;
   /** Why it could not be built, once it is known it cannot. */
@@ -38,6 +41,6 @@ export type MapJob = {
 
 /** What the worker posts back. */
 export type MapWorkerReply =
-  | { kind: "progress"; share: number }
+  | { kind: "progress"; share: number; work?: MapWork }
   | { kind: "built"; level: PortableLevel }
   | { kind: "failed"; error: string };

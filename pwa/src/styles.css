@@ -3709,66 +3709,26 @@ canvas {
   background: rgb(13 34 51 / 60%);
 }
 
-/* EVERY FILL IS A TRANSFORM. The phases that need a bar most are single
-   indivisible calls that hold the main thread for seconds, and a width or a
-   stroke animated on that thread freezes for exactly as long as the player
-   most needs to see something moving. */
+/* THE FILL IS A TRANSFORM: a width animated on the main thread freezes for
+   exactly as long as a load holds it, and a transform the compositor eases
+   keeps moving. Eased so a step that lands in one frame does not snap. */
 .loading-bar-fill {
   width: 100%;
   height: 100%;
   border-radius: 999px;
   background: var(--flag);
   transform-origin: left center;
-  will-change: transform;
-}
-
-/* MEASURED — the work counts itself, so the fill sits at exactly that. Eased
-   so a step that lands in one frame does not snap. */
-.loading-bar-measured .loading-bar-fill {
   transform: scaleX(0);
-  transition: transform 160ms linear;
-}
-
-/* ESTIMATED — nothing inside the phase can count, but the same phase took a
-   known time on this machine last time, so the fill runs against that clock.
-   Held short of full (`--load-fill`) until the phase really ends: a bar that
-   reached the end and stopped reads as a hung game. */
-.loading-bar-estimated .loading-bar-fill {
-  animation: load-estimate linear both;
-}
-
-@keyframes load-estimate {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(var(--load-fill));
-  }
-}
-
-/* SWEEPING — a machine that has never stood a run up has neither a count nor
-   a clock. A band travels the bar and claims nothing at all. */
-.loading-bar-sweeping .loading-bar-fill {
-  transform-origin: center;
-  animation: load-sweep 1200ms ease-in-out infinite;
-}
-
-@keyframes load-sweep {
-  0% {
-    transform: translateX(-100%) scaleX(0.35);
-  }
-  100% {
-    transform: translateX(100%) scaleX(0.35);
-  }
+  transition: transform 300ms linear;
+  will-change: transform;
 }
 
 /* REDUCED MOTION: every card still shows and still does its job — what goes
    is the travelling, not the information. The wipe lands filled, the sweep
-   holds still. (The attract card's own are `title.css`'s.) */
+   takes each value as it comes. (The attract card's own are `title.css`'s.) */
 @media (prefers-reduced-motion: reduce) {
   .loading-bar-fill {
-    animation: none;
-    transform: none;
+    transition: none;
   }
 
   /* The mark stands FINISHED rather than drawing itself on: parked, both
@@ -3785,10 +3745,6 @@ canvas {
   .mark-trails .mark-trails-slide {
     animation: none;
     transform: none;
-  }
-
-  .loading-bar-sweeping .loading-bar-fill {
-    transform: scaleX(0.35);
   }
 
   /* The air clock's record still STICKS and still lights up; what stops is

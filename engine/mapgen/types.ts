@@ -9,6 +9,7 @@ import type { BikePark } from "./bike-park-types.ts";
 import type { PisteGrade, RunGrade } from "./grades.ts";
 import type { RegionId, TreeKind } from "./regions.ts";
 import type { GeneratorVersion } from "./versions.ts";
+import type { MapProgress } from "./progress.ts";
 import type { SkiJumpHill } from "./ski-jump-types.ts";
 import type { WeatherFront } from "./front.ts";
 export type { SkiJumpHill } from "./ski-jump-types.ts";
@@ -949,7 +950,7 @@ export interface GenerateOptions {
   course?: string;
   /** Told how far the search has got, 0–1, at its landmarks (`progress.ts`)
    * — for a loading card's bar. Draws nothing and moves nothing it builds. */
-  progress?: (share: number) => void;
+  progress?: MapProgress;
   /** Build ONE attempt of the search — this sub-seed alone — and throw its
    * refusal rather than try the next. An attempt is a pure function of the
    * seed and its number, so a host can run the attempts side by side

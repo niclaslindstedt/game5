@@ -23,6 +23,7 @@ import {
   levelIsCached,
   realFaceLoaded,
   type Level,
+  type MapWork,
 } from "@engine";
 
 import { buildPooled, poolOn } from "./attempt-pool.ts";
@@ -52,7 +53,33 @@ function settled(level: Level | undefined, failed: string | null): MapJob {
 
 /** The map ordered ahead of its load, if any. */
 let ahead: { key: string; job: MapJob } | null = null;
+/** The maps LET GO, each kept a moment before it is stopped: the press
+ * that starts a load is also what takes the cards that ordered it down, and
+ * those cards let the order go — or order the next one — in the same breath
+ * the load asks for it. */
+const parked = new Map<string, { job: MapJob; until: ReturnType<typeof setTimeout> }>();
+/** How long a map let go is kept for a load to take, ms. */
+const PARKED_MS = 3000;
 const keyOf = (order: MapOrder): string => JSON.stringify(order);
+
+/** Take `key`'s parked map back, if any, without stopping it. */
+function unpark(key: string | null): MapJob | undefined {
+  const held = key === null ? undefined : parked.get(key);
+  if (!held) return undefined;
+  clearTimeout(held.until);
+  parked.delete(key!);
+  return held.job;
+}
+
+/** Keep `key`'s map a moment, then stop it unless it was taken back. */
+function park(key: string, job: MapJob): void {
+  unpark(key)?.cancel();
+  const until = setTimeout(() => {
+    parked.delete(key);
+    job.cancel();
+  }, PARKED_MS);
+  parked.set(key, { job, until });
+}
 
 /** Start building `order`'s map ahead of the load that will ask for it — or,
  * with null, let the one held go. Asked again for the same map, it keeps
@@ -60,9 +87,14 @@ const keyOf = (order: MapOrder): string => JSON.stringify(order);
 export function buildAhead(order: MapOrder | null): void {
   const key = order === null || cachedHere(order) ? null : keyOf(order);
   if (ahead?.key === key) return;
-  ahead?.job.cancel();
-  ahead =
-    order && key !== null && typeof Worker !== "undefined" ? { key, job: onWorker(order) } : null;
+  if (ahead) park(ahead.key, ahead.job);
+  // Asked for again while parked: taken back rather than begun again.
+  const back = unpark(key);
+  ahead = back
+    ? { key: key!, job: back }
+    : order && key !== null && typeof Worker !== "undefined"
+      ? { key, job: onWorker(order) }
+      : null;
 }
 
 /** The map ordered ahead, once it is built, where it is `seed`'s. */
@@ -79,6 +111,8 @@ export function buildMap(order: MapOrder): MapJob {
     ahead = null;
     return held.job;
   }
+  const back = unpark(keyOf(order));
+  if (back && !back.failed()) return back;
   if (cachedHere(order) || typeof Worker === "undefined") {
     try {
       const level =
@@ -98,6 +132,7 @@ export function buildMap(order: MapOrder): MapJob {
 function onWorker(order: MapOrder): MapJob {
   if (poolOn()) return buildPooled(order);
   let share = 0;
+  let work: MapWork | null = null;
   let level: Level | undefined;
   let failed: string | null = null;
   const worker = new Worker(new URL("./map-worker.ts", import.meta.url), { type: "module" });
@@ -105,6 +140,7 @@ function onWorker(order: MapOrder): MapJob {
     const reply = e.data;
     if (reply.kind === "progress") {
       share = Math.max(share, reply.share);
+      work = reply.work ?? work;
       return;
     }
     if (reply.kind === "built") {
@@ -120,6 +156,7 @@ function onWorker(order: MapOrder): MapJob {
   worker.postMessage(order);
   return {
     share: () => share,
+    work: () => work,
     level: () => level,
     failed: () => failed,
     cancel: () => worker.terminate(),

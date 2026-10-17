@@ -1,26 +1,54 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE GENERATOR'S WORD ON ITS OWN PROGRESS (`engine/mapgen/progress.ts`):
 // told at its landmarks, never backwards, at one only when a map is
-// accepted — and drawing nothing, so a map built with someone listening is
-// the very map built without.
+// accepted, with the stage it is on — and drawing nothing, so a map built
+// with someone listening is the very map built without.
 
 import { describe, expect, it } from "vitest";
 
-import { generateLevel, levelDigest } from "@engine";
+import { generateLevel, levelDigest, type MapWork } from "@engine";
 import { pinnedAsk } from "../pwa/src/game/pinned.ts";
 import { RACE_MAPS } from "../pwa/src/game/race-maps.ts";
 import { TRICK_MAPS, trickAsk } from "../pwa/src/game/trick-maps.ts";
 
-function heard(build: (progress: (share: number) => void) => unknown): number[] {
+/** Every share told, and every stage and attempt beside it. */
+const works: MapWork[] = [];
+function heard(build: (progress: (share: number, work?: MapWork) => void) => unknown): number[] {
   const shares: number[] = [];
-  build((share) => shares.push(share));
+  works.length = 0;
+  build((share, work) => {
+    shares.push(share);
+    if (work) works.push(work);
+  });
   return shares;
 }
 
+/** The stages, in the order a search reaches them. */
+const STAGES = [
+  "mountain",
+  "pads",
+  "walked",
+  "graded",
+  "access",
+  "features",
+  "woods",
+  "courses",
+  "checked",
+];
+
 function held(shares: number[]): void {
   expect(shares.length).toBeGreaterThan(2);
-  for (let i = 1; i < shares.length; i++) expect(shares[i]).toBeGreaterThan(shares[i - 1]);
-  expect(shares[0]).toBeGreaterThan(0);
+  // Never backwards; told again at the same share only for a new stage.
+  for (let i = 1; i < shares.length; i++) expect(shares[i]).toBeGreaterThanOrEqual(shares[i - 1]);
+  expect(works.length).toBe(shares.length);
+  // An attempt's stages come in order, its share through it never falling.
+  for (let i = 1; i < works.length; i++) {
+    if (works[i].attempt !== works[i - 1].attempt) continue;
+    expect(STAGES.indexOf(works[i].stage)).toBeGreaterThanOrEqual(
+      STAGES.indexOf(works[i - 1].stage),
+    );
+    expect(works[i].part).toBeGreaterThanOrEqual(works[i - 1].part);
+  }
   expect(shares[shares.length - 2]).toBeLessThan(1);
   expect(shares[shares.length - 1]).toBe(1);
 }

@@ -8,6 +8,8 @@
 
 import { describe, expect, it } from "vitest";
 
+import { QUICK_START_SEEDS } from "../pwa/src/game/quick-seeds.ts";
+
 import {
   SKIS,
   airTempAt,
@@ -67,7 +69,6 @@ import {
   autoTempOf,
   quickRide,
   quickTempOf,
-  QUICK_SEEDS,
   QUICK_ODDS,
   type FreeRide,
   QUICK_TEMP_SPREAD,
@@ -829,8 +830,8 @@ describe("QUICK START (free-ride.ts)", () => {
       expect(ride.season).not.toBeNull();
       expect(TIMES_OF_DAY).toContain(ride.time);
       expect(WEATHER_KINDS).toContain(ride.weather);
-      expect(ride.seed).toBeGreaterThanOrEqual(1);
-      expect(ride.seed).toBeLessThanOrEqual(QUICK_SEEDS);
+      // A seed of its country's that is built on its first attempt.
+      expect(QUICK_START_SEEDS[ride.region!]).toContain(ride.seed);
       expect(ride.avalanche).toBe(false);
       expect(TEMP_STOPS).toContain(ride.temp);
       seasons.add(ride.season!);

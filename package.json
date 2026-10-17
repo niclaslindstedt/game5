@@ -159,7 +159,8 @@
     "native:ios": "npm --prefix native run ios",
     "native:ios:device": "npm --prefix native run ios:device",
     "native:android": "npm --prefix native run android",
-    "town": "node scripts/town-preview.mjs"
+    "town": "node scripts/town-preview.mjs",
+    "quick-seeds": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/quick-seeds.mjs"
   },
   "dependencies": {
     "@niclaslindstedt/oss-game-framework": "github:niclaslindstedt/oss-game-framework#v0.2.0"

@@ -18,6 +18,7 @@
 // renderer (`tests/menu_system_test.ts`), which is also why this module takes the
 // query string as an argument instead of reading `location` itself.
 
+import type { Shell } from "./shell.ts";
 import { TITLE_BEATS } from "./title-plan.ts";
 
 /**
@@ -88,4 +89,12 @@ export function revealAt(
     logo: ms >= TITLE_BEATS.logo,
     prompt: ms >= TITLE_BEATS.prompt,
   };
+}
+
+/** The surface a visit opens on: a link's run (its pause card with
+ * `?paused=1`), else the front door where the attract card is skipped
+ * (`splashSkipped`), else the attract card. */
+export function firstShell(link: { rides: boolean; paused: boolean }, search: string): Shell {
+  if (link.rides) return link.paused ? "pause" : "run";
+  return splashSkipped(search) ? "menu" : "splash";
 }

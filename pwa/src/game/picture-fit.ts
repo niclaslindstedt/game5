@@ -34,11 +34,17 @@
 // AGAIN: the second reading is of the picture the first fit chose, so the
 // scale it gives is the right one for the neighbourhood the answer is in.
 //
-// THE FIT IS GREEDY, BOTH WAYS. Over budget, it takes the step down that
-// loses the least worth for each millisecond it saves, and again, until the
-// estimate fits. With room to spare, it takes the step up that buys the most
-// worth for each millisecond it costs, as long as the estimate still fits.
-// A step that costs nothing measurable is always taken up and never down.
+// THE FIT IS EXACT. Of every picture the ladders can make, it takes the one
+// of most worth whose scaled cost fits — one stop a row, a knapsack with a
+// choice in each row, solved over the costs in hundredths of a millisecond
+// (the grain they are priced in): ten rows of a handful of stops over a
+// budget of some fifteen hundred hundredths is a few hundred thousand sums,
+// once a fit. Not greedy, stop by stop: a cheap step down that stands in
+// front of the dear one that matters (SHADOWS' SKIERS, as dear as MEDIUM
+// and worth half) would hide it, and a greedy fit can hand a slower machine
+// MORE of the look than a faster one. An exact answer is monotone by
+// construction — a smaller budget only chooses from fewer pictures. A stop
+// that costs nothing is always kept.
 
 import {
   PICTURE_LADDERS,
@@ -63,7 +69,7 @@ export const FIT_REFERENCE = { width: 1920, height: 1080 } as const;
 /** The frame with every row at its cheapest stop on the reference machine,
  * ms: the engine, the sky, the ground at its coarsest — what no row can
  * take off. */
-export const FLOOR_MS = 3.81;
+export const FLOOR_MS = 3.79;
 
 /**
  * THE PRICE LIST. Benefits, row by row:
@@ -93,95 +99,56 @@ export const FLOOR_MS = 3.81;
  * (SKIERS) are what sets a skier on the snow; HIGH only sharpens the
  * skiers'.
  * SPRAY: a share of the roost and the cloud; the lowest still throws some.
- *   Its grains are flown on the GPU at every stop now (`SPRAY_GPU`): the
- *   CPU's spray time fell by a third to two thirds and its upload by seven
- *   eighths under the snow lab's software GPU, while the vertex stage flies
- *   a ring half as large again as the pool. The prices below were measured
- *   with the old counted spray on the CPU's flight, which drew some 70, 130
- *   and 200 grains at LOW, MEDIUM and HIGH through a hockey stop; the
- *   weighed spray draws some 3,150, 5,850 and 9,000 there (the snow lab's
- *   perf rows), each a cheap streak on the GPU. Kept as they were — the
- *   software renderer's frame times are too noisy to price a row by — and
- *   OWED A GPU RE-PRICE (`make bench ARGS="--gpu --costs"`).
- * The TRAILS prices stand for the snow kept under the skis too: the
- *   player's and the two nearest rivals' bases let the ground down in the
- *   vertex stage at every stop (`ski-clear.ts`, a few dozen vector ops a
- *   vertex, no texture read), and OFF and LOW draw the bases' own groove in
- *   the fragment stage — too small to price apart, and OWED A GPU RE-PRICE
- *   with the row.
- * The TRAILS prices leave out the TREE WELLS (`TRAIL_LOOK`'s `wells`,
- *   MEDIUM and HIGH only): the benchmark's race is skied on the ordinary
- *   snow, where no map has a well and the ground reads none, so they cost
- *   the reference nothing. In a metre of powder they cost a refill of the
- *   well map every 16 m the lens moves (about 6 ms of the processor's, a
- *   hitch rather than a rate) and a few texture reads a pixel near the lens.
  * LAMPS: only after dark, and only where beams cross — his own headlamp is
  * always drawn, the floods and the field's lamps past the nearest are what
- * the lower stops give up, and LOW the snow's glitter in the beams. The
- * benchmark's race is run by day, where the row costs nothing, so its
- * prices are an estimate off a night frame, not the re-pricing's.
+ * the lower stops give up, and LOW the snow's glitter in the beams.
+ *
+ * The costs are the dearer view's of `make bench ARGS="--gpu --costs"` at
+ * `FIT_REFERENCE` — the race's, for every row: its top picture is 13.7 ms a
+ * frame against the vista's 9.0, and no row's share of the vista's frame
+ * outweighs that. What the benchmark's race does not draw is not in them:
+ * the TREE WELLS (`TRAIL_LOOK`'s `wells`, MEDIUM and HIGH only) are dug only
+ * in a metre of powder, where they cost a refill of the well map every 16 m
+ * the lens moves (about 6 ms of the processor's, a hitch rather than a
+ * rate) and a few texture reads a pixel near the lens. And the race is run
+ * by day, where LAMPS has nothing to light: it is priced from the NIGHT
+ * scene alone (`make bench ARGS="--gpu --costs --views night --rows
+ * lamps"`), a clear sky well after sunset with every headlamp and the floods
+ * on (12.5 ms a frame at the top picture).
  */
 export const PICTURE_PRICES: PriceList = {
-  // Measured at 0.6, 0.8 and the whole (0.40 and 0.87 ms over 0.6); those
-  // lie on one line in the share of pixels (0.36, 0.64, 1) — 1.36 ms a
-  // screen's worth — and the tenths between and under them are laid on it,
-  // until the next re-pricing times them. The floor is the half's frame.
   resolution: {
     "50": { cost: 0, benefit: 0 },
-    "60": { cost: 0.15, benefit: 15 },
-    "70": { cost: 0.33, benefit: 38 },
-    "80": { cost: 0.55, benefit: 60 },
-    "90": { cost: 0.78, benefit: 75 },
-    "100": { cost: 1.02, benefit: 85 },
+    "60": { cost: 0.55, benefit: 15 },
+    "70": { cost: 1.07, benefit: 38 },
+    "80": { cost: 1.73, benefit: 60 },
+    "90": { cost: 2.41, benefit: 75 },
+    "100": { cost: 3.34, benefit: 85 },
   },
-  // The DISTANCE row also carries the SKY (`SKY_TIER`, `sky-gpu.ts`), the
-  // CLOUD (`CLOUD_TIER`: LOW the shell, MEDIUM the slab, HIGH and MAX the
-  // raymarched volume) and the FAR RANGES' rings (`FAR_TIER`), all added
-  // after the costs below were measured on a GPU. What they add is
-  // SOFTWARE-SCALED, AN ESTIMATE OWED A REAL GPU'S RE-PRICE (`make bench
-  // ARGS="--gpu --costs"`): each pass timed alone in software GL at
-  // 1280 × 720 (`make sky ARGS=--sheet=cloudmotion`, `--sheet=skytier`,
-  // `--sheet=far`), scaled to the reference by RESOLUTION's own ratio —
-  // the benchmark race in the same software GL at 1280 × 720, DISTANCE LOW,
-  // the rest at the top, 4539 ms a frame at 100 and 2221 at 50, against
-  // RESOLUTION 100's measured 1.02 ms: 0.00044 reference ms a software ms
-  // of pixel work. The cloud's passes over LOW's shell (5.3 ms): MEDIUM
-  // 110.9, HIGH 50.6 a steady frame (269 on a cut), MAX 99.8 (258) — so
-  // +0.05, +0.02 and +0.04 ms on MEDIUM, HIGH and MAX; the GPU sky's tables
-  // (0.2 ms on HIGH, and only as the sun moves) and the far rings (10–37k
-  // triangles, inside the lab's noise) round to nothing. Scaled by the
-  // whole frame's ratio instead (the race's 4539 ms against its 9.1 ms on
-  // the reference) the same passes would be about five times dearer, which
-  // still moves no stop by a quarter of a millisecond. Each estimate is
-  // added to the GPU-measured cost under it, so a re-price replaces both.
+  // Carries the SKY's tiers (`SKY_TIER`, `sky-gpu.ts`), the CLOUD
+  // (`CLOUD_TIER`: LOW the shell, MEDIUM the slab, HIGH and MAX the
+  // raymarched volume) and the FAR RANGES' rings (`FAR_TIER`) with the mist.
   distance: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.57, benefit: 27 },
-    high: { cost: 1.25, benefit: 39 },
-    max: { cost: 1.5, benefit: 42 },
+    medium: { cost: 0.29, benefit: 27 },
+    high: { cost: 0.91, benefit: 39 },
+    max: { cost: 1.66, benefit: 42 },
   },
   terrain: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0, benefit: 8 },
-    high: { cost: 0.21, benefit: 12 },
+    medium: { cost: 0.15, benefit: 8 },
+    high: { cost: 0.78, benefit: 12 },
   },
-  // MEDIUM and HIGH carry the deformable snow, added after the costs under
-  // it were measured on a GPU: SOFTWARE-SCALED, AN ESTIMATE OWED A REAL
-  // GPU'S RE-PRICE (`make bench ARGS="--gpu --costs"`). Its patch (80k and
-  // 115k triangles, one draw call) and self-shadow march (7 and 14 steps)
-  // added +42 % to +57 % to the snow lab's software frame at 960 × 540,
-  // about 2,000 software ms; at RESOLUTION's 0.00044 reference ms a
-  // software ms of pixel work at 1280 × 720 (DISTANCE's note), 1.78 times
-  // that at 960 × 540, that is about 1.5 ms with the full march — taken as
-  // +1.0 at MEDIUM's half march and +1.6 at HIGH's. The field's own CPU
-  // (the presses, the settling, the upload) is a few tenths of a
-  // millisecond riding, more under a fall (`make snow-eval
-  // ARGS=--deform-perf`).
+  // MEDIUM and HIGH are dear for the deformable snow: its patch (80k and
+  // 115k triangles, one draw call) and its self-shadow march (7 and 14
+  // steps). The field's own CPU (the presses, the settling, the upload) is
+  // a few tenths of a millisecond riding, more under a fall (`make
+  // snow-eval ARGS=--deform-perf`).
   trails: {
     off: { cost: 0, benefit: 0 },
-    low: { cost: 0.06, benefit: 50 },
-    medium: { cost: 1.16, benefit: 66 },
-    high: { cost: 1.84, benefit: 72 },
+    low: { cost: 0.15, benefit: 50 },
+    medium: { cost: 2.76, benefit: 66 },
+    high: { cost: 3.64, benefit: 72 },
   },
   // Measured on a winter race. A SUMMER free ride also draws the grass the
   // row reaches (`FOREST_LOOK[...].grass`): ESTIMATED, not measured, at about
@@ -190,41 +157,35 @@ export const PICTURE_PRICES: PriceList = {
   // prices until a GPU bench times a summer frame.
   forest: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.65, benefit: 12 },
-    high: { cost: 1.19, benefit: 18 },
+    medium: { cost: 0.12, benefit: 12 },
+    high: { cost: 0.3, benefit: 18 },
   },
   shadows: {
     off: { cost: 0, benefit: 0 },
-    skiers: { cost: 0.6, benefit: 22 },
-    medium: { cost: 0.62, benefit: 40 },
-    high: { cost: 1.89, benefit: 44 },
+    skiers: { cost: 1.59, benefit: 22 },
+    medium: { cost: 1.6, benefit: 40 },
+    high: { cost: 2.28, benefit: 44 },
   },
   spray: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.08, benefit: 8 },
-    high: { cost: 0.18, benefit: 12 },
+    medium: { cost: 0.32, benefit: 8 },
+    high: { cost: 0.34, benefit: 12 },
   },
+  // From the night scene; by day the row reads 0.07 ms at MEDIUM and HIGH.
   lamps: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.3, benefit: 6 },
-    high: { cost: 0.6, benefit: 10 },
+    medium: { cost: 0.29, benefit: 6 },
+    high: { cost: 0.47, benefit: 10 },
   },
-  // SOFTWARE-SCALED, AN ESTIMATE OWED A REAL GPU'S RE-PRICE: the pinned
-  // race at 640 × 360 in software GL, frames timed with the row at each stop
-  // — 1167 against 1017 ms on the LOW preset, 5150 against 4900 on HIGH.
-  // LOW's 150 ms is 600 at 1280 × 720, at RESOLUTION's 0.00044 reference
-  // ms a software ms about 0.26 ms; HIGH's larger saving is mostly the
-  // cloud passes DISTANCE already prices. FULL's worth is the cloud, the
-  // sun and the night sky over a picture that has none.
+  // FULL's worth is the cloud, the sun and the night sky over a picture
+  // that has none. Dearer by day (0.26 ms) than under the night's stars
+  // and moon (0.19).
   sky: {
     plain: { cost: 0, benefit: 0 },
     full: { cost: 0.26, benefit: 14 },
   },
-  // SOFTWARE-SCALED, AN ESTIMATE OWED A REAL GPU'S RE-PRICE: the pinned
-  // race on the LOW preset at 640 × 360 in software GL, 1067 ms a frame
-  // with the rings' mesh against 1033 with the skyline painted — 34 ms,
-  // about 0.06 ms at 1280 × 720. 3D's worth is ridges that stand apart as
-  // the lens moves and meet the map's own ground with no seam.
+  // 3D's worth is ridges that stand apart as the lens moves and meet the
+  // map's own ground with no seam.
   horizon: {
     painted: { cost: 0, benefit: 0 },
     "3d": { cost: 0.06, benefit: 5 },
@@ -256,45 +217,17 @@ export function pictureWorth(video: VideoSettings, prices: PriceList = PICTURE_P
   return worth;
 }
 
-/** One stop along a row from where the picture stands: its cost and worth
- * over the stop it leaves (both negative going down). */
-type Step = { row: PictureRow; stop: string; cost: number; worth: number };
-
-function steps(video: VideoSettings, dir: 1 | -1, prices: PriceList): Step[] {
-  const out: Step[] = [];
-  for (const row of PICTURE_ROWS) {
-    const ladder = PICTURE_LADDERS[row] as readonly string[];
-    const at = ladder.indexOf(video[row] as string);
-    const stops = prices[row] as Record<string, StopPrice>;
-    const from = price(prices, row, video[row]);
-    let to = at + dir;
-    // Down, past any stop that costs no less: a step that saves nothing is
-    // never taken, and must not stand between the fit and one that does.
-    while (dir < 0 && to > 0 && stops[ladder[to]].cost >= from.cost) to--;
-    if (at < 0 || to < 0 || to >= ladder.length) continue;
-    const next = stops[ladder[to]];
-    out.push({
-      row,
-      stop: ladder[to],
-      cost: next.cost - from.cost,
-      worth: next.benefit - from.benefit,
-    });
-  }
-  return out;
-}
-
-const take = (video: VideoSettings, step: Step): VideoSettings => ({
-  ...video,
-  [step.row]: step.stop,
-});
+/** Costs on the fit's grain, hundredths of a millisecond, rounded UP so a
+ * picture the fit calls inside the budget is inside it. */
+const grain = (ms: number): number => Math.max(0, Math.ceil(ms * 100 - 1e-6));
 
 /**
  * THE FIT: the picture this machine should draw, given that it drew `at`
  * in `measuredMs` (a drained frame). The machine is read as the reference
  * scaled by `measuredMs / pictureCost(at)`; the answer is the picture of
- * most worth whose scaled cost fits `budgetMs`, found greedily — down by the
- * least worth lost a millisecond saved, then up by the most worth gained a
- * millisecond spent. `at`'s ANTIALIAS is kept: the canvas owns it.
+ * most worth whose scaled cost fits `budgetMs` — and where none does, the
+ * cheapest there is, every stop that costs nothing kept. A tie in worth
+ * goes to the cheaper picture. `at`'s ANTIALIAS is kept: the canvas owns it.
  */
 export function fitPicture(
   at: VideoSettings,
@@ -304,23 +237,50 @@ export function fitPicture(
 ): VideoSettings {
   if (!(measuredMs > 0)) return at;
   const scale = measuredMs / pictureCost(at, prices);
-  const fits = (v: VideoSettings): boolean => pictureCost(v, prices) * scale <= budgetMs;
-  let video = at;
-  while (!fits(video)) {
-    const down = steps(video, -1, prices).filter((s) => s.cost < 0);
-    if (down.length === 0) break;
-    // Least worth lost per ms saved (both negative, so the ratio is positive).
-    down.sort((a, b) => a.worth / a.cost - b.worth / b.cost);
-    video = take(video, down[0]);
+  const rows = PICTURE_ROWS.map((row) => {
+    const ladder = PICTURE_LADDERS[row] as readonly string[];
+    const stops = prices[row] as Record<string, StopPrice>;
+    return {
+      row,
+      ladder,
+      cost: ladder.map((stop) => grain(stops[stop].cost)),
+      worth: ladder.map((stop) => stops[stop].benefit),
+    };
+  });
+  const most = rows.reduce((sum, r) => sum + Math.max(...r.cost), 0);
+  // The budget past the floor, rounded DOWN onto the grain as the costs are
+  // rounded up; under the floor, nothing but the stops that cost nothing.
+  const room = Math.min(most, Math.max(0, Math.floor((budgetMs / scale - FLOOR_MS) * 100 + 1e-6)));
+  // best[c]: the most worth the rows so far can buy for at most c; pick[r][c]
+  // the stop row r took for it.
+  let best = new Array<number>(room + 1).fill(0);
+  const pick: Uint8Array[] = [];
+  for (const r of rows) {
+    const next = new Array<number>(room + 1).fill(-Infinity);
+    const took = new Uint8Array(room + 1);
+    for (let c = 0; c <= room; c++) {
+      for (let s = 0; s < r.ladder.length; s++) {
+        if (r.cost[s] > c) continue;
+        const w = best[c - r.cost[s]] + r.worth[s];
+        if (w > next[c]) {
+          next[c] = w;
+          took[c] = s;
+        }
+      }
+    }
+    best = next;
+    pick.push(took);
   }
-  for (;;) {
-    const up = steps(video, 1, prices).filter((s) => s.worth > 0 && fits(take(video, s)));
-    if (up.length === 0) break;
-    const value = (s: Step): number => (s.cost > 0 ? s.worth / s.cost : Infinity);
-    up.sort((a, b) => value(b) - value(a));
-    video = take(video, up[0]);
+  // The cheapest budget that buys the most worth, so a tie keeps headroom.
+  let c = room;
+  while (c > 0 && best[c - 1] === best[room]) c--;
+  const video = { ...at } as Record<string, unknown>;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const s = pick[i][c];
+    video[rows[i].row] = rows[i].ladder[s];
+    c -= rows[i].cost[s];
   }
-  return video;
+  return video as VideoSettings;
 }
 
 /** Whether two pictures draw alike: every fitted row at the same stop. */

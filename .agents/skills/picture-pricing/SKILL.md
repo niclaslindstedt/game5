@@ -1,6 +1,6 @@
 ---
 name: picture-pricing
-description: "Use when a PICTURE row's stops change, when PRESET ▸ AUTO picks a picture that looks wrong for a machine, or when anything a frame draws gets dearer or cheaper enough to move what AUTO should keep: every stop of every OPTIONS ▸ PICTURE row carries a measured COST (ms a frame on the reference machine) and a judged BENEFIT (what it adds to the look, 0–100 on one scale for every row), and `fitPicture` spends a machine's frame on the most look per millisecond. Owns `PICTURE_PRICES` and `FLOOR_MS` in `pwa/src/game/picture-fit.ts`, the price list lab (`make bench ARGS=\"--gpu --costs\"`, `--reprice`), how a benefit is argued, and the rule that a stop added to a ladder owes a price. Not the ladders themselves (`menu-system`, `settings-video.ts`) and not the probe's timing (`menu-system`, `video-probe.ts`)."
+description: "Use when a PICTURE row's stops change, when PRESET ▸ AUTO picks a picture that looks wrong for a machine, or when anything a frame draws gets dearer or cheaper enough to move what AUTO should keep: every stop of every OPTIONS ▸ PICTURE row carries a measured COST (ms a frame on the reference machine) and a judged BENEFIT (what it adds to the look, 0–100 on one scale for every row), and `fitPicture` spends a machine's frame on the most look it can buy. Owns `PICTURE_PRICES` and `FLOOR_MS` in `pwa/src/game/picture-fit.ts`, the price list lab (`make bench ARGS=\"--gpu --costs\"`, `--reprice`), how a benefit is argued, and the rule that a stop added to a ladder owes a price. Not the ladders themselves (`menu-system`, `settings-video.ts`) and not the probe's timing (`menu-system`, `video-probe.ts`)."
 ---
 
 # Pricing the picture
@@ -8,11 +8,12 @@ description: "Use when a PICTURE row's stops change, when PRESET ▸ AUTO picks 
 PRESET ▸ AUTO fits every PICTURE row to the machine it runs on
 (`video-probe.ts` times the race under the front door, `picture-fit.ts`
 decides). The fit is only as good as its PRICE LIST: for every stop of
-every row, what it COSTS a frame and what it is WORTH to the look. Over
-budget, the fit gives up the step that loses the least worth per
-millisecond saved; with room, it buys the step with the most worth per
-millisecond spent. A price that is wrong makes AUTO throw away something
-that shows to save nothing, or keep something invisible at a real price.
+every row, what it COSTS a frame and what it is WORTH to the look. The
+fit takes, of every picture the ladders can make, the one of most worth
+whose cost fits the machine's frame — exactly, a knapsack with one choice a
+row over the costs in hundredths of a millisecond. A price that is wrong
+makes AUTO throw away something that shows to save nothing, or keep
+something invisible at a real price.
 
 > **A cost is measured; a benefit is argued.** Never guess a cost, and
 > never "measure" a benefit — write down why a stop is worth what it is,
@@ -30,7 +31,19 @@ live.
    reference buffer (`FIT_REFERENCE`, 1920×1080):
    `make bench ARGS="--gpu --costs --width 1920 --height 1080"`. It needs
    a real GPU (see `debug-tools`; in a cloud container SwiftShader prices
-   the CPU, which is no price at all), and it takes over an hour.
+   the CPU, which is no price at all), and it takes over an hour. The
+   driver is not a dependency: `npm install --no-save playwright-core@1`,
+   then `git checkout package-lock.json`, which the install rewrites. On
+   macOS point it at the installed browser, which draws through Metal on the
+   real GPU (`CHROMIUM_PATH="/Applications/Google
+   Chrome.app/Contents/MacOS/Google Chrome"`; the default path is the cloud
+   container's).
+   Run it IDLE, ON THE CHARGER, under `caffeinate -dimsu`. A share cancels
+   drift that is slow (a laptop warming over the hour), not someone working
+   on the machine, whose bursts land on one run and not the next. And a
+   laptop off its charger sleeps mid-list: the run does not fail, it hangs,
+   and a list cut in two is two machines' prices. Watch the log's age; a
+   stop is a minute or two.
 2. What it does: every stop of every row, the other rows at their top, a
    600-frame run three times, each beside a run of the top picture; the
    stop's price is its frame as a SHARE of the top frame around it. It
@@ -39,14 +52,21 @@ live.
    it), and keeps each stop at its dearer view. The JSON lands in
    `previews/picture-costs.json`, and the table to paste is printed last
    (`--reprice` prints it again from the JSON without running anything).
-3. Paste the costs and `FLOOR_MS` into `PICTURE_PRICES`, then run
+3. LAMPS has nothing to light in the race's late morning: price it from
+   the NIGHT scene alone, `make bench ARGS="--gpu --costs --views night
+   --rows lamps --width 1920 --height 1080"` (minutes, not an hour;
+   `--views` takes any scene of `bench-scenes.ts`, `--rows` any rows, and a
+   run of either is written beside `picture-costs.json`, never over it).
+4. Paste the costs and `FLOOR_MS` into `PICTURE_PRICES`, then run
    `npx vitest run tests/video_test.ts`: every row is priced, the cheapest
    stop is 0/0, and neither cost nor benefit falls up a ladder.
 
 ### The sweep: every row in one long run (`--sweep`)
 
 `make bench ARGS="--gpu --sweep --width 1920 --height 1080"` prices the
-whole list a second way, and is the faster of the two. Per SCENE
+whole list a second way, and is the faster of the two — but only where the
+frame is heavy enough for its blocks to read (see its lessons: on a fast
+GPU it priced nothing). Per SCENE
 (`bench-scenes.ts`: the race, the vista, sunset, night and a snowfall —
 every one calm on the same race; `--views` to pick), it loads the page ONCE and draws the
 race in blocks of 40 frames (`SWEEP` in `picture-sweep.ts`), each under a

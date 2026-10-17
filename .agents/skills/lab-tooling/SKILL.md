@@ -1,6 +1,6 @@
 ---
 name: lab-tooling
-description: "Use when writing or changing a LAB, a PREVIEW or any script under `scripts/` — a new Make target, a new flag on an existing one, a picture drawn in pure Node, a harness page drawn in a browser, a scratch probe over the built site, a meter. Owns the shelf every tool is built from (the framework's `tooling/*`: the flag parser, the raster and the PNG encoder, the `@engine` alias, the static server, the Chromium finder; and `scripts/lib/`: the level and ride painters, the ride scenarios, the glTF packer), the harness-page pattern (`make world`), the rule that a lab reads the game's own modules and never restates one, the URL contract the built app answers to (`url-params.ts`), and where a new tool is registered (the Makefile, `package.json`, the README's Usage table, the router's labs table). Load it BEFORE writing a one-off script: what you need is usually on the shelf."
+description: "Use when writing or changing a LAB, a PREVIEW or any script under `scripts/` — a new Make target, a new flag on an existing one, a picture drawn in pure Node, a harness page drawn in a browser, a scratch probe over the built site, a meter. Owns the shelf every tool is built from (the framework's `tooling/*`: the flag parser, the raster and the PNG encoder, the `@engine` alias, the static server, the Chromium finder; and `scripts/lib/`: the level and ride painters, the ride scenarios, the glTF packer), the harness-page pattern (`make world`), the rule that a lab reads the game's own modules and never restates one, the URL contract the built app answers to (`url-params.ts`), and where a new tool is registered (the Makefile, `package.json`, the README's Usage table, `docs/labs.md`'s table). Load it BEFORE writing a one-off script: what you need is usually on the shelf."
 ---
 
 # Lab tooling — how a measurement is built here
@@ -201,8 +201,9 @@ all of these:
    draws and example invocations, mapping `SEED=`, `SCENARIO=`, `SCENE=`,
    `ARGS=` onto the flags the way its neighbours do.
 4. `README.md`'s Usage table — one row.
-5. `AGENTS.md`'s labs table, if a subject now OWES the lab before and after
-   a change, and the owning skill's own workflow.
+5. `docs/labs.md`'s table, if a subject now OWES the lab before and after
+   a change (and its family's row in `AGENTS.md`'s labs index, if the lab is
+   a family's new one), and the owning skill's own workflow.
 6. For a harness page: `pwa/src/tools/<name>.tsx`, `pwa/<name>-preview.html`
    (with `noindex` and a comment saying it never ships), the driver's one-off
    build.

@@ -141,4 +141,19 @@ describe("the router (§7, §21.8)", () => {
       expect(dirs, `AGENTS.md routes to "${owner}", which is not a skill`).toContain(owner);
     }
   });
+
+  // The full tables AGENTS.md indexes live in docs/ (the router points at
+  // them); a skill renamed or retired must not leave a row there routing
+  // to nothing either.
+  for (const doc of ["docs/labs.md", "docs/code-map.md"]) {
+    it(`every skill ${doc}'s table hands a change to exists`, () => {
+      const text = readFileSync(join(ROOT, doc), "utf8");
+      expect(agents, `AGENTS.md does not point at ${doc}`).toContain(`(${doc})`);
+      const owners = lastColumnSkills(text);
+      expect(owners.length).toBeGreaterThan(10);
+      for (const owner of owners) {
+        expect(dirs, `${doc} routes to "${owner}", which is not a skill`).toContain(owner);
+      }
+    });
+  }
 });

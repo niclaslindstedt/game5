@@ -16,8 +16,8 @@ touches (`--scope=…`, `--concepts=…`). Reflecting them back before the commi
 is the `skill-reflection` skill's job; load it at both ends of the session.
 
 **Where a given piece of code GOES is not this skill's question** — that is the
-"Where new code goes" table and the "Hard rules" in `AGENTS.md`. Read those
-first when the location is in doubt; come back here for how the code inside the
+"Where new code goes" index and the "Hard rules" in `AGENTS.md`, and the
+file-by-file map in `docs/code-map.md`. Read those first when the location is in doubt; come back here for how the code inside the
 file reads.
 
 ---

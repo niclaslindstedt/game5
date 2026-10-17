@@ -251,6 +251,9 @@ Three layers, one direction of dependency: `engine/` is the whole game as a fram
 
 ## Documentation
 
+- [What is built](docs/features.md) — every system the game has, one paragraph each, with the files it lives in
+- [The labs](docs/labs.md) — what to run before and after which change
+- [The code map](docs/code-map.md) — where each subject's code lives, file by file
 - [Configuration](docs/configuration.md) — URL parameters, the deploy slots, the identity
 - [Getting started](docs/getting-started.md) — a first run, every control, running from a checkout
 - [Troubleshooting](docs/troubleshooting.md) — what goes wrong playing and developing, and why

@@ -48,6 +48,9 @@ The `docs/` pages describe the engine, the skier and snow model, the generator's
 | `pwa/src/game/input.ts`, `input-model.ts`, `settings-input.ts`, `hud*.tsx` | `docs/getting-started.md` (the controls) |
 | `pwa/src/game/audio/*`, `scripts/audition.mjs`, a framework tag moved | `docs/audio.md` |
 | `scripts/*.mjs`, `Makefile` (a lab added or changed) | README Usage, `docs/troubleshooting.md` if it has a failure mode |
+| `scripts/*.mjs`, `Makefile`, a lab's invocation or the subject that owes it | `docs/labs.md` (the full labs table; its family's row in `AGENTS.md`'s index) |
+| A module added, moved or renamed anywhere | `docs/code-map.md` (its subject's row) |
+| A system built or changed (its files, its switch, its lab) | `docs/features.md` (its paragraph) |
 | `.github/workflows/pages.yml`, `release.yml`, `pwa/pwa-plugin.ts` | `docs/configuration.md`, `docs/platforms.md` |
 | `pwa/src/identity.ts`, `pwa/public/*` | `docs/configuration.md` |
 | `tauri/**`, `native/**` | `docs/platforms.md`, `docs/configuration.md` (the environment rows) |

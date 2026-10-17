@@ -113,7 +113,7 @@ Synthesized, as every sound is (`docs/audio.md`). The BED (`audio/balloon-voice.
 
 ## The start
 
-`balloonSiteOf` finds open, level snow on the valley floor by the village (or the finish): the helipad's search (`heli-pad.ts`'s `openSpotNear`) with 14 m of room for the envelope, a lean under 0.06, clear of trunks, lifts and tunnels, and 70 m off the helicopter's pad and the snowmobile's spot. The balloon stands there tethered, its air 2 % short of floating it; the tether lets go when its lift beats its weight by 150 N.
+`balloonSiteOf` finds open, level snow on the valley floor by the village (or the finish): the helipad's search (`heli-pad.ts`'s `openSpotNear`) with 14 m of room for the envelope, a lean under 0.06, clear of trunks, lifts and tunnels, and 70 m off the helicopter's pad and the snowmobile's spot. The balloon stands there tethered, its air 2 % short of floating it and kept there however long he waits (it never cools on the tether, unless he vents it), so the first burn lifts it; the tether lets go when its lift beats its weight by 150 N.
 
 ## As drawn
 

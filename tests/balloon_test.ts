@@ -92,9 +92,15 @@ describe("the hot air balloon (balloon.ts)", () => {
     expect(b.temp).toBeLessThan(balloonTrim(s, b));
     expect(Math.abs(s.skier.x - b.x)).toBeLessThan(1);
     expect(s.skier.y).toBeGreaterThan(b.y);
-    // Left alone it never leaves the snow.
+    // Left alone it never leaves the snow — and never cools either: it is
+    // kept hot, just short of flying, so the first burn lifts it.
     fly(s, 20, ask());
     expect(s.balloon!.mode).toBe("tethered");
+    expect(s.balloon!.temp).toBeGreaterThan(balloonTrim(s, s.balloon!) - 1.5);
+    let burnt = 0;
+    for (; burnt < 10 && s.balloon!.mode === "tethered"; burnt += 1 / 120) step(s, ask({ tuck: 1 }));
+    expect(s.balloon!.mode).toBe("flown");
+    expect(burnt).toBeLessThan(5);
   });
 
   it("is let go on the first burns, and the wind carries it up the mountain", () => {

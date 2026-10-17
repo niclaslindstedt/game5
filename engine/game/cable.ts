@@ -19,7 +19,10 @@
 // ON SKIS HE MUST COME DOWN ACROSS IT. Two skis stand apart: landed along
 // the rope rather than square across it, it goes up between his legs, he
 // is stopped on it by the crotch (`CABLE.straddle`), tips over and drops to
-// the snow — the `straddle` crash cause, and a blow `body.ts` judges.
+// the snow — the `straddle` crash cause, and a blow `body.ts` judges. A blow
+// hard enough to tear him apart there (`gore.ts`) is the rope cutting
+// through him: nothing is left to hold him on it, and the pieces carry on
+// at the speed he came down at.
 //
 // OFF IT. The jump let go POPS him off it where he is, on his speed along
 // it and `CABLE.pop` up: in the air the strokes and the grabs are his as
@@ -154,14 +157,18 @@ function straddle(
   c.z = at.z;
   c.y = at.y + c.spec.cogHeight - S.crotch;
   const keep = S.keep * speedAlong(run, plan, u);
+  const through = { x: c.vx, y: c.vy, z: c.vz };
   events.push({ kind: "grind", t: run.t, id: plan.lift.id, phase: "straddle" });
-  throwRider(
+  const thrown = throwRider(
     run,
     "straddle",
     { x: plan.dx * keep, y: ollie ? 0 : -0.5, z: plan.dz * keep },
     events,
     { blow: close },
   );
+  // Come down hard enough that the steel cuts him, he goes on through it
+  // (`gore.ts`).
+  thrown.through = through;
 }
 
 /** ON IT: his speed along the rope kept, his skis to the nearest quarter

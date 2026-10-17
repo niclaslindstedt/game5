@@ -204,10 +204,15 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
   // THE GRIMBEAR'S CATCH: the body torn in two in his arms.
   const off0 = state.skier.thrown;
   if (off0?.cause === "maul" && g.mortal < 0 && !(g.lost & bit("lower"))) tear.push("lower");
+  // Stopped astride a lift's rope this step (`cable.ts`): torn apart on
+  // it, the steel has gone through him, and he goes on.
+  const through = off0?.through;
+  if (off0) delete off0.through;
   if (!tear.length && !crush && !open.length) return;
   // Torn apart on his skis, he is off them now.
   const c = state.skier;
   const off = off0 ?? throwRider(state, "tree", { x: c.vx, y: c.vy, z: c.vz }, events);
+  if (through && tear.length) carryOn(off, through);
   for (const piece of tear) {
     tearOff(state, g, off, piece, velocityOf(off, TEAR[piece].takes), events);
     mortalBy(
@@ -224,6 +229,26 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
   }
   if (crush) crushSkull(state, g, off, events);
   for (const part of open) openTrunk(state, g, off, part, events);
+}
+
+/** CUT THROUGH: every point of `off` and the skis still on its feet going
+ * `v` (m/s, world) — the rope's stop and the turn over it undone. */
+function carryOn(off: Thrown, v: { x: number; y: number; z: number }): void {
+  const set = (now: number[], last: number[]): void => {
+    for (let i = 0; i < now.length; i += 3) {
+      last[i] = now[i] - v.x * dt;
+      last[i + 1] = now[i + 1] - v.y * dt;
+      last[i + 2] = now[i + 2] - v.z * dt;
+    }
+  };
+  set(off.points, off.last);
+  for (const ski of off.skis) {
+    set(ski.ends, ski.last);
+    ski.spin = 0;
+  }
+  off.vx = v.x;
+  off.vy = v.y;
+  off.vz = v.z;
 }
 
 /** `piece` torn off `off`, going `v` (m/s, world). */

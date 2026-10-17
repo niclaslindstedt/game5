@@ -238,8 +238,8 @@ export type CreateGameOptions = {
    * run's skier. The app's (`rescue-book.ts`); none when left out. */
   rescue?: RescueCall[];
   /** SAFE FOR WORK (`RunRules.sfw`): no collisions between skiers, no
-   * afterski, a helicopter and a balloon that cannot crash or burn. The
-   * app asks for it when the INJURIES switch is off. Off when left out. */
+   * afterski, no grimbear, a helicopter and a balloon that cannot crash or
+   * burn. The app asks for it when the INJURIES switch is off. Off when left out. */
   sfw?: boolean;
   /** How much the player can take before he goes down, 0 a club skier …
    * 1 a professional (`SkierState.resilience`); 1 when left out. The
@@ -362,7 +362,8 @@ export type CreateGameOptions = {
   /** THE GRIMBEAR (`grimbear.ts`) on a FREE RIDE: one that catches the
    * skier once (`hunt`), or one that only chases him (`roam` — a ride
    * started again after he was caught). None when left out; the app deals
-   * him to one ride in a few. Ignored by every other mode. */
+   * him to one ride in a few. Ignored by every other mode and SAFE FOR
+   * WORK. */
   grimbear?: GrimbearAsk;
   /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`) on a FREE RIDE: a
    * canopy's malfunctions, an engine's stoppage — how often, and the app's
@@ -743,7 +744,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     options.enthusiasts ??
     (free && options.crowd === undefined && nightOver(level) && !summer ? ENTHUSIASTS.count : 0);
   if (free && keen > 0) dealEnthusiasts(state, keen);
-  if (free && options.grimbear) state.grimbear = freshGrimbear(seed, options.grimbear);
+  // SAFE FOR WORK the woods are empty: no grimbear, whatever is asked.
+  if (free && options.grimbear && !options.sfw)
+    state.grimbear = freshGrimbear(seed, options.grimbear);
   // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.
   if (rules.avalanche) state.avalanche = freshAvalanche(state);
   if (free && options.mishaps) state.mishaps = freshMishaps(seed, options.mishaps);

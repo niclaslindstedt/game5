@@ -309,6 +309,27 @@ describe("after the catch", () => {
   });
 });
 
+describe("safe for work", () => {
+  it("keeps him out of the woods, whatever is asked", () => {
+    const state = createGame({
+      level: woods(),
+      mode: "free",
+      quiet: true,
+      grimbear: "hunt",
+      crowd: 0,
+      sfw: true,
+    });
+    expect(state.grimbear).toBeUndefined();
+  });
+
+  it("is never dealt by the app", () => {
+    const skier = { spec: SKIS, assist: { yaw: 1, air: 1 }, sfw: true };
+    for (let i = 0; i < 50; i++) {
+      expect(freeGameOptions(freshRide(), i, skier, () => 0).grimbear).toBeUndefined();
+    }
+  });
+});
+
 describe("the app deals him", () => {
   const skier = { spec: SKIS, assist: { yaw: 1, air: 1 } };
   it("to a free ride at the odds, never past them", () => {

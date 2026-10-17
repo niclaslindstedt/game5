@@ -304,6 +304,12 @@ function fly(
   const dump = (B.vent.most * b.vent + B.fire.leak * b.burnt) * (Ti - Ta);
   Ti += ((burn * B.burner.efficiency - fabric - dump) / C) * dt;
   Ti = Math.max(Ti, Ta - 2);
+  // ON THE TETHER the envelope is kept hot, `tether.heavy` short of flying
+  // (a pilot's short burns while the balloon is stood up), so the first
+  // burn lifts it however long he waits — unless he vents it himself.
+  if (b.mode === "tethered" && b.vent < 0.01 && !b.burning) {
+    Ti = Math.max(Ti, balloonTrim(run, b, 1 - B.tether.heavy) + KELVIN);
+  }
   const hot = Ti - KELVIN > B.temp.limit && b.temp <= B.temp.limit;
   b.temp = Ti - KELVIN;
   if (hot) say(run, events, "hot", 0);

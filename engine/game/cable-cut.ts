@@ -20,7 +20,7 @@
 //
 // Nothing here is random, and nothing reads a clock but the run's.
 
-import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
+import { hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { CABLE } from "./defs/cable.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { bodyThrown, throwRider } from "./crash.ts";
@@ -105,7 +105,7 @@ export function ropeFrame(plan: LiftPlan, side: 0 | 1, u: number): RopeFrame {
   const b = plan.lift.bottom;
   const o = [b.x + plan.dx * u + plan.dz * off, ropeAt(plan, u), b.z + plan.dz * u - plan.dx * off];
   const rise = ropeAt(plan, u + 0.5) - ropeAt(plan, u - 0.5);
-  const n = Math.hypot(1, rise);
+  const n = hypot(1, rise);
   const t = [plan.dx / n, rise / n, plan.dz / n];
   // Level across it: the line's own right, (dz, 0, −dx).
   const e1 = [plan.dz, 0, -plan.dx];
@@ -133,7 +133,7 @@ function toSegment(ax: number, ay: number, bx: number, by: number): number {
   const dy = by - ay;
   const d = dx * dx + dy * dy;
   const k = d > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / d)) : 0;
-  return Math.hypot(ax + dx * k, ay + dy * k);
+  return hypot(ax + dx * k, ay + dy * k);
 }
 
 /** Which side of the line a→b the origin is on (the sign of the turn). */

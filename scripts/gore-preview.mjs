@@ -24,6 +24,10 @@
 //   bones    open-arms, open-arms-hard (stood with the arms broken out
 //            through the skin, at each grade, close from six sides),
 //            open-arms-ski (skiing on with them), open-legs (the legs')
+//   cable    cable-chest, cable-shins (flown square across a chair's rope at
+//            90 km/h, at chest and at shin height: cut through there),
+//            cable-drop (dropped onto it, the skis across it: the skis cut
+//            in two, each piece drawn as its share — `ski-cut-view.ts`)
 //   hud      wreck (the HUD over a fatal crash: the jolt,
 //            the readouts fading away, DIED and the dark — each frame
 //            an iframe of `pwa/gore-hud.html` at the frame's own size)
@@ -59,12 +63,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, blood, leak, pools, close, bones, hud, remains); every one when left out",
+      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, rotor, blood, leak, pools, close, bones, cable, hud, remains); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (ski-trunk, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, groomer, heli, heli-fly, spray, snow, closeup, open-arms, open-arms-hard, open-arms-ski, open-legs, wreck)",
+      help: "only these views, comma-separated (ski-trunk, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, groomer, heli, heli-fly, spray, snow, closeup, open-arms, open-arms-hard, open-arms-ski, open-legs, cable-chest, cable-shins, cable-drop, wreck)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     region: {

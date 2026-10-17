@@ -103,6 +103,7 @@ import { createPerchReact, feelOf, resetPerchReact, stepPerchReact } from "./ski
 import { ridingOf, widenStand } from "./technique-pose.ts";
 import { groundOf, poseInputOf } from "./skis-pose-input.ts";
 import { loneSkiFrame } from "./lone-ski-frame.ts";
+import { codeSkiPiece, createSkiCuts } from "./ski-cut-view.ts";
 import {
   pitchPast,
   skydivePose,
@@ -404,6 +405,10 @@ export function createSkisModel(
     });
   }
   merged.update();
+  // THE SKIS CUT BY A LIFT'S ROPE, drawn by their pieces (`ski-cut-view.ts`).
+  const cuts = createSkiCuts(spec, root, (i, planes) =>
+    models?.skis ? models.piece(i, planes) : codeSkiPiece(gear.skis[i], root, planes),
+  );
   // THE PAIR RACKED (on a snowmobile, `setSled`): every part of the skis
   // that is not a boot — the skis, the bindings, the plates — hidden, the
   // code's (out of the merged draw) or the model's (each material its own
@@ -897,6 +902,11 @@ export function createSkisModel(
       }
       models?.pose(skier, sink, dt, angle, stand);
       if (loose && models) for (let i = 0; i < 2; i++) models.lay(i, pairAt[i]);
+      const cut = cuts.update(off, lies, (ski, m) => loneSkiFrame(ski, m, cover));
+      for (let i = 0; i < 2; i++) {
+        gear.skis[i].visible = !cut[i];
+        if (cut[i]) models?.hide(i);
+      }
       merged.update();
     },
     poseSkier(input) {
@@ -956,6 +966,7 @@ export function createSkisModel(
       figure.dispose();
       wings?.dispose();
       models?.dispose();
+      cuts.destroy();
     },
   };
 }

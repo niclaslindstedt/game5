@@ -168,6 +168,8 @@ export function createWorldRenderer(
   gl.shadowMap.enabled = SHADOW_LOOK[video.shadows].size > 0;
   gl.shadowMap.type = THREE.PCFSoftShadowMap;
   gl.setOpaqueSort(byMaterial);
+  // A ski cut by a lift's rope is drawn clipped to its piece (`ski-cut-view.ts`).
+  gl.localClippingEnabled = true;
 
   /** The SHADOWS row's stop, its map no bigger than this GPU can hold. */
   const shadowLook = (): ShadowLook => {

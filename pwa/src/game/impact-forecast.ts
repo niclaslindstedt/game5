@@ -25,7 +25,9 @@ import {
   type BodyPart,
   type Bone,
   type DeathCause,
+  type GameEvent,
   type GameState,
+  type GorePiece,
   type SkierInput,
 } from "@engine";
 
@@ -41,6 +43,10 @@ export const FORECAST = {
    * steps a frame that read takes (it is cut short as soon as it knows). */
   after: 1.2,
   afterPer: 40,
+  /** Seconds after the first wound that the worst one in them is still
+   * taken as the blow's: a rope's wire goes through a hand, an arm and the
+   * waist a step or two apart, and the shot is the waist. */
+  worst: 0.05,
 } as const;
 
 /** A blow seen coming: how many seconds off, the part it lands on, the
@@ -51,6 +57,9 @@ export type Forecast = {
   part: BodyPart | null;
   bones: Bone[];
   gore: boolean;
+  /** The wound a blow that tears him open does first-worst (`FORECAST.worst`):
+   * the piece torn off (null: the trunk opened, a gash, a spike) and where. */
+  tear?: { piece: GorePiece | null; at: { x: number; y: number; z: number } };
   /** Whether he dies of it: mortal by the blow or the tumble after it. */
   fatal: boolean;
   /** Whether a machine takes him apart: the death the SHRED cam is shot
@@ -134,6 +143,54 @@ export function forkRun(state: GameState): GameState {
   return copy(bare, seen, { n: (state.seed ^ state.tick) >>> 0 }) as GameState;
 }
 
+/** How bad a wound reads, for which of a blow's wounds is its shot: the
+ * body cut in two, then the head, a whole leg, the trunk opened, an arm. */
+const TEAR_RANK: Partial<Record<string, number>> = {
+  lower: 6,
+  head: 5,
+  legL: 4,
+  legR: 4,
+  chest: 3,
+  abdomen: 3,
+  armL: 2,
+  armR: 2,
+};
+
+type Found = Omit<Forecast, "in" | "fatal" | "mangled" | "cause" | "wrecked">;
+
+/** The blow in one step's events, worse than `was` (the blow found so far)
+ * — or `was` again. A skull crushed is shot on the skull. */
+function worse(events: readonly GameEvent[], was: Found | null): Found | null {
+  let best = was;
+  const rank = (f: Found | null): number =>
+    !f ? -1 : f.tear ? (TEAR_RANK[f.tear.piece ?? ""] ?? (f.tear.piece ? 1 : 0)) : 0;
+  for (const e of events) {
+    if (e.kind === "gore") {
+      const at = { x: e.x, y: e.y, z: e.z };
+      const f: Found =
+        e.what === "crush"
+          ? { part: "head", bones: [], gore: true }
+          : {
+              part: null,
+              bones: [],
+              gore: true,
+              tear: {
+                piece: e.what === "torn" ? (e.piece as GorePiece) : null,
+                at,
+              },
+            };
+      // An opened trunk ranks as its part, kept as the stump's own shot.
+      const r = e.what === "open" ? (TEAR_RANK[e.piece ?? ""] ?? 0) : rank(f);
+      if (!best || (best.tear && r > rank(best))) best = f;
+      continue;
+    }
+    if (best) continue;
+    const bones = e.kind === "injury" ? worth(e) : null;
+    if (bones && e.kind === "injury") best = { part: e.part, bones, gore: false };
+  }
+  return best;
+}
+
 /** Whether an injury of `kind` on `part` is worth the cam. */
 function worth(e: {
   part: BodyPart;
@@ -153,21 +210,21 @@ export function forecast(
 ): Forecast | null {
   const run = forkRun(state);
   const steps = Math.round(horizon / TUNING.dt);
+  const worst = Math.round(FORECAST.worst / TUNING.dt);
   for (let i = 1; i <= steps; i++) {
     step(run, input);
-    for (const e of run.events) {
-      const bones = e.kind === "injury" ? worth(e) : null;
-      if (e.kind !== "gore" && !bones) continue;
-      const found = {
-        in: i * TUNING.dt,
-        part: e.kind === "injury" ? e.part : null,
-        bones: bones ?? [],
-        gore: e.kind === "gore",
-      };
-      // On through the tumble for whether he dies of it.
-      for (let j = 0; j < Math.round(FORECAST.after / TUNING.dt) && !diesOf(run); j++)
+    let found = worse(run.events, null);
+    if (found) {
+      const first = i;
+      // On through the tumble for whether he dies of it — and through the
+      // wounds the same blow does a step or two on for its worst.
+      for (let j = 0; j < Math.round(FORECAST.after / TUNING.dt); j++) {
+        if (j >= worst && diesOf(run)) break;
         step(run, input);
+        if (j < worst && found.tear) found = worse(run.events, found)!;
+      }
       return {
+        in: first * TUNING.dt,
         ...found,
         fatal: diesOf(run),
         mangled: mangled(run),
@@ -202,7 +259,7 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
   let left = 0;
   /** The blow found, while the read goes on for whether it kills him, and
    * the step it lands on. */
-  let found: Omit<Forecast, "in" | "fatal" | "mangled" | "cause" | "wrecked"> | null = null;
+  let found: Found | null = null;
   let at = 0;
   const dies = diesOf;
   const verdict = (state: GameState, fatal: boolean): Forecast => {
@@ -230,22 +287,17 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
       const most = found ? FORECAST.afterPer : per;
       for (let i = 0; i < most && left > 0; i++, left--) {
         step(run, input!);
+        const settled = !!found && run.tick - at >= Math.round(FORECAST.worst / TUNING.dt);
         if (found) {
-          if (dies(run)) return verdict(state, true);
+          // The same blow's worse wounds a step or two on (`FORECAST.worst`).
+          if (!settled && found.tear) found = worse(run.events, found);
+          if (settled && dies(run)) return verdict(state, true);
           continue;
         }
-        for (const e of run.events) {
-          const bones = e.kind === "injury" ? worth(e) : null;
-          if (e.kind !== "gore" && !bones) continue;
-          found = {
-            part: e.kind === "injury" ? e.part : null,
-            bones: bones ?? [],
-            gore: e.kind === "gore",
-          };
+        found = worse(run.events, null);
+        if (found) {
           at = run.tick;
-          if (dies(run)) return verdict(state, true);
           left = Math.round(FORECAST.after / TUNING.dt);
-          break;
         }
         if (!found && run.progress.finished) left = 0;
       }

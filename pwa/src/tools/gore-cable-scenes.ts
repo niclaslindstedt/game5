@@ -59,8 +59,13 @@ function beside(heading: number, yaw: number, dist: number, up: number, fov = 40
     const b = s.skier.thrown;
     const c = b ? centreOf(b.points) : { x: s.skier.x, y: s.skier.y, z: s.skier.z };
     const a = heading + yaw;
+    const ex = c.x + Math.sin(a) * dist;
+    const ez = c.z + Math.cos(a) * dist;
+    // Kept over the snow where it stands: on a slope falling across his line
+    // the ground beside him is above him, and a lens under it sees the
+    // mountain from inside.
     return {
-      eye: { x: c.x + Math.sin(a) * dist, y: c.y + up, z: c.z + Math.cos(a) * dist },
+      eye: { x: ex, y: Math.max(s.level.groundAt(ex, ez) + 1, c.y + up), z: ez },
       target: c,
       fov,
       roll: 0,
@@ -87,7 +92,7 @@ function onSkis(heading: number, yaw: number, dist: number, up: number, fov = 40
     const ex = c.x + Math.sin(a) * dist;
     const ez = c.z + Math.cos(a) * dist;
     return {
-      eye: { x: ex, y: Math.max(s.level.groundAt(ex, ez) + 0.3, c.y + up), z: ez },
+      eye: { x: ex, y: Math.max(s.level.groundAt(ex, ez) + 1, c.y + up), z: ez },
       target: c,
       fov,
       roll: 0,

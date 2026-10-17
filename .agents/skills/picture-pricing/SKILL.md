@@ -52,7 +52,12 @@ live.
    it), and keeps each stop at its dearer view. The JSON lands in
    `previews/picture-costs.json`, and the table to paste is printed last
    (`--reprice` prints it again from the JSON without running anything).
-3. Paste the costs and `FLOOR_MS` into `PICTURE_PRICES`, then run
+3. LAMPS has nothing to light in the race's late morning: price it from
+   the NIGHT scene alone, `make bench ARGS="--gpu --costs --views night
+   --rows lamps --width 1920 --height 1080"` (minutes, not an hour;
+   `--views` takes any scene of `bench-scenes.ts`, `--rows` any rows, and a
+   run of either is written beside `picture-costs.json`, never over it).
+4. Paste the costs and `FLOOR_MS` into `PICTURE_PRICES`, then run
    `npx vitest run tests/video_test.ts`: every row is priced, the cheapest
    stop is 0/0, and neither cost nor benefit falls up a ladder.
 

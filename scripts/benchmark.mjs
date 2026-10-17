@@ -64,8 +64,11 @@ const args = parseArgs(
     },
     views: {
       kind: "string",
-      default: "race,vista,sunset,night,snow",
-      help: "--sweep: the scenes swept, comma-separated (race, vista, sunset, night, snow — bench-scenes.ts)",
+      help: "the scenes priced, comma-separated (race, vista, sunset, night, snow — bench-scenes.ts); --sweep runs all five unless told, --costs the race and the vista",
+    },
+    rows: {
+      kind: "string",
+      help: "--costs: price only these picture rows, comma-separated (lamps from the night: --views night --rows lamps)",
     },
     report: {
       kind: "string",
@@ -179,8 +182,23 @@ function times(report) {
  * DISTANCE is nearly free in the woods and dear from a hilltop, and a
  * picture has to hold on its dearest view. */
 async function priceList() {
-  const all = await ladders();
-  const top = Object.fromEntries(Object.entries(all).map(([row, l]) => [row, l[l.length - 1]]));
+  const ladder = await ladders();
+  const { isBenchScene } = await import("../pwa/src/game/bench-scenes.ts");
+  const asked = args.rows?.split(",") ?? Object.keys(ladder);
+  const scenes = (args.views ?? "race,vista").split(",");
+  const unknown = [
+    ...asked.filter((row) => !(row in ladder)).map((row) => `row ${row}`),
+    ...scenes.filter((view) => !isBenchScene(view)).map((view) => `scene ${view}`),
+  ];
+  if (unknown.length > 0) {
+    console.error(`no ${unknown.join(", no ")}`);
+    return null;
+  }
+  // Every row is drawn at its top but the stop being priced; only the rows
+  // asked for are lowered. A run of some rows, or from other scenes, is
+  // written beside the whole list rather than over it.
+  const all = Object.fromEntries(asked.map((row) => [row, ladder[row]]));
+  const top = Object.fromEntries(Object.entries(ladder).map(([row, l]) => [row, l[l.length - 1]]));
   const pic = (over) =>
     Object.entries({ ...top, ...over })
       .map(([row, stop]) => `${row}:${stop}`)
@@ -189,19 +207,19 @@ async function priceList() {
   const ROUNDS = 3;
   const bench = async (view, over) => {
     const extra = { frames: String(FRAMES) };
-    if (view === "vista") extra.view = "vista";
+    if (view !== "race") extra.view = view;
     return times(await run("", pic(over), extra));
   };
   const views = {};
-  for (const view of ["race", "vista"]) {
+  for (const view of scenes) {
     const rows = {};
     const topRuns = [];
     // Each stop's last top run is the next stop's first.
     let before = await bench(view, {});
     topRuns.push(before);
-    for (const [row, ladder] of Object.entries(all)) {
+    for (const [row, stops] of Object.entries(all)) {
       rows[row] = {};
-      for (const stop of ladder.slice(0, -1)) {
+      for (const stop of stops.slice(0, -1)) {
         const shares = { wall: [], card: [] };
         for (let r = 0; r < ROUNDS; r++) {
           const t = await bench(view, { [row]: stop });
@@ -217,7 +235,7 @@ async function priceList() {
         );
       }
     }
-    const low = Object.fromEntries(Object.entries(all).map(([row, l]) => [row, l[0]]));
+    const low = Object.fromEntries(Object.entries(ladder).map(([row, l]) => [row, l[0]]));
     const floor = await bench(view, low);
     const after = await bench(view, {});
     topRuns.push(after);
@@ -235,28 +253,30 @@ async function priceList() {
   }
   const lines = [
     `PICTURE PRICE LIST — ${args.width}×${args.height}, the benchmark race, ${FRAMES}-frame runs`,
-    "  each stop's frame as a share of the top picture's around it, from the race's view and the vista",
-    "  row          stop       race    vista",
+    `  each stop's frame as a share of the top picture's around it, from ${scenes.join(", ")}`,
+    `  row          stop    ${scenes.map((view) => view.padStart(7)).join(" ")}`,
   ];
-  for (const [row, ladder] of Object.entries(all)) {
-    for (const stop of ladder.slice(0, -1)) {
-      const r = views.race.rows[row][stop].wall;
-      const v = views.vista.rows[row][stop].wall;
-      lines.push(
-        `  ${row.padEnd(12)} ${stop.padEnd(8)} ${(r * 100).toFixed(1).padStart(6)}% ${(v * 100).toFixed(1).padStart(6)}%`,
+  for (const [row, stops] of Object.entries(all)) {
+    for (const stop of stops.slice(0, -1)) {
+      const shares = scenes.map((view) =>
+        `${(views[view].rows[row][stop].wall * 100).toFixed(1)}%`.padStart(7),
       );
+      lines.push(`  ${row.padEnd(12)} ${stop.padEnd(7)} ${shares.join(" ")}`);
     }
   }
-  for (const view of ["race", "vista"]) {
+  for (const view of scenes) {
     lines.push(
       `  top picture, ${view}: wall ${views[view].top.wall.toFixed(2)} ms  card ${views[view].top.card.toFixed(3)} ms; ` +
         `every row at its cheapest: ${(views[view].floor.wall * 100).toFixed(1)}%`,
     );
   }
-  const json = join(root, "previews", "picture-costs.json");
+  const whole = !args.rows && !args.views;
+  const name = whole
+    ? "picture-costs.json"
+    : `picture-costs-${scenes.join("-")}${args.rows ? `-${asked.join("-")}` : ""}.json`;
   const priced = { width: args.width, height: args.height, frames: FRAMES, views };
-  writeFileSync(json, JSON.stringify(priced, null, 2));
-  lines.push("  (the numbers: previews/picture-costs.json)", "", costTable(all, priced));
+  writeFileSync(join(root, "previews", name), JSON.stringify(priced, null, 2));
+  lines.push(`  (the numbers: previews/${name})`, "", costTable(all, priced));
   return lines.join("\n");
 }
 
@@ -292,7 +312,7 @@ async function sweepList() {
   aliasEngine(root);
   const { readSweeps, sweepCosts, sweepTable } = await import("../pwa/src/game/picture-sweep.ts");
   const { isBenchScene } = await import("../pwa/src/game/bench-scenes.ts");
-  const views = args.views.split(",").filter(isBenchScene);
+  const views = (args.views ?? "race,vista,sunset,night,snow").split(",").filter(isBenchScene);
   const results = [];
   const reports = [];
   for (const view of views) {

@@ -110,8 +110,11 @@ export const FLOOR_MS = 3.79;
  * the TREE WELLS (`TRAIL_LOOK`'s `wells`, MEDIUM and HIGH only) are dug only
  * in a metre of powder, where they cost a refill of the well map every 16 m
  * the lens moves (about 6 ms of the processor's, a hitch rather than a
- * rate) and a few texture reads a pixel near the lens; and the race is run
- * by day, so LAMPS is priced off a night frame (below).
+ * rate) and a few texture reads a pixel near the lens. And the race is run
+ * by day, where LAMPS has nothing to light: it is priced from the NIGHT
+ * scene alone (`make bench ARGS="--gpu --costs --views night --rows
+ * lamps"`), a clear sky well after sunset with every headlamp and the floods
+ * on (12.5 ms a frame at the top picture).
  */
 export const PICTURE_PRICES: PriceList = {
   resolution: {
@@ -168,16 +171,15 @@ export const PICTURE_PRICES: PriceList = {
     medium: { cost: 0.32, benefit: 8 },
     high: { cost: 0.34, benefit: 12 },
   },
-  // AN ESTIMATE OFF A NIGHT FRAME: by day the price list reads the row as
-  // 0.07 ms at MEDIUM and HIGH — nothing to light — and the fit has to
-  // hold a night race too.
+  // From the night scene; by day the row reads 0.07 ms at MEDIUM and HIGH.
   lamps: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.3, benefit: 6 },
-    high: { cost: 0.6, benefit: 10 },
+    medium: { cost: 0.29, benefit: 6 },
+    high: { cost: 0.47, benefit: 10 },
   },
   // FULL's worth is the cloud, the sun and the night sky over a picture
-  // that has none.
+  // that has none. Dearer by day (0.26 ms) than under the night's stars
+  // and moon (0.19).
   sky: {
     plain: { cost: 0, benefit: 0 },
     full: { cost: 0.26, benefit: 14 },

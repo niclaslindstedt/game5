@@ -11,7 +11,14 @@
 // comes back as plain data (`portableLevel`) and the page binds it
 // (`map-build.ts`).
 
-import { generateLevel, levelFor, loadRealFace, portableLevel, type GeneratedLevel } from "@engine";
+import {
+  generateLevel,
+  levelFor,
+  loadRealFace,
+  portableLevel,
+  type GeneratedLevel,
+  type MapWork,
+} from "@engine";
 
 import { faceOfOrder, type MapOrder, type MapWorkerReply } from "./map-order.ts";
 
@@ -24,10 +31,14 @@ const STEP = 0.005;
 self.onmessage = async (e: MessageEvent<MapOrder>) => {
   const order = e.data;
   let told = 0;
-  const progress = (share: number): void => {
-    if (share < 1 && share - told < STEP) return;
+  let toldWork = "";
+  const progress = (share: number, work?: MapWork): void => {
+    // A new stage or attempt is always told: it is what the card's line says.
+    const at = work ? `${work.attempt}/${work.stage}` : "";
+    if (share < 1 && share - told < STEP && at === toldWork) return;
     told = share;
-    post({ kind: "progress", share });
+    toldWork = at;
+    post({ kind: "progress", share, work });
   };
   try {
     // A real face's heights and hints are a chunk of their own, fetched

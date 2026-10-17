@@ -6,6 +6,7 @@
 
 import type { CreateGameOptions, GameMode } from "@engine";
 
+import type { MapOrder } from "./map-order.ts";
 import type { PinnedLevel } from "./pinned.ts";
 import type { ReplayFrom } from "./replay.ts";
 import type { TrickMap, TrickRun } from "./trick-maps.ts";
@@ -26,9 +27,14 @@ export type Presses = {
   pinned: (pin: PinnedLevel, mode: PinnedLevel["mode"]) => void;
   /** The cards before RIDE on a pinned or trick map: order its map ahead
    * and, `covered` by the rider and gear cards' stage, stage a race's world
-   * (`pinned-run.ts`) — or let both go (null). */
+   * (`pinned-run.ts`) — or, on the front door, QUICK START's next map — or
+   * let both go (null). */
   mapAhead: (
-    pick: { pin: PinnedLevel; mode: PinnedLevel["mode"] } | { map: TrickMap } | null,
+    pick:
+      | { pin: PinnedLevel; mode: PinnedLevel["mode"] }
+      | { map: TrickMap }
+      | { order: MapOrder }
+      | null,
     covered: boolean,
   ) => void;
   restart: () => void;

@@ -10,7 +10,7 @@
 // from the START GATE to the FINISH; the equipment is a PAIR of SKIS; the
 // body on them is THE SKIER. Nothing here is a lap, a vehicle or a machine.
 
-import type { SpinTag, TrickKind, TrickPart } from "@engine";
+import type { MapStage, SpinTag, TrickKind, TrickPart } from "@engine";
 
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { BODY_STRINGS } from "./strings-body.ts";
@@ -109,6 +109,20 @@ function tempWord(c: number): string {
   const n = Math.round(c);
   return `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n)} °C`;
 }
+
+/** What the generator is doing at each of its stages (`progress.ts`),
+ * read under the loading card's bar. */
+const LOAD_STAGES: Record<MapStage, string> = {
+  mountain: "Raising the peaks and valleys",
+  pads: "Levelling the lift stations",
+  walked: "Walking the runs down the mountain",
+  graded: "Grading the pistes",
+  access: "Linking the lifts and the runs",
+  features: "Shaping the jumps and the cliffs",
+  woods: "Growing the woods",
+  courses: "Setting the courses",
+  checked: "Checking the map",
+};
 
 export const STRINGS = {
   /* ── THE SHUTTER AND THE GALLERY — stated in strings-gallery.ts ─────── */
@@ -866,6 +880,14 @@ export const STRINGS = {
   /** The rest of the world built after the forest: the lifts, the gates,
    * the people and the animals. */
   loadLifts: "Opening the lifts",
+  /** Under the mountain's bar: the stage the generator is on — and, past
+   * a first layout refused, which layout it is on now. */
+  loadWork: (stage: MapStage, attempt: number): string =>
+    attempt > 0 ? `${LOAD_STAGES[stage]} · layout ${attempt + 1}` : LOAD_STAGES[stage],
+  /** Under the lifts' bar. */
+  loadLiftsDetail: "Hanging the chairs, the people and the animals",
+  /** Under the last bar: every shader in the world compiled. */
+  loadWarmDetail: "Warming up the picture",
   loadWarm: "Grooming the piste",
   /** The phase and where it sits in the plan — a count of PHASES, never of
    * seconds (see `run-loader.ts`). */

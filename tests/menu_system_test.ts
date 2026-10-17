@@ -113,12 +113,12 @@ describe("a load, cut into phases (run-loader.ts)", () => {
     const job = createLoad([
       step("scene", "Forest", () => planted < 4, {
         progress: () => planted / 4,
-        count: () => STRINGS.loadTrees(planted, 63896),
+        detail: () => STRINGS.loadTrees(planted, 63896),
       }),
       step("build", "Lifts", () => false),
     ]);
     planted = 2;
-    expect(loadPhase(job)).toMatchObject({ done: 0.5, count: "2 of 63,896 trees" });
+    expect(loadPhase(job)).toMatchObject({ done: 0.5, detail: "2 of 63,896 trees" });
     expect(STRINGS.loadTrees(31240, 63896)).toBe("31,240 of 63,896 trees");
     planted = 4;
     advanceLoad(
@@ -126,7 +126,38 @@ describe("a load, cut into phases (run-loader.ts)", () => {
       () => true,
       () => 0,
     );
-    expect(loadPhase(job)).toMatchObject({ label: "Lifts", count: null });
+    expect(loadPhase(job)).toMatchObject({ label: "Lifts", detail: null });
+  });
+
+  it("fills ONE bar over the whole load, each step by its weight", () => {
+    let share = 0;
+    const job = createLoad(
+      [
+        step("level", "Mountain", () => share < 1, { progress: () => share, typicalMs: 8000 }),
+        step("scene", "Snow", () => true, { typicalMs: 1000 }),
+        step("warm", "Warm", () => false, { typicalMs: 1000 }),
+      ],
+      // What this machine measured last time outweighs the typical cost.
+      { warm: 1000 },
+    );
+    expect(loadPhase(job, 0).overall).toBe(0);
+    share = 0.5;
+    expect(loadPhase(job, 0).overall).toBeCloseTo(0.4);
+    share = 1;
+    advanceLoad(
+      job,
+      () => false,
+      () => 100,
+    );
+    advanceLoad(
+      job,
+      () => false,
+      () => 100,
+    );
+    // A step that cannot count runs against its weight from when it began…
+    expect(loadPhase(job, 600).overall).toBeCloseTo(0.85);
+    // …and never claims all of it before it ends.
+    expect(loadPhase(job, 60_000).overall).toBeCloseTo(0.89);
   });
 
   it("counts PHASES, not steps, and never reads past the last", () => {

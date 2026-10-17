@@ -63,6 +63,14 @@ import { STRINGS } from "./strings.ts";
 // before any run is stood up.
 import "./drawn-solids.ts";
 
+/** What each step typically costs, ms — each one's share of the card's bar
+ * before this machine has measured a load of its own (`LoadStep.typicalMs`).
+ * Off `make menu-stalls ARGS=--flow=quick`: a mountain built on its first
+ * attempt is about ten seconds on a worker, the snow and the woods a couple
+ * each; the last two are the GPU's shaders, a guess for one that compiles
+ * them in the background (a software renderer takes a minute and more). */
+const TYPICAL_MS = { level: 10000, scene: 2500, forest: 1500, lifts: 3000, groom: 4000, warm: 500 };
+
 /** The renderer's stages, in the order a load passes them. */
 const STAGES: readonly BuildStage[] = ["snow", "forest", "lifts", "groom"];
 
@@ -169,15 +177,24 @@ export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
         built = plan.build(level);
         return false;
       },
-      // How far the generator says it has got: the map's own worker, or the
-      // one the plan is waiting on.
-      progress: () => (map !== null ? map.share() : (plan.readyShare?.() ?? 0)),
+      // How far the generator says it has got: through the layout it is
+      // on, on the map's own worker — or the share the plan is waiting on.
+      progress: () => {
+        if (map === null) return plan.readyShare?.() ?? 0;
+        return map.work?.()?.part ?? map.share();
+      },
+      detail: () => {
+        const work = map?.work?.() ?? null;
+        return work ? STRINGS.loadWork(work.stage, work.attempt) : null;
+      },
+      typicalMs: TYPICAL_MS.level,
       waiting: () =>
         face === "pending" || (plan.ready !== undefined && !plan.ready()) || waitingOnMap(),
     },
     {
       id: "scene",
       label: STRINGS.loadSnow,
+      typicalMs: TYPICAL_MS.scene,
       run: () => {
         if (scene === null) {
           if (built) world.adopt(built);
@@ -204,27 +221,34 @@ export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
         const at = renderer.building();
         return at === null || at.trees === 0 ? 1 : at.planted / at.trees;
       },
-      count: () => {
+      detail: () => {
         const at = renderer.building();
         return at === null ? null : STRINGS.loadTrees(at.planted, at.trees);
       },
+      typicalMs: TYPICAL_MS.forest,
       waiting: () => scene === "pending",
     },
     {
       id: "lifts",
       label: STRINGS.loadLifts,
+      detail: () => STRINGS.loadLiftsDetail,
+      typicalMs: TYPICAL_MS.lifts,
       run: () => building("lifts"),
       waiting: () => scene === "pending",
     },
     {
       id: "groom",
       label: STRINGS.loadWarm,
+      detail: () => STRINGS.loadWarmDetail,
+      typicalMs: TYPICAL_MS.groom,
       run: () => building("groom"),
       waiting: () => scene === "pending",
     },
     {
       id: "warm",
       label: STRINGS.loadWarm,
+      detail: () => STRINGS.loadWarmDetail,
+      typicalMs: TYPICAL_MS.warm,
       run: () => {
         renderer.setCamera(plan.camera.rider, false, undefined, plan.camera.craft);
         renderer.draw(world.current(), 0, 0);
@@ -274,7 +298,7 @@ export function createLoader(
       job = createLoad(loadPlanSteps(world, plan), expected);
       loaded = plan.done;
       on.failed(null);
-      on.phase(loadPhase(job));
+      on.phase(loadPhase(job, performance.now()));
       on.start();
     },
     frame: (frameMs) => {
@@ -285,7 +309,7 @@ export function createLoader(
         () => performance.now() < until,
         () => performance.now(),
       );
-      on.phase(loadPhase(job));
+      on.phase(loadPhase(job, performance.now()));
       if (job.failed !== null) {
         error(`the race could not be stood up: ${job.failed}`);
         on.failed(job.failed);

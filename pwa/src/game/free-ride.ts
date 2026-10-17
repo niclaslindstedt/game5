@@ -63,6 +63,7 @@ import {
 } from "@engine";
 
 import { runNumbers } from "./run-names.ts";
+import { QUICK_START_SEEDS } from "./quick-seeds.ts";
 
 /** THE FREE RIDE'S MOUNTAINS, IN ORDER: the map the start card opens on
  * for every skier, and the ones ANOTHER MOUNTAIN steps to after it, the same
@@ -564,9 +565,6 @@ export function markedRun(
   return list.runs.find((r) => r.id === id) ?? null;
 }
 
-/** The highest seed QUICK START deals: any generated mountain at all. */
-export const QUICK_SEEDS = 999_999;
-
 /** QUICK START'S ODDS, a weight a stop: tilted toward the scenes that
  * look best (a sun on the horizon, a clear night under the moon, a sea of
  * fog below the ridge) and the skiing that is fastest (the steep countries,
@@ -606,7 +604,8 @@ function rollOf<K extends string>(odds: Partial<Record<K, number>>, random: () =
   return keys[keys.length - 1];
 }
 
-/** QUICK START'S RIDE: a GENERATED mountain off a seed of its own, on any
+/** QUICK START'S RIDE: a GENERATED mountain off a seed of its country's
+ * (`QUICK_START_SEEDS`: one the generator builds on its first attempt), on any
  * winter day (never summer), rolled by `QUICK_ODDS` — its country, its hour,
  * its sky and its snow — in an air that fits them (`quickTempOf`), and no
  * run or spot, so the ride is carried up to the map's fastest black
@@ -616,10 +615,11 @@ function rollOf<K extends string>(odds: Partial<Record<K, number>>, random: () =
 export function quickRide(base: FreeRide, random: () => number = Math.random): FreeRide {
   const pick = <T>(items: readonly T[]): T => items[Math.floor(random() * items.length)];
   const time = rollOf<TimeOfDay>(QUICK_ODDS.time, random);
+  const region = rollOf<RegionId>(QUICK_ODDS.region, random);
   const ride: FreeRide = {
     ...base,
-    seed: 1 + Math.floor(random() * QUICK_SEEDS),
-    region: rollOf<RegionId>(QUICK_ODDS.region, random),
+    seed: pick(QUICK_START_SEEDS[region]),
+    region,
     face: null,
     grade: null,
     season: pick(SEASONS.filter((s) => s.id !== "summer")).id,

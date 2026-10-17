@@ -44,6 +44,7 @@ import {
 
 import { buildPooled, poolOn } from "./attempt-pool.ts";
 import { nextFreeSeed } from "./free-ride.ts";
+import { dropAhead } from "./map-build.ts";
 import { gameOrder, type MapJob, type MapOrder } from "./map-order.ts";
 import { rememberBoard } from "./map-board-picture.ts";
 import { MAP_QUALITY, MAP_TYPE } from "./minimap-bake.ts";
@@ -332,6 +333,8 @@ function run(job: Job): void {
     shares.set(job.key, 0);
     notify();
   }
+  // One mountain raised at a time: the front door's, ordered ahead, goes.
+  if (!own) dropAhead();
   if (!own && poolOn()) {
     raise(job);
     return;

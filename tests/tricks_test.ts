@@ -280,7 +280,7 @@ describe("a free ride's flight that was never meant", () => {
     const full = TUNING.jump.full;
     const events = ride(state, full + 2.5, (t) => ({
       jump: t < full,
-      steer: state.skier.airborne && state.skier.airTime > 0.25 ? spinSteer(state, 1, 1) : 0,
+      steer: state.skier.airborne ? spinSteer(state, 1, 1) : 0,
     }));
     expect(events.some((e) => e.kind === "jump")).toBe(true);
     expect(tricksOf(events)).toContain("half");
@@ -307,12 +307,11 @@ describe("a spin is wound up, not snapped", () => {
     expect(state.tricks.spinSpeed).toBeGreaterThan(1.5);
   });
 
-  it("the edge thrown tight long after the take-off still starts a spin; a gentle one steers", () => {
+  it("the edge thrown tight long after the take-off starts no spin: a missed window is missed", () => {
     const late = spun(2, (t) => ({ steer: t > 1 && t < 1.3 ? 1 : 0 }));
-    expect(late.state.tricks.spinSpeed).toBeGreaterThan(2);
-    expect(late.yaw).toBeGreaterThan(Math.PI / 2);
-    const soft = spun(2, (t) => ({ steer: t > 1 && t < 1.3 ? 0.5 : 0 }));
-    expect(soft.state.tricks.spinGoal).toBe(0);
+    expect(late.state.tricks.spinGoal).toBe(0);
+    expect(Math.abs(late.state.tricks.spinSpeed)).toBeLessThan(0.5);
+    expect(Math.abs(late.yaw)).toBeLessThan(Math.PI / 4);
   });
 
   it("the edge against a spin checks it only a little", () => {

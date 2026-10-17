@@ -243,9 +243,9 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
     }
   } else k.flipHeld = false;
 
-  // THE SPIN: the edge thrown TIGHT across its gate — not only in the
-  // window but at any moment of a flight he meant (or a big one) while
-  // nothing turns him yet and the air left will carry a turn (`spinLate`).
+  // THE SPIN: the edge thrown TIGHT across its gate in the take-off's
+  // window of a flight he meant — a spin is set off the snow, never
+  // started or wound up later in the air.
   // Held, it winds up the edge's way, the further over the harder, so a
   // thumb dragged across spins him as hard as it is pushed; let go, it is
   // set, and one flight takes one throw. (A revert under way turns him
@@ -253,8 +253,7 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
   if (spin === 0) k.spinCrossed = 0;
   else if (spin !== k.spinCrossed) {
     k.spinCrossed = spin;
-    const fresh = k.spinGoal === 0 && ahead >= T.spinLate;
-    k.spinHeld = (open || fresh) && !busy && (willed || big) && c.revert == null;
+    k.spinHeld = open && !busy && willed && c.revert == null;
     if (k.spinHeld && k.spinGoal === 0) {
       k.spinSpeed = c.wy;
       k.spinForm = 1;
@@ -263,7 +262,7 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
     }
   }
   if (spin !== k.spinCrossed) k.spinHeld = false;
-  if (k.spinHeld && !busy) {
+  if (k.spinHeld && open && !busy) {
     const most = state.rules.spinMost ?? T.spinMost;
     const reach = Math.abs(k.spinSpeed) * Math.min(ahead, AIR_MOST) + Math.abs(k.spinDone);
     const accel = T.spinSet * Math.sqrt(ref.y / I.y);

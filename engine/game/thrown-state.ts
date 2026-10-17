@@ -61,6 +61,12 @@ export type Thrown = {
   /** RUN THROUGH (`gore.ts`): the point held on a spike, and where — the
    * rest of him hangs off it. Absent while nothing holds him. */
   pin?: { point: number; x: number; y: number; z: number } | null;
+  /** CUT THROUGH (`gore.ts`): the way he was going, m/s, world, as a lift's
+   * rope stopped him astride it (`cable.ts`). Read once, the step he was
+   * thrown: a blow that tears him apart there is the steel going through
+   * him, and what is left of him carries on at it rather than hanging on
+   * the rope. Absent on every other throw. */
+  through?: { x: number; y: number; z: number };
   /** THE SKIS LET GO (`lone-skis.ts`), the left one first: each its own
    * body from the moment its binding releases. */
   skis: LoneSki[];

@@ -39,8 +39,15 @@ function dropped(
   at = 0.5,
   turn = Math.PI / 2,
   spec?: SkiSpec,
+  gore = false,
 ): GameState {
-  const run = createGame({ level, mode: "free", quiet: true, ...(spec ? { spec } : {}) });
+  const run = createGame({
+    level,
+    mode: "free",
+    quiet: true,
+    ...(spec ? { spec } : {}),
+    ...(gore ? { gore } : {}),
+  });
   const u = plan.length * at;
   const p = ropeOver(plan, side, u);
   standSkier(run, p.x, p.z, plan.heading + Math.PI + turn);
@@ -148,6 +155,21 @@ describe("the cable grind (cable.ts)", () => {
     expect(run.skier.thrown).not.toBe(null);
     // The steel up into the crotch: the pelvis hurt at once.
     expect(run.skier.body.injuries.some((i) => i.part === "pelvis")).toBe(true);
+  });
+
+  it("cuts through a skier come down astride it hard enough to tear him apart: he goes on down", () => {
+    const fall = 30;
+    const cut = dropped(chair, 1, 6, 0.5, 0, undefined, true);
+    cut.skier.vy = -fall;
+    const events = ride(cut, 1 / 120);
+    expect(events.some((e) => e.kind === "gore" && e.what === "torn")).toBe(true);
+    // Not stopped on the rope: what is left of him carries on at his fall.
+    expect(cut.skier.thrown?.vy).toBeLessThan(-0.9 * fall);
+    // ...where the same drop, the injuries off, hangs him on it by the crotch.
+    const held = dropped(chair, 1, 6, 0.5, 0);
+    held.skier.vy = -fall;
+    ride(held, 1 / 120);
+    expect(held.skier.thrown?.vy).toBeGreaterThan(-1);
   });
 
   it("lets a board land along the rope: no legs apart to come down astride", () => {

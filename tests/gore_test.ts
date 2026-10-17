@@ -89,7 +89,7 @@ describe("mortal wounds", () => {
     expect(g.dead).toBeGreaterThanOrEqual(0);
   });
 
-  it("crush what meets a trunk past 100 km/h: the skull burst, the trunk opened, limbs pulped", () => {
+  it("crush what meets a trunk past 100 km/h: the skull burst, the trunk opened, smeared on it", () => {
     const { state, events } = ride(SKI_AT("trunk", 29), 1.5);
     const g = state.gore!;
     expect(g.crushed).toBeGreaterThanOrEqual(0);
@@ -102,12 +102,29 @@ describe("mortal wounds", () => {
     expect(events.some((e) => e.kind === "gore" && e.what === "pulped")).toBe(true);
     // ...each smash smeared on the trunk's face where it met it.
     const whats = new Set(g.smears.map((m) => m.what));
-    for (const w of ["brain", "chest", "limb"] as const) expect(whats.has(w)).toBe(true);
+    for (const w of ["brain", "chest"] as const) expect(whats.has(w)).toBe(true);
     const tree = state.level.trees[0];
     for (const m of g.smears) {
       expect(Math.hypot(m.nx, m.ny, m.nz)).toBeCloseTo(1, 5);
       expect(Math.hypot(m.x - tree.x, m.z - tree.z)).toBeLessThan(1.5);
     }
+  });
+
+  it("crush his middle met square on past 100 km/h: the limbs flung on past it, litres of blood out", () => {
+    const { state } = ride(SKI_AT("trunk", 29), 1.5);
+    const g = state.gore!;
+    expect(g.middle).toBeGreaterThanOrEqual(0);
+    expect(g.open).toBe(3);
+    const way = Math.hypot(g.way.x, g.way.z);
+    for (const piece of ["armL", "armR", "legL", "legR"] as const) {
+      const t = g.torn.find((p) => p.piece === piece)!;
+      expect(t.pulped).toBeUndefined();
+      // On the way he was going, most of his speed.
+      expect((t.vx * g.way.x + t.vz * g.way.z) / way).toBeGreaterThan(0.6 * way);
+    }
+    // A few litres of his 5.6 out on the snow and the trunk.
+    expect(g.shed).toBeGreaterThan(2.5);
+    expect(g.blood).toBeLessThanOrEqual(GORE.blood.volume);
   });
 
   it("leave a hit under 100 km/h to the dose's wounds, and a padded tower to give", () => {

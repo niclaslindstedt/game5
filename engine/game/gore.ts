@@ -53,7 +53,7 @@ import { BONES, INJURIES, type InjuryDef } from "./defs/anatomy.ts";
 import { throwRider } from "./crash.ts";
 import { RAGDOLL } from "./ragdoll-points.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
-import { bodySpeed, smashedPoints, type Smashed } from "./gore-smash.ts";
+import { bodyWay, smashedPoints, type Smashed } from "./gore-smash.ts";
 import {
   GORE_OPEN,
   GORE_PIECES,
@@ -187,7 +187,11 @@ export function stepGore(state: GameState, events: GameEvent[]): void {
     underMachine(state, g, events);
     rotor(state, g, events);
   }
-  if (bodySpeed(state) > GORE.smash.speed) g.fast = state.t;
+  const w = bodyWay(state, way);
+  if (hypot3(w.x, w.y, w.z) > GORE.smash.speed) {
+    g.fast = state.t;
+    g.way = { x: w.x, y: w.y, z: w.z };
+  }
   heart(state, g);
 }
 
@@ -245,6 +249,8 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
   for (const part of opening) openTrunk(state, g, off, part, events);
 }
 
+const way = { x: 0, y: 0, z: 0 };
+
 /** Every point of him smashed on a solid this step. */
 function smashAll(state: GameState, g: GoreState, events: GameEvent[]): void {
   const b = state.skier.thrown;
@@ -266,8 +272,11 @@ function smash(state: GameState, g: GoreState, off: Thrown, h: Smashed, events: 
     what = "brain";
   } else if (i === R.shoulderL || i === R.shoulderR || i === R.hipL || i === R.hipR) {
     const part: GoreOpen = i === R.shoulderL || i === R.shoulderR ? "chest" : "abdomen";
-    if (g.open & (1 << GORE_OPEN.indexOf(part))) return;
-    openTrunk(state, g, off, part, events);
+    const opened = g.open & (1 << GORE_OPEN.indexOf(part));
+    const squarely = g.middle < 0 && square(g, h);
+    if (opened && !squarely) return;
+    if (!opened) openTrunk(state, g, off, part, events);
+    if (squarely) crushMiddle(state, g, off, h, events);
     what = part === "chest" ? "chest" : "belly";
   } else {
     const piece = PIECE_AT[i];
@@ -278,6 +287,54 @@ function smash(state: GameState, g: GoreState, off: Thrown, h: Smashed, events: 
   }
   const { nx, ny, nz, cx, cz, r } = h;
   g.smears.push({ what, point: i, t: state.t, ...pointOf(off, i), nx, ny, nz, cx, cz, r });
+}
+
+/** Whether the solid was met SQUARE ON: his way into its face. */
+function square(g: GoreState, h: Smashed): boolean {
+  const w = g.way;
+  const s = hypot(w.x, w.z);
+  return s > 0 && -(w.x * h.nx + w.z * h.nz) / s >= GORE.smash.square;
+}
+
+/** THE MIDDLE OF HIM CRUSHED, met square on (`GORE.smash`): the chest and
+ * the belly burst together, the blood in them out at once, and the arms
+ * and the legs torn off and gone on past the solid the way he was going. */
+function crushMiddle(
+  state: GameState,
+  g: GoreState,
+  off: Thrown,
+  h: Smashed,
+  events: GameEvent[],
+): void {
+  const S = GORE.smash;
+  g.middle = state.t;
+  g.burst += S.burst;
+  for (const part of GORE_OPEN)
+    if (!(g.open & (1 << GORE_OPEN.indexOf(part)))) openTrunk(state, g, off, part, events);
+  const w = g.way;
+  const s = hypot(w.x, w.z) || 1;
+  // Across his way, to his right as he goes (heading clockwise from +z).
+  const ax = w.z / s;
+  const az = -w.x / s;
+  const limbs: [GorePiece, number][] = [
+    ["armL", R.elbowL],
+    ["armR", R.elbowR],
+    ["legL", R.kneeL],
+    ["legR", R.kneeR],
+  ];
+  for (const [piece, i] of limbs) {
+    if (g.lost & bit(piece)) continue;
+    // Past the solid on the side it was on.
+    const p = pointOf(off, i);
+    const side = Math.sign((p.x - h.cx) * ax + (p.z - h.cz) * az) || (i % 2 ? 1 : -1);
+    const v = {
+      x: w.x * S.fling + ax * side * S.past,
+      y: Math.max(0, w.y * S.fling) + S.up,
+      z: w.z * S.fling + az * side * S.past,
+    };
+    tearOff(state, g, off, piece, v, events);
+  }
+  mortalBy(state, g, "opened");
 }
 
 /** CUT THROUGH: every point of `off` and the skis still on its feet going
@@ -832,9 +889,13 @@ function heart(state: GameState, g: GoreState): void {
     const since = state.t - g.dead - H.agonal;
     g.flow = q * GORE.blood.drain * 0.5 ** (since / GORE.blood.halve);
   }
+  // THE MIDDLE BURST: its litres out through the opened trunk at once.
+  const burst = Math.min(g.burst, GORE.smash.pour * dt);
+  g.burst -= burst;
+  const shown = g.flow;
   // Never more than is left in him.
-  g.flow = Math.min(g.flow, (V - g.blood) / dt);
-  g.out = q > 0 ? (g.flow * qOut) / q : 0;
+  g.flow = Math.min(g.flow + burst / dt, (V - g.blood) / dt);
+  g.out = Math.min(g.flow, (q > 0 ? (shown * qOut) / q : 0) + burst / dt);
   g.blood = Math.min(V, g.blood + g.flow * dt);
   g.shed += g.out * dt;
 }

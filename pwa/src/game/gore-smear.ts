@@ -17,7 +17,7 @@
 // paste is what stays on the wood.
 
 import * as THREE from "three";
-import type { Smear } from "@engine";
+import type { Level, Smear } from "@engine";
 import { createRng, type Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 
 import {
@@ -30,6 +30,7 @@ import {
   type GoreColour,
   type OrganKind,
 } from "./gore-shapes.ts";
+import { LOOSE } from "./trail-stamp.ts";
 
 /** The paste's measures, m: the blot's radius by what was crushed, how far
  * the runs reach down under it at the most, and how thick its middle is. */
@@ -190,40 +191,97 @@ export function smearGeometry(
   return merge(parts);
 }
 
+/** THE MIDDLE'S BLOOD ON THE SNOW: what a body crushed open met square on
+ * flings on past the solid — a blot at its foot, then a spray thinning
+ * out along his way, each blot laid as the blood would reach it. `at` is
+ * where it burst and `way` his way then (m/s, world); every blot's place,
+ * radius, m, and the run clock it lands at. */
+export function middleSpray(
+  at: { x: number; z: number },
+  way: { x: number; z: number },
+  t: number,
+  rng: Rng,
+): { x: number; z: number; r: number; t: number }[] {
+  const s = Math.hypot(way.x, way.z) || 1;
+  const ux = way.x / s;
+  const uz = way.z / s;
+  const out: { x: number; z: number; r: number; t: number }[] = [];
+  // The blot at the solid's foot, poured out of him as he slid down it.
+  for (let k = 0; k < 9; k++) {
+    const a = rng.range(0, Math.PI * 2);
+    const d = rng.range(0, 0.5);
+    out.push({
+      x: at.x + Math.cos(a) * d - ux * 0.3,
+      z: at.z + Math.sin(a) * d - uz * 0.3,
+      r: rng.range(0.5, 1),
+      t: t + rng.range(0.1, 0.6),
+    });
+  }
+  // The spray along his way, thinning and widening with distance.
+  const reach = Math.min(16, s * 0.5);
+  for (let k = 0; k < 140; k++) {
+    const d = reach * rng.next() ** 0.7;
+    const side = (rng.next() - 0.5) * (0.4 + d * 0.25);
+    out.push({
+      x: at.x + ux * d + uz * side,
+      z: at.z + uz * d - ux * side,
+      r: rng.range(0.1, 0.5) * (1 - (0.6 * d) / reach),
+      t: t + d / (s * 0.45),
+    });
+  }
+  return out;
+}
+
 export type Smears = {
   group: THREE.Group;
-  /** The engine's smears laid as they come. */
-  update(smears: readonly Smear[]): void;
+  /** The engine's smears laid as they come, and the middle's blots due by
+   * the run clock `t`. */
+  update(smears: readonly Smear[], t: number): void;
+  /** The middle crushed: its blood flung on along `way` from `at`. */
+  fling(at: { x: number; z: number }, way: { x: number; z: number }, t: number): void;
   /** The pastes laid so far, handed over (a body left lying keeps them). */
   take(): THREE.Mesh[];
   clear(): void;
 };
 
-/** The pastes of a run, in `flesh` — dealt off `seed` — on the ground
- * `groundAt` gives where a smear is on the crag's rock. */
+/** The pastes of a run on `level`, in `flesh` — dealt off `seed` — and the
+ * middle's blots laid by `splat`, `lift` m up: over the loose cover the
+ * terrain draws on unpacked snow (`trail-stamp.ts`'s `LOOSE`), which the
+ * blood lands on rather than under. */
 export function createSmears(
+  level: Level,
   flesh: THREE.Material,
   seed: number,
-  groundAt: (x: number, z: number) => number,
+  splat: (x: number, z: number, r: number, shade: number, turn: number, lift: number) => void,
 ): Smears {
+  const groundAt = (x: number, z: number) => level.groundAt(x, z);
   const group = new THREE.Group();
   group.name = "gore-smears";
   let laid: THREE.Mesh[] = [];
   let seen = 0;
+  let due: { x: number; z: number; r: number; t: number }[] = [];
+  const rng = createRng(seed >>> 0);
   const out = new THREE.Vector3();
   const up = new THREE.Vector3();
   const side = new THREE.Vector3();
   const basis = new THREE.Matrix4();
   return {
     group,
-    update(smears) {
+    fling(at, way, t) {
+      due.push(...middleSpray(at, way, t, rng));
+    },
+    update(smears, t) {
+      due = due.filter((b) => {
+        if (b.t > t) return true;
+        splat(b.x, b.z, b.r, 1, rng.range(0, 6.28), 0.012 + LOOSE * (1 - level.packedAt(b.x, b.z)));
+        return false;
+      });
       // A new run's list starts again from none.
       if (smears.length < seen) seen = 0;
       for (; seen < smears.length; seen++) {
         const s = smears[seen];
         const own = seed ^ Math.round(s.x * 97 + s.z * 31 + s.t * 1000);
-        const rng = createRng(own >>> 0);
-        const geo = smearGeometry(s.what, s.r, (own % 997) / 9.7, rng);
+        const geo = smearGeometry(s.what, s.r, (own % 997) / 9.7, createRng(own >>> 0));
         const mesh = new THREE.Mesh(geo, flesh);
         mesh.castShadow = false;
         mesh.receiveShadow = true;
@@ -258,6 +316,7 @@ export function createSmears(
       }
       laid = [];
       seen = 0;
+      due = [];
     },
   };
 }

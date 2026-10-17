@@ -68,8 +68,9 @@ export type Blood = {
     lead?: readonly THREE.Vector3[],
     fall?: number,
   ): void;
-  /** Lay a blot `r` m across at (x, z), `shade` its darkness (1 fresh). */
-  splat(x: number, z: number, r: number, shade: number, turn: number): void;
+  /** Lay a blot `r` m across at (x, z), `shade` its darkness (1 fresh),
+   * `lift` m over the snow under it. */
+  splat(x: number, z: number, r: number, shade: number, turn: number, lift?: number): void;
   /** The pool under `key` at (x, z): grown by `litres`, a litre spread
    * over `soak` m² of this snow; one that has moved on starts a new one. */
   pool(key: string, x: number, z: number, litres: number, soak: number): void;
@@ -470,8 +471,8 @@ export function createBlood(wrap: Wrap): Blood {
         }
       }
     },
-    splat(x, z, r, shade, turn) {
-      lay(splats, take(), x, z, r, shade, turn);
+    splat(x, z, r, shade, turn, lift) {
+      lay(splats, take(), x, z, r, shade, turn, lift);
     },
     pool(key, x, z, litres, soak) {
       let o = pools.get(key);

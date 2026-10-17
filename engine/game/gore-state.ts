@@ -131,8 +131,13 @@ export type GoreState = {
   pulped: number;
   smears: Smear[];
   /** The run clock his body last went faster than `GORE.smash.speed`
-   * (−1: never). */
+   * (−1: never), and his way then, m/s, world. */
   fast: number;
+  way: { x: number; y: number; z: number };
+  /** When the middle of him was crushed met square on (−1: it was not),
+   * and the litres of that burst still to leave him. */
+  middle: number;
+  burst: number;
   impaled: Impaled | null;
   /** The limbs and the head torn open on a spike's tip they came down
    * onto (`Gash`): only the trunk is run through. */
@@ -168,6 +173,9 @@ export function freshGore(): GoreState {
     pulped: 0,
     smears: [],
     fast: -1,
+    way: { x: 0, y: 0, z: 0 },
+    middle: -1,
+    burst: 0,
     impaled: null,
     gashes: [],
     mortal: -1,

@@ -119,8 +119,36 @@ export const GORE = {
    * and the limbs amputated past about 100 km/h. A body met at 90 km/h is
    * broken (the dose's wounds, above, still tear and crush on their own); at
    * 100 km/h on a solid, what hits is pulp. `rock` is the share of a cell's
-   * bare rock (`bareRockAt`) that counts as stone underfoot. */
-  smash: { speed: 27.8, window: 0.3, hit: 9, rock: 0.5 },
+   * bare rock (`bareRockAt`) that counts as stone underfoot.
+   *
+   * MET SQUARE ON — a shoulder or a hip on the solid with his way into its
+   * face inside `square` (the cosine between them) — the MIDDLE OF HIM is
+   * crushed: the chest and the belly burst together, and the arms and the
+   * legs, held to nothing now, are torn off at the shoulders and the hips
+   * and go on the way he was going, `fling` of his speed, past the solid on
+   * the side each was on at `past` m/s and `up` m/s up.
+   *
+   * THE BLOOD OUT OF IT. A man of the medium build carries some 5.6 litres
+   * (70 ml/kg). Of it the heart's chambers hold about half a litre, the
+   * lungs' vessels about as much again, the liver some 10 % of it and the
+   * great vessels — the aorta and the venae cavae — the rest of the torso's
+   * share; a torn aorta alone empties a body in moments. A middle crushed
+   * open bursts all of them at once: `burst` litres leave him in the first
+   * moments at up to `pour` L/s, on top of what the opened wounds go on
+   * bleeding and draining after — some three to four litres on the snow
+   * and the solid all told. */
+  smash: {
+    speed: 27.8,
+    window: 0.3,
+    hit: 9,
+    rock: 0.5,
+    square: 0.7,
+    fling: 0.8,
+    past: 3,
+    up: 1.5,
+    burst: 2.2,
+    pour: 5,
+  },
   /** THE BLOOD: the body's volume, L, the share whose loss kills, and the
    * flow out of each wound at the full pressure, L/s (shortened, above). */
   blood: {

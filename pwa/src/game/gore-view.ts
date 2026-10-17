@@ -264,7 +264,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
   };
   const spikeGeo = keep(spikeGeometry(0.6, 0.045));
   // What a smash left on the solid it met (`gore-smear.ts`).
-  const smears = createSmears(flesh, level.seed ^ 0x5ea5, level.groundAt);
+  const smears = createSmears(level, flesh, level.seed ^ 0x5ea5, (...a) => blood.splat(...a));
   group.add(smears.group);
 
   const ground: GibGround = {
@@ -283,6 +283,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
   let guts: Gut[] = [];
   let opened = 0;
   let crushed = false;
+  let middled = false;
   let bladed = 0; // the points of him the rotor's blades went through, drawn
   let spike: THREE.Mesh | null = null;
   const bodyStumps = new Map<GorePiece, THREE.Mesh>();
@@ -521,6 +522,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     spike = null;
     opened = 0;
     crushed = false;
+    middled = false;
     bladed = 0;
     soakedIn.clear();
     drips.clear();
@@ -608,7 +610,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
         if (t.pulped) pulp(t.piece, t, f, M);
         else tear(t.piece, t.t, t, skin, M, before);
       }
-      smears.update(g.smears);
+      smears.update(g.smears, state.t);
       // THE TRUNK OPENED.
       GORE_OPEN.forEach((_, bit) => {
         if (!(g.open & (1 << bit)) || opened & (1 << bit)) return;
@@ -650,6 +652,16 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
         }
         blood.emit(at, dir, 1.2, 80, 0.7, carry, () => rng.next());
       });
+      // THE MIDDLE CRUSHED square on: its blood flung on ahead past the solid and back off its face.
+      if (g.middle >= 0 && !middled) {
+        middled = true;
+        const at = world(f.chest.head, M);
+        const u = Math.hypot(g.way.x, g.way.y, g.way.z);
+        const way = new THREE.Vector3(g.way.x, g.way.y, g.way.z).normalize();
+        blood.emit(at, way, u * 0.45, 500, 0.9, carry, () => rng.next());
+        blood.emit(at, way.clone().negate(), 3.5, 300, 1.3, carry, () => rng.next());
+        smears.fling(at, g.way, state.t);
+      }
       // THE SKULL CRUSHED.
       if (g.crushed >= 0 && !crushed) {
         crushed = true;

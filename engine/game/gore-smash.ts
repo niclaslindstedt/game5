@@ -35,12 +35,20 @@ export type Smashed = {
 const near: number[] = [];
 const n = { x: 0, y: 1, z: 0 };
 
-/** How fast his body goes, m/s: the mean of his points' way over the step
- * thrown, his own on his skis. */
-export function bodySpeed(state: GameState): number {
+/** His body's way, m/s, world, into `out`: the mean of his points' over
+ * the step thrown, his own on his skis. */
+export function bodyWay(
+  state: GameState,
+  out: { x: number; y: number; z: number },
+): { x: number; y: number; z: number } {
   const b = state.skier.thrown;
   const c = state.skier;
-  if (!b) return hypot(hypot(c.vx, c.vy), c.vz);
+  if (!b) {
+    out.x = c.vx;
+    out.y = c.vy;
+    out.z = c.vz;
+    return out;
+  }
   let x = 0;
   let y = 0;
   let z = 0;
@@ -49,7 +57,10 @@ export function bodySpeed(state: GameState): number {
     y += b.points[3 * i + 1] - b.last[3 * i + 1];
     z += b.points[3 * i + 2] - b.last[3 * i + 2];
   }
-  return hypot(hypot(x, y), z) / (R.count * dt);
+  out.x = x / (R.count * dt);
+  out.y = y / (R.count * dt);
+  out.z = z / (R.count * dt);
+  return out;
 }
 
 /** The points of `b` crushed this step, given the run clock his body last

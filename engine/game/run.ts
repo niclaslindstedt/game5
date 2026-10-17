@@ -72,6 +72,7 @@ import { inRunInput } from "./in-run.ts";
 import { hockeyStop, stopMade } from "./hockey-stop.ts";
 import { stepJib } from "./jib.ts";
 import { stepCable } from "./cable.ts";
+import { stepCableCut } from "./cable-cut.ts";
 import { afterSkiJump, stepSkiJump } from "./ski-jump.ts";
 import { NEUTRAL_INPUT, type GameEvent, type GameState, type SkierInput } from "./state.ts";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
@@ -323,6 +324,9 @@ export function stepRun(
     // Stopped on a street of the village: out of his skis (`town.ts`).
     if (player && !c.thrown) intoTown(run, events);
   }
+  // THROUGH A LIFT'S ROPE met too fast (`cable-cut.ts`): cut where it
+  // crossed him, on a run that carries its injuries.
+  if (player) stepCableCut(run, events);
   // HIS CLOTHES ALIGHT (`fire-burn.ts`): caught, burning, put out.
   stepBurn(run, events);
   takeDamage(run, events);

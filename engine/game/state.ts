@@ -787,8 +787,9 @@ export type GameEvent =
       whole: boolean;
     }
   /** ON A LIFT'S ROPE (`cable.ts`) by the lift's id: come down onto it,
-   * or off it (popped, off its end, or thrown off by a carrier). */
-  | { kind: "grind"; t: number; id: string; phase: "on" | "off" | "straddle" }
+   * or off it (popped, off its end, or thrown off by a carrier) — or cut
+   * through by it, met too fast (`cable-cut.ts`). */
+  | { kind: "grind"; t: number; id: string; phase: "on" | "off" | "straddle" | "cut" }
   /** ON A LIFT (`lift-ride.ts`) by its id: taken into its load zone,
    * taken by his carrier (a T-bar behind him, sat in his chair or cabin),
    * his carrier run over a tower's sheaves, or stood off it at the top. */

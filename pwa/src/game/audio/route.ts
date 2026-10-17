@@ -468,7 +468,7 @@ export function soundForEvent(
     // ring, pitched higher for a thin rope's — and softer as he leaves it;
     // come down astride it, a dull heavy clang.
     case "grind":
-      return event.phase === "straddle"
+      return event.phase === "straddle" || event.phase === "cut"
         ? { id: "pole", shape: { gain: 1, pitch: 0.45 } }
         : { id: "pole", shape: { gain: event.phase === "on" ? 1 : 0.5, pitch: 0.82 } };
 

@@ -34,6 +34,7 @@ import { diedOf } from "../game/hud-wreck.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { BONE_GROUPS, BONE_VIEWS } from "./gore-bone-scenes.ts";
+import { CABLE_GROUPS, CABLE_VIEWS } from "./gore-cable-scenes.ts";
 import {
   GROUPS as SCENE_GROUPS,
   HUD_GROUPS,
@@ -44,8 +45,8 @@ import {
   type Stage,
 } from "./gore-scenes.ts";
 
-const VIEWS = { ...SCENE_VIEWS, ...BONE_VIEWS };
-const GROUPS = { ...SCENE_GROUPS, ...BONE_GROUPS };
+const VIEWS = { ...SCENE_VIEWS, ...BONE_VIEWS, ...CABLE_VIEWS };
+const GROUPS = { ...SCENE_GROUPS, ...BONE_GROUPS, ...CABLE_GROUPS };
 
 type Frame = { view: string; label: string; caption: string; png: string };
 
@@ -146,7 +147,10 @@ let view = "";
 function stateLine(s: GameState): string {
   const g = s.gore;
   const c = s.skier;
-  const skier = c.thrown ? `thrown (${c.thrown.cause}, ${c.thrown.t.toFixed(1)} s)` : "on snow";
+  const cut = c.thrown?.halves?.length ?? 0;
+  const skier = c.thrown
+    ? `thrown (${c.thrown.cause}, ${c.thrown.t.toFixed(1)} s)${cut ? ` · ${cut} ski pieces cut off` : ""}`
+    : "on snow";
   if (!g) return skier;
   const lost = GORE_PIECES.filter((p) => lostPiece(g, p));
   const open = GORE_OPEN.filter((_, i) => g.open & (1 << i));

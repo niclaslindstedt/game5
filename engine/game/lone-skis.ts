@@ -140,6 +140,8 @@ const arrive = [0, 0];
  * held goes where his foot went this step. */
 export function stepLoneSkis(state: GameState, b: Thrown): void {
   for (const ski of b.skis) stepSki(state, b, ski);
+  // ...and what a lift's rope cut off them (`ski-cut.ts`).
+  if (b.halves) for (const ski of b.halves) stepSki(state, b, ski);
 }
 
 /** THE SKIS LYING WHERE THE FALL LEFT THEM while he walks to fetch them

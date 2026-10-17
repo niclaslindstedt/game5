@@ -45,6 +45,7 @@ import { kitOf, PLAYER_MODELS, readPlayerModel, setPlayerModel } from "./player-
 import { mergeModel } from "./model-merge.ts";
 import { drawnAs, lookFrame } from "./ski-looks.ts";
 import { rigAsset } from "./ski-rig.ts";
+import { clipAll, type SkiPiece } from "./ski-cut-view.ts";
 import type { Stand } from "./ski-stand.ts";
 
 /** The build's environment — Vite's, where this runs in the app; none
@@ -301,6 +302,12 @@ export type ModelParts = {
    * `pair` takes the pair's root frame — where the ski stands in it at
    * rest — to the world where it lies. */
   lay(i: number, pair: THREE.Matrix4): void;
+  /** Ski `i` left out of the pair's draw, after `lay` — a ski cut by a
+   * lift's rope is drawn by its pieces (`ski-cut-view.ts`). */
+  hide(i: number): void;
+  /** A copy of ski `i` alone, hung under the root and clipped by `planes`
+   * (`ski-cut-view.ts`): laid by the whole ski's world frame. */
+  piece(i: 0 | 1, planes: THREE.Plane[]): SkiPiece;
   dispose(): void;
 };
 
@@ -345,6 +352,48 @@ export function attachModels(o: {
     lay(i, pair) {
       holder.updateMatrix();
       skisRig.lay(i, to.multiplyMatrices(pair, holder.matrix));
+    },
+    hide(i) {
+      skisRig.hide(i);
+    },
+    piece(i, planes) {
+      // The whole pair dressed again, its own materials clipped, the other
+      // ski collapsed out of it.
+      const own: THREE.Material[] = [];
+      const copy = dressed(skisGltf, o.skis, null, o.wrap, own);
+      const materials = clipAll(copy.scene, planes);
+      for (const m of own) m.dispose();
+      copy.scene.rotation.y = Math.PI;
+      const at = new THREE.Group();
+      at.position.copy(holder.position);
+      at.add(copy.scene);
+      const object = new THREE.Group();
+      object.add(at);
+      o.root.add(object);
+      object.updateMatrixWorld(true);
+      const rig = rigAsset(copy.scene, skisGltf.animations);
+      // The pair's root as it would stand for this ski at rest.
+      const rest = new THREE.Matrix4().makeTranslation(
+        ((i === 0 ? 1 : -1) * o.spec.stance) / 2,
+        o.spec.cogHeight,
+        0,
+      );
+      const pair = new THREE.Matrix4();
+      const by = new THREE.Matrix4();
+      return {
+        object,
+        materials,
+        lay(frame) {
+          object.updateMatrixWorld(true);
+          rig.lay(i, by.multiplyMatrices(pair.multiplyMatrices(frame, rest), at.matrix));
+          rig.hide(1 - i);
+        },
+        dispose() {
+          object.removeFromParent();
+          for (const m of materials) m.dispose();
+          copy.scene.traverse((n) => n instanceof THREE.SkinnedMesh && n.skeleton.dispose());
+        },
+      };
     },
     dispose() {
       for (const m of mats) m.dispose();

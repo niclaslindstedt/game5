@@ -50,6 +50,9 @@ export type AssetRig = {
    * lies, `to` taking the rig's body frame — where that ski stands at rest
    * — to the world. After `pose`, which it overrides for that ski. */
   lay(i: number, to: THREE.Matrix4): void;
+  /** Ski `i` (0 the left) collapsed out of the draw, its bone scaled to
+   * nothing — until the next `pose` or `rest`. */
+  hide(i: number): void;
   /** Clip `name` at `t` s. */
   play(name: string, t: number): void;
 };
@@ -208,6 +211,12 @@ export function rigAsset(root: THREE.Object3D, animations: THREE.AnimationClip[]
         .decompose(o.position, o.quaternion, w);
       o.scale.copy(keep);
       aimAll();
+    },
+    hide(i) {
+      const o = skis[i];
+      if (!o) return;
+      o.scale.setScalar(0);
+      root.updateMatrixWorld(true);
     },
     play(name, t) {
       reset();

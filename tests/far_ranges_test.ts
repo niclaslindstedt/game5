@@ -28,6 +28,7 @@ import {
   rimGrid,
   ringMesh,
 } from "../pwa/src/game/far-ranges-plan.ts";
+import { SILHOUETTE, silhouetteOf } from "../pwa/src/game/far-silhouette.ts";
 import { regionLookOf } from "../pwa/src/game/region-look.ts";
 import { levelFor } from "./support/levels.ts";
 
@@ -209,5 +210,44 @@ describe("the real country", () => {
       // No real mountain stands past nine kilometres.
       expect(Math.max(...h)).toBeLessThan(9000);
     }
+  });
+});
+
+describe("the skyline a plain sky paints", () => {
+  it("bakes every bearing's near and far crest off the rings' own ground", () => {
+    const level = mapOf("alpine");
+    const frame = farFrame(level);
+    const grid = dealtGrid(frame);
+    const sil = silhouetteOf(level, frame, grid);
+    expect(sil.bins).toBe(SILHOUETTE.bins);
+    expect(sil.data.length).toBe(SILHOUETTE.bins * 4);
+    let ranges = 0;
+    for (let i = 0; i < sil.bins; i++) {
+      const [nh, nd, fh, fd] = sil.data.subarray(i * 4, i * 4 + 4);
+      const a = (i / sil.bins) * Math.PI * 2;
+      // The near layer from the map's edge to the split, the far past it.
+      expect(nd).toBeGreaterThanOrEqual(edgeRadius(frame.size, a) - 1);
+      expect(nd).toBeLessThanOrEqual(SILHOUETTE.split);
+      expect(fd).toBeGreaterThanOrEqual(SILHOUETTE.split);
+      expect(fd).toBeLessThanOrEqual(grid.outer);
+      expect(Number.isFinite(nh) && Number.isFinite(fh)).toBe(true);
+      // Each crest is ground the rings stand on (the curve's drop taken
+      // off, so never over it).
+      const c = frame.size / 2;
+      const ground = (r: number): number =>
+        farHeightAt(level, frame, grid, c + r * Math.sin(a), c + r * Math.cos(a));
+      expect(fh).toBeLessThanOrEqual(ground(fd) + 1e-3);
+      if (fh > frame.floor + frame.vertical * 0.5) ranges++;
+    }
+    // The far country stands over the eye along much of the skyline.
+    expect(ranges).toBeGreaterThan(sil.bins / 4);
+  });
+
+  it("is the same skyline for the same map", () => {
+    const level = mapOf("fell");
+    const frame = farFrame(level);
+    const a = silhouetteOf(level, frame, dealtGrid(frame));
+    const b = silhouetteOf(level, frame, dealtGrid(frame));
+    expect(Array.from(a.data)).toEqual(Array.from(b.data));
   });
 });

@@ -241,8 +241,10 @@ describe("the jump plane on a free ride", () => {
   });
 
   it("leaves a skier it hurt too badly to ski on lying by the wreck, for the rescue", () => {
+    // Into deep powder, which he lives through: the same dive into the
+    // firm groomer kills him.
     const s = createGame({
-      level: flat,
+      level: flatLevel({ size: SIZE, packed: 0 }),
       mode: "free",
       plane: true,
       crowd: 0,

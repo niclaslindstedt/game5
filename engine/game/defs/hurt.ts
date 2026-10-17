@@ -18,9 +18,9 @@ export const HURT = {
    * does; past that a part does next to nothing. */
   loss: [0, 0.08, 0.2, 0.4, 0.6, 0.75],
   /** How much of each loss reaches each thing he does, 0 … 1. */
-  edge: { leg: 0.7, trunk: 0.25 },
-  rate: { leg: 0.6, head: 0.5, trunk: 0.2 },
-  grip: { leg: 0.55 },
+  edge: { leg: 0.45, trunk: 0.15 },
+  rate: { leg: 0.4, head: 0.35, trunk: 0.15 },
+  grip: { leg: 0.3 },
   drive: { arm: 0.7, leg: 0.4, trunk: 0.3 },
   tuck: { leg: 0.5, trunk: 0.6 },
   landing: { leg: 0.65, trunk: 0.3 },

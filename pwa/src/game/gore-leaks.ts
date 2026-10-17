@@ -9,7 +9,7 @@
 // lies, the way the blood runs. A piece torn off has no cloth left to hold
 // it: that wound bleeds where it is (`gore-view.ts`).
 
-import { looseOf, packedUnder, type BodyPart, type GameState } from "@engine";
+import { packedUnder, type BodyPart, type GameState } from "@engine";
 
 import type { BoneFrame, SkierBone } from "./skier-rig.ts";
 
@@ -224,7 +224,7 @@ const SPREAD = { packed: 4.2, loose: 0.9 };
 
 /** How far a litre of blood spreads on the snow at (x, z), m². */
 export function spreadAt(state: GameState, x: number, z: number): number {
-  const p = packedUnder(state.level.packedAt(x, z), state.fresh, looseOf(state));
+  const p = packedUnder(state.level.packedAt(x, z), state.fresh);
   const deep = 0.55 + 0.45 * Math.max(0.3, state.snowDepth);
   return (SPREAD.loose + (SPREAD.packed - SPREAD.loose) * p) / deep;
 }

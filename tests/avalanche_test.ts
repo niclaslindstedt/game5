@@ -138,6 +138,42 @@ describe("the hazard", () => {
     expect(avalancheHazard(woods, load, LEE.x, LEE.slab)).toBe(0);
   });
 
+  it("is none on or beside a piste, and a slab let go above one stops short of it", () => {
+    const lee = leeLevel();
+    const top = LEE.slab + 40;
+    const piste = (z: number) => z >= top && z <= top + 30;
+    const level: Level = { ...lee, packedAt: (x, z) => (piste(z) ? 1 : lee.packedAt(x, z)) };
+    expect(avalancheHazard(level, load, LEE.x, top + 10)).toBe(0);
+    expect(avalancheHazard(level, load, LEE.x, top - AVALANCHE.keepOff + 1)).toBe(0);
+    expect(avalancheHazard(level, load, LEE.x, top - 20)).toBeGreaterThan(0);
+    const s = avalancheRide(level);
+    const slide = releaseAvalanche(s, s.avalanche!, LEE.x, LEE.slab, []);
+    expect(slide.slab.z + slide.slab.length).toBeLessThan(top);
+    for (let i = 0; i < slide.count; i++) {
+      expect(piste(slide.cells[i * AVALANCHE_CELL.stride + AVALANCHE_CELL.z])).toBe(false);
+    }
+  });
+
+  it("is none on or beside a rock wall too steep to hold a slab", () => {
+    const lee = leeLevel();
+    const wall = (x: number) => x >= LEE.x + 40 && x <= LEE.x + 70;
+    const pitch = (52 * Math.PI) / 180;
+    const level: Level = {
+      ...lee,
+      normalAt: (x, z, out) => {
+        if (!wall(x)) return lee.normalAt(x, z, out);
+        out.x = 0;
+        out.y = Math.cos(pitch);
+        out.z = Math.sin(pitch);
+        return out;
+      },
+    };
+    expect(avalancheHazard(lee, load, LEE.x + 55, LEE.slab)).toBeGreaterThan(0);
+    expect(avalancheHazard(level, load, LEE.x + 55, LEE.slab)).toBe(0);
+    expect(avalancheHazard(level, load, LEE.x + 40 - AVALANCHE.keepOff + 1, LEE.slab)).toBe(0);
+    expect(avalancheHazard(level, load, LEE.x, LEE.slab)).toBeGreaterThan(0);
+  });
+
   it("is more on the lee than across the wind, and grows with the load", () => {
     const lee = leeLevel();
     const across: Level = { ...lee, weather: { ...lee.weather!, windFrom: -Math.PI / 2 } };

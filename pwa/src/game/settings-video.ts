@@ -74,6 +74,17 @@ export const TRAIL_LEVELS: readonly TrailLevel[] = ["off", ...TIERS];
 export type ResolutionLevel = "50" | "60" | "70" | "80" | "90" | "100";
 export const RESOLUTION_LEVELS: readonly ResolutionLevel[] = ["50", "60", "70", "80", "90", "100"];
 
+/** SKY: PLAIN the air's own colour from the horizon to the zenith as the
+ * hour and the weather light it, and nothing in it — no cloud, sun, moon,
+ * stars or contrails; FULL the whole sky. */
+export type SkyLevel = "plain" | "full";
+export const SKY_LEVELS: readonly SkyLevel[] = ["plain", "full"];
+
+/** HORIZON: the far ranges round the map — PAINTED a skyline baked once
+ * onto the dome, 3D the rings' own mesh standing to the horizon. */
+export type HorizonLevel = "painted" | "3d";
+export const HORIZON_LEVELS: readonly HorizonLevel[] = ["painted", "3d"];
+
 export type VideoSettings = {
   resolution: ResolutionLevel;
   distance: DistanceLevel;
@@ -83,6 +94,8 @@ export type VideoSettings = {
   shadows: ShadowLevel;
   spray: Tier;
   lamps: Tier;
+  sky: SkyLevel;
+  horizon: HorizonLevel;
   antialias: boolean;
 };
 
@@ -159,15 +172,23 @@ export type TrailLook = {
   fineSpan: number;
   /** Coarse map texels a side (it spans the whole map). */
   coarseSize: number;
+  /** Whether the TREE WELLS are drawn (`tree-wells.ts`): the hollow round
+   * every trunk in deep powder lowered into the snow, and the stub of trunk
+   * down into it. Their map is refilled every 16 m the lens moves — some
+   * 18 ms of the processor's a time, a dropped frame every second or two at
+   * speed — and the ground reads it five times a pixel near the lens. OFF
+   * and LOW give them up: the snow round a trunk is drawn level, though the
+   * skier still meets the hollow and can sink into it. */
+  wells: boolean;
 };
 
 export const TRAIL_LOOK: Record<TrailLevel, TrailLook> = {
   // OFF still builds the smallest maps there are, so the ground's shader has
   // something to read — they are simply never written.
-  off: { stamp: false, fineSize: 64, fineSpan: 64, coarseSize: 64 },
-  low: { stamp: true, fineSize: 512, fineSpan: 64, coarseSize: 1024 },
-  medium: { stamp: true, fineSize: 1024, fineSpan: 96, coarseSize: 1024 },
-  high: { stamp: true, fineSize: 2048, fineSpan: 160, coarseSize: 2048 },
+  off: { stamp: false, fineSize: 64, fineSpan: 64, coarseSize: 64, wells: false },
+  low: { stamp: true, fineSize: 512, fineSpan: 64, coarseSize: 1024, wells: false },
+  medium: { stamp: true, fineSize: 1024, fineSpan: 96, coarseSize: 1024, wells: true },
+  high: { stamp: true, fineSize: 2048, fineSpan: 160, coarseSize: 2048, wells: true },
 };
 
 export type RockLook = {
@@ -402,6 +423,8 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     shadows: "off",
     spray: "low",
     lamps: "low",
+    sky: "plain",
+    horizon: "3d",
   },
   medium: {
     resolution: "100",
@@ -412,6 +435,8 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     shadows: "medium",
     spray: "medium",
     lamps: "medium",
+    sky: "full",
+    horizon: "3d",
   },
   high: {
     resolution: "100",
@@ -422,6 +447,8 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     shadows: "high",
     spray: "high",
     lamps: "high",
+    sky: "full",
+    horizon: "3d",
   },
 };
 
@@ -466,6 +493,8 @@ export const PICTURE_LADDERS: { readonly [R in PictureRow]: readonly VideoSettin
   shadows: SHADOW_LEVELS,
   spray: TIERS,
   lamps: TIERS,
+  sky: SKY_LEVELS,
+  horizon: HORIZON_LEVELS,
 };
 export const PICTURE_ROWS = Object.keys(PICTURE_LADDERS) as PictureRow[];
 
@@ -512,6 +541,14 @@ export function mergeVideo(parsed: unknown): VideoSettings {
   out.shadows = pick(shadows, SHADOW_LEVELS, out.shadows);
   out.spray = pick(blob.spray, TIERS, out.spray);
   out.lamps = pick(blob.lamps, TIERS, out.lamps);
+  // A picture stored before the SKY row: the LOW preset's own plain sky if
+  // every other row stood on LOW, so it is still that preset.
+  const low = VIDEO_PRESETS.low;
+  const wasLow = (Object.keys(low) as (keyof typeof low)[]).every(
+    (k) => k === "sky" || k === "horizon" || out[k] === low[k],
+  );
+  out.sky = pick(blob.sky, SKY_LEVELS, wasLow && blob.sky === undefined ? "plain" : out.sky);
+  out.horizon = pick(blob.horizon, HORIZON_LEVELS, out.horizon);
   if (typeof blob.antialias === "boolean") out.antialias = blob.antialias;
   return out;
 }

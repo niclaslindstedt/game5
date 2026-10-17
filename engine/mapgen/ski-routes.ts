@@ -52,9 +52,10 @@ import {
 } from "@niclaslindstedt/oss-game-framework/core/heightfield";
 import { LEVEL_RULES as R } from "./rules.ts";
 import { RESORT_RULES } from "./resort-rules.ts";
-import type { Lift, Resort, Run, SkiRoute, TrackPoint, TreeDef } from "./types.ts";
+import type { Cliff, Lift, Resort, Run, SkiRoute, TrackPoint, TreeDef } from "./types.ts";
 
 const K = RESORT_RULES.route;
+const W = K.wild;
 
 /** What the search reads of a built ski area. */
 export type RouteGround = {
@@ -63,7 +64,13 @@ export type RouteGround = {
   lifts: readonly Lift[];
   trees: readonly TreeDef[];
   size: number;
+  /** The mountain's cliffs (R22): a wild line skirts their shelves and
+   * goes over their faces. */
+  cliffs?: readonly Cliff[];
 };
+
+/** How a search is drawn: v9's straight line, or the WILD line. */
+export type RouteStyle = "straight" | "wild";
 
 /** The neighbours a square steps to: the eight round it and the eight a
  * knight's move off, so a line may run at any of sixteen bearings. */
@@ -86,13 +93,32 @@ const STEPS: readonly (readonly [number, number])[] = [
   [-1, -2],
 ];
 
-/** The steepest window of `span` metres along a line, m per m. */
-export function steepestAlong(points: readonly { y: number; s: number }[], span: number): number {
+/** A wild line's DROPS: two squares straight or across, over ground past
+ * `route.cliff` between. */
+const DROPS: readonly (readonly [number, number])[] = [
+  [2, 0],
+  [-2, 0],
+  [0, 2],
+  [0, -2],
+  [2, 2],
+  [2, -2],
+  [-2, 2],
+  [-2, -2],
+];
+
+/** The steepest window of `span` metres along a line, m per m — leaving
+ * out every window `skip` (its arcs) excuses. */
+export function steepestAlong(
+  points: readonly { y: number; s: number }[],
+  span: number,
+  skip?: (s0: number, s1: number) => boolean,
+): number {
   let best = 0;
   let j = 0;
   for (let i = 0; i < points.length; i++) {
     while (j < points.length && points[j].s - points[i].s < span) j++;
     if (j >= points.length) break;
+    if (skip?.(points[i].s, points[j].s)) continue;
     best = Math.max(best, (points[i].y - points[j].y) / (points[j].s - points[i].s));
   }
   return best;
@@ -153,7 +179,8 @@ export function skiRoutesOf(level: { resort?: Resort }): readonly SkiRoute[] {
 }
 
 /** R42 — THE SKI ROUTES of a built ski area (see the header). */
-export function laySkiRoutes(area: RouteGround): SkiRoute[] {
+export function laySkiRoutes(area: RouteGround, style: RouteStyle = "straight"): SkiRoute[] {
+  const wild = style === "wild";
   const g = (x: number, z: number): number => sampleField(area.ground, x, z);
   const cell = K.cell;
   const n = Math.floor(area.size / cell);
@@ -210,8 +237,9 @@ export function laySkiRoutes(area: RouteGround): SkiRoute[] {
   });
 
   // THE GROUND A SKIER MAY STAND ON: inside the map's margin, off the
-  // cliffs, out of the trees and out from under every lift's rope, whose
-  // towers stand down it.
+  // cliffs, out from under every lift's rope, whose towers stand down it —
+  // and on a straight line out of the trees; a wild line goes through them,
+  // felling what stands on it.
   const underLift = (x: number, z: number): boolean =>
     area.lifts.some((l) => {
       const dx = l.top.x - l.bottom.x;
@@ -221,6 +249,9 @@ export function laySkiRoutes(area: RouteGround): SkiRoute[] {
       return hypot(x - l.bottom.x - dx * u, z - l.bottom.z - dz * u) < K.lift;
     });
   const open = new Uint8Array(N);
+  const crag = new Uint8Array(N);
+  const fallX = new Float32Array(N);
+  const fallZ = new Float32Array(N);
   const b = K.baseline / 2;
   const fallAt = (x: number, z: number): [number, number] => [
     (g(x + b, z) - g(x - b, z)) / (2 * b),
@@ -231,16 +262,106 @@ export function laySkiRoutes(area: RouteGround): SkiRoute[] {
     const z = cz(k);
     if (x < K.edge || z < K.edge || x > area.size - K.edge || z > area.size - K.edge) continue;
     const [gx, gz] = fallAt(x, z);
-    if (hypot(gx, gz) > K.cliff || inTrees(x, z) || underLift(x, z)) continue;
+    fallX[k] = gx;
+    fallZ[k] = gz;
+    if (underLift(x, z)) continue;
+    if (hypot(gx, gz) > K.cliff) {
+      crag[k] = 1;
+      continue;
+    }
+    if (!wild && inTrees(x, z)) continue;
     open[k] = 1;
   }
+
+  // WHAT A WILD LINE IS DRAWN TO: the WOODS, and the EDGES — a square
+  // beside ground past the cliff's pitch, or on a cliff's shelf near its
+  // edge — and over a cliff's FACE, a drop. Each square's cost per metre.
+  const woods = new Uint8Array(N);
+  const edge = new Uint8Array(N);
+  const face = new Uint8Array(N);
+  const share = new Float32Array(N).fill(1);
+  if (wild) {
+    for (const t of area.trees) {
+      const i0 = Math.max(0, Math.floor((t.x - W.near) / cell));
+      const i1 = Math.min(n - 1, Math.floor((t.x + W.near) / cell));
+      const j0 = Math.max(0, Math.floor((t.z - W.near) / cell));
+      const j1 = Math.min(n - 1, Math.floor((t.z + W.near) / cell));
+      for (let j = j0; j <= j1; j++)
+        for (let i = i0; i <= i1; i++) {
+          const k = j * n + i;
+          if (hypot(cx(k) - t.x, cz(k) - t.z) <= W.near) woods[k] = 1;
+        }
+    }
+    for (let k = 0; k < N; k++) {
+      if (!open[k]) continue;
+      const i = k % n;
+      const j = Math.floor(k / n);
+      for (let dj = -1; dj <= 1 && !edge[k]; dj++)
+        for (let di = -1; di <= 1; di++) {
+          const ii = i + di;
+          const jj = j + dj;
+          if (ii >= 0 && jj >= 0 && ii < n && jj < n && crag[jj * n + ii]) edge[k] = 1;
+        }
+    }
+    for (const c of area.cliffs ?? []) {
+      const fx = Math.sin(c.heading);
+      const fz = Math.cos(c.heading);
+      const reach = Math.max(W.shelf, c.face + 4) + c.width / 2;
+      const i0 = Math.max(0, Math.floor((c.x - reach) / cell));
+      const i1 = Math.min(n - 1, Math.floor((c.x + reach) / cell));
+      const j0 = Math.max(0, Math.floor((c.z - reach) / cell));
+      const j1 = Math.min(n - 1, Math.floor((c.z + reach) / cell));
+      for (let j = j0; j <= j1; j++)
+        for (let i = i0; i <= i1; i++) {
+          const k = j * n + i;
+          const dx = cx(k) - c.x;
+          const dz = cz(k) - c.z;
+          const u = dx * fx + dz * fz;
+          const v = Math.abs(dx * fz - dz * fx);
+          if (v > c.width / 2) continue;
+          if (u >= -W.shelf && u < 0) edge[k] = 1;
+          else if (u >= 0 && u <= c.face + cell / 2) face[k] = 1;
+        }
+    }
+    for (let k = 0; k < N; k++) {
+      if (face[k]) share[k] = W.huck;
+      else if (edge[k]) share[k] = W.edge;
+      else if (woods[k]) share[k] = W.woods;
+    }
+  }
+  /** Metres of a step a trunk would have to be felled for. */
+  const felled = (a: number, c: number, len: number): number => {
+    let m = 0;
+    const x0 = cx(a);
+    const z0 = cz(a);
+    const x1 = cx(c);
+    const z1 = cz(c);
+    for (let t = fine; t < len; t += fine) {
+      const u = t / len;
+      if (inTrees(x0 + (x1 - x0) * u, z0 + (z1 - z0) * u)) m += fine;
+    }
+    return m;
+  };
+  /** What a step from `a` to `c` costs: its length on a straight line; on
+   * a wild one, by the squares it crosses, dearer down the fall line, and
+   * dearer for every metre of trunk it fells. */
+  const costOf = (a: number, c: number, di: number, dj: number, len: number): number => {
+    if (!wild) return len;
+    const gx = fallX[a];
+    const gz = fallZ[a];
+    const m = hypot(gx, gz);
+    const down = m > 1e-6 ? Math.max(0, -(gx * di + gz * dj) / (m * hypot(di, dj))) : 0;
+    const pull = 1 + W.fall * down * down * Math.min(1, m / 0.3);
+    return ((share[a] + share[c]) / 2) * pull * len + W.fell * felled(a, c, len);
+  };
   /** Whether a skier may go from square `a` down to square `c`, `len`
-   * metres: both open, no climb, no pitch past the cliff's, and the trees
-   * clear between. */
+   * metres: both open, no climb, no pitch past the cliff's, and on a
+   * straight line the trees clear between. */
   const step = (a: number, c: number, len: number): boolean => {
     if (!open[c]) return false;
     const drop = y[a] - y[c];
     if (drop < 0 || drop / len > K.cliff) return false;
+    if (wild) return true;
     const x0 = cx(a);
     const z0 = cz(a);
     const x1 = cx(c);
@@ -251,11 +372,24 @@ export function laySkiRoutes(area: RouteGround): SkiRoute[] {
     }
     return true;
   };
+  /** Whether a wild line may DROP from `a` over the square between to `c`:
+   * both open, ground past the cliff's pitch between, falling no more
+   * than `wild.drop`. */
+  const dropOver = (a: number, c: number, mid: number): boolean => {
+    if (!open[a] || !open[c] || !crag[mid]) return false;
+    const drop = y[a] - y[c];
+    return drop >= 0 && drop <= W.drop;
+  };
+  const moves = wild ? STEPS.concat(DROPS) : STEPS;
+  const isDrop = (di: number, dj: number): boolean =>
+    Math.max(Math.abs(di), Math.abs(dj)) === 2 &&
+    (di === 0 || dj === 0 || (Math.abs(di) === 2 && Math.abs(dj) === 2));
 
-  // FROM THE TOPS: the shortest way down to every square, and its top.
+  // FROM THE TOPS: the cheapest way down to every square, and its top.
   const fromCost = new Float64Array(N).fill(Infinity);
   const fromPrev = new Int32Array(N).fill(-1);
   const fromTop = new Int16Array(N).fill(-1);
+  const droppedIn = new Uint8Array(N);
   const heap = new Heap();
   area.lifts.forEach((lift, li) => {
     if (lift.kind === "drag") return;
@@ -274,7 +408,7 @@ export function laySkiRoutes(area: RouteGround): SkiRoute[] {
     const a = heap.pop();
     const i = a % n;
     const j = Math.floor(a / n);
-    for (const [di, dj] of STEPS) {
+    for (const [di, dj] of moves) {
       const ii = i + di;
       const jj = j + dj;
       if (ii < 0 || jj < 0 || ii >= n || jj >= n) continue;
@@ -282,19 +416,25 @@ export function laySkiRoutes(area: RouteGround): SkiRoute[] {
       // A way off a top never crosses a run: it leaves the top on its own.
       if (runOf[c] >= 0) continue;
       const len = hypot(di, dj) * cell;
-      const cost = fromCost[a] + len;
-      if (cost >= fromCost[c] || !step(a, c, len)) continue;
+      const drop = isDrop(di, dj);
+      const mid = (j + dj / 2) * n + (i + di / 2);
+      if (drop && runOf[mid] >= 0) continue;
+      const cost = fromCost[a] + (drop ? len * W.huck : costOf(a, c, di, dj, len));
+      if (cost >= fromCost[c]) continue;
+      if (drop ? !dropOver(a, c, mid) : !step(a, c, len)) continue;
       fromCost[c] = cost;
       fromPrev[c] = a;
       fromTop[c] = fromTop[a];
+      droppedIn[c] = drop ? 1 : 0;
       heap.push(c, cost);
     }
   }
 
-  // TO THE RUNS: the shortest way down onto a run from every square, read
+  // TO THE RUNS: the cheapest way down onto a run from every square, read
   // backwards from every square of a run's corridor.
   const toCost = new Float64Array(N).fill(Infinity);
   const toNext = new Int32Array(N).fill(-1);
+  const dropsOut = new Uint8Array(N);
   for (let k = 0; k < N; k++) {
     if (runOf[k] < 0) continue;
     toCost[k] = 0;
@@ -304,17 +444,21 @@ export function laySkiRoutes(area: RouteGround): SkiRoute[] {
     const c = heap.pop();
     const i = c % n;
     const j = Math.floor(c / n);
-    for (const [di, dj] of STEPS) {
+    for (const [di, dj] of moves) {
       const ii = i - di;
       const jj = j - dj;
       if (ii < 0 || jj < 0 || ii >= n || jj >= n) continue;
       const a = jj * n + ii;
       if (runOf[a] >= 0) continue;
       const len = hypot(di, dj) * cell;
-      const cost = toCost[c] + len;
-      if (cost >= toCost[a] || !step(a, c, len)) continue;
+      const drop = isDrop(di, dj);
+      const mid = (jj + dj / 2) * n + (ii + di / 2);
+      const cost = toCost[c] + (drop ? len * W.huck : costOf(a, c, di, dj, len));
+      if (cost >= toCost[a]) continue;
+      if (drop ? !dropOver(a, c, mid) : !step(a, c, len)) continue;
       toCost[a] = cost;
       toNext[a] = c;
+      dropsOut[a] = drop ? 1 : 0;
       heap.push(a, cost);
     }
   }
@@ -336,42 +480,50 @@ export function laySkiRoutes(area: RouteGround): SkiRoute[] {
     if (pitch > R.track.maxGrade && pitch <= K.steepest) steep.push(k);
   }
 
-  type Found = { route: Omit<SkiRoute, "id">; score: number; top: number };
-  const best = new Map<number, Found>();
-  for (const k of steep) {
-    const cells: number[] = [];
-    for (let a = k; a >= 0; a = fromPrev[a]) cells.push(a);
-    cells.reverse();
-    for (let c = toNext[k]; c >= 0; c = toNext[c]) cells.push(c);
-    const end = cells[cells.length - 1];
-    if (runOf[end] < 0) continue;
-    const points = stationsOf(
-      cells.map((c) => ({ x: cx(c), z: cz(c) })),
-      g,
-    );
+  type Found = {
+    route: Omit<SkiRoute, "id">;
+    score: number;
+    top: number;
+    end: number;
+    steps: readonly (readonly [number, number, number, number])[];
+  };
+  /** A line as a route, held to R42, and its score — or null. */
+  const judge = (
+    points: TrackPoint[],
+    steps: readonly (readonly [number, number, number, number])[],
+    top: number,
+    end: number,
+  ): Found | null => {
     const length = points[points.length - 1].s;
     const vertical = points[0].y - points[points.length - 1].y;
-    if (length < K.length.min || length > K.length.max || vertical < K.vertical) continue;
+    if (length < K.length.min || length > K.length.max || vertical < K.vertical) return null;
     const steepest = steepestAlong(points, R.track.colourWindow);
-    if (steepest <= R.track.maxGrade || steepest > K.steepest) continue;
-    if (steepestAlong(points, K.pitchWindow) > K.cliff) continue;
-    if (points.some((p) => inTrees(p.x, p.z))) continue;
+    if (steepest <= R.track.maxGrade || steepest > K.steepest) return null;
+    const drops = wild ? dropsOn(points, steps, area.cliffs ?? []) : [];
+    if (drops.length > W.drops) return null;
+    const excused = (s0: number, s1: number): boolean =>
+      drops.some((d) => s1 > d.s - DROP_SPAN && s0 < d.s + DROP_SPAN);
+    if (steepestAlong(points, K.pitchWindow, excused) > K.cliff) return null;
+    if (!wild && points.some((p) => inTrees(p.x, p.z))) return null;
     let beside = 0;
     let onSteep = 0;
+    let inWoods = 0;
+    let onEdge = 0;
     for (let i = 1; i < points.length; i++) {
       const p = points[i];
       const sq = Math.floor(p.z / cell) * n + Math.floor(p.x / cell);
       const ds = p.s - points[i - 1].s;
       if (sq >= 0 && sq < N && nearRun[sq] && runOf[sq] < 0) beside += ds;
+      if (sq >= 0 && sq < N && woods[sq]) inWoods += ds;
+      if (sq >= 0 && sq < N && (edge[sq] || face[sq])) onEdge += ds;
       const drop = points[i - 1].y - p.y;
       if (drop / ds >= R.grade.bands.red) onSteep += drop;
     }
-    if (beside > K.beside) continue;
-    const top = fromTop[cells[0]];
-    const score = onSteep + 0.05 * length;
-    const had = best.get(top);
-    if (had && had.score >= score) continue;
-    best.set(top, {
+    if (beside > K.beside) return null;
+    const score = wild
+      ? onSteep + 0.05 * length + 0.4 * inWoods + 0.5 * onEdge + 30 * drops.length
+      : onSteep + 0.05 * length;
+    return {
       route: {
         grade: "orange",
         points,
@@ -379,10 +531,45 @@ export function laySkiRoutes(area: RouteGround): SkiRoute[] {
         from: area.lifts[top].id,
         into: { run: area.runs[runOf[end]].id, s: runAt[end] },
         steepest,
+        ...(wild ? { drops, woods: inWoods, edge: onEdge } : {}),
       },
       score,
       top,
-    });
+      end,
+      steps,
+    };
+  };
+  const best = new Map<number, Found>();
+  for (const k of steep) {
+    const cells: number[] = [];
+    const dropped: [number, number][] = [];
+    for (let a = k; a >= 0; a = fromPrev[a]) {
+      cells.push(a);
+      if (droppedIn[a] && fromPrev[a] >= 0) dropped.push([fromPrev[a], a]);
+    }
+    cells.reverse();
+    for (let c = k; toNext[c] >= 0; c = toNext[c]) {
+      cells.push(toNext[c]);
+      if (dropsOut[c]) dropped.push([c, toNext[c]]);
+    }
+    const end = cells[cells.length - 1];
+    if (runOf[end] < 0) continue;
+    const points = stationsOf(
+      cells.map((c) => ({ x: cx(c), z: cz(c) })),
+      g,
+      wild ? W.smooth : K.smooth,
+      (x, z) => {
+        const sq = Math.floor(z / cell) * n + Math.floor(x / cell);
+        return wild && sq >= 0 && sq < N && woods[sq] ? W.width : K.width;
+      },
+    );
+    const top = fromTop[cells[0]];
+    const steps = dropped.map(([a, c]) => [cx(a), cz(a), cx(c), cz(c)] as const);
+    const found = judge(points, steps, top, end);
+    if (!found) continue;
+    const had = best.get(top);
+    if (had && had.score >= found.score) continue;
+    best.set(top, found);
   }
   const ranked = [...best.values()].sort((a, c) => c.score - a.score || a.top - c.top);
   const kept: Found[] = [];
@@ -395,19 +582,171 @@ export function laySkiRoutes(area: RouteGround): SkiRoute[] {
     );
     if (apart) kept.push(f);
   }
-  return kept.map((f, i) => ({ id: `SR${i + 1}`, ...f.route }));
+  // A wild line THREADS the woods: laid across its corridor to stand
+  // clear of the trunks where it can, kept where it still holds.
+  const threaded = wild
+    ? kept.map((f) => {
+        const raw = threadTrees(f.route.points, area.trees);
+        const widths = f.route.points;
+        const points = stationsOf(raw, g, 0, (x, z) => {
+          let near = widths[0];
+          let d = Infinity;
+          for (const p of widths) {
+            const e = (p.x - x) ** 2 + (p.z - z) ** 2;
+            if (e < d) {
+              d = e;
+              near = p;
+            }
+          }
+          return near.width;
+        });
+        return judge(points, f.steps, f.top, f.end) ?? f;
+      })
+    : kept;
+  return threaded.map((f, i) => ({ id: `SR${i + 1}`, ...f.route }));
+}
+
+/** The offsets across a line its threading tries, m, and what moving it
+ * across costs a station and from one station to the next. */
+const ACROSS = 6;
+const CENTRE = 0.03;
+const SWAY = 0.4;
+
+/** A line THREADED through the trunks round it: each station laid up to
+ * `ACROSS` m across it, a metre at most from the last, to stand as clear of
+ * the bark as it can (a Viterbi walk over the offsets), the line's own
+ * middle and a steady line costing a little. The threaded line's plan
+ * points. */
+function threadTrees(
+  points: readonly TrackPoint[],
+  trees: readonly TreeDef[],
+): { x: number; z: number }[] {
+  const grid = new Map<number, TreeDef[]>();
+  const G = 8;
+  const key = (i: number, j: number): number => i * 100003 + j;
+  for (const t of trees) {
+    const k = key(Math.floor(t.x / G), Math.floor(t.z / G));
+    const list = grid.get(k);
+    if (list) list.push(t);
+    else grid.set(k, [t]);
+  }
+  const bark = (x: number, z: number): number => {
+    let cost = 0;
+    const i = Math.floor(x / G);
+    const j = Math.floor(z / G);
+    for (let dj = -1; dj <= 1; dj++)
+      for (let di = -1; di <= 1; di++)
+        for (const t of grid.get(key(i + di, j + dj)) ?? []) {
+          const into = K.open + t.radius + 1 - hypot(t.x - x, t.z - z);
+          if (into > 0) cost += 4 * into;
+        }
+    return cost;
+  };
+  const M = 2 * ACROSS + 1;
+  const n = points.length;
+  const cost = new Float64Array(n * M);
+  const from = new Int8Array(n * M);
+  const at = (i: number, o: number): [number, number] => {
+    const p = points[i];
+    const nx = Math.cos(p.heading);
+    const nz = -Math.sin(p.heading);
+    return [p.x + nx * (o - ACROSS), p.z + nz * (o - ACROSS)];
+  };
+  for (let i = 0; i < n; i++) {
+    // Both ends stay where they are: on the pad's rim and on the run.
+    const pinned = i < 3 || i > n - 4;
+    for (let o = 0; o < M; o++) {
+      const here =
+        pinned && o !== ACROSS ? Infinity : bark(...at(i, o)) + CENTRE * (o - ACROSS) ** 2;
+      if (i === 0) {
+        cost[o] = here;
+        continue;
+      }
+      let best = Infinity;
+      let arg = o;
+      for (let q = Math.max(0, o - 1); q <= Math.min(M - 1, o + 1); q++) {
+        const c = cost[(i - 1) * M + q] + SWAY * Math.abs(o - q);
+        if (c < best) {
+          best = c;
+          arg = q;
+        }
+      }
+      cost[i * M + o] = best + here;
+      from[i * M + o] = arg;
+    }
+  }
+  const out: { x: number; z: number }[] = new Array(n);
+  let o = ACROSS;
+  for (let i = n - 1; i >= 0; i--) {
+    const [x, z] = at(i, o);
+    out[i] = { x, z };
+    o = from[i * M + o];
+  }
+  return out;
+}
+
+/** How far either side of a drop's top its pitch is excused, m. */
+export const DROP_SPAN = 24;
+
+/** The DROPS a wild line goes over: each drop step's top (its plan ends
+ * `[x0, z0, x1, z1]`) and every cliff's face it crosses, by its arc and how
+ * far it falls — those within `DROP_SPAN` of each other one. */
+function dropsOn(
+  points: readonly TrackPoint[],
+  steps: readonly (readonly [number, number, number, number])[],
+  cliffs: readonly Cliff[],
+): { s: number; height: number }[] {
+  const nearest = (x: number, z: number): number => {
+    let at = 0;
+    let d = Infinity;
+    for (let i = 0; i < points.length; i++) {
+      const e = hypot(points[i].x - x, points[i].z - z);
+      if (e < d) {
+        d = e;
+        at = i;
+      }
+    }
+    return at;
+  };
+  const found: { s: number; height: number }[] = [];
+  for (const [x0, z0, x1, z1] of steps) {
+    const a = nearest(x0, z0);
+    const c = Math.max(a, nearest(x1, z1));
+    found.push({ s: points[a].s, height: Math.max(0, points[a].y - points[c].y) });
+  }
+  for (const cl of cliffs) {
+    const fx = Math.sin(cl.heading);
+    const fz = Math.cos(cl.heading);
+    for (let i = 1; i < points.length; i++) {
+      const u0 = (points[i - 1].x - cl.x) * fx + (points[i - 1].z - cl.z) * fz;
+      const u1 = (points[i].x - cl.x) * fx + (points[i].z - cl.z) * fz;
+      const v = Math.abs((points[i].x - cl.x) * fz - (points[i].z - cl.z) * fx);
+      if (u0 < 0 && u1 >= 0 && v < cl.width / 2)
+        found.push({ s: points[i - 1].s, height: cl.drop });
+    }
+  }
+  found.sort((a, c) => a.s - c.s);
+  const out: { s: number; height: number }[] = [];
+  for (const d of found) {
+    const last = out[out.length - 1];
+    if (last && d.s - last.s < DROP_SPAN) last.height = Math.max(last.height, d.height);
+    else out.push({ ...d });
+  }
+  return out;
 }
 
 /** The walked squares as stations: the line through their middles smoothed
- * (`route.smooth` passes, its ends held) and laid every `route.station`
- * metres on the snow, with its arc, its heading and the marked corridor's
- * width. */
+ * (`passes` times, its ends held) and laid every `route.station` metres on
+ * the snow, with its arc, its heading and the marked corridor's width
+ * there. */
 function stationsOf(
   raw: readonly { x: number; z: number }[],
   g: (x: number, z: number) => number,
+  passes: number,
+  widthAt: (x: number, z: number) => number,
 ): TrackPoint[] {
   let pts = raw.map((p) => ({ ...p }));
-  for (let pass = 0; pass < K.smooth; pass++) {
+  for (let pass = 0; pass < passes; pass++) {
     const was = pts;
     pts = was.map((p, i) =>
       i === 0 || i === was.length - 1
@@ -420,7 +759,7 @@ function stationsOf(
   }
   const out: TrackPoint[] = [];
   const at = (x: number, z: number, s: number): void => {
-    out.push({ x, z, y: g(x, z), s, heading: 0, width: K.width });
+    out.push({ x, z, y: g(x, z), s, heading: 0, width: widthAt(x, z) });
   };
   at(pts[0].x, pts[0].z, 0);
   let s = 0;

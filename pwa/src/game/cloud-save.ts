@@ -64,6 +64,7 @@ export const CLOUD_BUDGET = 900_000;
  * never overwritten by another device's. */
 export const DEVICE_SETTINGS = [
   "video",
+  "frameCap",
   "probed",
   "autoPicture",
   "touch",

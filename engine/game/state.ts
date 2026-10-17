@@ -887,6 +887,9 @@ export type GameState = ContestState & {
   damage?: boolean;
   /** THE PLAYER'S MORTAL WOUNDS (`gore.ts`), on a run that asked for them. */
   gore?: GoreState;
+  /** THE AIR AMBULANCES on the mountain (`rescue-call.ts`), handed in
+   * before the first step and never written during a run; absent when none. */
+  rescue?: import("./rescue-call.ts").RescueCall[];
   /** THE SNOW DIAL (`SNOW_DIAL`): the powder's sink as a multiple of the
    * ordinary snow's, 1 unless the run asked otherwise. Read, never written,
    * during a run, and shared with the field. */
@@ -966,6 +969,9 @@ export type GameState = ContestState & {
   groomers?: GroomerState[];
   groomed?: GroomedSnow;
   machineSnow?: import("./snow-guns.ts").MachineSnow;
+  /** WHEN HE LAST STEPPED OFF a machine (`machine-grace.ts`), run seconds;
+   * absent until he first does. */
+  leftMachine?: number;
   /** OPEN DOORS by building id (`setDoor`); the leaves and move (`doorway.ts`). */
   doors?: string[];
   doorway?: import("./door-state.ts").Doorway;

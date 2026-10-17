@@ -58,7 +58,7 @@ describe("where the fires burn", () => {
     expect(levelDigest(level)).toBe(before);
   });
 
-  it("stand outside a share of the huts, and two to four bonfires at the bottom", () => {
+  it("stand outside a share of the huts, and two to four bonfires about the mountain", () => {
     for (const seed of SEEDS) {
       const level = levelFor(seed);
       const fires = firesOf(level);
@@ -89,14 +89,28 @@ describe("where the fires burn", () => {
     }
   });
 
-  it("a bonfire is on the valley floor, out of the hub and fifteen metres from any building", () => {
+  it("a bonfire stands at the base, off the top station and half way up — never on the runs", () => {
+    const sites = new Set<string>();
     for (const seed of SEEDS) {
       const level = levelFor(seed);
       const m = level.mountain!;
       const hub = level.resort!.hub;
-      for (const f of firesOf(level).filter((x) => x.kind === "bonfire")) {
+      const tops = level.resort!.lifts.map((l) => l.top);
+      const bonfires = firesOf(level).filter((x) => x.kind === "bonfire");
+      expect(bonfires.some((f) => f.site === "base")).toBe(true);
+      for (const f of bonfires) {
+        sites.add(f.site!);
         expect(f.building).toBeNull();
-        expect(f.y - m.base.y, f.id).toBeLessThan(0.2 * m.vertical);
+        const up = (f.y - m.base.y) / m.vertical;
+        if (f.site === "base") expect(up, f.id).toBeLessThan(0.2);
+        if (f.site === "top") expect(up, f.id).toBeGreaterThan(0.6);
+        if (f.site !== "base") {
+          // Glided to off a lift's top, never climbed to.
+          const st = [...tops].sort(
+            (a, b) => Math.hypot(a.x - f.x, a.z - f.z) - Math.hypot(b.x - f.x, b.z - f.z),
+          )[0];
+          expect(f.y, f.id).toBeLessThanOrEqual(st.y + FIRE_LAYOUT.bonfire.rise + 1e-6);
+        }
         if (hub) expect(outsideHub(hub, f.x, f.z)).toBeGreaterThanOrEqual(FIRE_LAYOUT.bonfire.hub);
         for (const c of cabinsOf(level)) {
           expect(fromWalls(c, f.x, f.z), `${f.id} ${c.id}`).toBeGreaterThanOrEqual(
@@ -105,6 +119,7 @@ describe("where the fires burn", () => {
         }
       }
     }
+    expect(sites.has("top")).toBe(true);
   });
 
   it("every fire and every bench is off the runs' snow, the benches facing it, no trunk in the ring", () => {

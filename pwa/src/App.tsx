@@ -93,6 +93,7 @@ import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
 import { createHudLive, feedHudLive } from "./game/hud-live.ts";
 import { deathOver } from "./game/hud-wreck.ts";
+import { rescueAgain } from "./game/rescue-book.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
@@ -114,7 +115,8 @@ import type { WorldRenderer } from "./game/renderer-api.ts";
 import { useRenderKit } from "./game/use-render-kit.ts";
 import { useAhead } from "./game/use-ahead.ts";
 import { backdropHeld } from "./game/backdrop-hold.ts";
-import { backdropInput, backdropNext, backdropTaken } from "./game/backdrop-run.ts";
+import { backdropInput, backdropTaken } from "./game/backdrop-run.ts";
+import { createResumeRun } from "./game/resume-run.ts";
 import { createCinemaRun } from "./game/cinema-run.ts";
 import { createRunActions, type RunPress } from "./game/run-actions.ts";
 import type { LoadPhase } from "./game/run-loader.ts";
@@ -145,12 +147,13 @@ import {
   type Shell,
 } from "./game/shell.ts";
 import { useTitle } from "./game/title-app.tsx";
-import { splashSkipped } from "./game/splash.ts";
+import { firstShell } from "./game/splash.ts";
 import { readHudLayer } from "@niclaslindstedt/oss-game-framework/shots/shot-hud";
 import { createShotRequest } from "./game/shot-request.ts";
 import { takeSnapshot, type HudSnapshot } from "./game/snapshot.ts";
 import { dealSeed, linkWorld, overLink, readParams, type MenuPage } from "./game/url-params.ts";
 import { createPictureAuto } from "./game/picture-auto.ts";
+import { createFrameGate } from "./game/frame-cap.ts";
 import { UpdateButton } from "./game/update-button.tsx";
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 
@@ -172,15 +175,8 @@ export function App() {
   /** The TAB is away and the clock with it (§37.3) — not the pause card. */
   const [away, setAway] = useState(false);
   const [again, setAgain] = useState<AgainAt>("start");
-  const [shell, setShell] = useState<Shell>(() =>
-    params.rides
-      ? params.paused
-        ? "pause"
-        : "run"
-      : splashSkipped(location.search)
-        ? "menu"
-        : "splash",
-  );
+  const [canResume, setCanResume] = useState(false);
+  const [shell, setShell] = useState<Shell>(() => firstShell(params, location.search));
   const title = useTitle(params, shell);
   const [loadingPhase, setLoadingPhase] = useState<LoadPhase | null>(null);
   const [loadLeaving, setLoadLeaving] = useState(false);
@@ -298,6 +294,7 @@ export function App() {
     const cinema = createCinemaRun(renderer, backdropInput);
     const audio = createRunAudio();
     const clock = createRunClock(TUNING.physicsHz);
+    const resume = createResumeRun(); // the run left for the menu (`resume-run.ts`)
     const nav = createMenuNav();
 
     /* ── WHICH MAP THE RENDERER HOLDS (`world-build.ts`) ──────────────── */
@@ -308,8 +305,7 @@ export function App() {
     const view: WorldRenderer = { ...renderer, load: build };
 
     const raceSeed = params.seed ?? nextSeedRef.current;
-    /** The options the free ride on the pause card's START AGAIN rides:
-     * the last one stood up, on the map it was stood up on. */
+    /** START AGAIN's free ride: the last one stood up, on its own map. */
     let freeAgain: CreateGameOptions | null = null;
     /** A free ride off the start card's answers — or, where the seed will
      * not build, the race fallback's map. */
@@ -403,6 +399,7 @@ export function App() {
     };
     /** A new race takes the engine, and all of the last one's goes with it. */
     const adopt = (next: GameState, ticket: RunTicket | null = null, rides = false): void => {
+      if (freeAgain?.level !== next.level) freeAgain = null; // its map let go on another
       show(next);
       manager.freshHand();
       book.arm(next, ticket);
@@ -499,23 +496,20 @@ export function App() {
       window.setTimeout(() => setLoadLeaving(false), LOAD_FADE_MS);
     };
 
-    /** The race again from the start line, on the same map: nothing to generate
-     * and nothing to build — the renderer sees a fresh state and starts its
-     * trails and its spray clean — so no card, just the lights again. */
+    /** The race again on the same map, no card, just the lights (`onSnow`, the
+     * PISTE MAP's way back on too) — any rescue under way kept (`rescueAgain`). */
     const restart = (): void => {
       if (loader.busy()) return;
-      // A free ride starts again at the top of the last piste it skied;
-      // every other run from the start line, on the same map, in its mode.
+      // A free ride again at the top of its last piste; any other run from its start.
       const free = freeRestart(state, freeAgain);
-      const next = free
-        ? createGame(free)
-        : (pinned.again() ?? playerGame(state.level, state.seed));
-      adopt(next, ticketFor(next), true);
+      onSnow(free ? createGame(free) : (pinned.again() ?? playerGame(state.level, state.seed)));
+    };
+    const onSnow = (next: GameState): void => {
+      adopt(rescueAgain(state, next), ticketFor(next), true);
       frozen = false;
       clock.resume();
       setShellNow("run");
     };
-
     /* ── A FREE RIDE: STAGED BEHIND ITS CARDS, STOOD UP ON RIDE ───────── */
     const frees = createFreeRides({
       world,
@@ -525,6 +519,7 @@ export function App() {
       restore: () => void (title.raced() && build(state)),
       outfit: () => outfitKey(settingsRef.current.outfit),
       plan: () => ({ camera: camerasOf(settingsRef.current), done: lift }),
+      now: (game) => void (loader.busy() || onSnow(game)),
       stood: (again) => (freeAgain = again),
     });
     const pinned = createPinnedRuns({
@@ -550,12 +545,7 @@ export function App() {
       silence: audio.silence,
       toDevPage: () => setPage("dev"),
       video: () => videoOf(settingsRef.current),
-      benchNow: params.bench,
-      benchGpu: params.gpu,
-      benchHide: params.hide,
-      benchAb: params.ab,
-      benchFrames: params.frames,
-      benchVista: params.view === "vista",
+      bench: params,
     });
     pressRef.current = {
       stageFree: frees.stageFree,
@@ -602,7 +592,14 @@ export function App() {
         setShellNow(out.back);
       },
       resume: () => {
-        if (shellRef.current === "pause") setShellNow("run");
+        if (shellRef.current === "pause") return setShellNow("run");
+        // RESUME on the door: the run left for it, from wherever the bot has got to.
+        const asked = shellRef.current === "menu" && !loader.busy() ? resume.take(state) : null;
+        if (asked === null) return;
+        mode = asked;
+        adopt(state, null, true); // filed nowhere: the bot rode some of it
+        setPage("root");
+        setShellNow("run");
       },
       toMenu: () => {
         // The run goes back to the bot: nothing more is filed or recorded.
@@ -611,6 +608,7 @@ export function App() {
         stats.rig.flush();
         pinned.clear();
         replays.clear();
+        resume.leave(state, mode);
         const taken = backdropTaken(state); // a plain mountain's run: a showcase
         if (taken) adopt(taken);
         setPage("root");
@@ -650,10 +648,9 @@ export function App() {
     // Walking a card on the keys is `menu-nav.ts`'s.
     const walk = walkCardsOnKeys(nav, () => shellRef.current !== "run");
 
-    // PRESET ▸ AUTO (`picture-auto.ts`): times the race under the front
-    // door and fits every picture row to this machine. Never over a race a
-    // link boots, a link's picture, a lab's `?probe=0` or the title scene
-    // (the stored picture stands until the door is first over the race).
+    // PRESET ▸ AUTO (`picture-auto.ts`): times the race under the front door and fits every picture
+    // row to this machine. Never over a race a link boots, a link's picture, a lab's `?probe=0` or
+    // the title scene (the stored picture stands until the door is first over the race).
     const pictureAuto = createPictureAuto(
       params.probe && !params.rides && !params.video && Object.keys(params.picture).length === 0,
       setSettings,
@@ -662,11 +659,12 @@ export function App() {
     let raf = 0;
     let last = performance.now();
     let frameMs = 1000 / 60;
+    const paced = createFrameGate(() => settingsRef.current.frameCap);
     const frame = (now: number): void => {
       raf = requestAnimationFrame(frame);
-      // CLAMPED AT BOTH ENDS: the ceiling is the long-frame guard, and the
-      // floor is the first callback after a build, whose timestamp lands
-      // BEHIND the clock read after it.
+      if (!paced(now)) return;
+      // CLAMPED AT BOTH ENDS: the ceiling is the long-frame guard, and the floor is the first
+      // callback after a build, whose timestamp lands BEHIND the clock read after it.
       const dtFrame = clamp((now - last) / 1000, 0, 0.1);
       frameMs = now - last || frameMs;
       last = now;
@@ -679,8 +677,9 @@ export function App() {
       // THE BACKDROP RACES ON, never left coasting: over, a showcase (`backdrop-run.ts`).
       const backdrop = !playerRides(shellRef.current) && !watching(shellRef.current);
       if (backdrop && shellRef.current !== "pause" && !loader.busy()) {
-        const next = backdropNext(state);
+        const next = resume.next(state, freeAgain);
         if (next) adopt(next);
+        setCanResume(resume.can(state));
       }
       const held = !simulates(shellRef.current);
       const shown = drawable();
@@ -949,6 +948,7 @@ export function App() {
           onRace={() => setPage("races")}
           onFree={() => picks.openCard("free", "world")}
           onQuick={() => freeRide(quickRide(settings.ride))}
+          onResume={canResume ? () => pressRef.current.resume() : undefined}
           tricks={tricksTile(settings.trickMap, params.seed)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}

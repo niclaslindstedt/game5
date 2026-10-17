@@ -162,7 +162,7 @@ export type HazeUniforms = {
    * skied up, sun-softened and refrozen the groomer is, each 0..1, and 1
    * in `w` on a run dealt it — all nought on one that was not. The
    * renderer writes it. */
-  uPiste: { value: THREE.Vector4 };
+  uPiste: { value: THREE.Vector2 };
   /** HOW OLD THE LOOSE SNOW IS (`snow-age.ts`): `uSnowAge` how new, how
    * old, how wind-packed and how sun-crusted; `uSnowAge2` the surface hoar,
    * the thaw, and the level direction toward the noon sun (x, z). The
@@ -228,14 +228,14 @@ export type HazeUniforms = {
 };
 
 /** THE RUN'S SNOW into the uniforms: the new snow (`uFresh`), the
- * piste through the day (`uPiste`: worn, soft, hard, and 1 in `w` on a run
+ * piste through the day (`uPiste`: worn, and 1 in `y` on a run
  * dealt it — `GameState.piste`) and how old the loose snow is (`uSnowAge`,
  * `uSnowAge2` — settled powder when there is no age to read) and the other
  * skiers' tracks on the piste (`uTracks`). */
 export function setRunSnow(
   u: HazeUniforms,
   fresh: number,
-  day: { worn: number; soft: number; hard: number } | undefined,
+  day: { worn: number } | undefined,
   age?: SnowAge | null,
   tracks?: Tracks,
   dial = 1,
@@ -243,8 +243,8 @@ export function setRunSnow(
   u.uFresh.value = fresh;
   u.uSnowDial.value = dial;
   u.uTracks.value.set(tracks?.many ?? 0, tracks?.churn ?? 0);
-  if (day) u.uPiste.value.set(day.worn, day.soft, day.hard, 1);
-  else u.uPiste.value.set(0, 0, 0, 0);
+  if (day) u.uPiste.value.set(day.worn, 1);
+  else u.uPiste.value.set(0, 0);
   if (age) {
     u.uSnowAge.value.set(age.fresh, age.old, age.wind, age.crust);
     u.uSnowAge2.value.set(age.hoar, age.wet, age.noon.x, age.noon.z);
@@ -303,7 +303,7 @@ export function createHazeUniforms(): HazeUniforms {
     uGlitter: { value: 1 },
     uFresh: { value: 0 },
     uSnowDial: { value: 1 },
-    uPiste: { value: new THREE.Vector4(0, 0, 0, 0) },
+    uPiste: { value: new THREE.Vector2(0, 0) },
     uSnowAge: { value: new THREE.Vector4(0, 0, 0, 0) },
     uSnowAge2: { value: new THREE.Vector4(0, 0, 0, -1) },
     uTracks: { value: new THREE.Vector2(0, 0) },
@@ -412,6 +412,44 @@ export function writeHaze(u: HazeUniforms, look: SkyLook): void {
  * past the wall — enough to soften where the woods and the clipmap's
  * detail end, never so much that the far country under it is lost. */
 export const MIST_OPEN = 0.45;
+
+/** HOW MUCH AIR AND MIST STAND IN FRONT of a point (`hazeAir`,
+ * `hazeMist`, `hazeAmount`): functions alone, over the haze's uniforms
+ * (`uHaze`, `uHazeLift`, `uHazeFloor`, `uMist`, `uMistAloft`,
+ * `uMistOpen`), which the shader including it declares — `SKY_GLSL` does,
+ * and so does a lamp's glow faded into the air (`glow-fade.ts`). */
+export const HAZE_AMOUNT_GLSL = /* glsl */ `
+// How much of that colour stands between the lens and a point \`dist\` m
+// away whose height over the lens is \`rise\` m: exponential, thinning with
+// altitude so the peaks keep their shape a little longer than the valleys.
+float hazeAir(float dist, float rise) {
+  float thin = exp(-max(rise, 0.0) / uHazeLift);
+  return 1.0 - exp(-dist * uHaze * mix(uHazeFloor, 1.0, thin));
+}
+
+// The DISTANCE row's MIST: clear round the skier, thickening with the
+// square of the distance and closed whole at its wall, at any height —
+// the ground and the woods stop there, and nothing past it may show.
+// Aloft (\`uMistAloft\`), across the ground, melting it into the haze over
+// most of the way out and whole a little inside the wall — where the woods
+// stop — so neither the woods nor the ground ends on a rim.
+float hazeMist(float dist, float rise) {
+  if (uMist <= 0.0) return 0.0;
+  float across = mix(dist, sqrt(max(dist * dist - rise * rise, 0.0)), uMistAloft);
+  float m = across / uMist;
+  float mist = max(1.0 - exp(-3.0 * m * m), smoothstep(0.7, 1.0, m));
+  mist = mix(mist, smoothstep(0.2, 0.82, m), uMistAloft);
+  // Let open (\`uMistOpen\`), the ground goes on past the wall: the mist
+  // thickens the air only so far, and the far country shows through it.
+  return mix(mist, min(mist, ${MIST_OPEN.toFixed(2)}), uMistOpen);
+}
+
+// Both together, for what is drawn into the haze's colour alone (the spray,
+// the snow's cloud, the water's far hill).
+float hazeAmount(float dist, float rise) {
+  return max(hazeAir(dist, rise), hazeMist(dist, rise));
+}
+`;
 
 export const SKY_GLSL = /* glsl */ `
 // THE SEA OF CLOUD'S TOP (\`uSea\`) as a field of lumps (\`seaTop\`): a
@@ -557,37 +595,7 @@ vec3 farColour(vec3 dir, float shadow) {
   return mix(air, ground, seen);
 }
 
-// How much of that colour stands between the lens and a point \`dist\` m
-// away whose height over the lens is \`rise\` m: exponential, thinning with
-// altitude so the peaks keep their shape a little longer than the valleys.
-float hazeAir(float dist, float rise) {
-  float thin = exp(-max(rise, 0.0) / uHazeLift);
-  return 1.0 - exp(-dist * uHaze * mix(uHazeFloor, 1.0, thin));
-}
-
-// The DISTANCE row's MIST: clear round the skier, thickening with the
-// square of the distance and closed whole at its wall, at any height —
-// the ground and the woods stop there, and nothing past it may show.
-// Aloft (\`uMistAloft\`), across the ground, melting it into the haze over
-// most of the way out and whole a little inside the wall — where the woods
-// stop — so neither the woods nor the ground ends on a rim.
-float hazeMist(float dist, float rise) {
-  if (uMist <= 0.0) return 0.0;
-  float across = mix(dist, sqrt(max(dist * dist - rise * rise, 0.0)), uMistAloft);
-  float m = across / uMist;
-  float mist = max(1.0 - exp(-3.0 * m * m), smoothstep(0.7, 1.0, m));
-  mist = mix(mist, smoothstep(0.2, 0.82, m), uMistAloft);
-  // Let open (\`uMistOpen\`), the ground goes on past the wall: the mist
-  // thickens the air only so far, and the far country shows through it.
-  return mix(mist, min(mist, ${MIST_OPEN.toFixed(2)}), uMistOpen);
-}
-
-// Both together, for what is drawn into the haze's colour alone (the spray,
-// the snow's cloud, the water's far hill).
-float hazeAmount(float dist, float rise) {
-  return max(hazeAir(dist, rise), hazeMist(dist, rise));
-}
-
+${HAZE_AMOUNT_GLSL}
 // The mist on the dome: a band over the true horizon as deep as a mist
 // some forty metres thick stands at its wall, so a hill past the ground's
 // edge is sky the colour it would have faded into.

@@ -15,9 +15,9 @@ import type { Level } from "@engine";
 
 import { hazeMaterial, PAST_THE_WALL, type HazeUniforms } from "./haze.ts";
 import { summerShown } from "./season-look.ts";
-import { paintArea, paintRoad, paintWalk, type Paint } from "./street-paint.ts";
-import { paintSummerArea, paintSummerRoad, paintSummerWalk } from "./street-paint-summer.ts";
-import { planStreets, TILE, type StreetGeo } from "./street-plan.ts";
+import { painted } from "./paint-ahead.ts";
+import type { Paint } from "./street-paint.ts";
+import { planStreets, type StreetGeo } from "./street-plan.ts";
 
 export type VillageStreetsView = {
   group: THREE.Group;
@@ -86,12 +86,11 @@ export function createVillageStreets(level: Level, haze: HazeUniforms): VillageS
     mesh.renderOrder = step;
     group.add(mesh);
   };
-  const road = texture(summer ? paintSummerRoad() : paintRoad());
-  const area = texture(summer ? paintSummerArea() : paintArea());
-  const walk = texture(summer ? paintSummerWalk() : paintWalk());
-  const square = texture(
-    summer ? paintSummerWalk(512, TILE.square) : paintWalk(512, TILE.square, 0.62),
-  );
+  // Painted once a page, off the main thread (`paint-ahead.ts`).
+  const road = texture(painted(summer ? "summerRoad" : "road"));
+  const area = texture(painted(summer ? "summerArea" : "area"));
+  const walk = texture(painted(summer ? "summerWalk" : "walk"));
+  const square = texture(painted(summer ? "summerSquare" : "square"));
   texs.push(road, area, walk, square);
   layer(plan.area, area, 1, "street-area");
   layer(plan.road, road, 2, "street-road");

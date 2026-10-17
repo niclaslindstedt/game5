@@ -81,6 +81,7 @@ export function createBirds(level: Level, haze: HazeUniforms, look: WildLook): B
     for (const roster of rosters.values()) {
       for (const slot of roster.slots) {
         group.remove(slot.mesh);
+        slot.mesh.dispose(); // its instance buffers
         slot.mesh.geometry.dispose();
         (slot.mesh.material as THREE.Material).dispose();
       }

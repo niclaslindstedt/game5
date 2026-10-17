@@ -82,7 +82,8 @@ import { generatorTraits, type GeneratorVersion } from "./versions.ts";
 import { chooseCourse } from "./course-gates.ts";
 import { attemptAlone, attemptBegun, reached, reportingTo } from "./progress.ts";
 import { attemptOrder, buildResort, resortLevel, type BuiltResort } from "./resort-build.ts";
-import { laySkiRoutes } from "./ski-routes.ts";
+import { laySkiRoutes, type RouteStyle } from "./ski-routes.ts";
+import { fellOnRoutes, layRouteJumps } from "./route-features.ts";
 import { resortCached } from "./resort-cache.ts";
 import { realFaceRegion } from "./real-face.ts";
 import { analyzeResort } from "../analysis/resort.ts";
@@ -340,7 +341,19 @@ function generateResortLevel(
   );
   // R42 — the ski routes, found on the finished mountain; a version from
   // before them marks none.
-  if (!generatorTraits(version).noRoutes) built.routes ??= layRoutes(built);
+  // A wild route fells the trunks on its line and cuts its jumps into the
+  // ground once, the first time the kept resort is asked for them.
+  const traits = generatorTraits(version);
+  if (!traits.noRoutes && built.routes === undefined) {
+    if (traits.straightRoutes) built.routes = layRoutes(built, "straight");
+    else {
+      const routes = layRoutes(built, "wild");
+      const jumps = layRouteJumps(built.ground, routes);
+      built.trees = fellOnRoutes(built.trees, routes, jumps);
+      built.routeKickers = jumps;
+      built.routes = routes;
+    }
+  }
   const index = chooseCourse(built, {
     course: opts.course,
     grade: opts.grade,
@@ -352,14 +365,18 @@ function generateResortLevel(
 }
 
 /** R42 — the ski routes of a built ski area. */
-function layRoutes(b: BuiltResort) {
-  return laySkiRoutes({
-    ground: b.ground,
-    runs: b.runs.map((r) => r.run),
-    lifts: b.lifts,
-    trees: b.trees,
-    size: b.plan.size,
-  });
+function layRoutes(b: BuiltResort, style: RouteStyle) {
+  return laySkiRoutes(
+    {
+      ground: b.ground,
+      runs: b.runs.map((r) => r.run),
+      lifts: b.lifts,
+      trees: b.trees,
+      size: b.plan.size,
+      cliffs: b.cliffs,
+    },
+    style,
+  );
 }
 
 /** R20 on a ski area — the course with the terrain park laid down it: the

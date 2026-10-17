@@ -182,8 +182,10 @@ describe("a landing ridden away, or not", () => {
 
 /** A long fall straight down onto a face of `deg` degrees of the groomer,
  * the skier facing down it, on a free ride: the load and how it ended. */
+// Onto untouched snow: a big drop wants a soft landing, and the free ride's
+// day leaves only a thin skied-up layer on a groomer (`edgeSnow`).
 function plunge(deg: number, height: number) {
-  const level = flatLevel({ packed: 1, grade: Math.tan((deg * Math.PI) / 180), slopeFrom: 0 });
+  const level = flatLevel({ packed: 0, grade: Math.tan((deg * Math.PI) / 180), slopeFrom: 0 });
   const state = createGame({
     level,
     spec: SKIS,

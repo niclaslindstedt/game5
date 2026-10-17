@@ -48,9 +48,10 @@ import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/m
 import { rotate, type Quat, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { TUNING } from "./defs/tuning.ts";
 import { ragdollOutOfStrip } from "./airstrip-solids.ts";
+import { ragdollOutOfRescue } from "./rescue-call.ts";
 import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
-import { liftedOnRock, stoppedOnRock } from "./rock-ground.ts";
+import { liftedOnto, stoppedOnRock } from "./rock-ground.ts";
 import { holdStance } from "./board-crash.ts";
 import { airDrag } from "./ragdoll-air.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
@@ -280,7 +281,7 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
       }
       if (P[j + 1] < hold[i]) {
         if (!stoppedOnRock(level, P, L, j, hold[i] - P[j + 1])) {
-          liftedOnRock(level, P[j], P[j + 2], hold[i] - P[j + 1], L, j);
+          liftedOnto(level, P[j], P[j + 2], hold[i] - P[j + 1], L, j);
         }
         pushed[i] += hold[i] - P[j + 1];
         P[j + 1] = hold[i];
@@ -309,6 +310,8 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
   }
   // The airstrip's buildings and the plane on the snow (a free ride's).
   ragdollOutOfStrip(state, P, L, RADIUS, struck, dt);
+  // ...and an air ambulance landed on the snow (`rescue-call.ts`).
+  ragdollOutOfRescue(state, P, L, RADIUS, struck, dt);
   // Along the snow: what every point on it loses of its way.
   let touching = false;
   let planted = 0;
@@ -412,6 +415,9 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
   )
     b.down = 0;
   b.still = touching && fastest < K.restSpeed ? b.still + dt : 0;
+  b.aloft = touching ? 0 : b.aloft + dt;
+  if (b.aloft > K.flightGap) b.ground = 0;
+  else if (touching) b.ground += dt;
 }
 
 // The limbs the muscles drive, each off the trunk point it hangs from.

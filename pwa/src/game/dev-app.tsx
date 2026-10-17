@@ -16,8 +16,8 @@ import type { GameMode, GameState } from "@engine";
 
 import { setAttemptPool } from "./attempt-pool.ts";
 import type { LoadPlan } from "./app-load.ts";
-import { createBenchRun } from "./bench-run.ts";
-import type { GpuMode, Hideable } from "./benchmark-report.ts";
+import { createBenchRun, type BenchKind } from "./bench-run.ts";
+import type { BenchSceneId } from "./bench-scenes.ts";
 import type { BenchmarkStatus } from "./benchmark.ts";
 import { DebugOverlay } from "./debug-hud.tsx";
 import type { DebugSnapshot } from "./debug-readout.ts";
@@ -27,6 +27,7 @@ import type { DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import { parallelMaps, type Settings } from "./settings.ts";
 import type { VideoSettings } from "./settings-video.ts";
 import { hudOver, type Shell } from "./shell.ts";
+import type { UrlParams } from "./url-params.ts";
 
 export type DevAppWorld = {
   renderer: WorldRenderer & DevRenderer;
@@ -44,14 +45,9 @@ export type DevAppWorld = {
   /** Back onto the developer page, over the front door. */
   toDevPage: () => void;
   video: () => VideoSettings;
-  /** `?bench=1`: run the benchmark the moment the app is up. */
-  benchNow: boolean;
-  /** The benchmark's GPU timer and A/B hide, off the URL. */
-  benchGpu: GpuMode;
-  benchHide: readonly Hideable[];
-  benchAb: boolean;
-  benchFrames: number | null;
-  benchVista: boolean;
+  /** The benchmark's asks off the URL: `?bench=1` runs it the moment the
+   * app is up; its GPU timer, A/B hide, stretch, view and picture sweep. */
+  bench: Pick<UrlParams, "bench" | "gpu" | "hide" | "ab" | "frames" | "view" | "sweep">;
 };
 
 export type DevRig = {
@@ -59,8 +55,9 @@ export type DevRig = {
   frame: (frameMs: number, dt: number, simMs: number) => void;
   /** On the HUD's tick: the overlay's snapshot refreshed. */
   tick: () => void;
-  /** `ab` the run part by part; left out, the kind of run last pressed. */
-  startBench: (ab?: boolean) => void;
+  /** Left out, the kind of run last pressed, in its scenes (or the URL's
+   * ask). */
+  startBench: (kind?: BenchKind, scenes?: readonly BenchSceneId[]) => void;
   leaveBench: () => void;
   repro: () => string;
   dispose: () => void;
@@ -98,15 +95,17 @@ export function useDevApp(settings: Pick<Settings, "developer">): DevApp {
       silence: world.silence,
       setStatus: setBench,
       video: world.video,
-      gpu: world.benchGpu,
-      hide: world.benchHide,
-      ab: world.benchAb,
-      frames: world.benchFrames,
-      vista: world.benchVista,
+      gpu: world.bench.gpu,
+      hide: world.bench.hide,
+      ab: world.bench.ab,
+      frames: world.bench.frames,
+      view: world.bench.view,
+      sweep: world.bench.sweep,
     });
     /** From the press to the way out — the load under the card included. */
     let benching = false;
-    let partByPart = world.benchAb;
+    let kind: BenchKind | undefined;
+    let scenes: readonly BenchSceneId[] | undefined;
     const made: DevRig = {
       // Dark for the whole benchmark, load and warm-up included: an
       // instrument switched back on mid-run would be timed with it.
@@ -118,11 +117,14 @@ export function useDevApp(settings: Pick<Settings, "developer">): DevApp {
         if (benching && world.shell() === "menu") benching = false;
         setDebug(benching ? null : tools.snapshot());
       },
-      startBench: (ab) => {
+      startBench: (asked, where) => {
         benching = true;
-        // AGAIN repeats the run it follows, whole or part by part.
-        if (ab !== undefined) partByPart = ab;
-        benchRun.start(partByPart);
+        // AGAIN repeats the run it follows, whatever kind and scenes it was.
+        if (asked !== undefined) {
+          kind = asked;
+          scenes = where;
+        }
+        benchRun.start(kind, scenes);
       },
       leaveBench: () => {
         benching = false;
@@ -137,7 +139,7 @@ export function useDevApp(settings: Pick<Settings, "developer">): DevApp {
       },
     };
     rig.current = made;
-    if (world.benchNow) made.startBench();
+    if (world.bench.bench) made.startBench();
     return made;
   };
   return { bench, debug, rig, attach };

@@ -614,7 +614,13 @@ export const STRINGS = {
     summer: "SUMMER",
   },
   startTime: "TIME",
-  timeNames: { morning: "MORNING", day: "DAY", evening: "EVENING", night: "NIGHT" },
+  timeNames: {
+    morning: "MORNING",
+    day: "DAY",
+    evening: "EVENING",
+    sunset: "SUNSET",
+    night: "NIGHT",
+  },
   startWeather: "WEATHER",
   /** The start card's SKY press, a cloud over a sun: its name to a reader. */
   startSky: "THE DAY",
@@ -750,7 +756,7 @@ export const STRINGS = {
     "How fine the ground's mesh is under the skis. Every setting reaches as far as DISTANCE draws.",
   optTrails: "TRAILS",
   optTrailsHint:
-    "How finely the snow keeps every track cut, and how far round the skier. Off leaves the snow untouched.",
+    "How finely the snow keeps every track cut, and how far round the skier. Off leaves the snow untouched. Medium and high also hollow the deep powder round the trees.",
   optForest: "FOREST",
   optForestHint:
     "How far out trees are drawn in full, how thick the far woods stand, and how many variants of each kind of tree are drawn: ten, five or two.",
@@ -758,9 +764,19 @@ export const STRINGS = {
   optShadowsHint:
     "The sun's shadows: every stop but OFF lays the mountain's own shade over the slopes behind its ridges; SKIERS casts the field alone; MEDIUM adds every tree's; HIGH draws every skier's shadow sharp in a map of his own.",
   optSpray: "SPRAY",
+  optSky: "SKY",
+  optSkyPlain: "PLAIN",
+  optSkyFull: "FULL",
+  optHorizon: "HORIZON",
+  optHorizonPainted: "PAINTED",
+  optHorizon3d: "3D",
   optLamps: "LAMPS",
   optLampsHint:
     "After dark, how many lamps light the snow at once: your own headlamp always, then the nearest. LOW also stops the snow glittering in the beams.",
+  optFrameRate: "FRAME RATE",
+  optFrameRateHint:
+    "The most frames a second the game draws. At 60 a phone runs cooler and keeps its speed for longer.",
+  frameCapNone: "UNLIMITED",
   optAntialias: "SMOOTH EDGES",
   optAntialiasHint: "Antialiasing. Takes effect the next time the game is opened.",
 
@@ -842,7 +858,14 @@ export const STRINGS = {
   /** The phases of a load, in order; steps sharing a label are one PHASE
    * and one slot in the count. */
   loadLevel: "Raising the mountain",
+  loadSnow: "Laying the snow",
   loadScene: "Planting the forest",
+  /** Under the forest's bar: the trees in so far, of the map's. */
+  loadTrees: (planted: number, trees: number): string =>
+    `${planted.toLocaleString("en-US")} of ${trees.toLocaleString("en-US")} trees`,
+  /** The rest of the world built after the forest: the lifts, the gates,
+   * the people and the animals. */
+  loadLifts: "Opening the lifts",
   loadWarm: "Grooming the piste",
   /** The phase and where it sits in the plan — a count of PHASES, never of
    * seconds (see `run-loader.ts`). */

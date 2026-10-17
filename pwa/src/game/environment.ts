@@ -36,6 +36,8 @@ import {
   SKY_TIER,
   type DistanceLevel,
   type ShadowLook,
+  type HorizonLevel,
+  type SkyLevel,
 } from "./settings-video.ts";
 import { createSkyGpu, type SkyGpu } from "./sky-gpu.ts";
 import type { AloftLook } from "./view-aloft.ts";
@@ -97,6 +99,12 @@ export type Environment = {
   setShadow(look: ShadowLook): void;
   /** The DISTANCE row, whose mist is `mistFor`'s. */
   setDistance(distance: DistanceLevel): void;
+  /** The SKY row: PLAIN draws the dome as the air's colour alone, on the
+   * baked table, with no cloud pass. */
+  setSky(sky: SkyLevel): void;
+  /** The HORIZON row: PAINTED the far ranges as a skyline on the dome, 3D
+   * the rings' own mesh. */
+  setHorizon(horizon: HorizonLevel): void;
   /** The mist as a lens over the snow sees it (`view-aloft.ts`), every frame. */
   setAloft(look: Pick<AloftLook, "mist" | "aloft">): void;
   /** The map the mountain's shadow is baked off and the far ranges are
@@ -287,6 +295,14 @@ export function createEnvironment(
   const cull = createViewCull();
   const px = new THREE.Vector2();
   const cadence = createSunCadence();
+  let distance: DistanceLevel = "medium";
+  let plain = false;
+  /** The GPU sky and the cloud by the DISTANCE row — or, under a PLAIN sky,
+   * the baked table and the shell, whose layers the dome no longer reads. */
+  const skyTiers = (): void => {
+    gpu.setTier(plain ? "low" : SKY_TIER[distance]);
+    clouds.setTier(plain ? "shell" : CLOUD_TIER[distance]);
+  };
 
   return {
     haze,
@@ -350,11 +366,20 @@ export function createEnvironment(
     },
     setShadow,
     setDistance(next) {
+      distance = next;
       haze.uMist.value = mistFor(next);
-      gpu.setTier(SKY_TIER[next]);
-      clouds.setTier(CLOUD_TIER[next]);
+      skyTiers();
       contrails.setTier(next);
       ranges.setTier(FAR_TIER[next]);
+    },
+    setSky(next) {
+      plain = next === "plain";
+      dome.setPlain(plain);
+      skyTiers();
+    },
+    setHorizon(next) {
+      ranges.setPainted(next === "painted");
+      dome.setSkyline(ranges.silhouette());
     },
     setAloft(look) {
       haze.uMist.value = look.mist;
@@ -366,6 +391,7 @@ export function createEnvironment(
       gpu.setGround(ground);
       const shade = terrain.setGround(ground, key, sun.castShadow);
       ranges.setLevel(level, key, level ? await farFaceGrid(level) : null);
+      dome.setSkyline(ranges.silhouette());
       await shade;
     },
     shadeSettled: () => terrain.settled(),

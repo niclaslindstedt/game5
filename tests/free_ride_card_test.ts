@@ -44,7 +44,6 @@ import {
   freeAgainOptions,
   freeGameOptions,
   freeRestart,
-  onTheSlope,
   freeRunList,
   freeTopOptions,
   freshRide,
@@ -69,6 +68,8 @@ import {
   quickRide,
   quickTempOf,
   QUICK_SEEDS,
+  QUICK_ODDS,
+  type FreeRide,
   QUICK_TEMP_SPREAD,
 } from "../pwa/src/game/free-ride.ts";
 import {
@@ -357,11 +358,18 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     };
     const first = createGame({ ...opts, level: syntheticLevel() });
     const ridden = { ask: "alpine:dealt:9", level: first.level };
-    expect(rideKept(ridden, first.level, "alpine:dealt:9")).toBe(first.level);
+    expect(rideKept(ridden, first.level, "alpine:dealt:9", opts)).toBe(first.level);
     // Another mountain, another map standing, or no ride yet: built afresh.
-    expect(rideKept(ridden, first.level, "alpine:dealt:10")).toBeUndefined();
-    expect(rideKept(ridden, syntheticLevel(), "alpine:dealt:9")).toBeUndefined();
-    expect(rideKept(null, first.level, "alpine:dealt:9")).toBeUndefined();
+    expect(rideKept(ridden, first.level, "alpine:dealt:10", opts)).toBeUndefined();
+    expect(rideKept(ridden, syntheticLevel(), "alpine:dealt:9", opts)).toBeUndefined();
+    expect(rideKept(null, first.level, "alpine:dealt:9", opts)).toBeUndefined();
+    // Another hour or another weather asked (the start card, after the main
+    // menu): stood up afresh under it, never the old day's map again.
+    const assist = { yaw: 1, air: 1 };
+    const night = freeGameOptions({ ...freshRide(), time: "night" }, 9, { spec: SKIS, assist });
+    expect(rideKept(ridden, first.level, "alpine:dealt:9", night)).toBeUndefined();
+    const storm = freeGameOptions({ ...freshRide(), weather: "storm" }, 9, { spec: SKIS, assist });
+    expect(rideKept(ridden, first.level, "alpine:dealt:9", storm)).toBeUndefined();
     // The pause card's PISTE MAP: a spot picked elsewhere on the same map.
     const moved = { ...freshRide(), spot: { seed: 9, x: 400, z: 700 } };
     const next = freeGameOptions(moved, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
@@ -387,7 +395,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     expect(again.skier.z).toBeCloseTo(slot.z, 5);
   });
 
-  it("restarts a rider on his feet at the top of his slope, not on the machine he began on", () => {
+  it("restarts a ride on the machine it was last chosen on, however he came off it", () => {
     const ride = { ...freshRide(), run: { seed: 9, region: freshRide().region, id: SLED_RUN } };
     const opts = {
       ...freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
@@ -398,25 +406,39 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
     const free = freeAgainOptions(opts, first.level);
     // Still on the snowmobile: the restart is the snowmobile's.
     expect(first.sled?.rider).toBe(true);
-    expect(onTheSlope(first)).toBe(false);
     expect(freeRestart(first, free)?.sled).toBe(true);
-    // Stepped off it and out on his skis: the restart is the slope's.
+    // Stepped off it and out on his skis: still the snowmobile's.
     if (first.sled) first.sled.rider = false;
-    expect(onTheSlope(first)).toBe(true);
-    const top = freeRestart(first, free);
+    const again = createGame(freeRestart(first, free)!);
+    expect(again.sled?.rider).toBe(true);
+    // Thrown off it, the same.
+    first.skier.thrown = { cause: "slam" } as never;
+    expect(freeRestart(first, free)?.sled).toBe(true);
+    // A ride on skis from the start starts again at the top of its slope.
+    const skied = freeAgainOptions({ ...opts, sled: undefined }, first.level);
+    const top = freeRestart(createGame(skied), skied);
     expect(top?.sled).toBeUndefined();
     expect(againAt(first.rules, top)).toBe("top");
-    const again = createGame(top!);
-    expect(again.sled?.rider).toBe(false);
-    const slot = first.level.grid[0];
-    expect(again.skier.x).toBeCloseTo(slot.x, 5);
-    expect(again.skier.z).toBeCloseTo(slot.z, 5);
-    // Thrown off the machine he is still its rider: stood back on it.
-    first.skier.thrown = { cause: "sled" } as never;
-    expect(onTheSlope(first)).toBe(false);
-    // A ride on skis from the start is the slope's however it ends.
-    const skied = createGame({ ...freeAgainOptions(opts, first.level), sled: undefined });
-    expect(onTheSlope(skied)).toBe(true);
+  });
+
+  it("restarts the helicopter picked on the pause card's piste map after he falls off its skid", () => {
+    const skis = freeGameOptions(freshRide(), 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
+    const first = createGame({ ...skis, quiet: true, level: syntheticLevel() });
+    // The PISTE MAP's GO stands a new ride up on the helicopter: that is the
+    // ride the restart keeps.
+    const heli = freeAgainOptions(
+      { ...skis, heli: true, run: undefined, byLift: false },
+      first.level,
+    );
+    const flown = createGame({ ...heli, quiet: true });
+    expect(flown.heli?.rider).toBe(true);
+    // Lost his grip on the skid and down on the snow.
+    if (flown.heli) flown.heli.rider = false;
+    flown.skier.thrown = { cause: "grip" } as never;
+    const next = freeRestart(flown, heli);
+    expect(next?.heli).toBe(true);
+    expect(againAt(flown.rules, next)).toBe("pad");
+    expect(createGame(next!).heli?.rider).toBe(true);
   });
 
   it("names where the next rider stands after a death, as the restart stands him", () => {
@@ -814,6 +836,26 @@ describe("QUICK START (free-ride.ts)", () => {
       seasons.add(ride.season!);
     }
     expect(seasons.size).toBe(4);
+  });
+
+  it("leans toward the sunset, the clear night and the steep countries", () => {
+    let k = 0;
+    const random = () => (k = (k * 7919 + 104729) % 1000003) / 1000003;
+    const count = (pick: (r: FreeRide) => unknown, want: unknown, n = 2000): number => {
+      k = 1;
+      let hit = 0;
+      for (let i = 0; i < n; i++) if (pick(quickRide(freshRide(), random)) === want) hit++;
+      return hit / n;
+    };
+    expect(count((r) => r.time, "sunset")).toBeGreaterThan(count((r) => r.time, "day") * 2);
+    expect(count((r) => r.region, "fell")).toBeLessThan(count((r) => r.region, "alpine") / 2);
+    expect(count((r) => r.weather, "storm")).toBeLessThan(0.05);
+    // No fog, overcast or storm after dark: a night is clear or near it.
+    k = 1;
+    for (let i = 0; i < 2000; i++) {
+      const ride = quickRide(freshRide(), random);
+      if (ride.time === "night") expect(Object.keys(QUICK_ODDS.night)).toContain(ride.weather);
+    }
   });
 
   it("rolls an air that fits the season, the hour and the sky", () => {

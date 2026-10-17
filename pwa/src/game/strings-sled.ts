@@ -14,6 +14,11 @@ export const SLED_STRINGS = {
   newsSledHop: "SKIS ON! OFF YOU GO",
   newsSledRight: "BACK ON THE SLED",
   newsSledRestart: "ON THE SLED",
+  /** Ridden into a fire (`sled-fire.ts`): alight, its tank gone up, and a
+   * fresh machine at the bottom once the wreck has burnt out. */
+  newsSledAlight: "THE SLED'S ON FIRE!",
+  newsSledBoom: "KABOOM!",
+  newsSledFresh: "A NEW SLED WAITS AT THE BOTTOM",
 
   /* ── THE HUD (hud-sled.tsx) ────────────────────────────────────────── */
   sledRpm: "RPM",

@@ -380,8 +380,11 @@ describe("the kickers (R4, R9)", () => {
   it("keeps the kickers off the piste clear of it", () => {
     for (const level of corpus()) {
       // The mountain's own (R4) — a neighbouring run's kickers are on that
-      // piste, which may run beside the course off a shared top (R27).
-      for (const k of level.kickers.filter((k) => !k.onTrack && k.run === undefined)) {
+      // piste, which may run beside the course off a shared top (R27), and
+      // a ski route's (R42) stand on a line that comes down onto a run.
+      for (const k of level.kickers.filter(
+        (k) => !k.onTrack && k.run === undefined && k.route === undefined,
+      )) {
         const reach = Math.max(k.ramp, k.landing) + k.width / 2;
         expect(nearestTrackPoint(level, k.x, k.z).distance - reach).toBeGreaterThan(
           R.kickers.off.clearance,

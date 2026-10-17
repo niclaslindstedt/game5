@@ -159,8 +159,8 @@ export const SLED = {
    * to the way it goes, N·m per rad of slide, both capped; in powder the
    * grip it may turn on is `reachPowder` g — a sled rolled onto its edge
    * and carved, more than its belt and skis hold sideways flat. Tuned so
-   * full lock turns a circle of about 5.5 m at 21 km/h, 11 m at 33 and 32 m
-   * at 56 on the groomer (`make sled-turn`). */
+   * full lock turns a circle of about 5.5 m at 20 km/h, 10 m at 31 and 30 m
+   * at 57 on the groomer (`make sled-turn`). */
   steer: {
     fadeSpeed: 20,
     rate: 2.8,
@@ -171,7 +171,7 @@ export const SLED = {
     pathShare: 1,
     reachPowder: 0.7,
     slipFrom: 3,
-    scrub: 0.3,
+    scrub: 0.15,
   },
   /** THE LEAN INTO A TURN, and RIDE IT LIKE A BIKE in powder (the sibling
    * game's model): the roll the chassis settles at with the bars over —

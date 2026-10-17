@@ -21,6 +21,7 @@ import {
   SKI_CATALOG,
   step,
   trenchGrip,
+  throwRider,
   TUNING,
   type CrashLimit,
   type GameEvent,
@@ -138,10 +139,49 @@ describe("the wipeout", () => {
   });
 
   it("stands a rival up off his rest, the player off the clock", () => {
-    const lain = { t: TUNING.crash.lieMin, still: TUNING.crash.lieStill } as Thrown;
+    const lain = {
+      t: TUNING.crash.lieMin,
+      still: TUNING.crash.lieStill,
+      ground: TUNING.crash.lieGround,
+    } as Thrown;
     expect(crashOver(lain)).toBe(true);
     expect(crashOver(lain, true)).toBe(false);
     expect(crashOver({ ...lain, t: TUNING.crash.lieFor }, true)).toBe(true);
+  });
+
+  it("never stands him up while he is still falling — off a cliff, say", () => {
+    const K = TUNING.crash;
+    const falling = { t: K.lieFor + 2, still: 0, ground: 0, aloft: 3 } as Thrown;
+    expect(crashOver(falling, true)).toBe(false);
+    expect(crashOver({ ...falling, t: K.lieMax + 1 })).toBe(false);
+    expect(mayGetUp(falling)).toBe(false);
+    // ...landed and lain, the clock lets him up; nothing waits past `lieLong`.
+    expect(crashOver({ ...falling, ground: K.lieGround }, true)).toBe(true);
+    expect(mayGetUp({ ...falling, ground: K.getUpGround })).toBe(true);
+    expect(crashOver({ ...falling, t: K.lieLong }, true)).toBe(true);
+  });
+
+  it("lets a body thrown off a height fall all the way to the snow before the reset", () => {
+    // Thrown 150 m over the snow — some 5.5 s of fall, past the clock that
+    // stands a player up — he reaches the snow and lies there first.
+    const state = createGame({
+      level: flatLevel({ packed: 1 }),
+      rivals: 0,
+      countdown: 0,
+      quiet: true,
+    });
+    placeRun(state, { x: 1500, z: 1500, heading: 0, speed: 15, height: 150 });
+    state.skier.thrown = throwRider(state, "slam", { x: 0, y: 0, z: 15 }, []);
+    let landed = -1;
+    let reset = -1;
+    for (let i = 0; i < 20 * TUNING.physicsHz && reset < 0; i++) {
+      step(state, NEUTRAL_INPUT);
+      const b = state.skier.thrown;
+      if (b?.touching && landed < 0) landed = state.t;
+      if (state.events.some((e) => e.kind === "reset")) reset = state.t;
+    }
+    expect(landed).toBeGreaterThan(TUNING.crash.lieFor - 1);
+    expect(reset - landed).toBeGreaterThanOrEqual(TUNING.crash.lieGround - 0.1);
   });
 
   it("lies down in the snow as a body does — and deep powder stops him soonest", () => {

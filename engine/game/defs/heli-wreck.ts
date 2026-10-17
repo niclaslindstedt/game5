@@ -114,15 +114,19 @@ export function fireballGrowth(age: number, life: number): number {
 /** THE WRECK'S FIREBALL at `age` s after the crash: its radius, m, how
  * far its centre stands over the snow it rose from, m, its life, s, and
  * its GLOW — 1 at its first white heat, burning down to 0 as it goes out
- * to soot. */
-export function fireballAt(age: number): {
+ * to soot. `fuel` is what burns in the ball, kg — the helicopter's share of
+ * its own when left out (a snowmobile's tank is `sled-fire.ts`'s). */
+export function fireballAt(
+  age: number,
+  fuel: number = WRECK.fire.fuel * WRECK.fire.share,
+): {
   radius: number;
   height: number;
   life: number;
   glow: number;
 } {
   const F = WRECK.fire;
-  const full = fireballOf(F.fuel * F.share);
+  const full = fireballOf(fuel);
   const radius = (full.diameter / 2) * fireballGrowth(age, full.life);
   // Lifted off at `lift` of its life, it climbs at `riseRate` up to `rise`.
   const up = Math.max(0, age - F.lift * full.life);

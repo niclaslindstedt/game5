@@ -8,9 +8,12 @@
 // Each puff's shadow is a soft ellipse laid IN THE PLANE OF THE SNOW where
 // the key's ray through the puff meets it, stretched along the key by how
 // much it grazes (1 ÷ n·k, at most `STRETCH`), drawn as a MULTIPLY over
-// what is already there: overlapping puffs multiply, so a thick plume's
-// shadow is Beer–Lambert dark and a thin one's faint. It takes away only
-// the KEY's share of the snow's light (the sky still lights a shadow):
+// what is already there. Overlapping puffs stack as one Beer–Lambert
+// column — a thick plume's shadow dark and a thin one's faint — but the
+// stack takes away only the KEY's share of the snow's light, never more:
+// each puff is told how many it lies under (`overlapOf`) and lays its
+// root of the stack's shadow, so a roost of a hundred puffs is a shadow
+// and never a black smear (the sky still lights a shadow):
 // none in the mountain's shade or under an overcast, where there is no key
 // to take (`snow-air-light.ts`'s `vAirKey`, the sky's irradiance on the
 // snow's normal), and it fades into the haze.
@@ -29,15 +32,23 @@ import { LOOSE } from "./trail-stamp.ts";
 const STRETCH = 3;
 /** How dark a puff's middle lays its shadow, per unit of its opacity. */
 const DARK = 2.2;
+/** The share of the key a cloud stops that still reaches the snow under
+ * it: ice crystals scatter nearly all the light they stop, and most of it
+ * FORWARD (Henyey–Greenstein g near 0.86), down onto its own shadow — so a
+ * snow cloud's shadow is grey, never the black of a solid's. */
+const FILL = 0.5;
 /** Below this key elevation (its sine) a shadow is too long to lay. */
 const LOWEST = 0.04;
 
 const VERTEX = /* glsl */ `
 attribute vec4 iSpot;
 attribute vec4 iFace;
+attribute float iStack;
 ${AIR_LIGHT_VERTEX}
 varying vec2 vUv;
 varying float vTake;
+varying float vOpacity;
+varying float vStack;
 varying vec3 vWorld;
 void main() {
   vec3 n = iFace.xyz;
@@ -55,7 +66,9 @@ void main() {
   airLight(iSpot.xyz);
   float key = dot(vAirKey, vec3(0.2126, 0.7152, 0.0722)) * nk;
   float sky = dot(skyIrradiance(n) * 0.31831, vec3(0.2126, 0.7152, 0.0722));
-  vTake = iFace.w * key / max(key + sky, 1e-4);
+  vTake = key / max(key + sky, 1e-4);
+  vOpacity = iFace.w;
+  vStack = max(iStack, 1.0);
   gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
 }
 `;
@@ -64,14 +77,18 @@ const FRAGMENT = /* glsl */ `
 ${SKY_GLSL}
 varying vec2 vUv;
 varying float vTake;
+varying float vOpacity;
+varying float vStack;
 varying vec3 vWorld;
 void main() {
   float r2 = dot(vUv, vUv);
   if (r2 > 1.0) discard;
-  // The light let through: Beer–Lambert on the puff's soft profile, of the
-  // key's share alone.
-  float through = exp(-${DARK.toFixed(2)} * exp(-2.6 * r2) * (1.0 - r2));
-  float keep = 1.0 - vTake * (1.0 - through);
+  // The light let through: Beer–Lambert on the puff's soft profile.
+  float through = 1.0 - vOpacity * (1.0 - exp(-${DARK.toFixed(2)} * exp(-2.6 * r2) * (1.0 - r2)));
+  // The stack of vStack such puffs lets through pow(through, vStack) of
+  // the key, and the sky lights the rest: this puff lays the vStack-th
+  // root of that, so the multiplied stack is the stack's shadow.
+  float keep = pow(1.0 - vTake * ${(1 - FILL).toFixed(2)} * (1.0 - pow(through, vStack)), 1.0 / vStack);
   // Into the haze, as the snow it lies on.
   vec3 ray = vWorld - cameraPosition;
   keep = mix(keep, 1.0, hazeAmount(length(ray), ray.y));
@@ -80,6 +97,56 @@ void main() {
   gl_FragColor = vec4(vec3(keep), 1.0);
 }
 `;
+
+/** The cell the shadows are binned in to find their neighbours, m. */
+const CELL = 2;
+
+/**
+ * How many shadows each one lies under, itself counted: `spot` four floats
+ * a shadow (its middle on the snow and its radius), `opacity` one a shadow
+ * at stride `stride`. A neighbour counts by its opacity and by how far into
+ * it this one's middle lies (1 at its middle, 0 at its rim). Written into
+ * `out`, at least 1 each.
+ */
+export function overlapOf(
+  spot: Float32Array,
+  opacity: Float32Array,
+  stride: number,
+  n: number,
+  out: Float32Array,
+  bins: Map<number, number[]> = new Map(),
+): void {
+  bins.clear();
+  const keyOf = (cx: number, cz: number) => cx * 73856093 + cz * 19349663;
+  for (let i = 0; i < n; i++) {
+    const k = keyOf(Math.floor(spot[i * 4] / CELL), Math.floor(spot[i * 4 + 2] / CELL));
+    let bin = bins.get(k);
+    if (!bin) bins.set(k, (bin = []));
+    bin.push(i);
+  }
+  for (let i = 0; i < n; i++) {
+    const x = spot[i * 4];
+    const z = spot[i * 4 + 2];
+    const reach = spot[i * 4 + 3];
+    const span = Math.ceil(reach / CELL) + 1;
+    const cx = Math.floor(x / CELL);
+    const cz = Math.floor(z / CELL);
+    let sum = 1;
+    for (let a = -span; a <= span; a++) {
+      for (let b = -span; b <= span; b++) {
+        const bin = bins.get(keyOf(cx + a, cz + b));
+        if (!bin) continue;
+        for (const j of bin) {
+          if (j === i) continue;
+          const r = spot[j * 4 + 3];
+          const d = Math.hypot(spot[j * 4] - x, spot[j * 4 + 2] - z);
+          if (d < r) sum += opacity[j * stride] * (1 - d / r);
+        }
+      }
+    }
+    out[i] = sum;
+  }
+}
 
 /** The snow's surface as the terrain draws it, before the trail lowers it. */
 function drawnSnow(level: Level, x: number, z: number): number {
@@ -119,6 +186,10 @@ export function createCloudShadow(
   face.setUsage(THREE.DynamicDrawUsage);
   geometry.setAttribute("iSpot", spot);
   geometry.setAttribute("iFace", face);
+  const stack = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+  stack.setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute("iStack", stack);
+  const bins = new Map<number, number[]>();
   geometry.instanceCount = 0;
   const material = new THREE.ShaderMaterial({
     uniforms: { ...haze, uKeyCol: keyCol },
@@ -182,6 +253,10 @@ export function createCloudShadow(
       }
       geometry.instanceCount = n;
       if (n > 0) {
+        overlapOf(S, F.subarray(3), 4, n, stack.array as Float32Array, bins);
+        stack.clearUpdateRanges();
+        stack.addUpdateRange(0, n);
+        stack.needsUpdate = true;
         spot.clearUpdateRanges();
         face.clearUpdateRanges();
         spot.addUpdateRange(0, n * 4);

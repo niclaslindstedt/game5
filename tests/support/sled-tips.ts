@@ -190,8 +190,10 @@ function barsOf(move: SledTipMove, t: number, heading: number): number {
       return Math.floor(t) % 2 ? -1 : 1;
     case "into":
       // Held across the face: the bars toward the hill (left, −) as far as
-      // keeps the heading, the rider hung off the uphill side with them.
-      return Math.max(-1, Math.min(0, -0.6 + 3 * angleDiff(heading, 0)));
+      // keeps the heading, the rider hung off the uphill side with them —
+      // a light hand on a firm groomer, where the skis bite and more bars
+      // at speed would carve it up the hill and high-side it.
+      return Math.max(-1, Math.min(0, -0.4 + 3 * angleDiff(heading, 0)));
     case "off":
     case "slump":
       return 1;

@@ -2,7 +2,8 @@
 
 A free ride's ski area keeps FIRES: a CAMP FIRE outside a share of its huts,
 where skiers stop to grill sausages and warm their hands, and a few BONFIRES
-on the valley floor at the bottom of the runs. This page is what they are
+where its skiers gather: at the base, off the top station and, on most maps,
+half way up. This page is what they are
 modelled on and what is built. The engine half is built: where every fire
 stands and what riding into one does; the fires are drawn; and the people
 round them are out on the free ride. The skier burning is drawn and heard.
@@ -17,8 +18,16 @@ round them are out on the free ride. The skier burning is drawn and heard.
   Mountain restaurants keep grills on their terraces. Its flames stand half
   a metre to a metre high. It stands a few metres out from the hut's front:
   clear of the walls and eaves, close enough to be the hut's.
-- **A bonfire** is the big fire a base keeps going at the end of the day.
-  Fire codes cap an open bonfire's fuel at about 4.5 m across and 2.4 m tall
+- **A bonfire** is the big open fire a ski area keeps where its skiers
+  stop. Where it stands follows them: by far most often at the BASE, in the
+  plaza at the foot of the lifts where the runs come home and the fire pits
+  stand by the village's terraces; at the MID-MOUNTAIN stop, the bench where
+  the first lift tops out and the mountain restaurant stands, its deck with
+  fire pits beside it; and at the TOP, the warming fire or lean-to with a
+  grill a short walk off the top station, where a northern area's skiers
+  grill before the run down. Each stands a little off the station and the
+  runs, never on them, and level with or below the station, so a skier off
+  the lift glides to it. Fire codes cap an open bonfire's fuel at about 4.5 m across and 2.4 m tall
   and keep it at least 15 m from any building or anything that burns, in a
   pit a little wider than the fire. Its flames stand three to five metres;
   the heat off a fire that size is bearable — a few kW/m², warm on the face —
@@ -41,9 +50,16 @@ round them are out on the free ride. The skier burning is drawn and heard.
   to one side of the door or beside a flank, on ground leaning no more than
   0.3, off every run's snow, the water and the streets, clear of every
   trunk, post, wall and lift line; two to four log benches face it and most
-  have a woodpile. Two to four bonfires stand on the valley floor near the
-  village, 60 m apart, out of the hub's open snow, 15 m from every
-  building's walls and clear of the lifts, the wind tunnels, the
+  have a woodpile. Two to four bonfires stand about the mountain
+  (`FIRE_LAYOUT.bonfire.sites`, each fire's `site`): one or two at the BASE
+  near the bottom station nearest the village, one off the highest lift's
+  TOP station, and on three maps in four one at the MID-MOUNTAIN stop off the
+  lift top nearest half way up — each looked for about 40 m from its
+  station (never within 25 m of one), the top's and the middle's no more
+  than 2 m over their station's snow, in the open first (no more than two
+  trunks within 20 m) and among the trees only where the open has no room;
+  60 m apart, out of the hub's open snow, off every ski route, 15 m from
+  every building's walls and clear of the lifts, the wind tunnels, the
   helicopter's pad, the snowmobile, the balloon's site and the airstrip;
   five to seven benches stand five metres out. A pure function of the map
   off hashes of its seed on a salt of its own: no stream, no digest.
@@ -142,3 +158,7 @@ and the same at hour 21); `tests/fire_people_test.ts` holds it.
   reads BURNED. `make burn` is its lab (sheets `catch`, `burn`, `char`,
   `night`, `sfw`, each frame captioned with the time since he caught, the
   burnt share, its milliseconds, draw calls and triangles).
+
+## A snowmobile ridden into one
+
+The snowmobile catches in a hearth instead of being held off it, and its tank goes up a moment later. Its rider is blown off it burning. [The snowmobile's page](snowmobile.md#into-a-fire) has the whole of it.

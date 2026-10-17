@@ -59,6 +59,7 @@ import { buzzOf, drunkInput, fetchesSkis, getUp, soberUp, stepFetch } from "./bu
 import { intoTown, stepTown, townBrake } from "./town.ts";
 import { groomerStrike, stepGroomers } from "./groomer.ts";
 import { meetStrip } from "./airstrip-solids.ts";
+import { meetRescue } from "./rescue-call.ts";
 import { trafficStrike } from "./traffic-contact.ts";
 import { fireStrike, stepBurn } from "./fire-burn.ts";
 import { stepGatePoles } from "./gate-poles.ts";
@@ -284,6 +285,8 @@ export function stepRun(
   if (!off) collideTrees(run, events, x0, z0);
   // ...and the airstrip's buildings and the plane on the snow (`airstrip-solids.ts`).
   if (!off) meetStrip(run, events);
+  // ...and an air ambulance landed for an earlier run's casualty (`rescue-call.ts`).
+  if (!off) meetRescue(run, events);
   // THE FLEX POLES (`gate-poles.ts`): knocked over, standing back up.
   stepGatePoles(run, events, off !== null);
   // THE EDGE STAKES (`edge-stakes.ts`): bent over, snapped, whipping back.

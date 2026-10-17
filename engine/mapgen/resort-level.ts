@@ -99,7 +99,7 @@ export function resortLevel(
       checkpoints,
       ...gridOnTrack(track),
       trees: b.trees,
-      kickers: onCourse.concat(field, kickers, b.offKickers),
+      kickers: onCourse.concat(field, kickers, b.offKickers, b.routeKickers ?? []),
       cliffs: drops.concat(cliffs, b.cliffs),
       sun,
       laps,

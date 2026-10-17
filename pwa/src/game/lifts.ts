@@ -203,6 +203,15 @@ function ropesOf(plan: LiftPlan): number[] {
   return [r, -r];
 }
 
+/** THE PIECES `createLifts` holds that a caller may build first, each in a
+ * moment of its own (the world's renderer, a breath between them); the
+ * lifts own them from then on and let them go with the rest. */
+export type LiftParts = {
+  tunnels?: ReturnType<typeof createWindTunnels>;
+  houses?: ReturnType<typeof createCabins>;
+  village?: ReturnType<typeof createVillageBuildings>;
+};
+
 /** The resort's lifts — and its WIND TUNNELS along the valley floor
  * (`wind-tunnels.ts`), the horizontal lift — in one group the renderer
  * holds. `budget` is the SPRAY row's share; `rings` whether the run rides
@@ -215,17 +224,18 @@ export function createLifts(
   budget = 1,
   rings = false,
   cull?: ViewCull,
+  made: LiftParts = {},
 ): Lifts {
   const group = new THREE.Group();
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
   const meshes: THREE.InstancedMesh[] = [];
   const lifts = level.resort?.lifts ?? [];
-  const tunnels = createWindTunnels(level, haze, budget);
+  const tunnels = made.tunnels ?? createWindTunnels(level, haze, budget);
   group.add(tunnels.group);
   // Shut and taken down for the summer.
   tunnels.group.visible = !summerShown();
-  const houses = createCabins(level, haze);
+  const houses = made.houses ?? createCabins(level, haze);
   group.add(houses.group);
   // THE ROOMS inside the buildings near the lens (`interiors-view.ts`).
   const rooms = createInteriors(level, haze);
@@ -233,7 +243,7 @@ export function createLifts(
   // THE SKI AREA'S OWN BUILDINGS (`village-build.ts`, `mountain-build.ts`):
   // the village round the hub and the mountain's restaurant and patrol hut,
   // in blocks at a near and a far cut (`village-cuts.ts`).
-  const village = createVillageBuildings(level, haze);
+  const village = made.village ?? createVillageBuildings(level, haze);
   /** The lift stations' houses, once the lifts are planned. */
   let halls: VillageBuildings | null = null;
   group.add(village.group);
@@ -472,7 +482,7 @@ export function createLifts(
   group.add(boards.group);
   disposeBoards = boards.dispose;
   // THE BOARDING RINGS where the queues start, ridden into to board.
-  const boarding = rings ? createBoardingRings(level, plans) : null;
+  const boarding = rings ? createBoardingRings(level, plans, haze) : null;
   if (boarding) {
     group.add(boarding.group);
     disposeRings = boarding.dispose;

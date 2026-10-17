@@ -74,7 +74,7 @@ describe("what an injury costs", () => {
     const body = freshBody();
     hurt(body, "kneeL", 3);
     const h = hurtOf(body);
-    expect(h.edge[0]).toBeLessThan(0.8);
+    expect(h.edge[0]).toBeLessThan(0.9);
     expect(h.edge[1]).toBe(1);
     const c = { hurt: h } as unknown as GameState["skier"];
     expect(hurtEdge(c, 1)).toBeLessThan(hurtEdge(c, -1));

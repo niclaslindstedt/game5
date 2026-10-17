@@ -60,6 +60,10 @@ export type SledView = {
   stowRack(load: RackLoad): void;
   /** The machine as drawn this frame. */
   drawn(): { x: number; y: number; z: number; q: THREE.Quaternion } | null;
+  /** BURNT: its paint and plastics charred `k` of the way to soot (0..1),
+   * and the embers glowing in it `ember` (0..1) — a fire's work on it
+   * (`sled-fire-view.ts`); 0 and 0 the machine as it was made. */
+  char(k: number, ember: number): void;
   /** Resolved once the model is in the group (or the stand-in, should it
    * not load) — awaited before the run's programs are compiled, so none of
    * them is linked mid-ride. */
@@ -72,6 +76,9 @@ export type SledView = {
  * model again. A few hundred triangles in place of some 10 000, where it is
  * a handful of pixels long. */
 export const SLED_FAR = 120;
+/** A burnt-out machine's soot, and the embers glowing in it. */
+const SOOT = new THREE.Color(0.035, 0.03, 0.027);
+const EMBER = new THREE.Color(0.9, 0.22, 0.03);
 export const SLED_MARGIN = 20;
 
 /** A code-built stand-in, should the model not load: a cowl, a tunnel, a
@@ -206,6 +213,13 @@ export function createSledView(haze: HazeUniforms): SledView {
   let loaded: RackLoad | null = null;
   let rack: SledRack | null = null;
   let disposed = false;
+  // What a fire charred, and the colours it was made in to come back to.
+  const made = new Map<
+    THREE.MeshStandardMaterial,
+    { colour: THREE.Color; rough: number; emissive: THREE.Color }
+  >();
+  let charred = 0;
+  let glowing = 0;
 
   // THE HEADLAMP's glow over the lens, and the halo that calls him.
   const sprite = (colour: number, size: number): THREE.Sprite => {
@@ -397,6 +411,22 @@ export function createSledView(haze: HazeUniforms): SledView {
     },
     drawn() {
       return shown;
+    },
+    char(k, ember) {
+      if (k === charred && ember === glowing) return;
+      charred = k;
+      glowing = ember;
+      for (const m of allMats) {
+        if (!(m instanceof THREE.MeshStandardMaterial) || lampMats.includes(m)) continue;
+        let o = made.get(m);
+        if (!o) {
+          o = { colour: m.color.clone(), rough: m.roughness, emissive: m.emissive.clone() };
+          made.set(m, o);
+        }
+        m.color.copy(o.colour).lerp(SOOT, k);
+        m.roughness = o.rough + (1 - o.rough) * k;
+        m.emissive.copy(o.emissive).lerp(EMBER, ember * k);
+      }
     },
     dispose() {
       disposed = true;

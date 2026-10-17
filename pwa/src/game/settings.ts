@@ -46,6 +46,7 @@ import { freshKeys, mergeKeys, type KeyBindings } from "./settings-input.ts";
 import { freshHeliKeys, mergeHeliKeys, type HeliBindings } from "./settings-heli-keys.ts";
 import { freshPlaneKeys, mergePlaneKeys, type PlaneBindings } from "./settings-plane-keys.ts";
 import { freshRideKeys, mergeRideKeys, type RideBindings } from "./settings-ride-keys.ts";
+import { FRAME_CAPS, type FrameCap } from "./frame-cap.ts";
 import { DEFAULT_VIDEO, mergeVideo, videoUntouched, type VideoSettings } from "./settings-video.ts";
 import { DEFAULT_OUTFIT, outfitOf, type Outfit } from "./outfit.ts";
 import { isTrickMap } from "./trick-maps.ts";
@@ -179,6 +180,10 @@ export type Settings = {
   sound: boolean;
   audio: AudioLevels;
   video: VideoSettings;
+  /** OPTIONS ▸ FRAME RATE (`frame-cap.ts`): the most frames a second the
+   * game draws, or 0 for no cap. `null` is "as the device says": 60 on a
+   * touch device, so a phone runs cooler, and no cap elsewhere. */
+  frameCap: FrameCap | null;
   /** Whether the first-visit probe has had its say (`video-probe.ts`). */
   probed: boolean;
   /** PRESET ▸ AUTO: the picture is the probe's to fit to this machine, on
@@ -287,6 +292,7 @@ export function freshSettings(): Settings {
     sound: true,
     audio: { master: 1, engine: 1, effects: 1 },
     video: { ...DEFAULT_VIDEO },
+    frameCap: null,
     probed: false,
     autoPicture: true,
     keys: freshKeys(),
@@ -373,6 +379,7 @@ export function mergeSettings(parsed: unknown): Settings {
     out.audio[k] = onTravel(audio[k], 0, 1, AUDIO_STEP, out.audio[k]);
   }
   out.video = mergeVideo(blob.video);
+  if (FRAME_CAPS.includes(blob.frameCap as FrameCap)) out.frameCap = blob.frameCap as FrameCap;
   if (typeof blob.probed === "boolean") out.probed = blob.probed;
   // A blob from before AUTO: the fit's only where nobody moved the picture.
   out.autoPicture =

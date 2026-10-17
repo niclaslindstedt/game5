@@ -21,8 +21,9 @@
 // height (`cloud-light.ts`); the forward scatter of the droplets lights the
 // thin edges toward the sun (the silver lining); the sky lights the rest,
 // greyer toward the base. Far off, the air between takes it (Rayleigh's
-// and the haze's extinction per channel, at the heights between), so a
-// heap on the horizon goes into the sky's own colour.
+// and the haze's extinction per channel, at the heights between — and
+// under a lid the grey air and the falling snow, `uCloudVeil`), so a heap
+// on the horizon goes into the sky's own colour.
 
 import { CLOUD_LAYERS, EDGE, NOISE_SIZE, SECOND } from "./cloud-field.ts";
 
@@ -47,6 +48,10 @@ uniform vec4 uCloudOn;
 uniform vec4 uCloudSea;
 // The sea's height of the map's frame, m (an altitude is y less it).
 uniform float uCloudSeaLevel;
+// THE VEIL: the extinction, 1/m, of the air under a lid between the eye and
+// its cloud past the clear day's — the grey haze under an overcast and the
+// snow driving through a storm (\`SkyLook.clouds.veil\`).
+uniform float uCloudVeil;
 
 float cloudNoise(int i, vec2 xz) {
   vec4 B = uCloudB[i];
@@ -80,7 +85,9 @@ vec2 cloudColumn(int i, float n) {
 vec3 cloudAir(float dist, float a0, float a1) {
   float a = max(0.0, 0.5 * (a0 + a1));
   vec3 beta = vec3(5.8e-6, 13.6e-6, 33.1e-6) * exp(-a / 8000.0) + 4.4e-6 * exp(-a / 1200.0);
-  return exp(-beta * dist);
+  // Under a lid the deck goes into the sky's own grey with distance, as the
+  // ground goes into the haze: no darker band over a paler horizon.
+  return exp(-(beta + uCloudVeil) * dist);
 }
 
 float cloudHg(float mu, float g) {

@@ -280,14 +280,14 @@ describe("a free ride's flight that was never meant", () => {
     const full = TUNING.jump.full;
     const events = ride(state, full + 2.5, (t) => ({
       jump: t < full,
-      steer: state.skier.airborne && state.skier.airTime > 0.25 && t < full + 0.6 ? 1 : 0,
+      steer: state.skier.airborne && state.skier.airTime > 0.25 ? spinSteer(state, 1, 1) : 0,
     }));
     expect(events.some((e) => e.kind === "jump")).toBe(true);
     expect(tricksOf(events)).toContain("half");
   });
 });
 
-describe("a spin is set off the lip, not snapped", () => {
+describe("a spin is wound up, not snapped", () => {
   const spun = (seconds: number, at: (t: number, s: GameState) => Partial<SkierInput>) => {
     const state = staged("tricks", { ...LAUNCH, height: 30, vy: 6 });
     const rates: number[] = [];
@@ -304,7 +304,23 @@ describe("a spin is set off the lip, not snapped", () => {
     expect(Math.max(...rates)).toBeGreaterThan(TUNING.tricks.spinRate * 0.5);
     // Let go, it neither stops nor settles: it is still turning.
     expect(rates[rates.length - 1]).toBeCloseTo(state.tricks.spinSpeed, 6);
-    expect(state.tricks.spinSpeed).toBeGreaterThan(3);
+    expect(state.tricks.spinSpeed).toBeGreaterThan(1.5);
+  });
+
+  it("the edge thrown tight long after the take-off still starts a spin; a gentle one steers", () => {
+    const late = spun(2, (t) => ({ steer: t > 1 && t < 1.3 ? 1 : 0 }));
+    expect(late.state.tricks.spinSpeed).toBeGreaterThan(2);
+    expect(late.yaw).toBeGreaterThan(Math.PI / 2);
+    const soft = spun(2, (t) => ({ steer: t > 1 && t < 1.3 ? 0.5 : 0 }));
+    expect(soft.state.tricks.spinGoal).toBe(0);
+  });
+
+  it("the edge against a spin checks it only a little", () => {
+    const kept = spun(1.6, (t) => ({ steer: t < 0.4 ? 1 : 0 }));
+    const checked = spun(1.6, (t) => ({ steer: t < 0.4 ? 1 : t > 0.6 ? -1 : 0 }));
+    const end = (r: { rates: number[] }) => r.rates[r.rates.length - 1];
+    expect(end(checked)).toBeGreaterThan(end(kept) * 0.8);
+    expect(end(checked)).toBeLessThan(end(kept));
   });
 
   it("a 180 comes down switch and rides away backward, clean", () => {
@@ -328,11 +344,13 @@ describe("a spin is set off the lip, not snapped", () => {
 
   it("let go of in the wrong place, it comes down crooked", () => {
     // Wound up for a share of the window and left: whatever comes round.
-    const wiped = [0.1, 0.15, 0.2, 0.25, 0.3].filter((hold) => {
-      const state = staged("tricks", LAUNCH, LANDING);
-      const events = ride(state, 4, (t) => ({ steer: t < hold ? 1 : 0 }));
-      return events.some((e) => e.kind === "wipeout");
-    });
+    const wiped = [0.04, 0.06, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2, 0.22, 0.24].filter(
+      (hold) => {
+        const state = staged("tricks", LAUNCH, LANDING);
+        const events = ride(state, 4, (t) => ({ steer: t < hold ? 1 : 0 }));
+        return events.some((e) => e.kind === "wipeout");
+      },
+    );
     expect(wiped.length).toBeGreaterThan(0);
   });
 });

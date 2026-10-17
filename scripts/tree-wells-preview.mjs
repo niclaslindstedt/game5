@@ -11,6 +11,9 @@
 //   fall    a skier stood above the trunk sliding in, frame by frame, and
 //           stuck in it
 //   night   the well under the headlamp
+//   cost    a frame among the wells timed (the median of 24, this
+//           browser's GL): read it against another preset's, or before and
+//           after a change
 //
 // Each GROUP is one contact sheet, previews/tree-wells-<group>.png, and
 // every frame is also written alone, previews/tree-wells-<view>-<label>.png.
@@ -43,12 +46,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (look, fall, night); every one when left out",
+      help: "which sheets, comma-separated (look, fall, night, cost); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (below, above, side, down, lip, before, fall, night)",
+      help: "only these views, comma-separated (below, above, side, down, lip, before, fall, night, cost)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

@@ -58,10 +58,14 @@ import {
   type Settings,
 } from "./settings.ts";
 import { KEY_ACTIONS } from "./settings-input.ts";
+import { FRAME_CAPS, frameCapOf, type FrameCap } from "./frame-cap.ts";
 import { shellContent } from "../shell-host.ts";
 import {
   DISTANCE_LEVELS,
   SHADOW_LEVELS,
+  SKY_LEVELS,
+  HORIZON_LEVELS,
+  type HorizonLevel,
   RESOLUTION_LEVELS,
   TIERS,
   TRAIL_LEVELS,
@@ -70,6 +74,7 @@ import {
   type DistanceLevel,
   type ResolutionLevel,
   type ShadowLevel,
+  type SkyLevel,
   type Tier,
   type TrailLevel,
   type VideoSettings,
@@ -119,6 +124,15 @@ const SHADOW_STOPS: Stop<ShadowLevel>[] = SHADOW_LEVELS.map((id) => ({
   label: SHADOW_WORD[id],
 }));
 
+const SKY_STOPS: Stop<SkyLevel>[] = SKY_LEVELS.map((id) => ({
+  id,
+  label: id === "plain" ? STRINGS.optSkyPlain : STRINGS.optSkyFull,
+}));
+const HORIZON_STOPS: Stop<HorizonLevel>[] = HORIZON_LEVELS.map((id) => ({
+  id,
+  label: id === "painted" ? STRINGS.optHorizonPainted : STRINGS.optHorizon3d,
+}));
+
 const LEVER_STOPS: Stop<LeverSide>[] = LEVER_SIDES.map((id) => ({
   id,
   label: id === "left" ? STRINGS.optLeverLeft : STRINGS.optLeverRight,
@@ -132,6 +146,11 @@ const ASSIST_WORD: Record<AssistLevel, string> = {
 const ASSIST_STOPS: Stop<AssistLevel>[] = ASSIST_LEVELS.map((id) => ({
   id,
   label: ASSIST_WORD[id],
+}));
+
+const FRAME_CAP_STOPS: Stop<string>[] = FRAME_CAPS.map((cap) => ({
+  id: String(cap),
+  label: cap === 0 ? STRINGS.frameCapNone : String(cap),
 }));
 
 const MISHAP_WORD: Record<MishapSetting, string> = {
@@ -424,6 +443,20 @@ export function OptionsPage({
                 onHint={setHint}
               />
               <StepRow
+                label={STRINGS.optSky}
+                stops={SKY_STOPS}
+                value={video.sky}
+                onPick={(sky) => setVideo({ sky })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optHorizon}
+                stops={HORIZON_STOPS}
+                value={video.horizon}
+                onPick={(horizon) => setVideo({ horizon })}
+                onHint={setHint}
+              />
+              <StepRow
                 label={STRINGS.optTerrain}
                 hint={STRINGS.optTerrainHint}
                 stops={TIER_STOPS}
@@ -468,6 +501,14 @@ export function OptionsPage({
                 stops={TIER_STOPS}
                 value={video.lamps}
                 onPick={(lamps) => setVideo({ lamps })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optFrameRate}
+                hint={STRINGS.optFrameRateHint}
+                stops={FRAME_CAP_STOPS}
+                value={String(frameCapOf(settings.frameCap, touch))}
+                onPick={(id) => onSettings({ ...settings, frameCap: Number(id) as FrameCap })}
                 onHint={setHint}
               />
               <StepRow

@@ -49,6 +49,8 @@ import {
 } from "./rescue-defs.ts";
 import { casualtyOn, scoopAt } from "./rescue-scoop.ts";
 
+export type RescueSite = Omit<RescuePlan["site"], "side">;
+
 export {
   BEARERS,
   RESCUE,
@@ -215,18 +217,50 @@ function onMachine(site: RescuePlan["site"], p: Vec3): Vec3 {
   return { x: site.x + w.x, y: site.y + w.y, z: site.z + w.z };
 }
 
-/** THE PLAN for a skier found INJURED lying at `spot`. */
-export function planRescue(level: Level, spot: { x: number; z: number }): RescuePlan {
+/** THE WAY ROUND THE NOSE from a casualty on the machine's far side (its
+ * left, the door's on its right) or past its tail: a point well ahead of
+ * the nose and out to the door's side, which the carry is walked through
+ * — or null where the door is in his sight. */
+export function aroundNose(site: RescuePlan["site"], c: P2): P2 | null {
+  const f = fwdOf(site.heading);
+  const rt = rightOf(site.heading);
+  const dx = c.x - site.x;
+  const dz = c.z - site.z;
+  const across = dx * rt.x + dz * rt.z;
+  const ahead = dx * f.x + dz * f.z;
+  const clear = HELI.body.width / 2 + 2.5;
+  // Well ahead of the nose, or out on the door's side and not past the
+  // tail: the curve into the door is clear of it.
+  if (ahead > HELI.body.nose + 4) return null;
+  if (across > clear && (ahead > -3 || across > -ahead * 0.9)) return null;
+  const at = HELI.body.nose + 6;
+  return { x: site.x + f.x * at + rt.x * 2.5, z: site.z + f.z * at + rt.z * 2.5 };
+}
+
+/** THE PLAN for a skier found INJURED lying at `spot` — to a machine it
+ * picks a patch for, or to one already sat at `landed` (a second casualty
+ * for an air ambulance still on the snow, `rescue-flight.ts`). */
+export function planRescue(
+  level: Level,
+  spot: { x: number; z: number },
+  landed: Omit<RescuePlan["site"], "side"> | null = null,
+): RescuePlan {
   const sy = level.groundAt(spot.x, spot.z);
   const c: Vec3 = { x: spot.x, y: sy, z: spot.z };
-  const best = pickSite(level, c);
-  const heading = headingAt(level, best.x, best.z, c).heading;
+  let site: RescuePlan["site"];
+  if (landed) site = { ...landed, side: 1 };
+  else {
+    const best = pickSite(level, c);
+    const heading = headingAt(level, best.x, best.z, c).heading;
+    const sit = seated(level, best.x, best.z, heading);
+    site = { x: best.x, y: sit.y, z: best.z, heading, pitch: sit.pitch, roll: sit.roll, side: 1 };
+  }
+  const heading = site.heading;
   const rt = rightOf(heading);
   const side = 1 as const;
-  const sit = seated(level, best.x, best.z, heading);
-  const site = { x: best.x, y: sit.y, z: best.z, heading, pitch: sit.pitch, roll: sit.roll, side };
   // Leaving: down the valley, the fall line read over a long reach.
-  const valley = downhill(level, best.x, best.z, 60) ?? downhill(level, best.x, best.z, 200);
+  const valley = downhill(level, site.x, site.z, 60) ?? downhill(level, site.x, site.z, 200);
+  // A machine already sat keeps its own way out (`rescue-flight.ts`).
   const away = valley ? Math.atan2(valley.x, valley.z) : heading;
   const out = { x: rt.x * side, z: rt.z * side };
   const door = onMachine(site, {
@@ -240,23 +274,43 @@ export function planRescue(level: Level, spot: { x: number; z: number }): Rescue
   const mid = onMachine(site, { x: 0, y: 0, z: RESCUE.door.z });
   const end = { x: mid.x + out.x * off, z: mid.z + out.z * off };
   const cabin = { x: mid.x, z: mid.z };
-  // THE CARRY: a curve from where he lay that comes in square to the door.
-  const gap = hy(end.x - c.x, end.z - c.z);
+  // THE CARRY: a curve from where he lay that comes in square to the door
+  // — and, from his machine's far side or from past its tail, first round
+  // its nose, never under the boom (`aroundNose`).
+  const f = fwdOf(heading);
+  const from = aroundNose(site, c) ?? c;
+  const gap = hy(end.x - from.x, end.z - from.z);
   const k = clamp(0.45 * gap, 3, 14);
   const ctrl = { x: end.x + out.x * k, z: end.z + out.z * k };
   const pts: P2[] = [];
   const s: number[] = [];
+  const push = (p: P2): void => {
+    const n = pts.length;
+    s.push(n === 0 ? 0 : s[n - 1] + hy(p.x - pts[n - 1].x, p.z - pts[n - 1].z));
+    pts.push(p);
+  };
+  if (from !== c) {
+    // A gentle bend from him out to the point ahead of the nose.
+    const lead = hy(from.x - c.x, from.z - c.z);
+    const M = Math.max(8, Math.ceil(lead / 0.5));
+    const bend = { x: from.x - f.x * lead * 0.35, z: from.z - f.z * lead * 0.35 };
+    for (let i = 0; i < M; i++) {
+      const u = i / M;
+      const a = (1 - u) * (1 - u);
+      const b = 2 * u * (1 - u);
+      const d = u * u;
+      push({ x: a * c.x + b * bend.x + d * from.x, z: a * c.z + b * bend.z + d * from.z });
+    }
+  }
   const N = 96;
   for (let i = 0; i <= N; i++) {
     const u = i / N;
     const a = (1 - u) * (1 - u);
     const b = 2 * u * (1 - u);
     const d = u * u;
-    const p = { x: a * c.x + b * ctrl.x + d * end.x, z: a * c.z + b * ctrl.z + d * end.z };
-    s.push(i === 0 ? 0 : s[i - 1] + hy(p.x - pts[i - 1].x, p.z - pts[i - 1].z));
-    pts.push(p);
+    push({ x: a * from.x + b * ctrl.x + d * end.x, z: a * from.z + b * ctrl.z + d * end.z });
   }
-  const length = s[N];
+  const length = s[s.length - 1];
   const T = RESCUE.time;
   // THE SCOOP, from the moment they set off toward him with the board.
   const Q = RESCUE.scoop.time;
@@ -374,8 +428,15 @@ const LET_GO = RESCUE.time.slide * 0.55;
 
 /** THE RESCUE `t` s after it started (before it, as it stands waiting). */
 export function rescueAt(level: Level, plan: RescuePlan, t: number, out: RescueFrame): RescueFrame {
-  const A = plan.at;
   heliAt(level, plan, t, out.heli);
+  return tripAt(level, plan, t, out);
+}
+
+/** ONE CASUALTY'S RESCUE `t` s after its scoop started — the crew, the
+ * stretcher and him — with the machine left to the caller
+ * (`rescue-flight.ts`, whose machine may wait for a second). */
+export function tripAt(level: Level, plan: RescuePlan, t: number, out: RescueFrame): RescueFrame {
+  const A = plan.at;
   // Until they lift him: the walk up, the log-roll onto the board, the straps.
   if (t < A.rise) return scoopAt(level, plan, t, out);
   const raised = ease((t - A.raise) / RESCUE.time.raise);
@@ -507,11 +568,23 @@ function clearAt(level: Level, plan: RescuePlan, j: number, c: CrewPose, t: numb
 /** THE MACHINE at `t`: sat with its rotor turning, then up into the
  * hover, turned down the valley, and away. */
 function heliAt(level: Level, plan: RescuePlan, t: number, h: RescueFrame["heli"]): void {
-  const s = plan.site;
-  const T = RESCUE.time;
-  const k = t - plan.at.lift;
   h.spool = 1;
   h.shown = t < plan.at.gone;
+  heliLeaving(level, plan.site, plan.away, t - plan.at.lift, h);
+}
+
+/** THE MACHINE `k` s after its lift-off began (before it, sat at `site`):
+ * the rotor spooled up, up into the hover, turned to `away` down the
+ * valley, its nose dipped, and gone — gathering speed and climbing all the
+ * while, and never nearer the snow under it than the hover. */
+export function heliLeaving(
+  level: Level,
+  s: RescueSite,
+  away: number,
+  k: number,
+  h: RescueFrame["heli"],
+): void {
+  const T = RESCUE.time;
   if (k < T.spool) {
     h.x = s.x;
     h.y = s.y;
@@ -523,29 +596,66 @@ function heliAt(level: Level, plan: RescuePlan, t: number, h: RescueFrame["heli"
     return;
   }
   const up = k - T.spool;
+  flown(level, s, away, up, h);
+  const turn = ease((up - T.hover * 0.35) / (T.hover * 0.65));
+  h.heading = s.heading + wrap(away - s.heading) * turn;
+  h.thrust = 1;
+  const go = Math.max(0, up - T.hover);
+  const dip = clamp(go / 2, 0, 1) * (1 - clamp((go - 12) / 6, 0, 1) * 0.6);
+  h.pitch -= 0.16 * dip;
+}
+
+/** THE MACHINE `tau` s before its skids touch the snow at `s`: the way it
+ * leaves flown backwards — in from down the valley, slowing and sinking,
+ * its nose flared up, into the hover turned to the heading it sets down
+ * on, and down onto the uphill skid. */
+export function heliArriving(
+  level: Level,
+  s: RescueSite,
+  away: number,
+  tau: number,
+  h: RescueFrame["heli"],
+): void {
+  const T = RESCUE.time;
+  const up = Math.max(0, tau);
+  flown(level, s, away, up, h);
+  // Facing the way it comes in from far out; turned onto its landing
+  // heading in the hover.
+  const turn = ease((up - T.hover * 0.35) / (T.hover * 0.65));
+  h.heading = s.heading + wrap(away + Math.PI - s.heading) * turn;
+  h.thrust = 1;
+  const go = Math.max(0, up - T.hover);
+  const flare = clamp(go / 3, 0, 1) * (1 - clamp((go - 10) / 8, 0, 1) * 0.7);
+  h.pitch += 0.2 * flare;
+}
+
+/** Where the machine is `up` s into its flight away from `s` (or that
+ * long before it sets down there): its place, and its attitude eased from
+ * the snow's under its skids to level. */
+function flown(
+  level: Level,
+  s: RescueSite,
+  away: number,
+  up: number,
+  h: RescueFrame["heli"],
+): void {
+  const T = RESCUE.time;
   const ground = level.groundAt(s.x, s.z);
   const hover = ease(up / (T.hover * 0.6)) * RESCUE.hover;
   const settle = ease(up / 1.2);
-  const turn = ease((up - T.hover * 0.35) / (T.hover * 0.65));
-  const heading = s.heading + wrap(plan.away - s.heading) * turn;
-  h.heading = heading;
-  h.thrust = 1;
   const go = Math.max(0, up - T.hover);
-  // Away: gathering speed down the valley, climbing all the while — and
-  // never nearer the snow under it than the hover.
   const run =
     go < RESCUE.cruise / RESCUE.accel
       ? 0.5 * RESCUE.accel * go * go
       : RESCUE.cruise ** 2 / (2 * RESCUE.accel) +
         RESCUE.cruise * (go - RESCUE.cruise / RESCUE.accel);
-  const f = fwdOf(plan.away);
+  const f = fwdOf(away);
   h.x = s.x + f.x * run;
   h.z = s.z + f.z * run;
   const under = level.groundAt(h.x, h.z);
-  const climbOut = Math.max(ground + hover + RESCUE.climb * go, under + RESCUE.hover + 2 * go);
-  h.y = Math.max(s.y + hover, climbOut) + (s.y - ground) * (1 - settle);
-  const dip = clamp(go / 2, 0, 1) * (1 - clamp((go - 12) / 6, 0, 1) * 0.6);
-  h.pitch = s.pitch * (1 - settle) - 0.16 * dip;
+  const climbOut = Math.max(ground + hover + RESCUE.climb * go, under + hover + 2 * go);
+  h.y = climbOut + (s.y - ground) * (1 - settle);
+  h.pitch = s.pitch * (1 - settle);
   h.roll = s.roll * (1 - settle);
 }
 

@@ -33,6 +33,7 @@ import {
 import { FacadeKit } from "./facade-kit.ts";
 import { FACADE } from "./facade-paint.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
+import { fadeGlow } from "./glow-fade.ts";
 import { glow } from "./glow-sprite.ts";
 import type { Flood } from "./headlamp.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
@@ -134,16 +135,21 @@ export function createStripView(level: Level, haze: HazeUniforms): StripView {
   lampGeo.setAttribute("position", new THREE.BufferAttribute(lampPos, 3));
   lampGeo.setAttribute("color", new THREE.BufferAttribute(lampCol, 3));
   geos.push(lampGeo);
-  const lampMat = new THREE.PointsMaterial({
-    map: glow(),
-    size: 2.2,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    fog: false,
-  });
+  // Faded into the air as the ground round them is, and never thinner
+  // than a steady dot: a few kilometres off in a storm they are gone.
+  const lampMat = fadeGlow(
+    new THREE.PointsMaterial({
+      map: glow(),
+      size: 2.2,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+    }),
+    haze,
+  );
   mats.push(lampMat);
   const lampPoints = new THREE.Points(lampGeo, lampMat);
   lampPoints.visible = false;
@@ -169,15 +175,18 @@ export function createStripView(level: Level, haze: HazeUniforms): StripView {
   sock.name = "airstrip-sock";
   sock.position.set(site.sock.x, site.sock.y + S.mast, site.sock.z);
   group.add(sock);
-  const beaconMat = new THREE.SpriteMaterial({
-    map: glow(),
-    color: 0xff3018,
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    fog: false,
-  });
+  const beaconMat = fadeGlow(
+    new THREE.SpriteMaterial({
+      map: glow(),
+      color: 0xff3018,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+    }),
+    haze,
+  );
   mats.push(beaconMat);
   const beacon = new THREE.Sprite(beaconMat);
   beacon.scale.set(1.2, 1.2, 1);

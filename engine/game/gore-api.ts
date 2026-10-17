@@ -17,3 +17,11 @@ export {
   type TornPiece,
 } from "./gore-state.ts";
 export { GORE } from "./defs/gore.ts";
+export {
+  RESCUE_PARTS,
+  copyCall,
+  rescueBoxes,
+  withRescue,
+  type RescueCall,
+  type RescueSite,
+} from "./rescue-call.ts";

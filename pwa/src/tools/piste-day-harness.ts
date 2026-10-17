@@ -174,11 +174,7 @@ function line(s: GameState): string {
   if (!p) return "no piste day";
   const ahead = trackPointAt(level, spot.s + 12);
   const on = `packed ${level.packedAt(ahead.x, ahead.z).toFixed(2)}  `;
-  return (
-    on +
-    `worn ${p.worn.toFixed(2)}  new ${(s.fresh * 100).toFixed(1)} cm  ` +
-    `soft ${p.soft.toFixed(2)}  hard ${p.hard.toFixed(2)}  loose ${p.loose.toFixed(2)}`
-  );
+  return on + `worn ${p.worn.toFixed(2)}  new ${(s.fresh * 100).toFixed(1)} cm`;
 }
 
 async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] }> {

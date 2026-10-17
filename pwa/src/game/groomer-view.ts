@@ -25,7 +25,9 @@ import type { GroomerState } from "@engine";
 
 import { buildGroomer, type GroomerBody, type GroomerPaint } from "./groomer-build.ts";
 import { GROOMER_LAMPS, GROOMER_LOOK } from "./groomer-look.ts";
+import { fadeGlow } from "./glow-fade.ts";
 import { glow } from "./glow-sprite.ts";
+import type { HazeUniforms } from "./haze.ts";
 import { GROOMER_NODES } from "./skier-models.ts";
 import { mergeCasters } from "./sled-view.ts";
 
@@ -95,6 +97,7 @@ function modelBody(scene: THREE.Object3D, made: THREE.Material[]): GroomerBody {
 export function createGroomerView(
   paint: GroomerPaint,
   model: Promise<THREE.Object3D | null>,
+  haze: HazeUniforms,
 ): GroomerView {
   const own: THREE.Material[] = [];
   const group = new THREE.Group();
@@ -127,15 +130,20 @@ export function createGroomerView(
   // ── THE GLOW over every lens, seen from its front.
   const halos: { s: THREE.Sprite; way: THREE.Vector3; bloom?: boolean }[] = [];
   const sprite = (colour: number, size: number): THREE.Sprite => {
-    const sm = new THREE.SpriteMaterial({
-      map: glow(),
-      color: colour,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      fog: false,
-      opacity: 0,
-    });
+    // Faded into the air as the machine is: a fleet across the valley in
+    // a storm is gone, not a row of dots.
+    const sm = fadeGlow(
+      new THREE.SpriteMaterial({
+        map: glow(),
+        color: colour,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        fog: false,
+        opacity: 0,
+      }),
+      haze,
+    );
     own.push(sm);
     const s = new THREE.Sprite(sm);
     s.scale.set(size, size, 1);

@@ -11,7 +11,9 @@
 //   bonfire  bonfire-close, bonfire-20, bonfire-60
 //   night    night-camp, night-bench, night-bonfire, night-map (at hour 21:
 //            the light on the snow, the benches, the hut and the trees)
-//   map      map-base (the base from the air), map-hut (a hut's fire off)
+//   map      map-base, map-mid, map-top (each site's bonfire from the air,
+//            below it), mid-20, top-20 (the mid-mountain and top ones close),
+//            map-hut (a hut's fire off)
 //   people   people-camp, people-above, people-bench, people-grill (a
 //            griller's hand, stick and sausage close), people-bonfire,
 //            people-ring, people-night-camp, people-night-bonfire (the
@@ -53,7 +55,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (camp-close, camp-eye, camp-bench, camp-above, bonfire-close, bonfire-20, bonfire-60, night-camp, night-bench, night-bonfire, night-map, map-base, map-hut, people-camp, people-above, people-bench, people-grill, people-eat, people-bonfire, people-ring, people-night-camp, people-night-bonfire)",
+      help: "only these views, comma-separated (camp-close, camp-eye, camp-bench, camp-above, bonfire-close, bonfire-20, bonfire-60, night-camp, night-bench, night-bonfire, night-map, map-base, map-mid, map-top, mid-20, top-20, map-hut, people-camp, people-above, people-bench, people-grill, people-eat, people-bonfire, people-ring, people-night-camp, people-night-bonfire)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

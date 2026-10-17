@@ -52,8 +52,10 @@ describe("the gear", () => {
       expect(new Set(list.map((g) => g.id)).size).toBe(list.length);
       expect(new Set(list.map((g) => g.name)).size).toBe(list.length);
     }
-    // The two bodies the loom cuts, and the modelled one picked on the card.
-    expect(BODIES.filter((b) => !b.model).map((b) => b.female)).toEqual([false, true]);
+    // The two bodies the loom cuts, the modelled ones picked on the card,
+    // and the AUTO pair standing in the kit of the run's mode.
+    expect(BODIES.filter((b) => !b.model && !b.auto).map((b) => b.female)).toEqual([false, true]);
+    expect(BODIES.filter((b) => b.auto).map((b) => b.female)).toEqual([false, true]);
   });
 
   it("dresses each rival in his slot's colour, so his dot is his jacket", () => {

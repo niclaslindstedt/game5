@@ -73,6 +73,8 @@ import { createBalloonLadder, inBasket, keepOutOfBalloon } from "./camera-balloo
 import type { CameraRung } from "./renderer-api.ts";
 import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
+import { createSledFireView, type SledFireView } from "./sled-fire-view.ts";
+import type { Blaze } from "./camera-blast.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
 import { drawnAs } from "./ski-looks.ts";
 import { createTrafficScene, type TrafficScene } from "./traffic-view.ts";
@@ -117,6 +119,10 @@ export type Machines = {
   /** Whether his own figure is drawn under the lens `lens` handed back:
    * not while the skydive looks out of his own eyes. */
   figureShown(): boolean;
+  /** THE FIRE'S HEAT, FLASH AND SMOKE over the picture this frame
+   * (`sled-fire-view.ts`), or null — `planted` whether a planted lens has
+   * the picture (none of it, unless the planted lens is the blast's own). */
+  blaze(planted: boolean): Blaze | null;
   /** WHILE HE RIDES THE SNOWMOBILE (or drives a piste machine, hangs under
    * the paramotor's wing, stands in the balloon's basket), the ladder the
    * lens is framed on — its own rows (`camera-sled.ts`, `camera-groomer.ts`,
@@ -157,6 +163,10 @@ export type Machines = {
   /** THE EXIT CUT's pace (`camera-exit.ts`): the run slowed for the leap out
    * of a craft's door, 1 otherwise. */
   exitPace(): number;
+  /** These machines where `state` rides what they were built for
+   * (`machinesKey`), else new ones built for it in their place, under the
+   * same parent, these taken down. */
+  refit(state: GameState): Machines;
   dispose(): void;
 };
 
@@ -174,6 +184,18 @@ export type MachineSnow = {
   wearing?: () => Outfit;
 };
 
+/** WHAT THE MACHINES ARE BUILT FOR: everything `createMachines` reads off
+ * the run it is built with to decide what it builds — the craft the rules
+ * allow, the bike, the wingsuit and its colourway. A new run on the map
+ * standing (the pause card's PISTE MAP, PLAY again) that differs here is
+ * built anew (`refit`, `renderer.ts`): a wingsuit stood up on a world built for a
+ * ride on skis would hang on its hover with no helicopter drawn under him. */
+function machinesKey(state: GameState, wearing?: () => Outfit): string {
+  const r = state.rules;
+  const suit = state.wingsuit && wearing ? suitOf(wearing()) : null;
+  return [r.heli, r.sled, r.groomer, !!state.bike, !!state.wingsuit, suit].join("|");
+}
+
 export function createMachines(
   level: Level,
   state: GameState,
@@ -181,6 +203,7 @@ export function createMachines(
   fx: MachineSnow,
 ): Machines {
   const haze = env.haze;
+  const builtFor = machinesKey(state, fx.wearing);
   const group = new THREE.Group();
   group.name = "machines";
   const heli: HeliScene | null = state.rules.heli ? createHeliScene(level, haze) : null;
@@ -306,6 +329,9 @@ export function createMachines(
   let patrol: PatrolView | null = null;
   // HIM ON FIRE (`burn-view.ts`), built the first time a run sets him alight.
   let burn: BurnView | null = null;
+  // A SNOWMOBILE ON FIRE (`sled-fire-view.ts`), built the first time one catches.
+  let sledFire: SledFireView | null = null;
+  let blastLensed = false;
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
   return {
@@ -367,6 +393,21 @@ export function createMachines(
       });
       // In summer nothing lies loose to be blown up: no wash cloud, no puff.
       const cloud = s.summer ? null : fx.cloud;
+      if (!sledFire && s.sled?.burn && !s.rules.sfw) {
+        sledFire = createSledFireView();
+        group.add(sledFire.group);
+      }
+      blastLensed = false;
+      sledFire?.frame(
+        s,
+        dt,
+        alpha,
+        sled?.drawn() ?? null,
+        rung === "tips" || rung === "helmet",
+        (k, e) => sled?.char(k, e),
+        cloud,
+        fx.snowAt,
+      );
       heli?.frame(s, alpha, dt, player, rung, flying, cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
       plane?.frame(s, alpha, dt, rung, flying, aspect, cloud, fx.snowAt);
@@ -527,8 +568,9 @@ export function createMachines(
       // The balloon's burner and its fire first: the nearest, brightest
       // light a skier in its basket has.
       balloon?.lamps(eye, floods);
-      // ...and a skier alight, his own.
+      // ...and a skier alight, his own, and a snowmobile burning.
       burn?.lamps(lit, floods);
+      sledFire?.lamps(lit, eye, floods);
       rescue?.lamps(lit, floods);
       plane?.lamps(lit, floods);
       strip?.frame(current, lit, eye);
@@ -540,6 +582,13 @@ export function createMachines(
       return floods;
     },
     lens(ladder, dt) {
+      // THE BLAST THROUGH HIS OWN EYES, over all of them while it holds.
+      const blast = sledFire?.lens() ?? null;
+      if (blast) {
+        blastLensed = true;
+        ownLook = true;
+        return blast;
+      }
       // Both asked every frame, so each hands its own lens in and out.
       const h = heli?.lens(ladder, dt) ?? null;
       const p = plane?.lens(ladder, dt) ?? null;
@@ -554,6 +603,7 @@ export function createMachines(
       return x ?? h ?? c ?? p;
     },
     figureShown: () => !ownLook,
+    blaze: (planted) => sledFire?.blaze(!planted || blastLensed) ?? null,
     ladder(pose, s, screen = 16 / 9) {
       aspect = screen;
       pose.lift = null;
@@ -609,6 +659,15 @@ export function createMachines(
     },
     slideLift: (x, z) => slide?.liftAt(x, z) ?? 0,
     exitPace: () => exitCut?.pace() ?? 1,
+    refit(s) {
+      if (machinesKey(s, fx.wearing) === builtFor) return this;
+      const parent = group.parent;
+      group.removeFromParent();
+      this.dispose();
+      const made = createMachines(level, s, env, fx);
+      parent?.add(made.group);
+      return made;
+    },
     dispose() {
       if (exitCut) exitHud(0);
       haze.uMistAloft.value = 0;
@@ -628,6 +687,7 @@ export function createMachines(
       slide?.dispose();
       patrol?.dispose();
       burn?.dispose();
+      sledFire?.dispose();
     },
   };
 }

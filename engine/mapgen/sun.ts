@@ -110,9 +110,14 @@ export function dayOfYearOf(day: number): number {
 /** THE TIMES OF DAY A FREE RIDE IS ASKED FOR IN — words, not hours, because
  * the hour a word means moves with the date and the latitude: a February
  * morning at 68°N is noon's neighbour, one in April is hours before it. */
-export type TimeOfDay = "morning" | "day" | "evening" | "night";
+export type TimeOfDay = "morning" | "day" | "evening" | "sunset" | "night";
 
-export const TIMES_OF_DAY: readonly TimeOfDay[] = ["morning", "day", "evening", "night"];
+export const TIMES_OF_DAY: readonly TimeOfDay[] = ["morning", "day", "evening", "sunset", "night"];
+
+/** How high SUNSET stands the sun, degrees: low enough to turn the light
+ * gold and the clouds red, still over the horizon — under R15's floor on
+ * purpose, as NIGHT is past it. */
+const SUNSET_ELEVATION = 2;
 
 /** How far into the night NIGHT is, h after sunset — deep enough that the
  * sky has gone to the moon and the stars, inside R19's evening band. */
@@ -120,7 +125,8 @@ const NIGHT_AFTER_SUNSET = 2.5;
 
 /** THE SOLAR HOUR A TIME OF DAY MEANS on a day at a latitude: MORNING a fifth
  * of the way into the sun's hours over R15's floor, DAY the middle of them,
- * EVENING the low sun near their end, NIGHT a while after sunset. A day the
+ * EVENING the low sun near their end, SUNSET the sun on the horizon, NIGHT
+ * a while after sunset. A day the
  * sun never clears the floor on puts every lit word at noon. */
 export function hourOfTime(latitude: number, dayOfYear: number, time: TimeOfDay): number {
   const doy = dayOfYearOf(dayOfYear);
@@ -131,6 +137,13 @@ export function hourOfTime(latitude: number, dayOfYear: number, time: TimeOfDay)
     // midnight, the lowest the sun goes.
     if (!set || set.max >= 24) return 24;
     return set.max + NIGHT_AFTER_SUNSET;
+  }
+  if (time === "sunset") {
+    const low = daylightWindow(latitude, (SUNSET_ELEVATION * Math.PI) / 180, declinationOf(doy));
+    // A sun that never sinks that low sets nowhere: its lowest, at midnight;
+    // one that never climbs that high, its highest, at noon.
+    if (!low) return 12;
+    return low.max >= 24 ? 24 : low.max;
   }
   const w = freeHours(latitude, doy);
   if (!w) return 12;

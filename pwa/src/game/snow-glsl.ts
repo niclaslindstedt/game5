@@ -106,7 +106,7 @@ uniform vec2 uHeightCount;
 uniform float uCell;
 uniform float uFlat;
 uniform float uFresh;
-uniform vec4 uPiste;
+uniform vec2 uPiste;
 uniform vec4 uSnowAge;
 uniform vec4 uSnowAge2;
 uniform float uGlitter;
@@ -119,6 +119,7 @@ uniform vec3 uRockStone;
 ${STRATA_GLSL}
 uniform float uSastrugi;
 uniform vec2 uWindDir;
+uniform vec4 uSnowSkip;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
@@ -153,8 +154,6 @@ float snowSelf;      // 0 .. 1 the sun let through by the deformable snow's own 
 float snowBelt;      // 0 .. 1 a snowmobile's belt-packed floor (trailPackAt)
 float snowLug;       // 0 .. 1 down in a paddle's imprint across that floor
 float snowWorked;    // 0 .. 1 the day's skied-up piste (the hour's, or a night they groom)
-float snowSoft;      // 0 .. 1 the groomer gone to slush under a spring sun
-float snowHard;      // 0 .. 1 ...and frozen hard and glassy since
 float snowChop;      // 0 .. 1 new snow on a piste in use, skied into heaps
 float snowCombed;    // 0 .. 1 the night's corduroy still whole (the day's morning)
 float snowLane;      // -1 .. 1 the night's passes: this one's shade, by its strength
@@ -215,18 +214,16 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     snowPacked = mix(snowPacked, 1.0 - smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, since), snowGroomed);
   }
   // THE PISTE THROUGH THE DAY (\`uPiste\`, \`piste-day.ts\`): skied up
-  // since the first chair, softened by the sun and frozen again — all of it
-  // on the groomer the machines have not been over since.
+  // since the first chair, on the groomer the machines have not been over
+  // since.
   float notSwath = (1.0 - snowGroomed) * (1.0 - snowBelt) * snowPacked;
   snowCord = 0.0;
   snowTrackShade = 0.0;
   snowLane = 0.0;
   snowWorked = max(uWorked, uPiste.x) * notSwath;
-  snowSoft = uPiste.y * notSwath;
-  snowHard = uPiste.z * notSwath;
   // Before the first chair the night's corduroy is as whole as a swath.
   float untouched = 1.0 - uPiste.x;
-  snowCombed = uPiste.w * untouched * untouched * notSwath;
+  snowCombed = uPiste.y * untouched * untouched * notSwath;
   // The new snow a busy piste has taken: not a smooth blanket but skied
   // into heaps and troughs as it lands.
   snowChop = uPiste.x * max(g.b, 0.0) * smoothstep(0.0, ${FRESH_LOOK.toFixed(3)}, uFresh) * (1.0 - snowGroomed);
@@ -339,7 +336,10 @@ ${SNOW_TRAIL_SAMPLE}
   }
   // THE AVALANCHE: its bed, its walls and its debris (\`avalanche-glsl.ts\`).
 ${SLIDE_NORMAL}
+  snowBerm = 0.0;
+  if (uSnowSkip.y < 0.5) {
 ${SNOW_RELIEF_SAMPLE}
+  }
 
   // Ice is flat: the swells and the grain are the snow's, not the ice's.
   grad = mix(grad, g.rg, snowIce * 0.85);
@@ -394,19 +394,12 @@ export const SNOW_FRAGMENT_COLOUR = /* glsl */ `
     float aaS = 1.0 - smoothstep(0.3, 0.8, length(fwidth(p)) * 2.4);
     alb *= 1.0 - 0.1 * smoothstep(0.4, 0.8, streak) * snowWorked * aaS;
   }
-  // Slush is wet snow: darker and a dirtier grey; frozen again, a polished
-  // blue-grey glaze over the scrapes.
-  if (snowSoft > 0.01) {
-    float wet = 0.75 + 0.25 * snowNoise(p * 0.7 + 31.0);
-    alb = mix(alb, vec3(0.64, 0.67, 0.71) * wet, 0.6 * snowSoft);
-  }
   // Skied-in new snow: white heaps over troughs scraped back to the grey
   // of the groomer under them.
   if (snowChop > 0.01) {
     float trough = 1.0 - smoothstep(0.3, 0.6, snowNoise(p * 0.38 + 13.7));
     alb = mix(alb, vec3(0.74, 0.79, 0.86), trough * 0.4 * snowChop);
   }
-  alb = mix(alb, vec3(0.58, 0.66, 0.78), 0.4 * snowHard);
   // THE GRAIN THAT STREAMS PAST: patches of wind-worked and polished snow
   // a hand to a couple of metres across, a few percent either way — too
   // fine to see from afar, and the thing close in the eye reads pace off.
@@ -467,8 +460,6 @@ export const SNOW_FRAGMENT_ROUGHNESS = /* glsl */ `
 roughnessFactor = mix(mix(0.85, 0.55, snowPacked), 0.92, snowBerm) - 0.1 * snowPress - 0.22 * snowScuff;
 roughnessFactor = mix(roughnessFactor, 0.72, snowGroomed);
 roughnessFactor -= 0.15 * snowWorked;
-roughnessFactor = mix(roughnessFactor, 0.4, 0.6 * snowSoft);
-roughnessFactor = mix(roughnessFactor, 0.28, 0.7 * snowHard);
 roughnessFactor = mix(roughnessFactor, 0.94, 0.7 * snowNew);
 roughnessFactor = mix(roughnessFactor, 0.62, snowWind * (0.3 + 0.5 * snowScour));
 roughnessFactor = mix(roughnessFactor, 0.34, 0.85 * snowSunCrust);

@@ -180,6 +180,14 @@ export type RunRules = {
    * crash (`heli.ts`), and the hot air balloon never catches fire and
    * cannot crash (`balloon.ts`). Left out, all of it is as it is. */
   sfw?: boolean;
+  /** THE FREE RIDE'S CARVE (`limits.ts`'s `speedHoldOf` and
+   * `bentSpecOf`, `TUNING.arcade.speedHold` and `.freeSidecut`): the
+   * edges' sideways grip on the groomer raised as he gathers speed, and
+   * every pair bent at least as tight as an all-mountain ski — so a carve
+   * still bends his line past 100 km/h, and a long race pair turns on a
+   * piste. The free ride's; left out, the skis are what they always were
+   * and no race, sim or digest moves. */
+  freeCarve?: boolean;
 };
 
 /** WHAT A RACE'S JURY RUNS IN — the weather a discipline is raced under,

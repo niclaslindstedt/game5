@@ -169,8 +169,13 @@ void main() {
   // the plate's UV opened out as a slope seen from above it, so they shrink
   // up toward the far snow. Never off the plate's depth: that is eight bits
   // of a log at every mip, and its steps print as contours across the slope.
+  // The ground is TURNED off the noise's lattice and drawn at small cells:
+  // laid square on it, the frame spans barely one cell across and several
+  // down, and the value noise's rows printed as shadowy bands straight
+  // across the snow.
   float reach = 1.0 / (uv.y + 0.18);
-  vec2 ground = vec2((uv.x - 0.5) * reach, reach) * 0.9 + vec2(uT * 0.03, -uT * 0.01);
+  vec2 ground = vec2((uv.x - 0.5) * reach, reach) * 2.4 + vec2(uT * 0.08, -uT * 0.03);
+  ground = mat2(0.8, 0.6, -0.6, 0.8) * ground + vec2(13.7, 4.1);
   float cloud = smoothstep(0.42, 0.72, fbm(ground));
   c *= mix(1.0, 0.8, cloud * smoothstep(0.05, 0.6, lit) * (1.0 - sky));
 

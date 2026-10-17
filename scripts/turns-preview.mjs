@@ -81,11 +81,6 @@ const args = parseArgs(
       help: "the pair ridden: a pair of skis or a board (lynx) — defs/skis.ts, defs/boards.ts",
     },
     at: { kind: "number", default: 1 / 3, help: "how far down the piste the ride starts, 0..1" },
-    spray: {
-      kind: "string",
-      default: "",
-      help: "fly the spray by another model (puff, streak, drag, sheet — spray-sim.ts)",
-    },
     age: {
       kind: "string",
       default: "",
@@ -160,7 +155,6 @@ for (const view of views) {
     where: args.where,
     at: String(args.at),
     skis: args.skis,
-    spray: args.spray,
     age: args.age,
     depth: String(args.depth),
     quality: args.quality,
@@ -177,7 +171,7 @@ for (const view of views) {
   // An element's picture is clipped at the viewport: size it to the sheet.
   await page.setViewportSize({ width: drawn.w, height: drawn.h });
   const pair = args.skis === "chamois" ? "" : `-${args.skis}`;
-  const tag = [args.spray, args.age, args.depth !== 1 ? `d${args.depth}` : ""]
+  const tag = [args.age, args.depth !== 1 ? `d${args.depth}` : ""]
     .filter(Boolean)
     .map((t) => `-${t}`)
     .join("");

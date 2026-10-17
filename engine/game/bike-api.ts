@@ -40,3 +40,5 @@ export type * from "./bike-state.ts";
 export { bikeControls, bikeInput, bikeWithin, freshBikeRide, startBike, stepBike } from "./bike.ts";
 export { bikeWorldOf, zoneAt as bikeZoneAt } from "./bike-world.ts";
 export { bikePose, type BikePose } from "./bike-pose.ts";
+export { BIKE_TANGLE } from "./defs/bike-tangle.ts";
+export { dealtStrikes, freshTangle, stepTangle } from "./bike-tangle.ts";

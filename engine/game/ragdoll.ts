@@ -48,55 +48,26 @@ import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/m
 import { rotate, type Quat, type Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { TUNING } from "./defs/tuning.ts";
 import { ragdollOutOfStrip } from "./airstrip-solids.ts";
+import { ragdollOutOfRescue } from "./rescue-call.ts";
 import { holdOutOfWalls, wallTouch } from "./building-walls.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
-import { liftedOnRock } from "./rock-ground.ts";
+import { liftedOnto } from "./rock-ground.ts";
 import { holdStance } from "./board-crash.ts";
 import { airDrag } from "./ragdoll-air.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
 import type { GameState, Thrown } from "./state.ts";
+import { MASS, RADIUS, RAGDOLL } from "./ragdoll-points.ts";
+
+export { RADIUS, RAGDOLL } from "./ragdoll-points.ts";
 
 const K = TUNING.crash;
 const B = K.body;
 const dt = TUNING.dt;
 
-/** The body's points, in the order `Thrown.points` keeps them (x y z each). */
-export const RAGDOLL = {
-  hipL: 0,
-  hipR: 1,
-  shoulderL: 2,
-  shoulderR: 3,
-  head: 4,
-  kneeL: 5,
-  kneeR: 6,
-  footL: 7,
-  footR: 8,
-  elbowL: 9,
-  elbowR: 10,
-  handL: 11,
-  handR: 12,
-  count: 13,
-} as const;
-
 const N = RAGDOLL.count;
 const T = K.tone;
-const M = B.mass;
-const MASS: number[] = [
-  M.hip,
-  M.hip,
-  M.shoulder,
-  M.shoulder,
-  M.head,
-  M.knee,
-  M.knee,
-  M.foot,
-  M.foot,
-];
-MASS.push(M.elbow, M.elbow, M.hand, M.hand);
 const W = MASS.map((m) => 1 / m);
 const TOTAL = MASS.reduce((a, m) => a + m, 0);
-export const RADIUS: number[] = [K.radius, K.radius, K.radius, K.radius, B.head];
-for (let i = 5; i < N; i++) RADIUS.push(B.limb);
 
 /** The torso and the head in the torso's own frame (x right, y up the
  * spine, z out of the chest; the origin between the hips). */
@@ -309,7 +280,7 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
         P[j + 2] = tree.z + (dz / d) * reach;
       }
       if (P[j + 1] < hold[i]) {
-        liftedOnRock(level, P[j], P[j + 2], hold[i] - P[j + 1], L, j);
+        liftedOnto(level, P[j], P[j + 2], hold[i] - P[j + 1], L, j);
         pushed[i] += hold[i] - P[j + 1];
         P[j + 1] = hold[i];
       }
@@ -337,6 +308,8 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
   }
   // The airstrip's buildings and the plane on the snow (a free ride's).
   ragdollOutOfStrip(state, P, L, RADIUS, struck, dt);
+  // ...and an air ambulance landed on the snow (`rescue-call.ts`).
+  ragdollOutOfRescue(state, P, L, RADIUS, struck, dt);
   // Along the snow: what every point on it loses of its way.
   let touching = false;
   let planted = 0;
@@ -440,6 +413,9 @@ export function stepRagdoll(state: GameState, b: Thrown): void {
   )
     b.down = 0;
   b.still = touching && fastest < K.restSpeed ? b.still + dt : 0;
+  b.aloft = touching ? 0 : b.aloft + dt;
+  if (b.aloft > K.flightGap) b.ground = 0;
+  else if (touching) b.ground += dt;
 }
 
 // The limbs the muscles drive, each off the trunk point it hangs from.

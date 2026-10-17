@@ -26,7 +26,7 @@ import {
   type GameState,
   type Level,
 } from "@engine";
-import { sunNow } from "../sky-clock.ts";
+import { airNow, sunNow } from "../sky-clock.ts";
 
 import type { Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
 
@@ -189,7 +189,11 @@ export function createRideBed(synth: Synth, voice: Synth = synth): RideBed {
       // Packed again as the sky's clock moves the sun (the thaw follows it).
       const sun = sunNow(state.level, state.t).elevation;
       if (pack === null || packLevel !== state.level || Math.abs(sun - packSun) > 0.005) {
-        pack = snowpackOf(state.level, { elevation: sun, depth: state.snowDepth });
+        pack = snowpackOf(state.level, {
+          elevation: sun,
+          air: airNow(state.level, state.t),
+          depth: state.snowDepth,
+        });
         packLevel = state.level;
         packSun = sun;
       }

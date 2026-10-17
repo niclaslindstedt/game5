@@ -5,14 +5,18 @@
 // behind the card; a menu that froze the snow would announce the game is not
 // running.
 //
-// THREE THINGS, BY HOW OFTEN THEY ARE WANTED. PLAY is the lit slab and the
-// only red on the card: it goes straight onto the FREE RIDE (its WHERE
-// steps, then its start card, `menu-start.tsx`). With the races let out
-// (`racesOpen`: DEVELOPER only) it opens the door's second page instead,
+// BY HOW OFTEN THEY ARE WANTED. RESUME, once a run has been left for the
+// door and the bot still rides it, is the lit slab over the rest: that run
+// taken back from wherever the bot has got to (`resume-run.ts`). Else QUICK
+// START is the lit slab and the only
+// red on the card: a free ride dealt at random, no card in between
+// (`free-ride.ts`'s `quickRide`). PLAY under it goes onto the FREE RIDE (its
+// WHERE steps, then its start card, `menu-start.tsx`). With the races let
+// out (`racesOpen`: DEVELOPER only) it opens the door's second page instead,
 // where the three ways onto the snow stand — RACE (the race card,
 // `menu-races.tsx`, each discipline on its pinned maps), TRICKS (the
 // freestyle card, `menu-freestyle.tsx`) and FREE RIDE.
-// OPTIONS is the second slab, as big and quieter: every setting, the sound
+// OPTIONS is the third slab, as big as PLAY: every setting, the sound
 // included, lives there. Under them, small, the two things that are not a
 // run at all — the GALLERY of pictures kept and the STATISTICS — and
 // DEVELOPER once it has been let out (the title HELD for seven seconds,
@@ -71,6 +75,8 @@ export function MainMenu({
   pinned,
   onRace,
   onFree,
+  onQuick,
+  onResume,
   onOptions,
   onGallery,
   stats,
@@ -92,6 +98,10 @@ export function MainMenu({
   onRace: () => void;
   /** Onto the free ride's start card. */
   onFree: () => void;
+  /** Straight onto a free ride dealt at random (`quickRide`). */
+  onQuick: () => void;
+  /** Back onto the run left for the door — only while there is one. */
+  onResume?: () => void;
   onOptions: () => void;
   onGallery: () => void;
   /** The STATISTICS button's face (runs and metres skied; the rest is its
@@ -113,6 +123,8 @@ export function MainMenu({
   // of three ways onto the snow; shut, it goes straight onto the free ride.
   const modes = racesOpen({ developer: !!developer });
   const play = modes && page === "play";
+  /** RESUME, when it is up, deals in first and the rest one after. */
+  const up = onResume ? 1 : 0;
   return (
     <div class="menu menu-door" {...lean}>
       <div
@@ -194,18 +206,53 @@ export function MainMenu({
         ) : (
           <>
             <div class="menu-tiles">
+              {onResume && (
+                <button
+                  type="button"
+                  class="menu-tile menu-tile-hero"
+                  data-menu="resume"
+                  data-nav-next
+                  data-nav-focus
+                  style={at(0)}
+                  onClick={onResume}
+                >
+                  <span class="menu-tile-sheen" aria-hidden="true" />
+                  <Glyph name="play" />
+                  <span class="menu-tile-words">
+                    <span class="menu-tile-name">{STRINGS.pauseResume}</span>
+                  </span>
+                </button>
+              )}
+              {/* QUICK START, the first pick (the lit slab unless RESUME is): no card at
+                  all — a generated mountain, a day and a sky dealt at
+                  random, on the toughest piste, on the rider and gear last
+                  picked. The sheen: a slow bar of light travelling the
+                  slab, a transform and off under `prefers-reduced-motion`. */}
               <button
                 type="button"
-                class="menu-tile menu-tile-hero"
+                class={`menu-tile ${onResume ? "menu-tile-wide" : "menu-tile-hero"}`}
+                data-menu="quick"
+                data-nav-next={!onResume || undefined}
+                data-nav-focus={!onResume || undefined}
+                style={at(up)}
+                onClick={onQuick}
+              >
+                {!onResume && <span class="menu-tile-sheen" aria-hidden="true" />}
+                <Glyph name="dice" />
+                <span class="menu-tile-words">
+                  <span class="menu-tile-name">{STRINGS.menuQuick}</span>
+                  <span class="menu-tile-line">{STRINGS.menuQuickLine}</span>
+                </span>
+              </button>
+              {/* PLAY: the free ride picked step by step (or, with the
+                  races let out, their page). */}
+              <button
+                type="button"
+                class="menu-tile menu-tile-wide"
                 data-menu="play"
-                data-nav-next
-                data-nav-focus
-                style={at(0)}
+                style={at(1 + up)}
                 onClick={modes ? () => onPage("play") : onFree}
               >
-                {/* The sheen: a slow bar of light travelling the slab, a
-                    transform and off under `prefers-reduced-motion`. */}
-                <span class="menu-tile-sheen" aria-hidden="true" />
                 <Glyph name="play" />
                 <span class="menu-tile-words">
                   <span class="menu-tile-name">{STRINGS.menuPlay}</span>
@@ -218,7 +265,7 @@ export function MainMenu({
                 type="button"
                 class="menu-tile menu-tile-wide"
                 data-menu="options"
-                style={at(1)}
+                style={at(2 + up)}
                 onClick={onOptions}
               >
                 <Glyph name="sliders" />
@@ -233,7 +280,7 @@ export function MainMenu({
                 type="button"
                 class="menu-chip menu-minor-item"
                 data-menu="gallery"
-                style={at(2)}
+                style={at(3 + up)}
                 onClick={onGallery}
               >
                 <Glyph name="camera" />
@@ -247,7 +294,7 @@ export function MainMenu({
                 type="button"
                 class="menu-chip menu-minor-item"
                 data-menu="stats"
-                style={at(3)}
+                style={at(4 + up)}
                 onClick={onStats}
               >
                 <Glyph name="chart" />
@@ -259,7 +306,7 @@ export function MainMenu({
                 </span>
               </button>
             </div>
-            <div class="menu-strip" style={at(4)}>
+            <div class="menu-strip" style={at(5 + up)}>
               {developer && (
                 <button type="button" class="menu-chip" data-menu="developer" onClick={onDeveloper}>
                   <Glyph name="gauge" />

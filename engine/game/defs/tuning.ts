@@ -364,6 +364,21 @@ export const TUNING = {
      * by `tipLimit`, and by the roll the skier holds (`skier.rollMax`,
      * scaled). */
     hangOff: 1.4,
+    /** THE EDGE HELD AT SPEED, on a run that asks for it
+     * (`RunRules.freeCarve`, the free ride): the edges' sideways grip
+     * on the groomer times 1 + `more` past `full` m/s, eased in from
+     * `from` m/s. Left bare, a carve holds about 1 g at speed, and at
+     * 150 km/h that is a bend some 180 m round — a skier who can barely
+     * turn. With it the same carve pulls nearer 2 g, what a racer's edge
+     * holds, a carve at 50 km/h bites half as hard again, and the crawl
+     * under `from` is as it was. */
+    speedHold: { more: 0.8, from: 6, full: 26 },
+    /** ...and THE SIDECUT a pair carves on there, m, at the longest: a
+     * downhill pair's 50 m arc is a race's, where a free rider on it
+     * would barely turn off the fall line; a skier bends any ski tighter
+     * by pressure and a little pivot, so every pair carves at least as
+     * tight as an all-mountain one. A tighter pair keeps its own. */
+    freeSidecut: 20,
   },
 
   /** THE SKIER — the body on the skis is nine tenths of the moving mass,
@@ -514,9 +529,10 @@ export const TUNING = {
      * trim a landing, not to turn a flip (that is a STROKE, `strokes.ts`,
      * and only on a tricks run). */
     leanTorque: 53,
-    /** The edge in the air: a little yaw, N·m at full lock — the skis
-     * swung across. */
-    steerTorque: 6,
+    /** The edge in the air: a yaw, N·m at full lock — the skis swung
+     * across, about a half turn in the first two seconds of a long flight
+     * and a whole one by four. */
+    steerTorque: 12,
     /** Rotational damping in the air, N·m·s per rad/s: about the pitch
      * and the roll axes (a five-second decay on the reference pair), and
      * about the up axis — a skier is a tall body and a short one across,
@@ -547,7 +563,8 @@ export const TUNING = {
     pitchGiveUp: 1.0,
     /** The yaw rate, rad/s, past which a flying skier is SPINNING and the
      * roll's and the pitch's levelling are let go (`flight.ts`) — a 360
-     * turns at about 4; the edge's own little yaw never nears 1. */
+     * turns at about 4; the edge's own yaw comes near it only late in a
+     * long flight. */
     spinLevel: 2,
     /** ...letting them go from this yaw rate, rad/s, so the turn a skid or
      * a steer leaves him flying with is no spin. */

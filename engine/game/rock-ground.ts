@@ -14,8 +14,8 @@
 // The skin is the drawing's to the corner: the same lattice
 // (`ROCKS.skin.cell`), the same jitter off the same hashes, the same
 // heights over the ground and the same diagonal a cell, so what is met is
-// what is seen. (The FOREST row's cheap picture draws a coarser lattice of
-// the same rock; the physics is never a picture setting's.)
+// what is seen. (Only rock past 300 m of the lens is drawn on a coarser
+// lattice of the same rock, out where nobody rides.)
 //
 // CHEAP: nothing is stored but how bare each lattice corner is, a byte a
 // corner, a tile of corners at a time and only for a tile a body has
@@ -26,7 +26,6 @@
 
 import { hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
-import { bikeTrailAt } from "../mapgen/bike-park-query.ts";
 import { regionOf } from "../mapgen/regions.ts";
 import type { Level } from "../mapgen/types.ts";
 import { ROCKS } from "./defs/rocks.ts";
@@ -175,12 +174,10 @@ function underOf(s: Skin, x: number, z: number): Under {
   u.y = ground;
   u.on = 0;
   u.bare = 0;
-  // A wall is never packed (`ROCKS.packed`): a run, and everything on it,
-  // reads the map alone.
-  if (base.packedAt(x, z) > 0.5) return u;
-  // Nor does one stand on a summer bike park's trail: its tread is cut and
-  // its shape the park's (`bike-surface.ts`), so a bike reads that alone.
-  if (base.bikePark && bikeTrailAt(base, x, z)) return u;
+  // No facet stands over packed snow or a summer bike trail: no corner
+  // within `ROCKS.skin.clear` of either is bare (`rocks.ts`' `rockShare`),
+  // so a run, a trail and everything on them read the map alone — and the
+  // rock the drawing lays is the rock met, to the corner.
   const cell = ROCKS.skin.cell;
   const i0 = Math.floor(x / cell) - 1;
   const j0 = Math.floor(z / cell) - 1;
@@ -387,15 +384,23 @@ export function outOfRock(
 
 const lifted = { x: 0, y: 1, z: 0 };
 
+/** THE STEEP SNOW a lift straight up is corrected on as on rock
+ * (`liftedOnto`): none of it on a face gentler than `from` (the cosine of
+ * its slope, 40°), all of it past `to` (55°) — the cut wall under a lift's
+ * pad, a headwall. A body on a skiable pitch keeps its lift as ever. */
+const STEEP = { from: Math.cos((40 * Math.PI) / 180), to: Math.cos((55 * Math.PI) / 180) };
+
 /**
- * A POINT LIFTED STRAIGHT UP by `d` m onto the rock at (`x`, `z`), as a
- * ragdoll's points and a lone ski's ends are put back on the surface: on a
- * steep facet most of that lift lies along it, and kept as speed (the
- * point's last position at `last[j..j+2]` left behind) it would fling the
- * point up the face. That share is moved with it, so only the lift's way out
- * of the facet is the point's to keep. Nothing off the rock is touched.
+ * A POINT LIFTED STRAIGHT UP by `d` m onto the surface at (`x`, `z`), as a
+ * ragdoll's points and a lone ski's ends are put back on it: on a steep
+ * facet most of that lift lies along it, and kept as speed (the point's
+ * last position at `last[j..j+2]` left behind) it would fling the point up
+ * the face — a body thrown against the cut under a lift's pad was shot tens
+ * of metres into the air. That share is moved with it, so only the lift's
+ * way out of the facet is the point's to keep: wholly on rock, and on snow
+ * by how steep it is past a skiable pitch (`STEEP`).
  */
-export function liftedOnRock(
+export function liftedOnto(
   level: Level,
   x: number,
   z: number,
@@ -403,12 +408,16 @@ export function liftedOnRock(
   last: number[],
   j: number,
 ): void {
-  if (d <= 0 || !level.rockAt || level.rockAt(x, z) <= 0) return;
+  if (d <= 0) return;
   level.normalAt(x, z, lifted);
   const n = lifted;
-  last[j] -= d * n.y * n.x;
-  last[j + 1] += d * (1 - n.y * n.y);
-  last[j + 2] -= d * n.y * n.z;
+  const rock = level.rockAt ? level.rockAt(x, z) > 0 : false;
+  const share = rock ? 1 : Math.min(1, Math.max(0, (STEEP.from - n.y) / (STEEP.from - STEEP.to)));
+  if (share <= 0) return;
+  const s = d * share;
+  last[j] -= s * n.y * n.x;
+  last[j + 1] += s * (1 - n.y * n.y);
+  last[j + 2] -= s * n.y * n.z;
 }
 
 /**

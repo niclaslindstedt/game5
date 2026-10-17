@@ -19,6 +19,11 @@
 // subsystem a frame in turn inside the one run and bills what each one cost
 // the card as the difference — the reading a tiled GPU's split cannot give,
 // and immune to the machine drifting between two runs.
+//
+// `--sweep` PRICES EVERY PICTURE ROW IN ONE LONG RUN a view: a picture dealt
+// at random every block of frames, every stop's cost fitted off the lot
+// (`picture-sweep.ts`), the table for `picture-fit.ts` printed and the
+// whole of it written to `previews/picture-sweep.json` for an agent to read.
 
 import process from "node:process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -48,9 +53,27 @@ const args = parseArgs(
       kind: "flag",
       help: "price every stop of every picture row against the top picture (writes previews/picture-costs.json)",
     },
+    sweep: {
+      kind: "flag",
+      help: "price every picture row in one long run of random pictures a view (writes previews/picture-sweep.json)",
+    },
+    blocks: {
+      kind: "number",
+      default: 240,
+      help: "--sweep: random pictures a view, a block of frames each (60 up)",
+    },
+    views: {
+      kind: "string",
+      default: "race,vista,sunset,night,snow",
+      help: "--sweep: the scenes swept, comma-separated (race, vista, sunset, night, snow — bench-scenes.ts)",
+    },
+    report: {
+      kind: "string",
+      help: "--sweep: read the sweeps out of a saved report (a device's COPY DEBUG REPORT), running nothing",
+    },
     reprice: {
       kind: "flag",
-      help: "print the cost table from the last --costs run's JSON, running nothing",
+      help: "print the cost table from the last --costs (or --sweep) run's JSON, running nothing",
     },
     timeout: { kind: "number", default: 3600, help: "seconds to wait for the run to finish" },
     out: { kind: "string", default: "previews/benchmark.txt", help: "where the report is written" },
@@ -62,6 +85,21 @@ const args = parseArgs(
   },
   "make bench [ARGS=...] — run DEVELOPER ▸ BENCHMARK on the built site and print its report",
 );
+
+if (args.sweep && (args.reprice || args.report)) {
+  const { aliasEngine } = await import("@niclaslindstedt/oss-game-framework/tooling/alias");
+  aliasEngine(root);
+  const { readSweeps, sweepTable } = await import("../pwa/src/game/picture-sweep.ts");
+  const results = args.report
+    ? readSweeps(readFileSync(args.report, "utf8"))
+    : JSON.parse(readFileSync(join(root, "previews", "picture-sweep.json"), "utf8")).views;
+  if (results.length === 0) {
+    console.error("no picture sweep in it");
+    process.exit(1);
+  }
+  console.log(sweepTable(results));
+  process.exit(0);
+}
 
 if (args.reprice) {
   const priced = JSON.parse(readFileSync(join(root, "previews", "picture-costs.json"), "utf8"));
@@ -97,7 +135,7 @@ async function run(hide, picture = args.picture, extra = {}) {
   if (picture) query.set("picture", picture);
   for (const [key, value] of Object.entries(extra)) query.set(key, value);
   const url = `${site.url}?${query}`;
-  if (!args.costs) {
+  if (!args.costs && !args.sweep) {
     console.log(`benchmark — ${url} at ${args.width}×${args.height}${args.gpu ? " (gpu)" : ""}`);
   }
   try {
@@ -247,7 +285,51 @@ function costTable(all, priced) {
   return out.join("\n");
 }
 
-const text = args.costs ? await priceList() : await run(args.hide ?? "");
+/** THE SWEEP: one long run of random pictures from each view, read back off
+ * its report (`readSweeps`), and the costs for `picture-fit.ts` off them. */
+async function sweepList() {
+  const { aliasEngine } = await import("@niclaslindstedt/oss-game-framework/tooling/alias");
+  aliasEngine(root);
+  const { readSweeps, sweepCosts, sweepTable } = await import("../pwa/src/game/picture-sweep.ts");
+  const { isBenchScene } = await import("../pwa/src/game/bench-scenes.ts");
+  const views = args.views.split(",").filter(isBenchScene);
+  const results = [];
+  const reports = [];
+  for (const view of views) {
+    console.log(`  sweeping the ${view} scene: ${args.blocks} random pictures…`);
+    const extra = { sweep: String(args.blocks) };
+    if (view !== "race") extra.view = view;
+    const report = await run("", args.picture, extra);
+    if (report === null) return null;
+    reports.push(report);
+    const [result] = readSweeps(report);
+    if (!result) {
+      console.error(`the ${view}'s report carried no sweep`);
+      return null;
+    }
+    results.push(result);
+  }
+  const { floorMs, costs } = sweepCosts(results);
+  const json = join(root, "previews", "picture-sweep.json");
+  mkdirSync(dirname(json), { recursive: true });
+  writeFileSync(
+    json,
+    JSON.stringify(
+      { width: args.width, height: args.height, floorMs, costs, views: results },
+      null,
+      2,
+    ),
+  );
+  return [...reports, "", sweepTable(results), "  (the numbers: previews/picture-sweep.json)"].join(
+    "\n",
+  );
+}
+
+const text = args.sweep
+  ? await sweepList()
+  : args.costs
+    ? await priceList()
+    : await run(args.hide ?? "");
 await browser.close();
 site.close();
 if (text === null) process.exit(1);

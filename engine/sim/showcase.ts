@@ -79,9 +79,11 @@ export function showcaseOptions(state: GameState): CreateGameOptions {
   return { level: state.level, seed: state.seed, showcase: take, spec: showcaseSkis() };
 }
 
-/** What the restart rule keeps of a run: the lowest he has been, s and m,
- * and when he first stood down at the bottom. */
-type Watch = { low: number; lowAt: number; downAt: number };
+/** What the restart rule keeps of a run: when it was first watched (a run
+ * the player left is out long enough counted from there, not from its
+ * start), the lowest he has been, s and m, and when he first stood down at
+ * the bottom. */
+type Watch = { from: number; low: number; lowAt: number; downAt: number };
 const watches = new WeakMap<GameState, Watch>();
 const hit: TrackHit = { index: 0, s: 0, distance: 0, lateral: 0, x: 0, z: 0 };
 const pt: TrackPoint = { x: 0, z: 0, y: 0, s: 0, heading: 0, width: 0 };
@@ -96,10 +98,11 @@ export function showcaseOver(state: GameState): ShowcaseEnd | null {
   if (state.rules.course) return null;
   const c = state.skier;
   let w = watches.get(state);
-  if (!w) watches.set(state, (w = { low: c.y, lowAt: state.t, downAt: -1 }));
-  // A new low — or stood back up well above the old one (a reset puts him
-  // on the piste up the hill), counted from there.
-  if (c.y < w.low - SHOWCASE.gain || c.y > w.low + SHOWCASE.rise) {
+  if (!w) watches.set(state, (w = { from: state.t, low: c.y, lowAt: state.t, downAt: -1 }));
+  // A new low — or stood back up (a reset puts him on the piste up the
+  // hill) or well above the old one, counted from there.
+  const reset = state.events.some((e) => e.kind === "reset");
+  if (reset || c.y < w.low - SHOWCASE.gain || c.y > w.low + SHOWCASE.rise) {
     w.low = c.y;
     w.lowAt = state.t;
   }
@@ -111,7 +114,7 @@ export function showcaseOver(state: GameState): ShowcaseEnd | null {
   if (down && w.downAt < 0) w.downAt = state.t;
   if (w.downAt >= 0 && state.t - w.downAt >= SHOWCASE.settle) return "bottom";
   if (state.t - w.lowAt >= SHOWCASE.stall) return "stalled";
-  if (state.t >= SHOWCASE.most) return "long";
+  if (state.t - w.from >= SHOWCASE.most) return "long";
   return null;
 }
 

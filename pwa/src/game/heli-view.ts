@@ -228,8 +228,13 @@ const TAIL_DISC: DiscSpec = {
 const BLOODIED = 0.7;
 
 /** THE PAD: a painted ring and an H on the snow, lamps round its rim, a
- * glow ring for lighting it up, and a wind sock off its edge. */
-function padMarks(level: Level): {
+ * glow ring for lighting it up, and a wind sock off its edge — all but the
+ * glow faded into the air as the snow round them is, or the paint and the
+ * lamps stay lit kilometres off through a storm, flickering a pixel wide. */
+function padMarks(
+  level: Level,
+  haze: HazeUniforms,
+): {
   group: THREE.Group;
   glow: THREE.MeshBasicMaterial;
   lamps: THREE.MeshBasicMaterial;
@@ -239,7 +244,11 @@ function padMarks(level: Level): {
   const group = new THREE.Group();
   group.position.set(pad.x, pad.y + 0.04, pad.z);
   group.rotation.y = pad.heading;
-  const paint = new THREE.MeshBasicMaterial({ color: 0xf2c418, transparent: true, opacity: 0.9 });
+  const paint = hazeMaterial(
+    new THREE.MeshBasicMaterial({ color: 0xf2c418, transparent: true, opacity: 0.9 }),
+    haze,
+    "heli-pad",
+  );
   const flat = (geo: THREE.BufferGeometry, m: THREE.Material): THREE.Mesh => {
     const mesh = new THREE.Mesh(geo, m);
     mesh.rotation.x = -Math.PI / 2;
@@ -267,7 +276,7 @@ function padMarks(level: Level): {
   const halo = flat(new THREE.RingGeometry(8.2, 10, 64), glow);
   halo.position.y = 0.02;
   group.add(halo);
-  const lamps = new THREE.MeshBasicMaterial({ color: 0x55ff88 });
+  const lamps = hazeMaterial(new THREE.MeshBasicMaterial({ color: 0x55ff88 }), haze, "heli-pad");
   const lampGeo = new THREE.SphereGeometry(0.16, 8, 6);
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
@@ -279,12 +288,16 @@ function padMarks(level: Level): {
   const sock = new THREE.Group();
   const mast = new THREE.Mesh(
     new THREE.CylinderGeometry(0.05, 0.06, 5, 8),
-    new THREE.MeshBasicMaterial({ color: 0x9a9da3 }),
+    hazeMaterial(new THREE.MeshBasicMaterial({ color: 0x9a9da3 }), haze, "heli-pad"),
   );
   mast.position.y = 2.5;
   const cone = new THREE.Mesh(
     new THREE.CylinderGeometry(0.32, 0.12, 1.8, 10, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xff6a10, side: THREE.DoubleSide }),
+    hazeMaterial(
+      new THREE.MeshBasicMaterial({ color: 0xff6a10, side: THREE.DoubleSide }),
+      haze,
+      "heli-pad",
+    ),
   );
   cone.rotation.z = Math.PI / 2;
   cone.position.set(0.9, 0, 0);
@@ -338,7 +351,7 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
   });
   let mainBlades: THREE.Mesh[] = [];
   let tailBlades: THREE.Mesh[] = [];
-  const marks = look.pad === false ? null : padMarks(level);
+  const marks = look.pad === false ? null : padMarks(level, haze);
   if (marks) group.add(marks.group);
   // THE LIGHTS as haloes, in the model's own frame (the glTF's: x its
   // right, y up, z aft): the red anti-collision beacons on the fin's top and

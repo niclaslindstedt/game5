@@ -275,7 +275,7 @@ export function rideBike(
   // release with the wheels on the ground.
   // His weight moved toward the lean asked.
   b.shift += clamp(ctl.lean - b.shift, -dt / R.shift, dt / R.shift);
-  if (ctl.crouch > 0.5) b.loaded = Math.min(1, b.loaded + dt / 0.25);
+  if (ctl.crouch > 0.5) b.loaded = Math.min(1, Math.max(b.loaded + dt / 0.25, ctl.charge ?? 0));
   else if (b.loaded > 0 && b.pop === 0) {
     if (b.front.touching || b.rear.touching) b.pop = R.pop.time;
     else b.loaded = 0;
@@ -817,23 +817,29 @@ function airControl(
   const A = BIKE.air;
   const n = { x: (nF.x + nR.x) / 2, y: (nF.y + nR.y) / 2, z: (nF.z + nR.z) / 2 };
   const right = { x: m3[0], y: m3[1], z: m3[2] };
-  // Body rates asked: nose up is a negative x rate, a right-side-down roll
-  // a negative z rate.
-  let wantX = -ctl.lean * A.pitch;
-  let wantZ = 0;
-  const wantY = ctl.steer * A.yaw;
-  if (ride.air > 0) {
-    wantX += ride.air * A.level * dot(fwd, n);
-    wantZ += -ride.air * A.level * dot(right, n);
-  }
   const Ix = BIKE.inertia.pitch;
   const Iy = BIKE.inertia.yaw;
   const Iz = BIKE.inertia.roll;
   const gain = 8;
+  // Body rates asked: nose up is a negative x rate, a right-side-down roll
+  // a negative z rate. On a bike his body English is strong all the way
+  // through the flight (the bike is light under him)...
+  let wantX = -ctl.lean * A.pitch;
+  let wantZ = 0;
+  const wantY = ctl.steer * A.yaw;
+  // ...but the assist's hands square it up for the landing only within
+  // `reach` of the ground's line: further off, he comes down on whatever
+  // is there.
+  const pitchOff = dot(fwd, n);
+  const rollOff = dot(right, n);
+  const near = Math.abs(pitchOff) < A.reach && Math.abs(rollOff) < A.reach;
+  const level = ride.air > 0 && near ? ride.air : 0;
+  wantX += level * A.level * pitchOff;
+  wantZ += -level * A.level * rollOff;
   const t = {
     x: clamp(Ix * gain * (wantX - b.wx), -A.torque, A.torque),
     y: clamp(Iy * gain * (wantY - b.wy), -A.torque, A.torque),
-    z: ride.air > 0 ? clamp(Iz * gain * (wantZ - b.wz), -A.torque, A.torque) * ride.air : 0,
+    z: level > 0 ? clamp(Iz * gain * (wantZ - b.wz), -A.torque, A.torque) * level : 0,
   };
   void ww;
   add(toWorld(t, v3()));

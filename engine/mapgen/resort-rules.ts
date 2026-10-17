@@ -269,6 +269,27 @@
 //       metres; a mountain with no such line has none. Every route is
 //       marked by orange stakes down both sides of a `route.width` metre
 //       corridor every `route.every` metres and signed at its head.
+//       From v10 a route is WILD: a square in the woods is open to it, the
+//       trunks within `route.open` metres of its line felled as it is laid,
+//       and each step down it is paid for by what it crosses, a share
+//       `route.wild.woods` of the price in the woods (a square within
+//       `route.wild.near` metres of a trunk), `route.wild.edge` beside a crag
+//       or on a cliff's shelf within `route.wild.shelf` metres of its foot,
+//       `route.wild.huck` down a face steeper than `route.cliff`, every metre
+//       straight down the fall line dearer by `route.wild.fall` and every
+//       trunk felled `route.wild.fell` metres more, so it traverses the face,
+//       turns through the woods and runs along the edges. It may drop off a
+//       crag in a step of two squares no higher than `route.wild.drop` metres,
+//       up to `route.wild.drops` of them, its `route.pitchWindow` excused over
+//       each, and its line, smoothed only `route.wild.smooth` times, is
+//       threaded between the trunks a few metres either side and narrowed to
+//       `route.wild.width` metres in the woods. On the rolls of its line it
+//       carries `route.wild.jump.count` JUMPS, kickers
+//       `route.wild.jump.height` metres tall facing the way the line goes,
+//       `route.wild.jump.spacing` metres apart and `route.wild.jump.ends`
+//       metres clear of its ends, each with a GAP `route.wild.jump.gap` metres
+//       long and `route.wild.jump.dig` deep dug past its lip, none where it
+//       would push the line past `route.steepest` or `route.cliff`.
 
 import type { Band } from "./rules.ts";
 import type { PisteGrade } from "./grades.ts";
@@ -847,6 +868,56 @@ export const RESORT_RULES = {
      * sight over a roll. */
     width: 14,
     every: 15,
+    /** THE WILD LINE (R42, a generator from the wild routes on): what the
+     * search is drawn to and what is laid down the line it finds. */
+    wild: {
+      /** A step's cost as a share of its length through the WOODS — a
+       * square with a trunk within `near` m of its middle — and each metre
+       * of it a trunk must be felled for (bark within `route.open` of the
+       * line) as metres more: a tree run threads the glades. */
+      woods: 0.5,
+      near: 9,
+      fell: 3,
+      /** A step's cost as a share of its length along an EDGE — within a
+       * square of ground past `route.cliff`, or on a cliff's shelf
+       * within `shelf` m of its edge: the line skirts the drop. */
+      edge: 0.45,
+      shelf: 18,
+      /** The extra share a step straight down the fall line costs: the
+       * line traverses, and turns where the ground makes it. */
+      fall: 0.7,
+      /** A DROP: a step two squares long over ground past `route.cliff`,
+       * falling no more than `drop` m, at `huck` of its length's cost —
+       * and the most a route may carry. */
+      drop: 16,
+      huck: 0.7,
+      drops: 3,
+      /** The marked corridor's width through the woods, m. */
+      width: 8,
+      /** The line's smoothing passes: fewer, so a turn stays tight. */
+      smooth: 2,
+      /** THE JUMPS stood on the line at its rolls: how many, the lip over
+       * the ground, the ramp, the landing (falling away as the mountain
+       * does past the gap) and the width across, m; the least the ground steepens past
+       * the lip, m per m; the least arc between two, and how far from the
+       * line's ends and its drops they keep, m. */
+      jump: {
+        count: { min: 1, max: 3 } as Band,
+        height: { min: 3, max: 4.5 } as Band,
+        /** THE GAP dug past the lip, m: its length down the line (the
+         * longer the higher the lip) and its depth — a jump a skier must
+         * clear, its far wall waiting for one who comes up short. */
+        gap: { min: 5, max: 9 } as Band,
+        dig: 2.5,
+        ramp: 14,
+        landing: 24,
+        width: 7,
+        roll: 0.04,
+        spacing: 110,
+        ends: 90,
+        clear: 40,
+      },
+    },
   },
   /** R28 — the course. */
   course: {

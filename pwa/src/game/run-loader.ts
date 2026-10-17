@@ -77,6 +77,9 @@ export type LoadStep = {
    * them would be a number the card was making up. What the card does
    * instead is `expectedMs` on the phase. */
   progress?: () => number;
+  /** A COUNT of the work, in the player's words — the trees planted of
+   * the forest's — read under the bar while this step is paid for. */
+  count?: () => string | null;
   /** Do as much of this step as `budget` allows. Returns true while there
    * is more of it left to do — which is how a step that can be cut up
    * (standing the trees up, a handful at a time) says so.
@@ -158,6 +161,8 @@ export type LoadPhase = {
    * keeps rather than the blocked main thread. Null until a machine has run
    * a load once, which is the one case with nothing to say at all. */
   expectedMs: number | null;
+  /** The running step's own count (`LoadStep.count`), or null. */
+  count: string | null;
 };
 
 /** Where the card says the load has got to: the phase being paid for, and
@@ -217,6 +222,7 @@ export function loadPhase(job: LoadJob): LoadPhase {
     of: labels.length,
     done: countable ? clamp01(done / (to - from + 1)) : null,
     expectedMs,
+    count: job.steps[here].count?.() ?? null,
   };
 }
 

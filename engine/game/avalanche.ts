@@ -56,7 +56,9 @@ import { TUNING } from "./defs/tuning.ts";
 import { throwRider } from "./crash.ts";
 import { treesNear } from "./upright-grid.ts";
 import { windFromOf } from "./wind.ts";
-import { RAGDOLL } from "./ragdoll.ts";
+import { regionOf } from "../mapgen/regions.ts";
+import { onAnyCliff, rockShare } from "./rocks.ts";
+import { RAGDOLL } from "./ragdoll-points.ts";
 import { smother } from "./gore.ts";
 import { catchOthers, freshBeacon, stepRescue } from "./avalanche-rescue.ts";
 import {
@@ -129,11 +131,36 @@ function pitchAt(level: Level, x: number, z: number): number {
   return Math.acos(clamp(n.y, -1, 1)) * DEG;
 }
 
-/** How open a point's snow is to sliding, 0..1: none on a packed run, none
- * in the dense woods. */
+/** The ring offsets `heldNear` reads round a point: `K.keepOff` m out,
+ * every 45°, and the point itself. */
+const RING: readonly (readonly [number, number])[] = [
+  [0, 0],
+  ...Array.from({ length: 8 }, (_, i): [number, number] => [
+    K.keepOff * Math.sin((i * Math.PI) / 4),
+    K.keepOff * Math.cos((i * Math.PI) / 4),
+  ]),
+];
+
+/** Whether the snow at (x, z) or within `K.keepOff` m of it is held — a
+ * PISTE (packed past `packedHolds`, its soft edge and windrows included)
+ * or a ROCK WALL (a wall too steep to hold a slab, or a rocky cliff's
+ * face): no slab breaks on either, nor grazes one. */
+function heldNear(level: Level, x: number, z: number): boolean {
+  const rocky = regionOf(level).rock;
+  for (const [dx, dz] of RING) {
+    const px = x + dx;
+    const pz = z + dz;
+    if (level.packedAt(px, pz) >= K.packedHolds) return true;
+    if (rocky && rockShare(level, px, pz) > 0) return true;
+  }
+  return onAnyCliff(level, x, z, K.keepOff);
+}
+
+/** How open a point's snow is to sliding, 0..1: none on or beside a packed
+ * run, none on or beside a rock wall, none in the dense woods. */
 function openAt(level: Level, x: number, z: number): number {
   const packed = level.packedAt(x, z);
-  if (packed >= K.packedHolds) return 0;
+  if (packed >= K.packedHolds || heldNear(level, x, z)) return 0;
   const trees = treesNear(level, x, z, K.anchorReach, near).length;
   if (trees >= K.anchorTrees) return 0;
   return (1 - packed / K.packedHolds) * (1 - trees / K.anchorTrees);
@@ -305,12 +332,21 @@ export function release(
   const left = flank(ax, az);
   const right = flank(-ax, -az);
   // THE STAUCHWALL: down the fall line from the crown to where it eases off.
+  // It never runs on over a piste or a rock wall below: the slab ends at
+  // the first held snow, as it does at the eased-off slope.
   let length = 0;
+  let held = K.slabMost;
   for (let d = 3; d <= K.slabMost; d += 3) {
+    const px = cx + fx * d;
+    const pz = cz + fz * d;
+    if (openAt(level, px, pz) <= 0) {
+      held = d - 3;
+      break;
+    }
     length = d;
-    if (pitchAt(level, cx + fx * d, cz + fz * d) < K.stauch) break;
+    if (pitchAt(level, px, pz) < K.stauch) break;
   }
-  length = Math.max(length, up + 12);
+  length = Math.max(3, Math.min(Math.max(length, up + 12), held));
   // THE SLAB'S THICKNESS: log-spread about its median, deepened by the load.
   const spread = Math.exp(rng.range(-1, 1) * Math.log(K.depth[1] / K.depthMid));
   const depth = clamp(K.depthMid * spread * (0.7 + 0.6 * a.load), K.depth[0], K.depth[1]);
@@ -330,23 +366,35 @@ export function release(
   const across = clamp(Math.round(wide / K.cell.across), 1, K.cellsAcross);
   let along = clamp(Math.round(length / K.cell.along), 1, K.cellsAlong);
   while (across * along > K.cells && along > 1) along--;
-  const count = across * along;
-  const volume = wide * length * depth;
-  const cells = new Float64Array(count * S);
+  const grid = across * along;
+  const all = new Float64Array(grid * S);
   const h = Math.min(K.heightMost, depth * K.bulk);
+  // A parcel over held snow — a piste or a rock wall the slab's rectangle
+  // reaches past its flanks — is no part of it.
+  let laid = 0;
   for (let j = 0; j < along; j++) {
     for (let i = 0; i < across; i++) {
       const k = (j * across + i) * S;
       const u = -right + ((i + 0.5 + rng.range(-0.3, 0.3)) * wide) / across;
       const w = ((j + 0.5 + rng.range(-0.3, 0.3)) * length) / along;
-      cells[k + CELL.x] = cx + ax * u + fx * w;
-      cells[k + CELL.z] = cz + az * u + fz * w;
-      cells[k + CELL.h] = h;
-      cells[k + CELL.vol] = volume / count;
-      cells[k + CELL.run] = 1;
-      cells[k + CELL.side] = wide > 0 ? (2 * (u + right)) / wide - 1 : 0;
+      const px = cx + ax * u + fx * w;
+      const pz = cz + az * u + fz * w;
+      all[k + CELL.x] = px;
+      all[k + CELL.z] = pz;
+      all[k + CELL.h] = h;
+      all[k + CELL.vol] = (wide * length * depth) / grid;
+      all[k + CELL.run] = 1;
+      all[k + CELL.side] = wide > 0 ? (2 * (u + right)) / wide - 1 : 0;
+      if (openAt(level, px, pz) > 0) {
+        all.copyWithin(laid * S, k, k + S);
+        laid++;
+      }
     }
   }
+  // A release a lab stands on held snow keeps its whole grid.
+  const count = laid > 0 ? laid : grid;
+  const cells = laid > 0 ? all.slice(0, count * S) : all;
+  const volume = (wide * length * depth * count) / grid;
   const slide: Slide = {
     id: a.count + 1,
     slab,

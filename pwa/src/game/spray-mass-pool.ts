@@ -32,7 +32,6 @@ import {
   edgeSlips,
   emptySlip,
   type EdgeSlip,
-  type SprayModel,
   type SprayPool,
   type SprayStats,
   type SprayWatch,
@@ -375,7 +374,6 @@ export function createMassPool(
 
   let debt = new WeakMap<SkierState, number[]>();
   const slips: [EdgeSlip, EdgeSlip] = [emptySlip(), emptySlip()];
-  let model: SprayModel = "mass";
 
   const pool: MassPool = {
     capacity,
@@ -389,12 +387,6 @@ export function createMassPool(
     term,
     get cap() {
       return cap;
-    },
-    get model() {
-      return model;
-    },
-    set model(next: SprayModel) {
-      model = next;
     },
     fling(x, y, z, vx, vy, vz, lifetime, s, h) {
       if (random() > share) return;

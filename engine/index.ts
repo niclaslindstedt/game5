@@ -206,7 +206,7 @@ export {
   type WaterPhase,
   type WaterState,
 } from "./game/lake-ice.ts";
-export { LAKE_ICE } from "./game/defs/lake-ice.ts";
+export * from "./game/air-temp.ts"; // the air, and the lake-ice year it is built on (`LAKE_ICE`)
 export * from "./game/summer-api.ts";
 export * from "./game/bike-park-api.ts";
 export * from "./game/bike-api.ts";
@@ -506,8 +506,6 @@ export {
   settleShare,
   packedUnder,
   packedSnow,
-  looseOf,
-  pisteIce,
   depthUnder,
   type Grip,
 } from "./game/snow.ts";
@@ -695,7 +693,8 @@ export {
 export type { GroomedSnow, GroomerEvent, GroomerMode, GroomerState } from "./game/groomer-state.ts";
 export { collideTrees, keepInBounds, treesNear } from "./game/collision.ts";
 export { uprightsNear, type Stuff, type Upright } from "./game/upright-grid.ts";
-export { postsOf, solidsNear, solidsOf } from "./game/posts.ts";
+export { mapSolidsOf, postsOf, solidsNear, solidsOf } from "./game/posts.ts";
+export { drawnSolidsOf, setDrawnSolids, type DrawnSolids } from "./game/drawn-solids.ts";
 export {
   gunSeason,
   gunSolid,
@@ -752,6 +751,7 @@ export {
   stepRivals,
 } from "./game/rivals.ts";
 export { stepRun } from "./game/run.ts";
+export { MACHINE_GRACE, inGrace, onMachine } from "./game/machine-grace.ts";
 export { HELI } from "./game/defs/heli.ts";
 export { HELI_BLADES, HELI_GRIP } from "./game/defs/heli-grip.ts";
 export { WRECK, fireFlux, fireballAt, fireballGrowth, fireballOf } from "./game/defs/heli-wreck.ts";
@@ -900,7 +900,7 @@ export {
   lengthPointsPerMetre,
   stepTricks,
 } from "./game/tricks.ts";
-export { flipLean, flipPace, poseInput, poseOf, stepStrokes } from "./game/strokes.ts";
+export { flipLean, flipPace, poseInput, poseOf, spinSteer, stepStrokes } from "./game/strokes.ts";
 export { placeRun, type RunMoment } from "./game/place.ts";
 export {
   SKY_CLOCK,
@@ -952,7 +952,6 @@ export {
   topSpeedOf,
   tipLimit,
 } from "./game/limits.ts";
-
 // How hard a map is, and what kind of hard (engine/rating/).
 export {
   LADDER,

@@ -89,6 +89,8 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.cause === "bike") return null;
       // Into a fire: its own `fire` event is the one to say so.
       if (e.cause === "fire") return null;
+      // Blown off a snowmobile: its own `boom` says so.
+      if (e.cause === "blast") return null;
       // Over the leading end riding switch is over the TAILS (`switch.ts`).
       if (e.cause === "nose" && state.skier.switched)
         return { text: STRINGS.newsTailDug, tone: "bad" };
@@ -213,6 +215,9 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.phase === "board") return { text: STRINGS.newsSledBoard, tone: "info" };
       if (e.phase === "hop") return { text: STRINGS.newsSledHop, tone: "good" };
       if (e.phase === "right") return { text: STRINGS.newsSledRight, tone: "info" };
+      if (e.phase === "alight") return { text: STRINGS.newsSledAlight, tone: "bad" };
+      if (e.phase === "boom") return { text: STRINGS.newsSledBoom, tone: "bad" };
+      if (e.phase === "fresh") return { text: STRINGS.newsSledFresh, tone: "info" };
       return e.phase === "restart" ? { text: STRINGS.newsSledRestart, tone: "info" } : null;
     case "bike":
       // The downhill bike: a landing judged, how he came off it, back on.
@@ -222,6 +227,8 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
           tone: e.landing === "clean" ? "good" : "bad",
         };
       if (e.phase === "crash") return { text: STRINGS.newsBikeCrash(e.how), tone: "bad" };
+      if (e.phase === "snag") return { text: STRINGS.newsBikeSnag(e.part), tone: "bad" };
+      if (e.phase === "struck") return { text: STRINGS.newsBikeStruck(e.part), tone: "bad" };
       if (e.phase === "board") return { text: STRINGS.newsBikeBoard, tone: "info" };
       if (e.phase === "hop") return { text: STRINGS.newsBikeHop, tone: "info" };
       if (e.phase === "right") return { text: STRINGS.newsBikeRight, tone: "info" };

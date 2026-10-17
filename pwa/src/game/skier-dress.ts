@@ -27,9 +27,10 @@ import {
   modelKey,
   playerModel,
   playerNow,
-  SPRING_BONES,
+  KITS,
   withFlutter,
   type ModelPart,
+  type RaceKit,
   type PlayerModel,
 } from "./player-model.ts";
 
@@ -64,8 +65,11 @@ export type SkierDress = {
   suit?: number;
   /** The player's MODELLED kit (`player-model.ts`) in place of the
    * outfit's cut, once it is loaded and when his outfit's body is the
-   * modelled one (the hiker) — never in a suit or indoors. */
+   * modelled one (the hiker, the racer) — never in a suit or indoors. */
   model?: boolean;
+  /** A racer's discipline kit (`RACE_KITS`): what his model leaves off —
+   * the slalom's guards on a technical race, the airbag on a speed one. */
+  kit?: RaceKit;
 };
 
 /** An enthusiast's kit, dealt off his look and build (`dealtOutfit`) and
@@ -80,13 +84,18 @@ export function dealtKit(kits: Map<string, SkierDress>, look: number, rider: Rid
   return made;
 }
 
-/** Whether `outfit` is a modelled body's (the hiker, `player-model.ts`). */
-/** The modelled kit `outfit`'s body wears (the hiker, `player-model.ts`),
- * at its build — or `null` for a body dressed in code. */
-const modelOf = (outfit: Outfit): PlayerModel | null => {
+/** The modelled kit `outfit`'s body wears (the hiker, the racer —
+ * `player-model.ts`), at its build and with what the discipline `kit`
+ * leaves off — or `null` for a body dressed in code. */
+const modelOf = (outfit: Outfit, kit?: RaceKit): PlayerModel | null => {
   const body = gearOf("body", outfit.body);
   return body.model
-    ? playerModel(modelKey(body.model, body.female), outfit.weight, gearOf("weight", outfit.weight))
+    ? playerModel(
+        modelKey(body.model, body.female),
+        outfit.weight,
+        gearOf("weight", outfit.weight),
+        kit,
+      )
     : null;
 };
 
@@ -95,8 +104,10 @@ const PALE = new THREE.Color(0xdcecff).convertSRGBToLinear();
 
 function geometryOf(part: DressPart | ModelPart, ghost: boolean): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
-  if ("flutter" in part)
+  if ("flutter" in part) {
     g.setAttribute("flutter", new THREE.Float32BufferAttribute(part.flutter, 1));
+    g.setAttribute("shiver", new THREE.Float32BufferAttribute(part.shiver, 1));
+  }
   g.setAttribute("position", new THREE.Float32BufferAttribute(part.position, 3));
   g.setAttribute("normal", new THREE.Float32BufferAttribute(part.normal, 3));
   const colour = Float32Array.from(part.color);
@@ -147,17 +158,21 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   // The modelled kit's SPRING BONES after the rig's own, bound with the
   // chest's axes at their heads (`player-model.ts`).
   const model =
-    dress.model && dress.suit === undefined && !dress.bare ? modelOf(dress.outfit) : null;
-  const springs = model ? createSprings(bind, model.heads) : null;
-  const fx = model
-    ? SPRING_BONES.map((s) => {
-        const b = new THREE.Bone();
-        b.name = s.name;
-        group.add(b);
-        setBone(b, { ...bind.chest, head: model.heads[s.name], length: s.length });
-        return b;
-      })
-    : [];
+    dress.model && dress.suit === undefined && !dress.bare
+      ? modelOf(dress.outfit, dress.kit)
+      : null;
+  const kit = model ? KITS[model.kit] : null;
+  const springs = model && kit ? createSprings(bind, model.heads, kit.springs) : null;
+  const fx =
+    model && kit
+      ? kit.springs.map((s) => {
+          const b = new THREE.Bone();
+          b.name = s.name;
+          group.add(b);
+          setBone(b, { ...bind.chest, head: model.heads[s.name], length: s.length });
+          return b;
+        })
+      : [];
   group.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton([...bones, ...fx]);
 
@@ -176,7 +191,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       // through it.
       new THREE.MeshStandardMaterial({
         vertexColors: true,
-        roughness: 0.78,
+        roughness: kit?.rough ?? 0.78,
         metalness: 0,
         side: THREE.DoubleSide,
       }),
@@ -187,7 +202,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
       "skier-hard",
     ),
   ];
-  if (model) withFlutter(mats[0], flutter);
+  if (kit) withFlutter(mats[0], flutter, kit.wind);
   const meshes = geos.map((g, i) => {
     const m = new THREE.SkinnedMesh(g, mats[i]);
     m.name = i === 0 ? "skier-cloth" : "skier-hard";
@@ -232,6 +247,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     });
     flutter.uFlow.value.set(swung.flow.x, swung.flow.y, swung.flow.z);
     flutter.uFlTime.value = now;
+    flutter.uFloat.value = swung.float;
   };
 
   return {

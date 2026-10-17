@@ -97,8 +97,24 @@ export const FLOOR_MS = 3.81;
  *   CPU's spray time fell by a third to two thirds and its upload by seven
  *   eighths under the snow lab's software GPU, while the vertex stage flies
  *   a ring half as large again as the pool. The prices below were measured
- *   with the CPU's flight; a `make bench ARGS="--gpu --costs"` on a real GPU
- *   is owed to re-price the row.
+ *   with the old counted spray on the CPU's flight, which drew some 70, 130
+ *   and 200 grains at LOW, MEDIUM and HIGH through a hockey stop; the
+ *   weighed spray draws some 3,150, 5,850 and 9,000 there (the snow lab's
+ *   perf rows), each a cheap streak on the GPU. Kept as they were — the
+ *   software renderer's frame times are too noisy to price a row by — and
+ *   OWED A GPU RE-PRICE (`make bench ARGS="--gpu --costs"`).
+ * The TRAILS prices stand for the snow kept under the skis too: the
+ *   player's and the two nearest rivals' bases let the ground down in the
+ *   vertex stage at every stop (`ski-clear.ts`, a few dozen vector ops a
+ *   vertex, no texture read), and OFF and LOW draw the bases' own groove in
+ *   the fragment stage — too small to price apart, and OWED A GPU RE-PRICE
+ *   with the row.
+ * The TRAILS prices leave out the TREE WELLS (`TRAIL_LOOK`'s `wells`,
+ *   MEDIUM and HIGH only): the benchmark's race is skied on the ordinary
+ *   snow, where no map has a well and the ground reads none, so they cost
+ *   the reference nothing. In a metre of powder they cost a refill of the
+ *   well map every 16 m the lens moves (about 6 ms of the processor's, a
+ *   hitch rather than a rate) and a few texture reads a pixel near the lens.
  * LAMPS: only after dark, and only where beams cross — his own headlamp is
  * always drawn, the floods and the field's lamps past the nearest are what
  * the lower stops give up, and LOW the snow's glitter in the beams. The
@@ -192,6 +208,26 @@ export const PICTURE_PRICES: PriceList = {
     low: { cost: 0, benefit: 0 },
     medium: { cost: 0.3, benefit: 6 },
     high: { cost: 0.6, benefit: 10 },
+  },
+  // SOFTWARE-SCALED, AN ESTIMATE OWED A REAL GPU'S RE-PRICE: the pinned
+  // race at 640 × 360 in software GL, frames timed with the row at each stop
+  // — 1167 against 1017 ms on the LOW preset, 5150 against 4900 on HIGH.
+  // LOW's 150 ms is 600 at 1280 × 720, at RESOLUTION's 0.00044 reference
+  // ms a software ms about 0.26 ms; HIGH's larger saving is mostly the
+  // cloud passes DISTANCE already prices. FULL's worth is the cloud, the
+  // sun and the night sky over a picture that has none.
+  sky: {
+    plain: { cost: 0, benefit: 0 },
+    full: { cost: 0.26, benefit: 14 },
+  },
+  // SOFTWARE-SCALED, AN ESTIMATE OWED A REAL GPU'S RE-PRICE: the pinned
+  // race on the LOW preset at 640 × 360 in software GL, 1067 ms a frame
+  // with the rings' mesh against 1033 with the skyline painted — 34 ms,
+  // about 0.06 ms at 1280 × 720. 3D's worth is ridges that stand apart as
+  // the lens moves and meet the map's own ground with no seam.
+  horizon: {
+    painted: { cost: 0, benefit: 0 },
+    "3d": { cost: 0.06, benefit: 5 },
   },
 };
 

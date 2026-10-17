@@ -28,6 +28,7 @@
 // without them never comes in here.
 
 import { clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
+import { inGrace } from "./machine-grace.ts";
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import type { Level } from "../mapgen/types.ts";
 import { sunAtRun } from "./clock.ts";
@@ -304,6 +305,8 @@ function footprintOf(g: GroomerState, x: number, z: number): { u: number; v: num
  * skis, met slower than `board.fastest` — the nearest — or null. What the
  * HUD offers the press on is this same question. */
 export function groomerWithin(state: GameState): GroomerState | null {
+  // Just stepped off one: the press leaves him be (`machine-grace.ts`).
+  if (inGrace(state)) return null;
   const gs = state.groomers;
   if (!gs || !onSkis(state)) return null;
   const c = state.skier;

@@ -21,11 +21,24 @@ float snowNoise(vec2 p) {
   return mix(mix(snowHash1(i), snowHash1(i + vec2(1, 0)), u.x),
              mix(snowHash1(i + vec2(0, 1)), snowHash1(i + vec2(1, 1)), u.x), u.y);
 }
-// The gradient of value noise, by finite difference — cheap enough for the
-// three octaves the micro-relief uses.
+// The gradient of value noise, ANALYTIC: one cell's four hashes and the
+// smoothstep's own slope, where a finite difference paid sixteen — the
+// micro-relief calls it a dozen times a pixel and the ground is most of a
+// phone's frame. \`e\` was that difference's half step; it is kept as the
+// width the gradient is softened over (a box of 2e is about a slope cut by
+// 1 - 2e² at the cell's own scale), so each octave keeps the strength it
+// was tuned at.
 vec2 snowNoiseGrad(vec2 p, float e) {
-  return vec2(snowNoise(p + vec2(e, 0.0)) - snowNoise(p - vec2(e, 0.0)),
-              snowNoise(p + vec2(0.0, e)) - snowNoise(p - vec2(0.0, e))) / (2.0 * e);
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  vec2 du = 6.0 * f * (1.0 - f);
+  float a = snowHash1(i);
+  float b = snowHash1(i + vec2(1, 0));
+  float c = snowHash1(i + vec2(0, 1));
+  float d = snowHash1(i + vec2(1, 1));
+  float k = a - b - c + d;
+  return du * vec2(b - a + k * u.y, c - a + k * u.x) * (1.0 - 2.0 * e * e);
 }
 `;
 

@@ -7,12 +7,25 @@ import type * as THREE from "three";
 import type { GameState, Level, SkiSpec, SkierState } from "@engine";
 
 import type { GpuSlice, Hideable } from "./benchmark-report.ts";
-import type { BodyTrack, Pose, PoseTrack } from "./interp.ts";
+import { setSnowSkip } from "./snow-skip.ts";
+import {
+  createBodyTrack,
+  createTrack,
+  type BodyTrack,
+  type Pose,
+  type PoseTrack,
+} from "./interp.ts";
 import type { SkisModel } from "./skis-body.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
 import type { SnowProps } from "./snowpack.ts";
 import type { Spray } from "./spray.ts";
-import { bodyStampOf, type SnowSampler, type Stamp, type TrailPen } from "./trail-stamp.ts";
+import {
+  bodyStampOf,
+  createPen,
+  type SnowSampler,
+  type Stamp,
+  type TrailPen,
+} from "./trail-stamp.ts";
 
 export type Rider = {
   model: SkisModel;
@@ -39,6 +52,27 @@ export type Rider = {
   /** The thrown body between two steps (`interp.ts`). */
   body: BodyTrack;
 };
+
+/** A rider on `model`, its memories fresh. */
+export function freshRider(model: SkisModel, spec: SkiSpec, kit: string): Rider {
+  return {
+    model,
+    spec,
+    kit,
+    track: createTrack(),
+    pen: createPen(16),
+    drawn: { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } },
+    sink: 0,
+    wasAirborne: false,
+    vy: 0,
+    airTime: 0,
+    wasThrown: false,
+    bodyDown: false,
+    plume: 0,
+    bodyPen: createPen(1),
+    body: createBodyTrack(),
+  };
+}
 
 /** The GPU timer's slice for each named group the scene is built of
  * (`gpu-timer.ts`); anything under none of them is the scene's own. */
@@ -68,6 +102,7 @@ export function hideSlices(
   hidden: ReadonlySet<Hideable>,
   hid: THREE.Object3D[],
 ): void {
+  setSnowSkip(hidden);
   for (const child of scene.children) {
     const slice = SLICE_OF_GROUP[child.name];
     if (slice !== undefined && hidden.has(slice)) {

@@ -83,8 +83,11 @@ function depthAt(level: Level, near: readonly TreeWell[], x: number, z: number):
   return most > 0 ? most * (1 - level.packedAt(x, z)) : 0;
 }
 
-export function createTreeWells(level: Level, haze: HazeUniforms): TreeWellsView {
-  const field = level.wells;
+/** `drawn` false (TRAILS OFF and LOW, `TRAIL_LOOK`'s `wells`) leaves the
+ * snow level round every trunk: no map filled, no stub drawn, and the
+ * shaders' `uWellFrame.w` off, so they read nothing. */
+export function createTreeWells(level: Level, haze: HazeUniforms, drawn = true): TreeWellsView {
+  const field = drawn ? level.wells : undefined;
   const data = new Uint16Array(TEXELS * TEXELS);
   const tex = new THREE.DataTexture(data, TEXELS, TEXELS, THREE.RedFormat, THREE.HalfFloatType);
   tex.minFilter = THREE.LinearFilter;
@@ -128,6 +131,10 @@ export function createTreeWells(level: Level, haze: HazeUniforms): TreeWellsView
   const axis = new THREE.Vector3();
   const ground = { x: 0, y: 1, z: 0 };
   let filled = false;
+  /** Every tree by its place, for the well's trunk — built at the first fill
+   * rather than at every one. */
+  let byPlace: Map<number, number> | null = null;
+  const depths = new Float32Array(TEXELS * TEXELS);
 
   /** The map refilled round (`cx`, `cz`), and the wood near it laid. */
   const fill = (cx: number, cz: number): void => {
@@ -142,7 +149,7 @@ export function createTreeWells(level: Level, haze: HazeUniforms): TreeWellsView
     const touching = field.list.filter(
       (w) => w.x + w.bound > ox && w.x - w.bound < ex && w.z + w.bound > oz && w.z - w.bound < ez,
     );
-    const depths = new Float32Array(TEXELS * TEXELS);
+    depths.fill(0);
     for (const w of touching) {
       const c0 = Math.max(0, Math.floor((w.x - w.bound - ox) / CELL));
       const c1 = Math.min(TEXELS - 1, Math.ceil((w.x + w.bound - ox) / CELL));
@@ -167,9 +174,13 @@ export function createTreeWells(level: Level, haze: HazeUniforms): TreeWellsView
 
     // THE WOOD in the wells near the lens.
     let ns = 0;
+    if (!byPlace) {
+      byPlace = new Map();
+      for (let i = 0; i < level.trees.length; i++) {
+        byPlace.set(level.trees[i].x * 4099 + level.trees[i].z, i);
+      }
+    }
     const trees = level.trees;
-    const byPlace = new Map<number, number>();
-    for (let i = 0; i < trees.length; i++) byPlace.set(trees[i].x * 4099 + trees[i].z, i);
     for (const w of touching) {
       if (ns >= room) break;
       if (Math.hypot(w.x - cx, w.z - cz) > NEAR) continue;

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: tree-eval bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics spray-eval snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
+.PHONY: contrails tree-eval bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
 
 build:
 	npm run build
@@ -398,7 +398,7 @@ blender:
 # stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled, KIND=groomer, KIND=plane or KIND=player (the player's hiker, man and woman) makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled, KIND=groomer, KIND=plane or KIND=player (the player's hiker, racer and freestyle rider, man and woman) makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
 # VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, VITE_MODEL_PLANE=0,
@@ -414,6 +414,8 @@ models:
 	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
 	$(if $(filter all plane,$(or $(KIND),all)),npm run blender -- --kind plane --quality=game --views=none,)
 	$(if $(filter all player,$(or $(KIND),all)),npm run blender -- --kind hiker --id all --quality=game --views=none,)
+	$(if $(filter all player,$(or $(KIND),all)),npm run blender -- --kind racer --id all --quality=game --views=none,)
+	$(if $(filter all player,$(or $(KIND),all)),npm run blender -- --kind freestyle --id all --quality=game --views=none,)
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/models.mjs --kind $(or $(KIND),all)
 
 # The title scene's plates: the game's key art, path-traced in Blender
@@ -458,6 +460,18 @@ ci-models:
 # --compare=FILE after.
 sky:
 	npm run sky -- $(if $(SEED),--seed $(SEED),) $(ARGS)
+
+# THE CONTRAILS LAB: the airliners' trails over one seed through the game's
+# own renderer from a skier's eye on the snow, as a labelled contact sheet
+# (previews/contrails-<seed>-<sheet>.png): ARGS=--sheet=life (the default:
+# one trail being laid, a short one in dry air, a persistent one at 1, 5, 15
+# and 40 minutes), --sheet=sky (the plan's own sky under a clear, a fair and
+# a humid high sky, a cold and a warm air mass) and --sheet=dusk (the
+# afternoon into the night). Its own one-off bundle from
+# pwa/contrails-preview.html (never deployed); needs a Chromium like `sky`.
+# SEED=n picks the map; ARGS="--quality=low --hour=15" the rest.
+contrails:
+	npm run contrails -- $(if $(SEED),--seed $(SEED),) $(ARGS)
 
 # THE SUN AND MOON LAB: the game's sun and moon (`sunAtRun`, `moonAtRun`)
 # held against a reference (the NOAA arithmetic after Meeus with
@@ -549,17 +563,6 @@ cloud-metrics:
 spray-metrics:
 	npm run spray-metrics -- $(ARGS)
 
-# THE SPRAY EVAL: which way of flying the spray is best — the four models
-# spray-sim.ts carries (puff, streak, drag, sheet) flown through the same
-# carves, skids and stops on the groomer and in powder, each scored against
-# what a real turn throws (which way, how fast, how high and far, how a
-# carve's compares with a skid's, how the fines hang, how thin the curtain,
-# how a grain is drawn, the cost) — and the game's model through a stop on
-# every age of snow at three depths. Pure Node, seconds.
-# ARGS="--models=drag,sheet", "--detail=sheet" (run by run), "--ages".
-spray-eval:
-	npm run spray-eval -- $(ARGS)
-
 # THE SNOW EVAL LAB: the snow a skier and a snowboarder throw and leave on
 # fixed scenes — a carve on the groomer, a hockey stop on skis, a board's
 # heelside and toeside stops, a powder turn, a fall's crater in powder, the
@@ -570,8 +573,7 @@ spray-eval:
 # was when each bit left: film.png, film.json); and what the spray and the cloud cost at the
 # LOW, MEDIUM and HIGH presets: previews/snow-eval/sheet.png, every cell and
 # perf.json. ARGS="--scenes=hockey,board-heel", "--lights=low,overcast,night",
-# "--film=day,low" ("none" skips it), "--no-sheet", "--model=sheet" (another
-# spray model, the before), "--no-perf", "--out=DIR"; "--under=all" the skis
+# "--film=day,low" ("none" skips it), "--no-sheet", "--no-perf", "--out=DIR"; "--under=all" the skis
 # measured against the drawn snow at every TERRAIN, RESOLUTION and TRAILS stop
 # (under.png, under.json), "--deform-perf" the deformable snow's cost by
 # TRAILS stop (deform-perf.json), "--no-deform" the trail map alone.
@@ -582,8 +584,9 @@ snow-eval:
 # throws off groomed, hard, icy, wet, soft and new snow, how deep the edge
 # cut, how high and far it flew and which way it left (way° off the travel,
 # rise° over the snow, the share thrown out ahead of him), each row held to
-# the band a real one sits in (spray-mass.ts). Pure Node, seconds. ARGS="--rows=stop/ice",
-# "--json=a.json" / "--compare=a.json".
+# the band a real one sits in (spray-mass.ts) — and with ARGS=--ages the same
+# stop in loose snow of every age at three depths. Pure Node, seconds.
+# ARGS="--rows=stop/ice", "--json=a.json" / "--compare=a.json", "--ages".
 snow-mass:
 	npm run snow-mass -- $(ARGS)
 
@@ -594,7 +597,7 @@ snow-mass:
 # meadow's powder: previews/turns-<seed>[-lynx]-close.png and -chase.png
 # (the meadow's written over the piste's — WHERE=meadow alone for those).
 # SEED=n; WHERE=piste|meadow; ARGS="--speeds=30,60 --times=0.5,1";
-# ARGS="--spray=puff" another model, "--age=wet" a snow age, "--depth=2".
+# ARGS="--age=wet" a snow age, "--depth=2".
 spray:
 	for pair in chamois lynx; do npm run turns -- --skis=$$pair --where=$(or $(WHERE),piste) --moves=carve,skid,stop --speeds=45 --times=0.6,1,1.4 --views=close,chase --width=480 --height=320 $(if $(SEED),--seed $(SEED),) $(ARGS) || exit 1; done
 
@@ -1499,6 +1502,16 @@ bike-steer:
 # "--compare=a.json" after; ARGS=--only=trunk,tower.
 bike-hit:
 	npm run bike-hit -- $(ARGS)
+
+# HURT BY HIS OWN BIKE: the downhill bike crashed by the real engine over
+# the bars off a ledge and laid down on a steep meadow at 20, 35, 50 and 65
+# km/h, 24 crashes a row (tests/support/bike-tangles.ts) — each row the
+# crashes the bike struck him in, hurt him in, caught a limb in, dealt a bar
+# end, stem or chainring at the throw, tore a piece off and killed him in,
+# with the parts that did it. Pure Node. ARGS="--json=a.json" before,
+# "--compare=a.json" after; ARGS="--only=bars-65 --runs=8".
+bike-tangle:
+	npm run bike-tangle -- $(ARGS)
 
 # THE RESORT LAB: the whole ski area a seed builds (R25–R28), from the engine
 # alone — the piste map from above (every run in its colour, the lifts, the

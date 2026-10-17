@@ -100,6 +100,9 @@ describe("the picture's ladders (settings-video.ts)", () => {
     expect(fine).toEqual([...fine].sort((a, b) => a - b));
     expect(TRAIL_LOOK.off.stamp).toBe(false);
     for (const t of TIERS) expect(TRAIL_LOOK[t].stamp).toBe(true);
+    // The tree wells are drawn from MEDIUM up; OFF and LOW leave the snow
+    // level round a trunk.
+    expect(TRAIL_LEVELS.filter((t) => TRAIL_LOOK[t].wells)).toEqual(["medium", "high"]);
   });
 
   it("builds a ground that is coarser down the ladder and never shorter than the view", () => {
@@ -207,6 +210,20 @@ describe("the picture's ladders (settings-video.ts)", () => {
     expect(mergeVideo({ resolution: "min" }).resolution).toBe("50");
     expect(mergeVideo({ resolution: "70" }).resolution).toBe("70");
     expect(mergeVideo({ resolution: "toString" }).resolution).toBe(DEFAULT_VIDEO.resolution);
+  });
+
+  it("draws a plain sky on LOW alone, and keeps a LOW picture stored before the row on LOW", () => {
+    expect(TIERS.map((t) => VIDEO_PRESETS[t].sky)).toEqual(["plain", "full", "full"]);
+    expect(presetOf(mergeVideo({ ...VIDEO_PRESETS.low, sky: undefined }))).toBe("low");
+    expect(mergeVideo({ ...VIDEO_PRESETS.medium, sky: undefined }).sky).toBe("full");
+    expect(mergeVideo({ ...VIDEO_PRESETS.low, sky: "full" }).sky).toBe("full");
+  });
+
+  it("stands the 3D horizon on every preset, the painted one picked by hand", () => {
+    expect(TIERS.map((t) => VIDEO_PRESETS[t].horizon)).toEqual(["3d", "3d", "3d"]);
+    expect(presetOf(mergeVideo({ ...VIDEO_PRESETS.low, horizon: undefined }))).toBe("low");
+    expect(mergeVideo({ ...VIDEO_PRESETS.low, horizon: "painted" }).horizon).toBe("painted");
+    expect(presetOf(mergeVideo({ ...VIDEO_PRESETS.low, horizon: "painted" }))).toBe("custom");
   });
 });
 

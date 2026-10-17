@@ -21,12 +21,18 @@ export const ROCKS = {
   whole: 1.5,
   packed: 0.02,
   /** A wall's rock SKIN (drawn, `buildSkin`): a corner every `cell` m
-   * (the FOREST row's cheap picture `cheap` m), jittered `jitter` of a cell
+   * (the middle distance's cut `cheap` m), jittered `jitter` of a cell
    * in plan; a bare corner stands `proud` m over the ground plus up to
    * `rough` m by how bare it is, a corner where the snow holds is tucked
-   * `sink` m under it; a cell is laid where a corner is bare past `from`. */
+   * `sink` m under it; a cell is laid where a corner is bare past `from`.
+   * No corner within `clear` m of packed snow or a bike trail is bare:
+   * every facet that can hold a point is laid off corners that near it
+   * (a jittered cell's corner is under 10 m off any point it holds), so no
+   * facet ever stands over a run or a trail, and the surface a body meets
+   * there is the map's — as drawn. */
   skin: {
     cell: 4,
+    clear: 10,
     cheap: 6,
     jitter: 0.35,
     proud: 0.15,

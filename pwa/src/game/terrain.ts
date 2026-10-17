@@ -61,6 +61,7 @@ import {
 import type { TerrainLook } from "./settings-video.ts";
 import type { TrailUniforms } from "./trail-map.ts";
 import type { DeformLook } from "./deform-field.ts";
+import { SNOW_SKIP } from "./snow-skip.ts";
 import { createTreeWells } from "./tree-wells.ts";
 import { trackFrameOf } from "./piste-tracks.ts";
 import { SUMMER_CHUNKS, type SummerTerrain } from "./summer-terrain.ts";
@@ -75,6 +76,9 @@ export type TerrainOptions = TerrainLook & {
   /** THE DEFORMABLE SNOW's field (`deform-snow.ts`), drawn as a mesh of its
    * own a vertex a cell inside level 0, where the trail uniforms say it is. */
   deform?: DeformLook;
+  /** Whether the TREE WELLS are drawn (`TRAIL_LOOK`'s `wells`); on when
+   * left out. */
+  wells?: boolean;
 };
 
 export type Terrain = {
@@ -212,6 +216,9 @@ function gridVertices(n: number): THREE.BufferAttribute {
   return new THREE.BufferAttribute(pos, 3);
 }
 
+/** The forest blur's half width, cells. */
+const BLUR = 3;
+
 /** The forest's density on the ground's grid, 0..1: every crown splatted
  * and blurred, so a wood past the trees' draw distance still darkens the
  * hillside it stands on. */
@@ -231,34 +238,41 @@ function forestDensity(level: Level): Float32Array {
       }
     }
   }
-  // Three box passes ≈ a gaussian a dozen metres wide.
+  // Three box passes ≈ a gaussian a dozen metres wide, each a running sum
+  // along the rows and then the columns (the same box, a cell's cost the
+  // same however wide it is).
   const tmp = new Float32Array(out.length);
+  const { cols, rows } = f;
+  const sums = new Float64Array(cols);
   for (let pass = 0; pass < 3; pass++) {
-    for (let r = 0; r < f.rows; r++) {
-      for (let c = 0; c < f.cols; c++) {
-        let s = 0;
-        let w = 0;
-        for (let d = -3; d <= 3; d++) {
-          const cc = c + d;
-          if (cc < 0 || cc >= f.cols) continue;
-          s += out[r * f.cols + cc];
-          w++;
-        }
-        tmp[r * f.cols + c] = s / w;
+    for (let r = 0; r < rows; r++) {
+      const row = r * cols;
+      let s = 0;
+      for (let c = 0; c < Math.min(cols, BLUR); c++) s += out[row + c];
+      for (let c = 0; c < cols; c++) {
+        if (c + BLUR < cols) s += out[row + c + BLUR];
+        if (c - BLUR - 1 >= 0) s -= out[row + c - BLUR - 1];
+        tmp[row + c] = s / (Math.min(cols - 1, c + BLUR) - Math.max(0, c - BLUR) + 1);
       }
     }
-    for (let r = 0; r < f.rows; r++) {
-      for (let c = 0; c < f.cols; c++) {
-        let s = 0;
-        let w = 0;
-        for (let d = -3; d <= 3; d++) {
-          const rr = r + d;
-          if (rr < 0 || rr >= f.rows) continue;
-          s += tmp[rr * f.cols + c];
-          w++;
-        }
-        out[r * f.cols + c] = s / w;
+    // Down the columns a row at a time, every column's running sum kept
+    // side by side (a column walked on its own misses the cache every cell).
+    sums.fill(0);
+    for (let r = 0; r < Math.min(rows, BLUR); r++) {
+      for (let c = 0; c < cols; c++) sums[c] += tmp[r * cols + c];
+    }
+    for (let r = 0; r < rows; r++) {
+      if (r + BLUR < rows) {
+        const add = (r + BLUR) * cols;
+        for (let c = 0; c < cols; c++) sums[c] += tmp[add + c];
       }
+      if (r - BLUR - 1 >= 0) {
+        const drop = (r - BLUR - 1) * cols;
+        for (let c = 0; c < cols; c++) sums[c] -= tmp[drop + c];
+      }
+      const w = 1 / (Math.min(rows - 1, r + BLUR) - Math.max(0, r - BLUR) + 1);
+      const row = r * cols;
+      for (let c = 0; c < cols; c++) out[row + c] = sums[c] * w;
     }
   }
   for (let i = 0; i < out.length; i++) out[i] = Math.min(1, out[i]);
@@ -277,7 +291,9 @@ function trackDirection(level: Level): Uint8Array {
   for (let i = 0; i < out.length; i += 4) {
     out[i] = 128;
     out[i + 1] = 128;
+    out[i + 3] = 128;
   }
+  foldSurface(level, out);
   const toe = LEVEL_RULES.track.shoulder.flat;
   const bench = toe + LEVEL_RULES.berm.width;
   for (const p of level.track.points) {
@@ -357,24 +373,52 @@ function stampGround(level: Level, stamp: GroundStamp, ground: Uint16Array, dir:
   }
 }
 
+/** THE GROUND'S GRIDS WORKED OUT AHEAD (`groundPrimes`): the heavy pieces
+ * of `groundTextures`, each in a moment of its own, for the next ground
+ * built of that map to take — and drop, so none is kept past it. */
+const ahead = new WeakMap<
+  Level,
+  { forest?: Float32Array; dir?: Uint8Array; frame?: ReturnType<typeof trackFrameOf> }
+>();
+const aheadOf = (level: Level) => {
+  let a = ahead.get(level);
+  if (!a) ahead.set(level, (a = {}));
+  return a;
+};
+
+/** The ground's heavy pieces for `level`, one a piece, ahead of
+ * `createTerrain` (the world's renderer, a breath between them). */
+export function groundPrimes(level: Level): (() => void)[] {
+  return [
+    () => void (aheadOf(level).forest ??= forestDensity(level)),
+    () => void (aheadOf(level).dir ??= trackDirection(level)),
+    () =>
+      void (aheadOf(level).frame ??= trackFrameOf(
+        level.track,
+        level.ground.cell,
+        THREE.DataUtils.toHalfFloat,
+      )),
+  ];
+}
+
 function groundTextures(level: Level) {
+  const made = ahead.get(level) ?? {};
+  ahead.delete(level);
   const f = level.ground;
   const height = new THREE.DataTexture(f.data, f.cols, f.rows, THREE.RedFormat, THREE.FloatType);
   height.minFilter = THREE.NearestFilter;
   height.magFilter = THREE.NearestFilter;
   height.needsUpdate = true;
 
-  const forest = forestDensity(level);
+  const forest = made.forest ?? forestDensity(level);
   const support = regionOf(level).crust?.packed ?? 0;
   const ground = new Uint16Array(f.cols * f.rows * 4);
   const h = THREE.DataUtils.toHalfFloat;
+  const at = (cc: number, rr: number): number =>
+    f.data[Math.min(f.rows - 1, Math.max(0, rr)) * f.cols + Math.min(f.cols - 1, Math.max(0, cc))];
   for (let r = 0; r < f.rows; r++) {
     for (let c = 0; c < f.cols; c++) {
       const k = r * f.cols + c;
-      const at = (cc: number, rr: number): number =>
-        f.data[
-          Math.min(f.rows - 1, Math.max(0, rr)) * f.cols + Math.min(f.cols - 1, Math.max(0, cc))
-        ];
       const gx = (at(c + 1, r) - at(c - 1, r)) / (2 * f.cell);
       const gz = (at(c, r + 1) - at(c, r - 1)) / (2 * f.cell);
       const x = f.originX + c * f.cell;
@@ -382,7 +426,7 @@ function groundTextures(level: Level) {
       ground[k * 4] = h(gx);
       ground[k * 4 + 1] = h(gz);
       // The GROOMED share: the packed field less what the region laid
-      // itself (R21), which the surface map carries instead.
+      // itself (R21), which the track map's alpha carries instead.
       const packed = level.packed ? level.packed.data[k] : level.packedAt(x, z);
       const wild = Math.max(
         level.crust ? level.crust.data[k] * support : 0,
@@ -403,7 +447,12 @@ function groundTextures(level: Level) {
   groundTex.magFilter = THREE.LinearFilter;
   groundTex.needsUpdate = true;
 
-  const dir = new THREE.DataTexture(trackDirection(level), f.cols, f.rows, THREE.RGBAFormat);
+  const dir = new THREE.DataTexture(
+    made.dir ?? trackDirection(level),
+    f.cols,
+    f.rows,
+    THREE.RGBAFormat,
+  );
   dir.minFilter = THREE.LinearFilter;
   dir.magFilter = THREE.LinearFilter;
   dir.needsUpdate = true;
@@ -413,7 +462,7 @@ function groundTextures(level: Level) {
   live.push({ ground: groundTex, dir });
   liveGrounds.set(level, live);
   // THE PISTE'S OWN FRAME the other skiers' lines are laid in.
-  const tf = trackFrameOf(level.track, f.cell, THREE.DataUtils.toHalfFloat);
+  const tf = made.frame ?? trackFrameOf(level.track, f.cell, THREE.DataUtils.toHalfFloat);
   const frame = new THREE.DataTexture(
     tf.data,
     tf.cols,
@@ -430,29 +479,23 @@ function groundTextures(level: Level) {
     1 / (tf.cols * tf.cell),
     1 / (tf.rows * tf.cell),
   );
-  return { height, ground: groundTex, dir, frame, frameBox, surface: surfaceTexture(level) };
+  return { height, ground: groundTex, dir, frame, frameBox };
 }
 
-/** R21 — the wind crust (R) and the river's ice (G) on the ground's grid; a
- * single black texel where the region lays neither. */
-function surfaceTexture(level: Level): THREE.DataTexture {
-  const f = level.ground;
+/** R21 — the wind crust and the river's ice on the ground's grid, folded
+ * into the track map's spare ALPHA as one signed share: 0.5 bare, above it
+ * the crust, below it the ice (`snow-glsl.ts` decodes it). No region lays
+ * both on one cell — none lays ice at all today — so nothing is lost, and
+ * the ground's fragment shader reads one texture fewer: with the shadow
+ * maps it is at the sixteen a phone's GPU allows a stage (WebGL 2's
+ * least), and one past that is a ground that does not draw. */
+function foldSurface(level: Level, out: Uint8Array): void {
   const { crust, ice } = level;
-  if (!crust && !ice) {
-    const none = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat);
-    none.needsUpdate = true;
-    return none;
+  if (!crust && !ice) return;
+  for (let k = 0; k < out.length / 4; k++) {
+    const share = (crust ? crust.data[k] : 0) - (ice ? ice.data[k] : 0);
+    out[k * 4 + 3] = 128 + Math.round(Math.max(-1, Math.min(1, share)) * 127);
   }
-  const data = new Uint8Array(f.cols * f.rows * 4);
-  for (let k = 0; k < f.cols * f.rows; k++) {
-    data[k * 4] = Math.round((crust ? crust.data[k] : 0) * 255);
-    data[k * 4 + 1] = Math.round((ice ? ice.data[k] : 0) * 255);
-  }
-  const tex = new THREE.DataTexture(data, f.cols, f.rows, THREE.RGBAFormat);
-  tex.minFilter = THREE.LinearFilter;
-  tex.magFilter = THREE.LinearFilter;
-  tex.needsUpdate = true;
-  return tex;
 }
 
 export function createTerrain(
@@ -468,7 +511,7 @@ export function createTerrain(
   const wind = windFromOf(level);
   // THE TREE WELLS in deep powder (`tree-wells.ts`): their map, and the
   // wood drawn down into them.
-  const wells = createTreeWells(level, haze);
+  const wells = createTreeWells(level, haze, options.wells ?? true);
   group.add(wells.group);
   const shared = {
     ...wells.uniforms,
@@ -477,7 +520,6 @@ export function createTerrain(
     uTrackDir: { value: tex.dir },
     uTrackFrame: { value: tex.frame },
     uTrackFrameBox: { value: tex.frameBox },
-    uSurface: { value: tex.surface },
     uForestTint: { value: new THREE.Vector3(...look.forestTint) },
     uCrustTone: { value: new THREE.Vector3(...look.crust) },
     uIceTone: { value: new THREE.Vector3(...look.ice) },
@@ -492,6 +534,7 @@ export function createTerrain(
     uReliefHalf: { value: options.n / 2 },
     uDeformMesh: { value: 0 },
     uBaseSpacing: { value: options.spacing },
+    uSnowSkip: SNOW_SKIP,
     ...options.summer?.uniforms,
   };
   // IN SUMMER the ground is grass, earth and rock (`summer-glsl.ts`).
@@ -845,7 +888,6 @@ export function createTerrain(
       tex.ground.dispose();
       tex.dir.dispose();
       tex.frame.dispose();
-      tex.surface.dispose();
     },
   };
 }

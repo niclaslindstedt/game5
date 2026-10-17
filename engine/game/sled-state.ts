@@ -15,8 +15,12 @@ export type SledControls = { throttle: number; brake: number; steer: number; lea
 
 /** What a `sled` event says (`sled.ts`): taken (boarded), left (hopped
  * off), the rider thrown (`crash`), stood back up on its belt (`right`),
- * or the ride begun again at the bottom (`restart`). */
-export type SledPhaseEvent = "board" | "hop" | "crash" | "right" | "restart";
+ * or the ride begun again at the bottom (`restart`); ridden into a fire
+ * and set alight (`alight`), its tank gone up (`boom`), and the burnt-out
+ * wreck's place taken by a fresh machine at the bottom (`fresh`,
+ * `sled-fire.ts`). */
+export type SledPhaseEvent =
+  "board" | "hop" | "crash" | "right" | "restart" | "alight" | "boom" | "fresh";
 
 /** A `sled` event (`GameEvent`): ridden into and taken, hopped off, the
  * rider thrown off it, stood back on its belt, or the ride begun again at
@@ -123,4 +127,19 @@ export type SledState = {
   overFor: number;
   /** Seconds before another trunk is reported. */
   hitCooldown: number;
+  /** ALIGHT (`sled-fire.ts`): ridden into a fire — absent until it is. */
+  burn?: SledBurn;
+};
+
+/** A SNOWMOBILE ON FIRE: which fire lit it (`Fire.id`) and the run's clock
+ * when it did; when its tank went up (−1 not yet) and where — the tank's
+ * place, world m — and how fast it was going then, m/s. */
+export type SledBurn = {
+  fire: string;
+  t: number;
+  boom: number;
+  x: number;
+  y: number;
+  z: number;
+  speed: number;
 };

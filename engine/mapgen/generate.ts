@@ -80,9 +80,10 @@ import { drawPiste, gradePiste, stampCorridor, trackOf, type Piste } from "./tra
 import type { GenerateOptions, GeneratedLevel, Kicker, Mountain, TreeDef } from "./types.ts";
 import { generatorTraits, type GeneratorVersion } from "./versions.ts";
 import { chooseCourse } from "./course-gates.ts";
-import { attemptBegun, reached, reportingTo } from "./progress.ts";
-import { buildResort, resortLevel, type BuiltResort } from "./resort-build.ts";
-import { laySkiRoutes } from "./ski-routes.ts";
+import { attemptAlone, attemptBegun, reached, reportingTo } from "./progress.ts";
+import { attemptOrder, buildResort, resortLevel, type BuiltResort } from "./resort-build.ts";
+import { laySkiRoutes, type RouteStyle } from "./ski-routes.ts";
+import { fellOnRoutes, layRouteJumps } from "./route-features.ts";
 import { resortCached } from "./resort-cache.ts";
 import { realFaceRegion } from "./real-face.ts";
 import { analyzeResort } from "../analysis/resort.ts";
@@ -255,8 +256,9 @@ function searchLevel(seed: number, opts: GenerateOptions): GeneratedLevel {
   const region = regionRow(opts.region);
   const grade = UNGRADED;
   const reasons: string[] = [];
-  for (let a = 0; a < attempts; a++) {
-    attemptBegun(a);
+  for (const a of attemptOrder(attempts, opts.only)) {
+    if (opts.only === undefined) attemptBegun(a);
+    else attemptAlone();
     const built = attemptLevel(seed, a, laps, version, opts.tricks === true, region, grade);
     if (typeof built === "string") {
       reasons.push(`#${a}: ${built}`);
@@ -277,7 +279,7 @@ function searchLevel(seed: number, opts: GenerateOptions): GeneratedLevel {
 /** The attempts a map is searched over: a real face's more
  * (`RR.massif.real.attempts`), since its later ones give the dealt peak,
  * valley and stations back. */
-function attemptsOf(opts: GenerateOptions): number {
+export function attemptsOf(opts: GenerateOptions): number {
   return opts.attempts ?? (opts.face ? RESORT_RULES.massif.real.attempts : 16);
 }
 
@@ -286,7 +288,7 @@ function attemptsOf(opts: GenerateOptions): number {
  * stood up in milliseconds rather than a mountain raised in seconds. */
 export function levelIsCached(seed: number, opts: GenerateOptions = {}): boolean {
   const traits = generatorTraits(opts.version);
-  if (traits.singlePiste) return false;
+  if (traits.singlePiste || opts.only !== undefined) return false;
   const face = opts.face ? realFaceRegion(opts.face) : null;
   return resortCached(
     seed,
@@ -327,10 +329,31 @@ function generateResortLevel(
     });
     return b.courses.length > 0 ? null : "no course down the network stands";
   };
-  const built = buildResort(seed, opts.region, attempts, subSeed, accept, version, opts.face);
+  const built = buildResort(
+    seed,
+    opts.region,
+    attempts,
+    subSeed,
+    accept,
+    version,
+    opts.face,
+    opts.only,
+  );
   // R42 — the ski routes, found on the finished mountain; a version from
   // before them marks none.
-  if (!generatorTraits(version).noRoutes) built.routes ??= layRoutes(built);
+  // A wild route fells the trunks on its line and cuts its jumps into the
+  // ground once, the first time the kept resort is asked for them.
+  const traits = generatorTraits(version);
+  if (!traits.noRoutes && built.routes === undefined) {
+    if (traits.straightRoutes) built.routes = layRoutes(built, "straight");
+    else {
+      const routes = layRoutes(built, "wild");
+      const jumps = layRouteJumps(built.ground, routes);
+      built.trees = fellOnRoutes(built.trees, routes, jumps);
+      built.routeKickers = jumps;
+      built.routes = routes;
+    }
+  }
   const index = chooseCourse(built, {
     course: opts.course,
     grade: opts.grade,
@@ -342,14 +365,18 @@ function generateResortLevel(
 }
 
 /** R42 — the ski routes of a built ski area. */
-function layRoutes(b: BuiltResort) {
-  return laySkiRoutes({
-    ground: b.ground,
-    runs: b.runs.map((r) => r.run),
-    lifts: b.lifts,
-    trees: b.trees,
-    size: b.plan.size,
-  });
+function layRoutes(b: BuiltResort, style: RouteStyle) {
+  return laySkiRoutes(
+    {
+      ground: b.ground,
+      runs: b.runs.map((r) => r.run),
+      lifts: b.lifts,
+      trees: b.trees,
+      size: b.plan.size,
+      cliffs: b.cliffs,
+    },
+    style,
+  );
 }
 
 /** R20 on a ski area — the course with the terrain park laid down it: the

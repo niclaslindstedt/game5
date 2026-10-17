@@ -40,7 +40,7 @@ import type { Cliff, Kicker, TrackHit, TrackPoint } from "../mapgen/types.ts";
 import { trackPointAt } from "../mapgen/index.ts";
 import { landingAhead } from "../game/flight.ts";
 import { brakeDecel, flightGravity } from "../game/limits.ts";
-import { flipLean } from "../game/strokes.ts";
+import { flipLean, spinSteer } from "../game/strokes.ts";
 import { TUNING } from "../game/defs/tuning.ts";
 import type { GameState, SkierInput } from "../game/state.ts";
 import { solidsNear } from "../game/posts.ts";
@@ -163,7 +163,7 @@ export const DARING: Daring = {
     level: 0.7,
     flip: 1.1,
     double: 2.4,
-    spins: [0.5, 0.8, 1.05, 1.3],
+    spins: [0.75, 1.1, 1.45, 1.8],
     grab: 0.7,
     flipShare: 0.6,
     doubleShare: 0.3,
@@ -275,6 +275,9 @@ export function daringLine(
     out.cap = Math.sqrt(v * v + 2 * decel * Math.max(0, -along - d.hunt.runup));
     return;
   }
+  // SLOWED OFF THE PISTE: the way back across may be a bench he bogs on,
+  // so he takes the steepest open way down from where he is instead.
+  if (offPiste && c.speed < d.roam.slow && !c.airborne && downhill(state, d, aim)) return;
   let across = c.speed < d.roam.slow ? 0 : roamAt(state, aim.s, d);
   if (across !== 0) {
     // How steeply the snow out there falls away down the piste's way.
@@ -289,14 +292,47 @@ export function daringLine(
     const open = 1 - clamp((trunksNear(state, ax, az, d) - R.few) / (R.many - R.few), 0, 1);
     across *= clamp((grade - R.flat) / (R.grade - R.flat), 0, 1) * open;
   }
-  // IN THE WOODS, checked to a speed he can thread them at.
+  // IN THE WOODS, checked to a speed he can thread them at — but never
+  // braked on snow too gentle to carry him on again (`roam.flat`).
   if (offPiste && c.speed > d.roam.woods) {
-    const ahead = trunksNear(state, c.x + c.vx * 0.6, c.z + c.vz * 0.6, d);
-    if (ahead > d.roam.few) out.cap = d.roam.woods;
+    const ax = c.x + c.vx * 0.6;
+    const az = c.z + c.vz * 0.6;
+    const ground = state.level.groundAt;
+    const falls = (ground(c.x, c.z) - ground(ax, az)) / Math.max(1, c.speed * 0.6);
+    if (falls > d.roam.flat && trunksNear(state, ax, az, d) > d.roam.few) out.cap = d.roam.woods;
   }
   aim.x += Math.cos(aim.heading) * across;
   aim.z -= Math.sin(aim.heading) * across;
 }
+
+/** Points `aim` at the lowest open ground `FALL.reach` m round the skier,
+ * if it falls away at `FALL.least` or more; false, leaving it, if not. */
+function downhill(state: GameState, d: Daring, aim: TrackPoint): boolean {
+  const c = state.skier;
+  const ground = state.level.groundAt;
+  const here = ground(c.x, c.z);
+  let best = FALL.least * FALL.reach;
+  let bx = 0;
+  let bz = 0;
+  for (let i = 0; i < FALL.ways; i++) {
+    const a = (i / FALL.ways) * 2 * Math.PI;
+    const x = c.x + Math.sin(a) * FALL.reach;
+    const z = c.z + Math.cos(a) * FALL.reach;
+    const drop = here - ground(x, z);
+    if (drop <= best || trunksNear(state, x, z, d) > d.roam.few) continue;
+    best = drop;
+    bx = x;
+    bz = z;
+  }
+  if (best === FALL.least * FALL.reach) return false;
+  aim.x = bx;
+  aim.z = bz;
+  return true;
+}
+
+/** The look round for the way down: how far, m, how many bearings, and the
+ * least fall worth leaving the piste's line for. */
+const FALL = { reach: 15, ways: 16, least: 0.04 } as const;
 
 /** How many trunks and posts stand within the roam's radius of a point. */
 const near: number[] = [];
@@ -426,16 +462,11 @@ export function daringAir(state: GameState, input: SkierInput, d: Daring): void 
     return;
   }
   // THE TWIRL, half a turn a tap.
-  let tapped = false;
-  for (let n = 0; n < plan.taps; n++) {
-    const at = A.tapFrom + n * A.tapEvery;
-    if (c.airTime >= at && c.airTime < at + A.tapFor) tapped = true;
-  }
-  if (tapped) input.steer = plan.way;
+  if (plan.taps > 0) input.steer = spinSteer(state, plan.taps, plan.way);
   // THE GRAB, once the taps are thrown and his pitch has settled onto the
   // landing — grabbing, nothing levels or damps it (`poseInput`) — let go
   // before the snow, or as soon as the levelling would ask hard again.
-  const thrown = A.tapFrom + plan.taps * A.tapEvery;
+  const thrown = TUNING.air.counts + TUNING.tricks.setFor;
   const settled = Math.abs(input.lean) < (k.pose !== null ? A.drift : A.settled);
   if (plan.grab && c.airTime >= thrown && left > A.letGo && settled) {
     input.trick = true;

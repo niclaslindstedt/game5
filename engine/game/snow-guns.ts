@@ -12,8 +12,9 @@
 //     its guns where they stand — and a skier meets one as he meets a
 //     floodlight mast (`posts.ts`): a carriage's bulk, a column's or a
 //     lance's pole.
-//   * RUNNING (`snowGunsRun`): only cold — not under a spring noon's sun,
-//     not in a gale — and only on a run whose rules have the ski area's
+//   * RUNNING (`snowGunsRun`): only cold — the air's wet bulb under
+//     −2 °C at the slopes' altitude at the start hour (`airTempAt`), so
+//     never in a spring noon's warmth, and not in a gale — and only on a run whose rules have the ski area's
 //     machines (`RunRules.groomer`, the free ride): a race is never run
 //     through a plume. Then each one has laid a WHALE of heavy machine
 //     snow where its cone lands (`machineSnowOf`), loose snow the physics
@@ -28,7 +29,7 @@ import { snows, weatherOf } from "../mapgen/weather.ts";
 import type { PisteGrade } from "../mapgen/grades.ts";
 import type { Level, TrackPoint } from "../mapgen/types.ts";
 import { cabinsOf } from "./cabins.ts";
-import { sunAtRun } from "./clock.ts";
+import { slopeAltitudeOf, wetBulbAt } from "./air-temp.ts";
 import { CABINS } from "./defs/cabins.ts";
 import { SNOW_GUN } from "./defs/snow-guns.ts";
 import { clearOfLifts } from "./lift-line.ts";
@@ -89,11 +90,15 @@ export function snowGunsOut(level: Pick<Level, "sun" | "weather">): boolean {
 }
 
 /** THE GUNS RUN on `level`: they stand, the air is still enough, and it is
- * cold — a late season's spring sun past `warm` stops them. */
-export function snowGunsRun(level: Pick<Level, "sun" | "weather">): boolean {
+ * cold enough — the WET BULB at the slopes' altitude at the start hour
+ * (`wetBulbAt`) under `cold`. */
+export function snowGunsRun(
+  level: Pick<Level, "sun" | "weather" | "mountain" | "region">,
+): boolean {
   if (!snowGunsOut(level)) return false;
-  if (weatherOf(level).wind > G.windMost) return false;
-  return gunSeason(level) === "early" || sunAtRun(level).elevation < G.warm;
+  const weather = weatherOf(level);
+  if (weather.wind > G.windMost) return false;
+  return wetBulbAt(level, undefined, slopeAltitudeOf(level)) < G.cold;
 }
 
 /** Whether a run of grade `grade` and id `id` carries guns at all. */

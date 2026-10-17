@@ -253,14 +253,18 @@ export function paintPanelBack(c: Ctx, glow: Ctx | null): void {
     return top;
   };
   let top = unit(0.395, 0.07);
+  // Their readouts are lit digits: drawn on the glow too, so after dark
+  // they shine as the displays do.
   const seg = (x: number, y: number, s: string, col = "#ffb02e") => {
     c.fillStyle = "#050505";
     c.fillRect(x - 4, y - 16, s.length * 15 + 8, 32);
-    c.fillStyle = col;
-    c.font = `700 26px "DejaVu Sans Mono", monospace`;
-    c.textAlign = "left";
-    c.textBaseline = "middle";
-    c.fillText(s, x, y);
+    for (const k of p.glow ? [c, p.glow] : [c]) {
+      k.fillStyle = col;
+      k.font = `700 26px "DejaVu Sans Mono", monospace`;
+      k.textAlign = "left";
+      k.textBaseline = "middle";
+      k.fillText(s, x, y);
+    }
   };
   seg(rx + 14, top + 28, "122.800");
   seg(rx + 150, top + 28, "121.500", "#7fd9ff");

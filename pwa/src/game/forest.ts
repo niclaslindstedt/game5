@@ -282,16 +282,37 @@ export type Forest = {
   dispose(): void;
 };
 
-export function createForest(level: Level, haze: HazeUniforms, initial: ForestOptions): Forest {
-  let options = { ...initial };
-  // The view aloft over the row's own (`setAloft`); on the snow, the row's.
-  const aloft = { far: options.far, lift: 0, view: options.view };
-  const edges = { cards: 0, full: 0, mid: 0, far: 0 };
-  const group = new THREE.Group();
-  // THE CRAGS on the drops stand with the woods, out to the whole view,
-  // and the far share is the share of their blocks (`rocks.ts`).
-  const rocks = createRocks(level, haze, options.farShare);
-  group.add(rocks.group);
+/** THE FOREST PLANTED: every tree binned by cell and stood on the snow —
+ * its matrix, tone, girth, lean and thinning — a slice at a time, so the
+ * loading card can count the trees as they go in (`renderer.ts`'s `load`).
+ * `createForest` takes a finished one, or plants one whole itself. */
+export type Planting = {
+  /** How many trees the map grows. */
+  readonly count: number;
+  /** How many are planted so far. */
+  readonly planted: () => number;
+  /** Plant while `more()` says there is time; true while trees are left. */
+  step: (more: () => boolean) => boolean;
+  readonly cols: number;
+  readonly binStart: Int32Array;
+  readonly trees: Level["trees"];
+  readonly rank: Int32Array;
+  readonly xs: Float64Array;
+  readonly zs: Float64Array;
+  readonly matrices: Float32Array;
+  /** Every tree's own numbers, read by the batch (`TREE_DATA` a tree). */
+  readonly data: Float32Array;
+  readonly girths: Float32Array;
+  readonly thin: Float32Array;
+  readonly leans: Float32Array;
+  /** The trees felled for the village or a building's site, 1 a tree. */
+  readonly gone: Uint8Array;
+};
+
+/** How many trees go in between asks of the clock. */
+const PLANT_SLICE = 256;
+
+export function plantForest(level: Level): Planting {
   const count = level.trees.length;
   // Binned by cell — and every tree NUMBERED in bin order, so a cell's
   // trees and everything held for them stand side by side in memory: the
@@ -351,40 +372,86 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
   const felled = felledTrees(level);
   const gone = new Uint8Array(count);
   for (let k = 0; k < count; k++) gone[rank[k]] = felled[k];
-  for (let i = 0; i < count; i++) {
-    const t = trees[i];
-    thin[i] = hash(t.x * 1.7 + 11, t.z * 0.6 - 5);
-    const tilt = placeTree(level, t, at);
-    const reach = Math.tan(tilt.angle);
-    leans[i * 2] = tilt.dx * reach;
-    leans[i * 2 + 1] = tilt.dz * reach;
-    girths[i * 2] = at.girth[0];
-    girths[i * 2 + 1] = at.girth[1];
-    // A tree felled for the village or a building's site (`felledTrees`)
-    // is drawn as nothing: its matrix squashed to its foot.
-    if (gone[i]) at.s.set(0, 0, 0);
-    m.compose(at.p, at.q, at.s).toArray(matrices, i * 16);
-    const d = i * TREE_DATA;
-    data[d] = girths[i * 2];
-    data[d + 1] = girths[i * 2 + 1];
-    data[d + 2] = 0.9 + hash(t.z, t.x) * 0.2;
-    // THE TREE'S OWN SNOW AND HUE (`tree-snow.ts`): most carry the whole
-    // load, more and more of them less of it — one shaken by the wind, one
-    // shed in the sun — and every one's green and bark pulled a few per
-    // cent toward yellow or toward blue, so a wood of one kind is never one
-    // colour.
-    // Higher up the mountain the snow stays on the boughs longer (colder,
-    // fewer thaws), so the load climbs with the altitude.
-    const shed = hash(t.x * 0.53 + 17, t.z * 2.71 - 3);
-    const high = mount ? Math.min(1, Math.max(0, (t.y - mount.base) / mount.span)) : 0.5;
-    data[d + 3] = 1.05 + 0.25 * high - 0.95 * shed * shed;
-    const warm = hash(t.x * 3.1 - 8, t.z * 0.29 + 4) * 2 - 1;
-    const light = hash(t.x * 0.19 + 5, t.z * 3.7) * 2 - 1;
-    data[d + 4] = 1 + 0.07 * warm + 0.03 * light;
-    data[d + 5] = 1 + 0.02 * warm + 0.05 * light;
-    data[d + 6] = 1 - 0.07 * warm + 0.02 * light;
-    data[d + 7] = hash(t.x * 0.71 - 2, t.z * 1.31 + 9);
-  }
+  let planted = 0;
+  const step = (more: () => boolean): boolean => {
+    while (planted < count) {
+      const end = Math.min(count, planted + PLANT_SLICE);
+      for (let i = planted; i < end; i++) {
+        const t = trees[i];
+        thin[i] = hash(t.x * 1.7 + 11, t.z * 0.6 - 5);
+        const tilt = placeTree(level, t, at);
+        const reach = Math.tan(tilt.angle);
+        leans[i * 2] = tilt.dx * reach;
+        leans[i * 2 + 1] = tilt.dz * reach;
+        girths[i * 2] = at.girth[0];
+        girths[i * 2 + 1] = at.girth[1];
+        // A tree felled for the village or a building's site (`felledTrees`)
+        // is drawn as nothing: its matrix squashed to its foot.
+        if (gone[i]) at.s.set(0, 0, 0);
+        m.compose(at.p, at.q, at.s).toArray(matrices, i * 16);
+        const d = i * TREE_DATA;
+        data[d] = girths[i * 2];
+        data[d + 1] = girths[i * 2 + 1];
+        data[d + 2] = 0.9 + hash(t.z, t.x) * 0.2;
+        // THE TREE'S OWN SNOW AND HUE (`tree-snow.ts`): most carry the whole
+        // load, more and more of them less of it — one shaken by the wind, one
+        // shed in the sun — and every one's green and bark pulled a few per
+        // cent toward yellow or toward blue, so a wood of one kind is never one
+        // colour.
+        // Higher up the mountain the snow stays on the boughs longer (colder,
+        // fewer thaws), so the load climbs with the altitude.
+        const shed = hash(t.x * 0.53 + 17, t.z * 2.71 - 3);
+        const high = mount ? Math.min(1, Math.max(0, (t.y - mount.base) / mount.span)) : 0.5;
+        data[d + 3] = 1.05 + 0.25 * high - 0.95 * shed * shed;
+        const warm = hash(t.x * 3.1 - 8, t.z * 0.29 + 4) * 2 - 1;
+        const light = hash(t.x * 0.19 + 5, t.z * 3.7) * 2 - 1;
+        data[d + 4] = 1 + 0.07 * warm + 0.03 * light;
+        data[d + 5] = 1 + 0.02 * warm + 0.05 * light;
+        data[d + 6] = 1 - 0.07 * warm + 0.02 * light;
+        data[d + 7] = hash(t.x * 0.71 - 2, t.z * 1.31 + 9);
+      }
+      planted = end;
+      if (!more()) break;
+    }
+    return planted < count;
+  };
+  return {
+    count,
+    planted: () => planted,
+    step,
+    cols,
+    binStart,
+    trees,
+    rank,
+    xs,
+    zs,
+    matrices,
+    data,
+    girths,
+    thin,
+    leans,
+    gone,
+  };
+}
+
+export function createForest(
+  level: Level,
+  haze: HazeUniforms,
+  initial: ForestOptions,
+  sown?: Planting,
+): Forest {
+  let options = { ...initial };
+  // The view aloft over the row's own (`setAloft`); on the snow, the row's.
+  const aloft = { far: options.far, lift: 0, view: options.view };
+  const edges = { cards: 0, full: 0, mid: 0, far: 0 };
+  const group = new THREE.Group();
+  // THE CRAGS on the drops stand with the woods, out to the whole view,
+  // and the far share is the share of their blocks (`rocks.ts`).
+  const rocks = createRocks(level, haze);
+  group.add(rocks.group);
+  const plot = sown ?? plantForest(level);
+  plot.step(() => true); // the rest of it, whole
+  const { count, cols, binStart, trees, rank, xs, zs, matrices, data, thin, leans, gone } = plot;
   const binTop = new Float32Array(cols * cols).fill(-Infinity);
   const binLow = new Float32Array(cols * cols).fill(Infinity);
   /** How far a crown in each cell leans out past its trunk, m. */
@@ -796,7 +863,6 @@ export function createForest(level: Level, haze: HazeUniforms, initial: ForestOp
       }
       options = { ...next };
       Object.assign(aloft, { far: options.far, lift: 0, view: options.view });
-      rocks.setShare(options.farShare);
       tick++;
       lastAt.set(Infinity, 0, 0);
       lastShadow.x = Infinity;

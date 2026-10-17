@@ -267,8 +267,15 @@ const KT = 1.943844;
 const FT = 3.28084;
 
 /** THE READINGS off the plane's state: `ground` the snow's height under
- * it, m, and `clock` the run's time (the needles' tremble). */
-export function planeGaugesOf(p: PlaneState, ground: number, clock: number): PlaneGauges {
+ * it, m, `clock` the run's time (the needles' tremble), and `oat` the
+ * outside air, °C (the air model's, `airTempAt` / `freeAirTempAt`) — a
+ * standard atmosphere's when left out. */
+export function planeGaugesOf(
+  p: PlaneState,
+  ground: number,
+  clock: number,
+  oat?: number,
+): PlaneGauges {
   const live = p.mode !== "wreck" && p.spin > 0.05;
   const tas = p.airspeed * KT;
   const ias = tas * Math.sqrt(Math.max(0.2, p.density) / 1.225);
@@ -303,7 +310,7 @@ export function planeGaugesOf(p: PlaneState, ground: number, clock: number): Pla
     flaps: p.surfaces.flaps,
     trim: p.trim,
     power: p.power,
-    oat: 8 - 0.0065 * (p.y + datum),
+    oat: oat ?? 8 - 0.0065 * (p.y + datum),
     stall: live && !p.grounded && p.stalled > 0.15,
     door: p.door > 0.05,
     brake: p.grounded && (p.controls.brake ?? 0) > 0.1,

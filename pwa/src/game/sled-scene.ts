@@ -51,6 +51,8 @@ export type SledScene = {
   stand(state: GameState): SledStand | null;
   /** The machine as drawn this frame (its centre and attitude), or null. */
   drawn(): ReturnType<SledView["drawn"]>;
+  /** Burnt by a fire (`SledView.char`). */
+  char(k: number, ember: number): void;
   /** Load the rack with what he rides (`SledView.stowRack`). */
   stowRack(load: RackLoad): void;
   /** The model in the group (`SledView.ready`). */
@@ -307,6 +309,7 @@ export function createSledScene(haze: HazeUniforms): SledScene {
       view.stowRack(load);
     },
     drawn: () => view.drawn(),
+    char: (k, ember) => view.char(k, ember),
     dispose() {
       view.dispose();
     },

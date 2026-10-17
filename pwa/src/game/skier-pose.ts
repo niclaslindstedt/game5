@@ -88,6 +88,7 @@ import { joltHand, NO_JOLT } from "./skier-save.ts";
 import { bareRest, placeBare } from "./skier-bare.ts";
 import { flightHands } from "./skier-flight.ts";
 import { holdShins, trickFeet, tuckOf } from "./skier-somersault.ts";
+import { TWIRL } from "./skier-twirl.ts";
 import { add, clamp01, mix, norm, scale, sub, type V3 } from "./skier-vec.ts";
 import {
   bootFrame,
@@ -184,13 +185,29 @@ const POLE_FOLD = 0.36;
  * double poling has the trunk some 40–45° over at the plant and 55° at
  * the bottom of the push; this plants at 39° and crunches to 60°. */
 const POLE_BODY = { sink: 0.1, back: 0.07, rise: 0.03, forward: 0.03, lean: 0.36 };
-/** How much wider of the hips the fists go working the poles, m. */
-const POLE_WIDE = 0.06;
-/** How far out the elbows flare at the double pole's plant. */
-const PLANT_FLARE = 0.35;
+/** Where the fists are drawn in to working the poles, m out from his
+ * middle: double poling and striding a little outside the shoulders
+ * (`BODY.shoulder`), so the arms drive straight down and back beside the
+ * trunk with the elbows close to the ribs — never held out wide, which
+ * points the elbows out like wings — and skating a hand wider, so the arm
+ * swings back outside the thigh the skate drives out under it. */
+const POLE_HAND = { pole: 0.26, skate: 0.34 };
+/** How far out the elbows flare at the double pole's plant: a touch, to
+ * keep the bend off the arm's own line — the elbows ride close in. */
+const PLANT_FLARE = 0.08;
 /** Where a working arm's elbow is bent toward: up and back, in his own
- * frame (`elbows`). */
-const POLE_ELBOW = { up: 0.6, back: 0.8 };
+ * frame (`elbows`) — and how much of that is laid over the arm's own bend
+ * (`share`), the rest the bend in the arm's swing plane, which keeps the
+ * elbow BEHIND the arm, close to the ribs. Bent up and back alone, an arm
+ * reaching ahead and down for the plant has that along its own line and
+ * the elbow is pushed out sideways like a wing. */
+const POLE_ELBOW = { up: 0.6, back: 0.8, share: 0.2 };
+/** THE FOLLOW-THROUGH AT SPEED, as a share of the double pole's swing the
+ * arms carry on past the finish once the poles let go (`holdPush`'s
+ * `over`): at a crawl the push ends just past the hips; going fast the
+ * arms are thrown on long and high behind him, near level with the snow —
+ * the faster the skier, the longer the follow-through, as coaches teach. */
+const FOLLOW_OVER = 0.25;
 /** The band, m, over which the hips' sink to the boots' reach is let in
  * and out (`softAbove`). */
 const CUFF_EASE = 0.045;
@@ -259,7 +276,14 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // A SKIER BRAKING RISES OUT OF HIS TUCK: skis thrown across under a man
   // folded flat swing his legs into profile, the knees up by his shoulders
   // — so the skid stands him up, the skis where the engine's drop has them.
-  const crouch = Math.max(clamp01(input.crouch) * (1 - SKID_RISE * skid), FS.crouch);
+  // THE TWIRL (`skier-twirl.ts`): a spin led by the shoulders and the
+  // head, the arms in, the body a little folded.
+  const TW = input.twirl ?? { lead: 0, tight: 0 };
+  const crouch = Math.max(
+    clamp01(input.crouch) * (1 - SKID_RISE * skid),
+    FS.crouch,
+    TWIRL.crouch * Math.abs(TW.lead),
+  );
   // Into the air and back as motions (the view's eased `air`), and a
   // load let go of over the pop rather than in a step.
   const air = clamp01(input.air ?? (input.airborne ? 1 : 0));
@@ -638,7 +662,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   const neck = add(waist, scale(upperDir, thoracic));
   // The head held up to look down the hill: the neck bends back out of a
   // tuck's pitch, and turns into the turn.
-  const look = turning * 0.35 + LEAD.look * ahead + glance + SW.look;
+  const look = turning * 0.35 + LEAD.look * ahead + glance + SW.look + TWIRL.look * TW.lead;
   // THE EYES NEARER LEVEL: whatever the body leans, a skier holds his
   // eyes toward the horizon — the head rolls back off the trunk's lean in
   // the WORLD (the pair's own roll, `input.roll`, and the trunk's on it)
@@ -661,7 +685,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // skis across under them.
   const twist =
     -turning * S.twist * (1 - 0.5 * crouch) +
-    LEAD.twist * ahead -
+    LEAD.twist * ahead +
+    TWIRL.twist * TW.lead -
     skiAngle * 0.5 * skid +
     0.5 * gait.twist +
     J.twist +
@@ -740,16 +765,21 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       crouch,
     );
     const inside = side * hang > 0 ? Math.abs(hang) : 0;
-    // Working the poles, the fists go wide of the hips — and are left
-    // there as the skate carries his hips across, so the arm on the
-    // pushing side swings through outside the leg driven out under it.
+    // Working the poles, the fists come in to just outside the shoulders,
+    // a hand wider skating (`POLE_HAND`) — and are left there as the skate
+    // carries his hips across, so the arm on the pushing side swings
+    // through outside the leg driven out under it.
+    const inward = bare ? 0 : clamp01(armW + gait.stride * (1 - armW));
+    const skating = gait.skate / Math.max(1e-6, gait.skate + gait.pole + gait.stride);
+    const handX = POLE_HAND.pole + (POLE_HAND.skate - POLE_HAND.pole) * clamp01(skating);
     const polesX =
       h.x +
       hips.x * 0.6 +
       LEAD.hands * ahead +
       side * 0.1 * air +
-      side * TURN_PLANT.reach.x * reachOf(i) +
-      armW * side * POLE_WIDE;
+      side * TURN_PLANT.reach.x * reachOf(i) -
+      inward * (h.x - side * handX) -
+      TWIRL.hands * TW.tight * (h.x - hips.x);
     // Off the stance, or — working the poles — off the shoulder, which
     // already rides the hips' sink and the legs' fold.
     const own = h.y + hipsLift * 0.6 - bump * 0.5 - sink;
@@ -771,7 +801,8 @@ export function skierPose(input: SkierPoseInput): SkierPose {
         0.1 * load +
         0.25 * pop -
         0.3 * carve * inside +
-        TURN_PLANT.reach.y * reachOf(i),
+        TURN_PLANT.reach.y * reachOf(i) +
+        TWIRL.raise * TW.tight,
       z:
         h.z +
         0.25 * lone +
@@ -809,6 +840,12 @@ export function skierPose(input: SkierPoseInput): SkierPose {
           duty,
           poled: input.poled,
           reach: reachArm,
+          // ...the double pole's alone: a skate's quick push lets go by
+          // the hips, its arm clear of the driving leg.
+          over:
+            FOLLOW_OVER *
+            (gait.follow ?? 0) *
+            clamp01(1 - gait.skate / Math.max(1e-6, gait.skate + gait.pole + gait.stride)),
         })
       : null;
   if (push) {
@@ -875,9 +912,9 @@ export function skierPose(input: SkierPoseInput): SkierPose {
   // stated off the ARM itself: in the plane through the shoulders' line —
   // down for a fist ahead, back and up for a fist driven behind him — with
   // the elbow flared out on top, so no arm the strokes swing ever points
-  // along it (where an elbow solved to a fixed pole flips across). At the
-  // double pole's plant the elbows are OUT, bent over the grips, and close
-  // in as the push drives them down and back.
+  // along it (where an elbow solved to a fixed pole flips across). Poling,
+  // the elbows stay in close to the ribs, bent back over the grips at the
+  // plant and driven down and back past the hips through the push.
   const elbows = [-1, 1].map((side, i) => {
     const arm = norm(sub(hands[i], shoulders[i]));
     const bendTo = norm({
@@ -888,11 +925,11 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     const flare =
       Math.max(0.08, 0.6 - 0.4 * crouch - 0.5 * working) +
       PLANT_FLARE * (arms * (1 - swing) + gateW);
-    // WORKING THE POLES the elbow rides up and behind the arm the whole
-    // stroke — over the grip at the plant, back past the hips at the end
-    // of the push — never swung from under the arm round behind it as the
-    // fist passes the shoulder, which threw it through a quarter turn in
-    // a few frames on every push.
+    // WORKING THE POLES the elbow rides behind the arm in its swing plane
+    // the whole stroke — under and behind the grip at the plant, back past
+    // the hips at the end of the push — tucked in by the ribs, with a share
+    // of a fixed up-and-back bend laid over it so the recovery's fast swing
+    // does not throw it round the arm.
     const pushBend = { x: 0, y: POLE_ELBOW.up, z: -POLE_ELBOW.back };
     const poling = bare ? 0 : clamp01(arms + gait.stride);
     return solveLimb(
@@ -900,7 +937,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
       hands[i],
       BODY.upperArm,
       BODY.forearm,
-      add(mix(bendTo, pushBend, poling), scale(across, side * flare)),
+      add(mix(bendTo, pushBend, poling * POLE_ELBOW.share), scale(across, side * flare)),
     );
   }) as [V3, V3];
   // THE POLES (`skier-poles.ts`).

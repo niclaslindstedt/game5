@@ -44,11 +44,12 @@ import type { CameraRung } from "./renderer-api.ts";
 /** Per boom: the standoff behind the plane's middle, m, and what each m/s
  * of airspeed adds; the height over it, m (along the airframe's up on the
  * chase and the far lens, the world's on the high); how far out to the
- * door's side, m (so the jumper in it is in the frame); how far ahead of
+ * door's side, m (none: the chase and the far stand dead astern, on the
+ * tail's line, as a flight game's chase view does); how far ahead of
  * it the look aims, m; the fov, deg. */
 export const PLANE_LOOK = {
-  chase: { dist: 16, distPerSpeed: 0.05, height: 3.6, side: 4, ahead: 14, fov: 60 },
-  far: { dist: 46, distPerSpeed: 0.15, height: 10, side: 8, ahead: 20, fov: 56 },
+  chase: { dist: 16, distPerSpeed: 0.05, height: 3.6, side: 0, ahead: 14, fov: 60 },
+  far: { dist: 46, distPerSpeed: 0.15, height: 10, side: 0, ahead: 20, fov: 56 },
   high: { dist: 14, distPerSpeed: 0.1, height: 55, side: 0, ahead: 8, fov: 62 },
   /** The orbit: its radius and height over the middle, m, its turn, rad/s,
    * and its fov, deg. */

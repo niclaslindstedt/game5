@@ -10,6 +10,10 @@
 // nothing leads him — and a rider who follows a run's sign down its ramp
 // slides onto that run and never climbs to it. A race never boards one.
 
+// What the app draws on the snow is solid here as it is in the game
+// (`drawn-solids.ts`): the stations' houses, boards and signs, the fires'
+// benches.
+import "../pwa/src/game/drawn-solids.ts";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -30,6 +34,7 @@ import {
   emptyChairAt,
   freeRunOf,
   freeRuns,
+  pickFreeRun,
   liftPlans,
   queueSpot,
   standSkier,
@@ -40,7 +45,7 @@ import {
   type LiftPlan,
   type SkierInput,
 } from "@engine";
-import { signsOf } from "../pwa/src/game/station-plan.ts";
+import { mapBoardOf, signsOf } from "../pwa/src/game/station-plan.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 const level = levelFor(LEVEL_SEEDS[0]);
@@ -98,7 +103,7 @@ function followSign(
           },
         ]
       : []),
-    ...(ramp ? [ramp.from, ramp.to] : [r.points[0]]),
+    ...(ramp ? [...roundBoard(plan, ramp.from), ramp.from, ramp.to] : [r.points[0]]),
   ];
   // On the run's snow, once making for where the ramp meets it.
   const onRun = (x: number, z: number): boolean =>
@@ -131,6 +136,31 @@ function followSign(
   }
   return { climbed, arrived: k >= way.length, events };
 }
+
+/** Round the map board standing at the parting of a top's way off, on the
+ * side the ramp at `head` lies — as a rider reading its signs goes — when
+ * the ramp lies past it; nothing where there is no board or it is behind. */
+function roundBoard(plan: LiftPlan, head: { x: number; z: number }): { x: number; z: number }[] {
+  const board = mapBoardOf(plan);
+  if (!board) return [];
+  const look = Math.atan2(board.x - board.off.x, board.z - board.off.z);
+  const fx = Math.sin(look);
+  const fz = Math.cos(look);
+  const dx = head.x - board.x;
+  const dz = head.z - board.z;
+  if (dx * fx + dz * fz < -BOARD_CLEAR) return [];
+  const side = -dx * Math.cos(look) + dz * Math.sin(look) >= 0 ? 1 : -1;
+  return [
+    {
+      x: board.x - Math.cos(look) * BOARD_CLEAR * side,
+      z: board.z + Math.sin(look) * BOARD_CLEAR * side,
+    },
+  ];
+}
+
+/** How far out from a map board's middle the rider who follows the sign
+ * passes it, m: outside its signs. */
+const BOARD_CLEAR = 7;
 
 /** How near a mark the rider who follows the sign makes for counts as
  * there, m; the speed he checks to, m/s. */
@@ -494,7 +524,22 @@ describe("which run a free ride by lift starts down", () => {
     const runs = freeRuns(map);
     const rank = (g: RunGrade): number => RUN_GRADES.indexOf(g);
     const top = Math.max(...runs.map((r) => rank(r.grade)));
-    expect(freeRunOf(map, {})).toBe(runs.find((r) => rank(r.grade) === top)!.id);
+    const hardest = runs.filter((r) => rank(r.grade) === top);
+    const pace = (r: (typeof runs)[number]): number =>
+      (r.points[0].y - r.points[r.points.length - 1].y) ** 2 / r.length;
+    const fastest = hardest.reduce((a, b) => (pace(b) > pace(a) ? b : a));
+    expect(freeRunOf(map, {})).toBe(fastest.id);
+  });
+
+  it("is the fastest of the hardest colour: the most drop at the steepest pitch", () => {
+    const runs = [
+      { id: "1", grade: "black" as const, length: 1700, vertical: 320 },
+      { id: "2", grade: "red" as const, length: 2000, vertical: 1200 },
+      { id: "3", grade: "black" as const, length: 3700, vertical: 1490 },
+      { id: "4", grade: "black" as const, length: 2700, vertical: 790 },
+    ];
+    expect(pickFreeRun(runs, {}, undefined)).toBe("3");
+    expect(pickFreeRun(runs, { grade: "black" }, undefined)).toBe("1");
   });
 });
 

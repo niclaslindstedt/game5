@@ -78,6 +78,7 @@ import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
 import { WRECK, fireFlux, fireballAt } from "./defs/heli-wreck.ts";
 import { FIRE_BURN } from "./defs/fires.ts";
 import { envelopeOf } from "./defs/skis.ts";
+import { astride, bikeBlows, type BodyHands } from "./body-steel.ts";
 import { CROWD_SIZE } from "./defs/crowd.ts";
 import { GROOMER } from "./defs/groomer.ts";
 import { MISHAPS } from "./defs/mishaps.ts";
@@ -85,7 +86,7 @@ import { TRAFFIC_STRIKE } from "./defs/traffic.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { crashLimit, noseDown } from "./crash.ts";
 import { carriedThrough } from "./flight.ts";
-import { RAGDOLL } from "./ragdoll.ts";
+import { RAGDOLL } from "./ragdoll-points.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { depthUnder, packedSnow } from "./snow.ts";
 import type {
@@ -395,6 +396,9 @@ function pointBlow(
   if (i <= R.head) offer(g, part, source);
 }
 
+/** What `body-steel.ts` strikes the body with. */
+const HANDS: BodyHands = { strike, blow, blowOf, offer, pointBlow };
+
 /** THROWN: every point of his body that met the snow or a trunk this step. */
 function ragdollBlows(state: GameState, b: Thrown): void {
   const P = b.points;
@@ -582,27 +586,13 @@ function fall(c: SkierState, cause: string, speed: number): void {
   } else if (cause === "car") {
     steel(speed, { least: TRAFFIC_STRIKE.least, hard: 1, give: TRAFFIC_STRIKE.give }, "car");
   } else if (cause === "straddle") {
-    astride(speed);
+    astride(HANDS, speed);
   } else if (cause === "nose") {
     for (const s of [-1, 1]) {
       charge(sided("shin", s), "bend", speed);
       charge(sided("knee", s), "twist", speed * I.noseTwist);
     }
   }
-}
-
-/** COME DOWN ASTRIDE A LIFT'S ROPE (`cable.ts`) at `v` m/s: the steel
- * square up into the crotch — the front of the pelvis' ring and the bladder
- * behind it, the inside of both thighs, the belly over it and the spine
- * jarred — against the rope's next to nothing. */
-function astride(v: number): void {
-  const give = I.solid.steel;
-  const g = blow("pelvis", v, give, true);
-  strike("pelvis", g, "front");
-  for (const s of [-1, 1]) strike(sided("thigh", s), blow(sided("thigh", s), v, give, true, 0.6));
-  strike("abdomen", blow("abdomen", v, give, true, I.share.trunk), "front");
-  strike("back", blow("back", v, give, true, I.share.trunk * 0.5));
-  offer(g, "pelvis", "cable");
 }
 
 /** RIDDEN INTO A PISTE MACHINE (`groomer.ts`), or met by its blade: the
@@ -766,6 +756,7 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
   clear();
   if (off) {
     ragdollBlows(state, off);
+    bikeBlows(HANDS, state, off);
     payOwed(state, off);
   } else {
     for (const e of events) {

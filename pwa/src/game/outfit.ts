@@ -53,9 +53,19 @@ import { MEDIUM_RIDER, RIDERS, type RiderId } from "@engine";
 
 import type { BuildShape } from "./dress-body.ts";
 
-export type BodyId = "man" | "woman" | "hiker" | "hikerWoman";
+export type BodyId =
+  | "auto"
+  | "autoWoman"
+  | "man"
+  | "woman"
+  | "hiker"
+  | "hikerWoman"
+  | "racer"
+  | "racerWoman"
+  | "freestyle"
+  | "freestyleWoman";
 /** A WHOLE KIT MODELLED in Blender (`player-model.ts`), by its name. */
-export type ModelKit = "hiker";
+export type ModelKit = "hiker" | "racer" | "freestyle";
 export type JacketId = "race" | "puffer" | "shell" | "anorak" | "retro";
 export type PantsId = "insulated" | "race" | "baggy" | "cargo";
 export type HelmetId = "race" | "freeride" | "visor" | "slalom";
@@ -103,6 +113,9 @@ export type BodyDef = {
    * helmet, so the jacket, pants, helmet and gloves rows are its already.
    * Never dealt to the field. */
   model?: ModelKit;
+  /** PICKED BY MODE: the modelled kit the run's mode wears, of this sex
+   * (`rider-pick.ts`'s `byMode`); dressed in code wherever no mode is known. */
+  auto?: true;
 };
 
 /** A garment's colours: the MAIN body of it, its SECOND colour (a yoke, a
@@ -137,6 +150,27 @@ export type PoleDef = {
 };
 
 export const BODIES: readonly BodyDef[] = [
+  // BY MODE: the modelled kit the run's mode wears (`rider-pick.ts`) — the
+  // hiker on a free ride, the racer in a race, the park rider in tricks and
+  // the freestyle contests — as a man or a woman.
+  {
+    id: "auto",
+    name: "Auto man",
+    female: false,
+    skin: 0xc68863,
+    hair: 0x3a2a1e,
+    plait: 0x241910,
+    auto: true,
+  },
+  {
+    id: "autoWoman",
+    name: "Auto woman",
+    female: true,
+    skin: 0xe0aa86,
+    hair: 0x9a6232,
+    plait: 0x6a4020,
+    auto: true,
+  },
   { id: "man", name: "Man", female: false, skin: 0xc68863, hair: 0x3a2a1e, plait: 0x241910 },
   { id: "woman", name: "Woman", female: true, skin: 0xe0aa86, hair: 0x9a6232, plait: 0x6a4020 },
   // The HIKER: a mountain guide's kit, modelled (`scripts/blender/hiker.py`),
@@ -158,6 +192,46 @@ export const BODIES: readonly BodyDef[] = [
     hair: 0x9a6232,
     plait: 0x6a4020,
     model: "hiker",
+  },
+  // The RACER: a national team's printed race suit, bib and guards, modelled
+  // (`scripts/blender/racer.py`), as a man and as a woman.
+  {
+    id: "racer",
+    name: "Racer man",
+    female: false,
+    skin: 0xc68863,
+    hair: 0x3a2a1e,
+    plait: 0x241910,
+    model: "racer",
+  },
+  {
+    id: "racerWoman",
+    name: "Racer woman",
+    female: true,
+    skin: 0xe0aa86,
+    hair: 0x9a6232,
+    plait: 0x6a4020,
+    model: "racer",
+  },
+  // The FREESTYLE rider: a park kit's tall jacket, baggy pants, hood and
+  // gaiter, modelled (`scripts/blender/freestyle.py`), as a man and as a woman.
+  {
+    id: "freestyle",
+    name: "Park man",
+    female: false,
+    skin: 0xc68863,
+    hair: 0x3a2a1e,
+    plait: 0x241910,
+    model: "freestyle",
+  },
+  {
+    id: "freestyleWoman",
+    name: "Park woman",
+    female: true,
+    skin: 0xe0aa86,
+    hair: 0x9a6232,
+    plait: 0x6a4020,
+    model: "freestyle",
   },
 ];
 
@@ -314,9 +388,11 @@ export const GEAR_SLOTS: readonly GearSlot[] = [
   "poles",
 ];
 
-/** The player's kit before they have dressed: a racer in the gate red. */
+/** The player's kit before they have dressed: the AUTO man — the modelled
+ * kit of the run's mode (`rider-pick.ts`) — and, where the models are off
+ * or the code dresses him, a racer in the gate red. */
 export const DEFAULT_OUTFIT: Outfit = {
-  body: "man",
+  body: "auto",
   weight: "medium",
   jacket: "race",
   pants: "insulated",
@@ -385,7 +461,7 @@ export function dealtOutfit(look: number, weight: RiderId): Outfit & { tone: num
   };
   return {
     body: of(
-      BODIES.filter((b) => !b.model),
+      BODIES.filter((b) => !b.model && !b.auto),
       0,
     ),
     weight,

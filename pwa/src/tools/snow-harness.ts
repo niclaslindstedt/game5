@@ -30,6 +30,8 @@ import {
   createGame,
   generateLevel,
   pisteDayOf,
+  airTempAt,
+  slopeAltitudeOf,
   NEUTRAL_INPUT,
   placeRun,
   step,
@@ -74,6 +76,7 @@ const scale = Number(params.get("scale") ?? 0.5);
 const at = Number(params.get("at") ?? 0.3);
 const weather = (params.get("weather") || "clear") as WeatherKind;
 const hourParam = params.get("hour");
+const tempParam = params.get("temp");
 
 /** Each tile: the map's own age, then every forced one. */
 const AGES: readonly ("map" | SnowAgeKind)[] = ["map", ...SNOW_AGE_KINDS];
@@ -103,7 +106,7 @@ renderer.resize(width, height, 1);
 
 const level = generateLevel(seed, { region });
 const hour = hourParam !== null ? Number(hourParam) : level.sun.hour;
-const sky = { weather, hour };
+const sky = { weather, hour, ...(tempParam !== null ? { temp: Number(tempParam) } : {}) };
 const lit = withSky(level, sky);
 const sun = sunAtRun(lit);
 const spot = trackPointAt(level, level.track.length * at);
@@ -208,7 +211,7 @@ function pisteLens(id: PisteLens): LensPose {
 
 /** The piste's tracks at an hour, for the caption. */
 function trackLine(h: number): string {
-  const day = pisteDayOf(withSky(level, { weather, hour: h }));
+  const day = pisteDayOf(withSky(level, { ...sky, hour: h }));
   const t = tracksOf(day.skied);
   return `${day.skied.toFixed(1)} h skied  lines ${t.many.toFixed(2)} churn ${t.churn.toFixed(2)}`;
 }
@@ -222,7 +225,8 @@ const ready = (async () => {
   const own = snowAgeOf(lit);
   return (
     `${weather} at ${hour.toFixed(1)} h, sun ${((sun.elevation * 180) / Math.PI).toFixed(0)}° up, ` +
-    `day ${level.sun.dayOfYear}, lat ${level.sun.latitude.toFixed(1)} — ` +
+    `day ${level.sun.dayOfYear}, lat ${level.sun.latitude.toFixed(1)}, ` +
+    `air ${airTempAt(lit, undefined, slopeAltitudeOf(lit)).toFixed(1)} °C on the slopes — ` +
     `the map's own snow: ${own.days.toFixed(1)} days since the fall`
   );
 })();
@@ -244,7 +248,7 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
   if ((PISTE_LENSES as readonly string[]).includes(group)) {
     for (const view of views) {
       const h = Number(view.slice(group.length + 1));
-      renderer.setSky({ weather, hour: h });
+      renderer.setSky({ ...sky, hour: h });
       renderer.setOverride(pisteLens(group as PisteLens));
       renderer.draw(s, 1, FRAME, true);
       renderer.draw(s, 1, FRAME, true);

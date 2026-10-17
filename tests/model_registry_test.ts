@@ -65,6 +65,8 @@ describe("the model registry", () => {
       "Piste machine",
       "Jump plane",
       "Player's kit",
+      "Racer's kit",
+      "Freestyle kit",
     ]);
   });
 

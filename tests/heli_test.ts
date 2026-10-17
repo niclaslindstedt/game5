@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   CHUTE,
   HELI,
+  MACHINE_GRACE,
   NEUTRAL_INPUT,
   angleDiff,
   createGame,
@@ -207,8 +208,9 @@ describe("the helicopter", () => {
     expect(s.skier.airborne).toBe(false);
     expect(s.heli!.mode).toBe("parked");
     // Stood beside the skid he stepped off, he stays off it until he asks;
-    // the same press sits him back on.
-    fly(s, 1, ask());
+    // once the grace after stepping off is over, the same press sits him
+    // back on.
+    fly(s, MACHINE_GRACE + 0.1, ask());
     expect(s.heli!.rider).toBe(false);
     const again = fly(s, 1 / 120, ask({ machine: true }));
     expect(again.some((e) => e.kind === "heli" && e.phase === "board")).toBe(true);
@@ -336,6 +338,31 @@ describe("the helicopter", () => {
     expect(events.some((e) => e.kind === "heli" && e.phase === "board")).toBe(true);
     expect(h.rider).toBe(true);
     expect(h.mode).toBe("flown");
+  });
+
+  it("leaves him be for a grace after he steps off, however he presses", () => {
+    const s = ride();
+    fly(s, 0.5, ask());
+    expect(s.heli!.rider).toBe(true);
+    fly(s, 1 / 120, ask({ machine: true }));
+    expect(s.heli!.rider).toBe(false);
+    expect(s.heli!.mode).toBe("parked");
+    // Skating away over the skid, the double taps that come with it never
+    // sit him back on.
+    expect(heliWithin(s)).toBe(false);
+    for (let i = 0; i < 8; i++) fly(s, (MACHINE_GRACE - 0.2) / 8, ask({ machine: i % 2 === 0 }));
+    expect(s.heli!.rider).toBe(false);
+    // ...and once the grace is over, the press takes him on again.
+    standSkier(
+      s,
+      s.heli!.x - Math.cos(s.heli!.heading) * 2.2,
+      s.heli!.z + Math.sin(s.heli!.heading) * 2.2,
+      s.heli!.heading,
+    );
+    fly(s, 0.5, ask());
+    expect(heliWithin(s)).toBe(true);
+    fly(s, 1 / 120, ask({ machine: true }));
+    expect(s.heli!.rider).toBe(true);
   });
 
   it("crashes flown into the snow, throws the skier, and starts again on the pad", () => {

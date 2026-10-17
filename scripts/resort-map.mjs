@@ -70,6 +70,10 @@ const args = parseArgs(
     out: { kind: "string", help: "file stem under previews/ (no extension)" },
     debug: { kind: "flag", help: "print why every run slot that failed to walk failed" },
     walks: { kind: "flag", help: "draw every walk the accepted attempt refused, and why" },
+    routes: {
+      kind: "flag",
+      help: "also write <stem>-SR<n>.png: each ski route (R42) close, its woods, jumps and drops",
+    },
     village: {
       kind: "flag",
       help: "also write <stem>-village.png: the village and its streets close (a real face's town beside it with --hints)",
@@ -306,6 +310,32 @@ writeFileSync(
     village: villageOf(level),
   }).toPng(),
 );
+if (args.routes) {
+  for (const r of level.resort?.routes ?? []) {
+    const xs = r.points.map((p) => p.x);
+    const zs = r.points.map((p) => p.z);
+    const side = Math.min(
+      level.size,
+      Math.max(500, Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) + 160,
+    );
+    const cx = (Math.max(...xs) + Math.min(...xs)) / 2;
+    const cz = (Math.max(...zs) + Math.min(...zs)) / 2;
+    const clampTo = (v) => Math.max(0, Math.min(level.size - side, v - side / 2));
+    const jumps = (level.kickers ?? []).filter((k) => k.route === r.id);
+    writeFileSync(
+      join(dir, `${stem}-${r.id}.png`),
+      renderResortPlan({
+        level,
+        scale: 1200 / side,
+        title: `${title}  ${r.id} ${f(r.length, 0)} M  ${jumps.length} JUMPS  ${(r.drops ?? []).length} DROPS  ${f(r.woods ?? 0, 0)} M WOODS`,
+        course: false,
+        hubAt,
+        view: { x: clampTo(cx), z: clampTo(cz), size: side },
+      }).toPng(),
+    );
+    console.log(`wrote previews/${stem}-${r.id}.png`);
+  }
+}
 if (args.village) {
   // The village close: round its streets, and a real town's middle too
   // where --hints draws one.

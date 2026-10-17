@@ -25,6 +25,7 @@
 
 import {
   createGame,
+  summerSky,
   placeRun,
   step,
   windAt,
@@ -59,6 +60,10 @@ export type SnowfallCell = {
   skier: number;
   lens: number;
   wind: number;
+  /** How fast the lens sinks, m/s, and how fast the snow falls past it
+   * (never below zero: snow is never seen rising). */
+  sink: number;
+  fall: number;
   /** The air past the lens, m/s, and how much of it comes AT the lens. */
   air: number;
   toward: number;
@@ -98,6 +103,11 @@ const speeds = list("speeds", "0,30,60,100,140").map(Number);
 const rung = (params.get("camera") ?? "chase") as CameraRung;
 const strobe = Math.max(1, Number(params.get("strobe") ?? 8));
 const warm = Number(params.get("ride") ?? 1);
+const summer = params.get("summer") === "1";
+/** THE DIVE: a lens flown down a pitch this steep, deg, at the held speed
+ * instead of riding the meadow — a skier's lens down a steep face sinks
+ * metres a second, which the flat meadow never shows. 0 rides the meadow. */
+const dive = Number(params.get("dive") ?? 0) * (Math.PI / 180);
 
 /** A WEATHER: the sky set for it, a fall in the middle of its band (CLEAR
  * is the air's crystals alone). */
@@ -121,7 +131,7 @@ const renderer = createWorldRenderer(stage, {
   preserveDrawingBuffer: true,
 });
 renderer.resize(cellW, cellH, 1);
-const first: GameState = createGame({ seed, mode: "free", rivals: 0, quiet: true });
+const first: GameState = createGame({ seed, mode: "free", rivals: 0, quiet: true, summer });
 const level = first.level;
 let spot = { x: 0, z: 0, room: 0 };
 let filled: SnowfallCell[] = [];
@@ -155,7 +165,10 @@ window.__snowfall = {
     for (let r = 0; r < rows.length; r++) {
       const row = rows[r];
       const y0 = headH + r * cellH;
-      const sky: SkyOverride = { weather: SKIES[row.weather] ?? "clear", hour: 12 };
+      // A summer's sky never snows, as the game dries it (`drySummer`).
+      const raw = SKIES[row.weather] ?? "clear";
+      const asked = typeof raw === "string" ? raw : raw.kind;
+      const sky: SkyOverride = { weather: summer ? summerSky(asked ?? "clear") : raw, hour: 12 };
       renderer.setSky(sky);
       const skied = withSky(level, sky);
       const label: string[] = [row.weather.toUpperCase(), `${row.ride.toUpperCase()} THE WIND`];
@@ -163,7 +176,7 @@ window.__snowfall = {
         const kmh = speeds[c];
         const wind: Wind = windAt(skied, 0);
         const heading = Math.atan2(wind.x, wind.z) + (TURN[row.ride] ?? 0);
-        const state = createGame({ level, mode: "free", rivals: 0, quiet: true });
+        const state = createGame({ level, mode: "free", rivals: 0, quiet: true, summer });
         // From the meadow's far side, so the ride crosses its middle.
         const lead = Math.min(40, (kmh / 3.6) * warm * 0.6);
         placeRun(state, {
@@ -179,8 +192,32 @@ window.__snowfall = {
         await renderer.shadeSettled();
         const track = createLensTrack();
         const lensV: Vec3 = { x: 0, y: 0, z: 0 };
+        const way = {
+          x: Math.sin(heading) * Math.cos(dive),
+          y: -Math.sin(dive),
+          z: Math.cos(heading) * Math.cos(dive),
+        };
+        // Started as high over the meadow as the dive will drop it, so it
+        // ends at the chase's own height rather than under the snow.
+        const from = renderer.lensPose();
+        from.y += (kmh / 3.6) * (warm + (strobe + 1) * FRAME) * Math.sin(dive);
+        let flown = 0;
         const frame = (present: boolean) => {
           for (let i = 0; i < 2; i++) step(state, holdInput(state, kmh, heading));
+          if (dive > 0) {
+            flown += (kmh / 3.6) * FRAME;
+            const eye = {
+              x: from.x + way.x * flown,
+              y: from.y + way.y * flown,
+              z: from.z + way.z * flown,
+            };
+            const target = {
+              x: eye.x + way.x * 10,
+              y: eye.y + way.y * 10 - 1,
+              z: eye.z + way.z * 10,
+            };
+            renderer.setOverride({ eye, target, fov: from.fov, roll: 0 });
+          }
           renderer.draw(state, 0, FRAME, present);
           const p = renderer.lensPose();
           Object.assign(lensV, track.step(p, FRAME));
@@ -196,10 +233,14 @@ window.__snowfall = {
           ctx.fillStyle = "#000";
           ctx.fillRect(x0, y0, cellW, cellH);
           ctx.globalCompositeOperation = "lighten";
+          // Older frames fainter, so each track brightens toward where the
+          // flake went: its way across the picture reads.
           for (let f = 0; f < strobe; f++) {
             frame(true);
+            ctx.globalAlpha = (f + 1) / strobe;
             ctx.drawImage(stage, x0, y0, cellW, cellH);
           }
+          ctx.globalAlpha = 1;
           ctx.globalCompositeOperation = "source-over";
           renderer.setHidden([]);
         }
@@ -221,6 +262,8 @@ window.__snowfall = {
           kmh,
           skier: state.skier.speed * 3.6,
           lens: Math.hypot(lensV.x, lensV.y, lensV.z) * 3.6,
+          sink: -lensV.y,
+          fall: -air.y,
           wind: now.speed,
           air: speed,
           toward,
@@ -232,7 +275,7 @@ window.__snowfall = {
         ctx.fillRect(x0, y0 + cellH - 18, cellW, 18);
         ctx.fillStyle = "#e8eef4";
         ctx.fillText(
-          `lens ${cell.lens.toFixed(0)} km/h · air ${cell.air.toFixed(1)} m/s, ${cell.toward.toFixed(1)} at the lens`,
+          `lens ${cell.lens.toFixed(0)} km/h · falls ${cell.fall.toFixed(1)} m/s · air ${cell.air.toFixed(1)} m/s, ${cell.toward.toFixed(1)} at the lens`,
           x0 + 6,
           y0 + cellH - 9,
         );

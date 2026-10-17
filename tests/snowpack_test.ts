@@ -137,6 +137,33 @@ describe("which snow lies where", () => {
     expect(snowing.wet).toBe(0);
   });
 
+  it("goes wet in warm air under any sky, and stays dry in deep cold whatever the sun", () => {
+    const high = 0.7;
+    const overcast = {
+      kind: "overcast",
+      snowfall: 0,
+      fog: 0,
+      wind: 3,
+      windFrom: 0,
+      evening: false,
+    } as const;
+    // Air over the melting point wets it under a lid, and a fall through it.
+    expect(snowpackOf(strip(overcast), { elevation: 0.1, air: 4 }).wet).toBe(1);
+    const snowing = strip({
+      kind: "snow",
+      snowfall: 0.5,
+      fog: 0,
+      wind: 5,
+      windFrom: 0,
+      evening: false,
+    });
+    expect(snowpackOf(snowing, { elevation: high, air: 3 }).wet).toBe(1);
+    expect(snowpackOf(snowing, { elevation: high, air: -3 }).wet).toBe(0);
+    // A high sun wets it a few degrees under zero, never in deep cold.
+    expect(snowpackOf(strip(), { elevation: high, air: -3 }).wet).toBeGreaterThan(0.5);
+    expect(snowpackOf(strip(), { elevation: high, air: -12 }).wet).toBe(0);
+  });
+
   it("lays one kind everywhere for a lab, and scales the loose snow by the dial", () => {
     const pack = snowpackOf(strip(), { force: "wet" });
     for (const x of [10, 200, 350]) expect(kindAt(pack, x, 10)).toBe("wet");

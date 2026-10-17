@@ -491,6 +491,7 @@ export function freeRules(laps: number): RunRules {
     fires: true,
     avalanche: true,
     front: true,
+    freeCarve: true,
     start: "line",
     gates: "arcade",
     window: 0,

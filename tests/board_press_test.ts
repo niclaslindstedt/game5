@@ -112,7 +112,7 @@ describe("pressing on the snow", () => {
 
 describe("the butter", () => {
   it("a nose butter carried half round leaves him riding fakie, on his feet", () => {
-    const state = rolling();
+    const state = rolling(LYNX, 15);
     const h0 = state.skier.heading;
     const events = ride(state, 1.2, { lean: -1, steer: 1 });
     expect(state.skier.board!.butter).toBeGreaterThan(Math.PI * 0.85);

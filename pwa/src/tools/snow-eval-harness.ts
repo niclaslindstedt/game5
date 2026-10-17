@@ -39,9 +39,8 @@ import { holdInput } from "../game/hold-input.ts";
 import type { SnowAgeKind } from "../game/snow-age.ts";
 import type { SnowKind } from "../game/snowpack.ts";
 import { createWorldRenderer, type WorldRendererExt } from "../game/renderer.ts";
-import { flySprayAs, flySprayOn } from "../game/spray.ts";
+import { flySprayOn } from "../game/spray.ts";
 import { SPRAY_STATS } from "../game/spray-stats.ts";
-import { SPRAY_MODELS, type SprayModel } from "../game/spray-sim.ts";
 import { DEFAULT_VIDEO, withPreset, type Tier } from "../game/settings-video.ts";
 import { hourAt, meadow, pisteSpot } from "./stage.ts";
 import { FILM_SCENES, filmMeans, filmSheet, type FilmCell } from "./snow-eval-film.ts";
@@ -121,10 +120,6 @@ const filmLights = list("film", "day,low").filter((l) => l in LIGHTS);
 
 const stage = document.getElementById("stage") as HTMLCanvasElement;
 const sheet = document.getElementById("sheet") as HTMLCanvasElement;
-// `?model=` flies the spray as another model (the game's before): every
-// spray made from now on.
-const model = params.get("model");
-if (model && (SPRAY_MODELS as readonly string[]).includes(model)) flySprayAs(model as SprayModel);
 // `?flight=cpu|gpu` flies the weighed spray one way at every stop (the
 // SPRAY row's own way unless said).
 const flight = params.get("flight");

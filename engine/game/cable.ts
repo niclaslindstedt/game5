@@ -198,6 +198,8 @@ function put(
   k.spinDone = 0;
   k.flipDone = 0;
   k.flipSpeed = 0;
+  k.spinSpeed = 0;
+  k.flipTuck = 0;
   events.push({ kind: "grind", t: run.t, id: plan.lift.id, phase: "on" });
   hold(run, plan, ride, 0);
 }

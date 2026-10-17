@@ -39,7 +39,7 @@
 import { pisteDayOf, regionOf, sampleField, weatherOf, type Level, type Weather } from "@engine";
 
 import { NO_TRACKS, tracksOf, type Tracks } from "./piste-tracks.ts";
-import { snowAgeOf, THAW, type SnowAge, type SnowAgeKind } from "./snow-age.ts";
+import { snowAgeOf, snowAirOf, THAW, wetIn, type SnowAge, type SnowAgeKind } from "./snow-age.ts";
 
 export { THAW };
 
@@ -176,9 +176,9 @@ export type Snowpack = {
   fresh: number;
   /** How wet the thaw has made the soft and new snow, 0..1. */
   wet: number;
-  /** THE PISTE THROUGH THE DAY (`GameState.piste`): how skied up, softened
-   * and refrozen the groomer is, each 0..1 — nought on a run not dealt it. */
-  piste: { worn: number; soft: number; hard: number };
+  /** THE PISTE THROUGH THE DAY (`GameState.piste`): how skied up the
+   * groomer is, 0..1 — nought on a run not dealt it. */
+  piste: { worn: number };
   /** The run's snow dial (`GameState.snowDepth`): how much loose snow
    * there is, as a multiple of the ordinary. */
   depth: number;
@@ -197,6 +197,10 @@ export type SnowpackOptions = {
   weather?: Weather;
   /** The sun's elevation over the run, rad; no thaw when left out. */
   elevation?: number;
+  /** The air over the snow, °C (`airTempAt` at the slopes' altitude): what
+   * wets it with the sun or without — the map's own at its start hour when
+   * left out on a map with a sun, none read on one without. */
+  air?: number;
   fresh?: number;
   depth?: number;
   force?: SnowKind | null;
@@ -204,7 +208,7 @@ export type SnowpackOptions = {
   age?: SnowAgeKind | null;
   /** The run's piste through the day (`GameState.piste`); none when left
    * out. */
-  piste?: { worn: number; soft: number; hard: number };
+  piste?: { worn: number };
 };
 
 const smooth = (a: number, b: number, x: number): number => {
@@ -215,34 +219,33 @@ const smooth = (a: number, b: number, x: number): number => {
 /** The snowpack of `level` under a sky. */
 export function snowpackOf(
   level: Pick<Level, "packedAt" | "crust" | "iceAt" | "region" | "weather"> &
-    Partial<Pick<Level, "seed" | "sun">>,
+    Partial<Pick<Level, "seed" | "sun" | "mountain" | "front">>,
   options: SnowpackOptions = {},
 ): Snowpack {
   const weather = options.weather ?? weatherOf(level);
   const snowing =
     weather.kind === "flurries" || weather.kind === "snow" || weather.kind === "storm";
-  // A thaw wants the sun on the snow: a lid over it keeps the snow cold, and
-  // a sky that is snowing is cold by definition.
+  // A thaw wants the sun on the snow in air near the melting point: a lid
+  // over it keeps most of the sun off, a snowing sky all of it — and air
+  // over the melting point wets the snow (and what is falling) on its own.
   const lid = weather.kind === "overcast" || weather.kind === "fog" ? 0.35 : 1;
   const sun = options.elevation ?? -1;
+  const sky = level.sun ? { ...level, sun: level.sun, weather } : null;
+  const air = options.air ?? (sky ? snowAirOf(sky) : undefined);
   return {
     level,
     crustHold: regionOf(level).crust?.packed ?? 0,
     laid: snowing ? NEW_LAID * weather.snowfall : 0,
     fresh: options.fresh ?? 0,
-    wet: snowing ? 0 : smooth(THAW.from, THAW.full, sun) * lid,
-    piste: {
-      worn: options.piste?.worn ?? 0,
-      soft: options.piste?.soft ?? 0,
-      hard: options.piste?.hard ?? 0,
-    },
+    wet: wetIn(air, snowing ? 0 : smooth(THAW.from, THAW.full, sun) * lid),
+    piste: { worn: options.piste?.worn ?? 0 },
     depth: options.depth ?? 1,
     force: options.force ?? null,
     age:
       level.sun && level.seed !== undefined
         ? snowAgeOf(
             { seed: level.seed, sun: level.sun, weather },
-            { elevation: options.elevation, force: options.age ?? null },
+            { elevation: options.elevation, force: options.age ?? null, air },
           )
         : null,
     tracks: level.sun
@@ -289,20 +292,15 @@ export function snowMix(pack: Snowpack, x: number, z: number, out: SnowMix = emp
   // THE THAW takes the loose snow wet; the groomer and the slab stay what
   // they are (a sunlit groomer is slush only in April).
   const w = pack.wet;
-  // THE DAY'S PISTE: a share of the groomer skied off into loose heaps, a
-  // share gone to slush under a spring sun, and a share of that frozen
-  // again into a crust that breaks in chunks.
-  const day = pack.piste;
+  // THE DAY'S PISTE: a share of the groomer skied off into loose heaps.
   const open = g * (1 - coverGroomed);
-  const slush = open * day.soft;
-  const froze = open * day.hard * 0.6;
-  const heaped = (open - slush - froze) * day.worn * 0.25;
+  const heaped = open * pack.piste.worn * 0.25;
   out.ice = ice;
-  out.groomed = open - slush - froze - heaped;
-  out.hard = hard * under + froze;
+  out.groomed = open - heaped;
+  out.hard = hard * under;
   out.soft = soft * under * (1 - w) + heaped;
   out.new = buried * (1 - w);
-  out.wet = (soft * under + buried) * w + slush;
+  out.wet = (soft * under + buried) * w;
   return out;
 }
 
@@ -396,7 +394,7 @@ const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
  * no age (`null`) leaves the kind as it is. Into `out`. */
 export function ageSnow(snow: SnowProps, age: SnowAge | null, out: AgedSnow): AgedSnow {
   Object.assign(out, snow);
-  // Wet by its kind (a thaw's or a spring piste's slush), whatever its age.
+  // Wet by its kind (a thaw's), whatever its age.
   const kindWet = clamp01((snow.density - 300) / 150) * clamp01((snow.loose - 0.3) / 0.4);
   if (!age) {
     out.plates = 0;

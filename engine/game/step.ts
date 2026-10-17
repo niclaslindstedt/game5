@@ -36,6 +36,7 @@ import {
   setAerials,
   setSkiJump,
   setSlopestyle,
+  releaseResort,
   withDay,
   withPlace,
   realFacePlace,
@@ -105,9 +106,11 @@ import { juryDay } from "./jury.ts";
 import { wellShareOf, withWells } from "./tree-well.ts";
 import { bedrockOf, withRock } from "./rock-ground.ts";
 import { stepRun } from "./run.ts";
+import { noteMachine, onMachine } from "./machine-grace.ts";
 import { enterLodge, freshAfterski, lodgesOf } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
 import { freshGore } from "./gore-state.ts";
+import { copyCall, type RescueCall } from "./rescue-call.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
 import { pisteDayOf } from "./piste-day.ts";
@@ -124,6 +127,9 @@ export type CreateGameOptions = {
   /** Told how far the generator has got building the seed's map, 0–1
    * (`GenerateOptions.progress`). Never called when `level` is given. */
   progress?: (share: number) => void;
+  /** Build ONE attempt of the map's search alone (`GenerateOptions.only`),
+   * throwing its refusal — a host running the attempts side by side. */
+  only?: number;
   /** HOW THE SKIER WORKS THE SKI (`technique.ts`), over the mode's own —
    * so a lab can ski one course with every technique. */
   technique?: TechniqueId;
@@ -227,6 +233,10 @@ export type CreateGameOptions = {
    * back up — the app's to end. Off when left out, and then nothing of it
    * runs: the INJURIES switch's (`settings.ts`). */
   gore?: boolean;
+  /** THE AIR AMBULANCES still on the mountain from earlier runs that ended
+   * injured (`rescue-call.ts`): their landed machines are solid to this
+   * run's skier. The app's (`rescue-book.ts`); none when left out. */
+  rescue?: RescueCall[];
   /** SAFE FOR WORK (`RunRules.sfw`): no collisions between skiers, no
    * afterski, a helicopter and a balloon that cannot crash or burn. The
    * app asks for it when the INJURIES switch is off. Off when left out. */
@@ -435,6 +445,8 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     ...(base.avalanche && options.avalanche && !summer ? { avalanche: true } : {}),
     // ...and its weather moving over the ride (`front.ts`): the same.
     ...(base.front && options.front && !summer ? { front: true } : {}),
+    // ...and its edges held at speed (`speedHoldOf`): the free ride's alone.
+    ...(base.freeCarve ? { freeCarve: true } : {}),
     start: base.start,
     dealt: base.dealt,
     knock: base.knock,
@@ -478,6 +490,7 @@ export function levelFor(options: CreateGameOptions = {}): Level {
     grade: options.grade ?? (options.mode === "slalom" ? "red" : undefined),
     version: tricks ? PARK_VERSION : undefined,
     progress: options.progress,
+    only: options.only,
   };
   const built = generateLevel(options.seed ?? 1, ask);
   // A DOWNHILL off a seed of its own is raced on the ski area's course with
@@ -507,6 +520,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   const giant = options.mode === "giantSlalom";
   // (A map handed back off a run is taken under its rock skin, laid again below.)
   const built = bedrockOf(levelFor(options));
+  // A run on another mountain lets go of the ski area kept for the last one.
+  releaseResort(built.seed);
   // A SLALOM is set over the map (R31) — run one's course, or the second
   // run's — a DOWNHILL down its whole piste (R32), a SUPER-G from its
   // lowered start (R33), a GIANT SLALOM from its own — either run's — (R36),
@@ -601,6 +616,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     assist: { ...(options.assist ?? FULL_ASSIST) },
     damage: options.damage ?? false,
     ...(options.gore && !options.sfw ? { gore: freshGore() } : {}),
+    ...(options.rescue?.length ? { rescue: options.rescue.map(copyCall) } : {}),
     snowDepth: depth,
     fresh: summer ? 0 : Math.max(0, options.fresh ?? piste?.fresh ?? 0),
     rivals: [],
@@ -782,7 +798,10 @@ export function step(state: GameState, input: SkierInput): GameState {
 
   // THE DRAFT in a ski-cross heat (`cross-heat.ts`), off where the four are.
   if (state.cross) stepDrafts(state);
+  // THE GRACE after stepping off a machine (`machine-grace.ts`).
+  const aboard = onMachine(state);
   stepRun(state, input, events, true);
+  noteMachine(state, aboard);
   // THE SCORE is the player's, kept on every run (`tricks.ts`).
   stepTricks(state, events);
   // A MOGULS RUN'S TURNS as the judges watch them (`mogul-turns.ts`).

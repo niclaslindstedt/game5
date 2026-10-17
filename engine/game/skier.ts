@@ -54,6 +54,7 @@ import { riderOf } from "./defs/riders.ts";
 import { SKIS, inertiaOf, totalMass } from "./defs/skis.ts";
 import { techniqueOf } from "./defs/technique.ts";
 import { TUNING } from "./defs/tuning.ts";
+import { setting } from "./strokes.ts";
 import { airTorque, landingAhead, landingLoad, landingLoss, landingOff } from "./flight.ts";
 import { chassisContacts } from "./chassis.ts";
 import {
@@ -72,7 +73,6 @@ import {
   gripAt,
   holeSink,
   onRock,
-  pisteIce,
   platformOf,
   packedSnow,
   restSinkOf,
@@ -92,6 +92,8 @@ import {
   flightGravity,
   harshSpeedOf,
   skidAngleAt,
+  bentSpecOf,
+  speedHoldOf,
 } from "./limits.ts";
 import { footprintOf } from "./footprint.ts";
 import { hullOf, probesOf } from "./suspension.ts";
@@ -108,6 +110,7 @@ import { stepTrench, trenchGrip } from "./trench.ts";
 import { wellAt, wellLoose } from "./tree-well.ts";
 import { heldSlip, hopRevert, hopSwitch, revertHold, switchSteer } from "./switch.ts";
 import { slideOver } from "./sidestep.ts";
+import { stepJumpLoad } from "./jump-load.ts";
 import type { Level } from "../mapgen/types.ts";
 import type { GameEvent, GameState, SkierInput, SkierState } from "./state.ts";
 
@@ -209,21 +212,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // snowplough, which pivots nothing and only scrubs.
   c.skid = approach(c.skid, c.brake, S.skidRate * dt);
   c.skiAngle = c.skid * skidAngleAt(speed0) * clamp(c.steer * 2, -1, 1);
-  // THE JUMP (`TUNING.jump`): loaded while it is held on the snow — the
-  // time held, to `full` — and sprung the step it is let go, off the snow
-  // if he is on it or left it under `grace` s ago (a lip is left a beat
-  // before the thumb comes off). Let go later in the air, it is spent.
-  let pop = 0;
-  let loaded = 0;
-  c.popped += dt;
-  const sprung = !c.airborne || c.airTime <= J.grace;
-  if (input.jump === true && c.thrown === null) {
-    if (!c.airborne) c.jumpLoad = Math.min(J.full, c.jumpLoad + dt);
-  } else if (c.jumpLoad > 0) {
-    loaded = c.jumpLoad;
-    if (sprung && c.thrown === null) pop = J.popMin + ((J.popMax - J.popMin) * loaded) / J.full;
-    c.jumpLoad = 0;
-  }
+  // THE JUMP (`jump-load.ts`): loaded while held, sprung on the release or a flick.
+  const { pop, loaded } = stepJumpLoad(c, input, dt);
   // THE DRIVE HE MAKES (`poles.ts`): automatic at a crawl once he is
   // rolling (or the moment the tuck asks him to go — a skier standing still
   // with his hands off stays standing), and not while he is braking,
@@ -285,13 +275,12 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // The tips loaded and the edge cut hard tighten the arc — as far as the
   // sidecut's geometry bends (`carveMost`), and never past it: the rest of
   // a line turned tighter is the skid's.
+  const arc = bentSpecOf(spec, state.rules);
   const kappa =
     Math.sign(c.edge) *
     Math.min(
-      Math.abs(carveCurvature(spec, c.edge)) *
-        (1 - S.tipLoad * c.lean) *
-        (1 + CV.tighten * c.carve),
-      carveMost(spec, c.edge),
+      Math.abs(carveCurvature(arc, c.edge)) * (1 - S.tipLoad * c.lean) * (1 + CV.tighten * c.carve),
+      carveMost(arc, c.edge),
     );
   // A pressed edge holds more (`carve.grip`).
   const pressed = 1 + CV.grip * c.carve;
@@ -398,8 +387,10 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     (1 - G.flatShare) * clamp(Math.sin(Math.abs(c.edge)) / Math.sin(edgeMostOf(spec, T)), 0, 1) +
     platform;
   // THE CHATTER (`TUNING.chatter`): the snow passing under the skis at
-  // speed shakes them, and an edge skipping off the snow holds less.
-  const shaken = chatterHold(spec, speed0);
+  // speed shakes them, and an edge skipping off the snow holds less; a
+  // free ride's edge holds more as he gathers speed (`speedHoldOf`).
+  const atSpeed = speedHoldOf(state.rules, speed0);
+  const shaken = chatterHold(spec, speed0) * atSpeed;
   let touching = 0;
   let loadSum = 0;
   let packedLoad = 0;
@@ -450,9 +441,8 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const ay = c.y + fwd.y * p.bz + acrossY * p.bx + dy * -(p.by + drop);
     const az = c.z + fwd.z * p.bz + acrossZ * p.bx + dz * -(p.by + drop);
     const packed = packedSnow(state, ax, az);
-    let ice = level.iceAt ? level.iceAt(ax, az) : 0;
+    const ice = level.iceAt ? level.iceAt(ax, az) : 0;
     const bare = level.bareRockAt ? level.bareRockAt(ax, az) : 0;
-    if (state.piste) ice = Math.max(ice, pisteIce(state, ax, az, packed)); // the evening's refreeze
     // In a TREE WELL the snow is loose to the bottom (`tree-well.ts`).
     const loose = level.wells ? Math.max(bottomless, wellLoose(level, ax, az)) : bottomless;
     // A bogged skier (`trench.ts`) hangs in the hole he has sunk into.
@@ -749,7 +739,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const packed = c.packed;
     // The balance he leans to (`incline.ts`), the wind's push across him
     // held by the edges too, so he leans INTO it (`air.side`).
-    const target = inclineTarget(c, spec, T, speed0, pressed, goal, air.side);
+    const target = inclineTarget(c, spec, T, speed0, pressed, goal, air.side, atSpeed, arc);
     const hold = rollHeld(rollRel, T);
     // Stated on the reference pair and scaled by this one's weight times
     // its height: the moment a bend puts on a body goes as both.
@@ -794,7 +784,7 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
     const flat = hypot(c.vx, c.vz);
     // A wind across him into the turn bends the path with the edges, one
     // out of it takes from what they can turn it by (`air.side`).
-    const held = cornerGrip(spec, packed, speed0, c.edge, T) * pressed;
+    const held = cornerGrip(spec, packed, speed0, c.edge, T, atSpeed) * pressed;
     const helped = air.side * Math.sign(way * kappa);
     const reach = Math.abs(way) > 1 ? Math.max(0, held * S.pathShare + helped) / Math.abs(way) : 0;
     const carved = clamp(way * kappa, -reach, reach);
@@ -823,15 +813,14 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   } else {
     const back = state.rules.stunts && c.way < 0;
     const assist = level.pipe ? 0 : state.assist.air;
-    airTorque(c, tb, assist, landingAhead(c, level, flightGravity(state.rules)), back);
+    const trim = state.rules.stunts && !setting(c.airTime) ? TUNING.tricks.trim : 1;
+    airTorque(c, tb, assist, landingAhead(c, level, flightGravity(state.rules)), back, trim);
   }
-  // Euler's equations with a diagonal inertia: τ − ω × Iω. Only on the
-  // snow: a skier in the air is no rigid rod — he holds his shape with his
-  // limbs — and a body as thin as his (its yaw inertia a third of its
-  // pitch and roll) spun for a 360 fed every wobble the levelling hands
-  // made back through the coupling until the spin was a tumble. Thrown,
-  // the ragdoll has its own physics and this body is the skis'. A body
-  // going over on the snow is on the snow (`airborne`, as the hips above).
+  // Euler's equations with a diagonal inertia: τ − ω × Iω, only on the snow.
+  // In the air he holds his shape with his limbs, and a body as thin as his
+  // (yaw inertia a third of pitch and roll) spun for a 360 fed every wobble
+  // of the levelling hands back through the coupling into a tumble. Thrown,
+  // the ragdoll is its own physics; going over on the snow is on the snow.
   const gyro = c.airborne && c.thrown === null ? 0 : 1;
   const gx = gyro * (I.z - I.y) * c.wy * c.wz;
   const gy = gyro * (I.x - I.z) * c.wz * c.wx;
@@ -970,7 +959,9 @@ export function stepSkier(state: GameState, input: SkierInput, events: GameEvent
   // ── The automatic reset's clocks (`run.ts` acts on them) ──────────────
   snowNormal(level, c, normal);
   const upright = uprightOn(level, rotate(c.q, { x: 0, y: 1, z: 0 }), normal);
-  c.overFor = upright < TUNING.reset.overUp ? c.overFor + dt : 0;
+  // Turned over in the AIR is not yet a fall — the landing decides (`crash.ts`)
+  // — so a long flight off a cliff is never stood up before the snow.
+  c.overFor = upright < TUNING.reset.overUp && !c.airborne ? c.overFor + dt : 0;
   c.stuckFor = input.tuck > 0.5 && c.speed < TUNING.reset.stuckSpeed ? c.stuckFor + dt : 0;
   stepTrench(state, moved, events);
   if (c.hitCooldown > 0) c.hitCooldown -= dt;

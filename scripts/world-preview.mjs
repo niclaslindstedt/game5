@@ -30,7 +30,8 @@
 // sign (the head of the course raced, its piste-head sign beside it),
 // sign-tree (the post carrying the most boards), route-head, route-amateur,
 // route-amateur-close (the locals' sign pointing at it), route-warn, route-fallen, route-in,
-// route-steep, route-side, route-air (the map's SKI ROUTE, R42: its sign,
+// route-steep, route-side, route-air, route-plan, route-jump, route-jump-side,
+// route-woods, route-bend, route-drop (the map's SKI ROUTE, R42: its sign,
 // down it at a skier's eye, its steepest pitch, across the face and from
 // over it), gate, hut, finish (the
 // course's marks close to: the panel gate at the middle gate, the start
@@ -186,6 +187,12 @@ const VIEWS = [
   "route-steep",
   "route-side",
   "route-air",
+  "route-plan",
+  "route-jump",
+  "route-jump-side",
+  "route-woods",
+  "route-bend",
+  "route-drop",
   "gate",
   "hut",
   "finish",
@@ -371,6 +378,11 @@ const args = parseArgs(
       default: 0,
       help: "after the views, time this many drawn frames and print ms/frame",
     },
+    ab: {
+      kind: "string",
+      default: "",
+      help: "with --frames, time each frame whole and without each of these parts in turn (the benchmark's HIDEABLE, comma-separated)",
+    },
     downhill: {
       kind: "flag",
       help: "set a downhill over the seed (its A-nets, for the net-<s> views)",
@@ -399,7 +411,7 @@ const args = parseArgs(
     body: {
       kind: "string",
       default: "",
-      help: "the player's body by its outfit id (hiker, hikerWoman: the modelled hiker)",
+      help: "the player's body by its outfit id (hiker, hikerWoman, racer, racerWoman, freestyle, freestyleWoman: the modelled kits)",
     },
     weight: {
       kind: "string",
@@ -572,7 +584,16 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   );
 }
 
-if (args.frames > 0) {
+if (args.frames > 0 && args.ab) {
+  const parts = args.ab.split(",").filter(Boolean);
+  const r = await page.evaluate(([n, p]) => globalThis.__world.abMs(n, p), [args.frames, parts]);
+  const whole = r["(nothing)"];
+  console.log("A/B (software rasterizer — shares, not a phone's ms):");
+  for (const [k, ms] of Object.entries(r)) {
+    const d = k === "(nothing)" ? "" : `  ${(ms - whole).toFixed(1)}`;
+    console.log(`  ${k.padEnd(14)} ${ms.toFixed(1)} ms${d}`);
+  }
+} else if (args.frames > 0) {
   const r = await page.evaluate((n) => globalThis.__world.frameMs(n), args.frames);
   console.log(
     `frame: ${r.ms.toFixed(1)} ms (software rasterizer — structure, not speed), ` +

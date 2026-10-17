@@ -6,7 +6,7 @@
 // `App.tsx` routes them with one element: which card is up is the page, and
 // what each press does is the app's, handed in.
 
-import { isBoardId, type GameMode, type PairId } from "@engine";
+import { isBoardId, MODE_RULES, type GameMode, type PairId } from "@engine";
 import { useEffect } from "preact/hooks";
 
 import type { DevApp } from "./dev-app.tsx";
@@ -19,6 +19,7 @@ import { KeysPage } from "./menu-keys.tsx";
 import { OptionsPage } from "./menu-options.tsx";
 import { PinnedCards } from "./menu-pinned.tsx";
 import { frontDoorPins } from "./pinned.ts";
+import { byMode, kitOfRules } from "./rider-pick.ts";
 import type { MapPicks } from "./map-picks.ts";
 import { RacesPage } from "./menu-races.tsx";
 import { FreestylePage } from "./menu-freestyle.tsx";
@@ -76,9 +77,13 @@ export function MenuPages(p: {
   const summer = p.mode === "free" && summerOn(settings.ride);
   const bike = summer && bikeOn(seasonRide(settings.ride, rideSeed), rideSeed);
   useEffect(() => {
-    if (ahead) warmStage(p.skis, settings.outfit, spare, { summer, bike });
+    if (ahead)
+      warmStage(p.skis, byMode(settings.outfit, kitOfRules(MODE_RULES[p.mode](1))), spare, {
+        summer,
+        bike,
+      });
     else if (page !== "dress" && page !== "skis") coolStage();
-  }, [ahead, page, p.skis, settings.outfit, spare, summer, bike]);
+  }, [ahead, page, p.mode, p.skis, settings.outfit, spare, summer, bike]);
   useEffect(() => coolStage, []);
   const back = (): void => setPage("root");
   /** The three ways onto the snow go back to PLAY's page, which opened them. */
@@ -191,7 +196,7 @@ export function MenuPages(p: {
         <GalleryPage onBack={back} />
       ) : page === "stats" ? (
         <StatsPage book={p.stats} onBack={back} onReset={p.onResetStats} />
-      ) : page === "dev" || page === "benchHistory" ? (
+      ) : page === "dev" || page === "benchHistory" || page === "benchCosts" ? (
         <DevPages
           page={page}
           settings={settings}
@@ -199,7 +204,7 @@ export function MenuPages(p: {
           onSettings={setSettings}
           onPage={setPage}
           onBack={back}
-          onBenchmark={(ab) => p.dev.rig.current?.startBench(ab)}
+          onBenchmark={(kind, scenes) => p.dev.rig.current?.startBench(kind, scenes)}
         />
       ) : page === "options" ? (
         <OptionsPage

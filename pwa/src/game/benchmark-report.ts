@@ -32,6 +32,7 @@
 // from the renderer would drag three.js into a suite on plain Node.
 
 import { fpsOfIndex, type BenchSample } from "./benchmark-index.ts";
+import { sweepLines, sweepTable, type SweepResult } from "./picture-sweep.ts";
 import type { VideoSettings } from "./settings-video.ts";
 
 /** What one frame cost the RENDERER, off its own counters. The `Ms` slices
@@ -190,6 +191,11 @@ export type GpuTotals = {
 export type GpuMode = "off" | "passes" | "split";
 export const GPU_MODES: readonly GpuMode[] = ["off", "passes", "split"];
 
+/** The snow shader's own A/B parts (`snow-skip.ts`): the ground's pixel
+ * drawn without its bump shadows, its micro-relief, its glitter and glare,
+ * or its furrows. */
+export const SNOW_PARTS = ["snow-bumps", "snow-relief", "snow-glitter", "snow-furrows"] as const;
+
 /** What an A/B run may be drawn WITHOUT (`?hide=`): a subsystem's objects,
  * or a pass the frame skips (its map left as it stood). */
 export type Hideable =
@@ -206,7 +212,8 @@ export type Hideable =
   | "wildlife"
   | "shadow"
   | "hero"
-  | "trail";
+  | "trail"
+  | (typeof SNOW_PARTS)[number];
 export const HIDEABLE: readonly Hideable[] = [
   "sky",
   "terrain",
@@ -222,6 +229,7 @@ export const HIDEABLE: readonly Hideable[] = [
   "shadow",
   "hero",
   "trail",
+  ...SNOW_PARTS,
 ];
 
 export function noGpu(): GpuTotals {
@@ -295,6 +303,11 @@ export type BenchmarkRun = {
   gpu: GpuTotals;
   /** The interleaved A/B timed by the fence and the wall, where it ran. */
   fence?: FenceAb;
+  /** THE PICTURE SWEEP's fit, where the run was one (`?sweep=`). */
+  sweep?: SweepResult;
+  /** A PICTURE COSTS run's sweeps, every scene's, with the costs table off
+   * all of them at the end — where it ran more than the one. */
+  sweeps?: readonly SweepResult[];
   /** The subsystems the run was drawn WITHOUT (`?hide=`): an A/B reading,
    * never a score to compare with a whole picture's. */
   hidden: readonly string[];
@@ -483,6 +496,9 @@ export function benchmarkReport(run: BenchmarkRun): string {
   out.push(...whereTheFrameWent(totals, step));
   out.push(...whereTheGpuWent(run.gpu));
   out.push(...abByTheClock(run.fence));
+  const sweeps = run.sweeps ?? (run.sweep ? [run.sweep] : []);
+  for (const sweep of sweeps) out.push(...sweepLines(sweep));
+  if (sweeps.length > 0) out.push("", sweepTable(sweeps));
 
   if (costs.length > 0) {
     const held = costs[costs.length - 1];

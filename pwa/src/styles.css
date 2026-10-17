@@ -3683,6 +3683,17 @@ canvas {
   color: var(--hud-info);
 }
 
+/* The phase's count under its bar: figures that hold still as they climb. */
+.loading-count {
+  margin: 0;
+  min-height: 1.1em;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  color: var(--hud-info);
+  opacity: 0.8;
+}
+
 /* A LOAD THAT WILL NOT FINISH keeps the card and loses the bar: there is no
    phase left to fill one, and a bar sitting under a refusal would read as
    work still going on. The way out takes its place. */

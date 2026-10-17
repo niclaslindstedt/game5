@@ -40,4 +40,6 @@ export {
 } from "./avalanche-state.ts";
 export { firesNear, firesOf, type Fire, type FireSeat } from "./fires.ts";
 export { fireStrike, stepBurn, type BurnState } from "./fire-burn.ts";
+export { sledBallAt, sledFireFlux } from "./sled-fire.ts";
+export { SLED_FIRE } from "./defs/sled-fire.ts";
 export { FIRE_BURN, FIRE_KINDS, FIRE_LAYOUT, type FireDef, type FireKind } from "./defs/fires.ts";

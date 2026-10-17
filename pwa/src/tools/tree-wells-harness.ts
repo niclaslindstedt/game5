@@ -46,6 +46,7 @@ const GROUPS: Record<string, readonly string[]> = {
   look: ["below", "above", "side", "down", "lip", "before"],
   fall: ["fall"],
   night: ["night"],
+  cost: ["cost"],
 };
 
 declare global {
@@ -249,6 +250,28 @@ const VIEWS: Record<string, () => Promise<void>> = {
     }
     run(s, 2);
     shoot(s, "6.0 s, stuck: the chase", "chase");
+  },
+  async cost() {
+    // What a frame costs among the wells: the chase lens down the fall line
+    // through the woods, drawn and drained `N` times after a warm-up — the
+    // median, in this browser's GL. Run it at two presets (or before and
+    // after a change) and read the difference, never the number alone.
+    const s = fresh();
+    stand(s, -well.reach - 4, 0.3);
+    if (renderer.camera() !== "chase") renderer.setCamera("chase", true);
+    renderer.setOverride(null);
+    const N = 24;
+    const times: number[] = [];
+    for (let k = 0; k < N + 4; k++) {
+      const t0 = performance.now();
+      renderer.draw(s, 1, STILL, true);
+      renderer.drain();
+      if (k >= 4) times.push(performance.now() - t0);
+    }
+    times.sort((a, b) => a - b);
+    const ms = times[N >> 1];
+    shoot(s, `the chase: ${ms.toFixed(1)} ms a frame (median of ${N})`, "chase");
+    console.warn(`cost ${tier}: ${ms.toFixed(1)} ms a frame (median of ${N})`);
   },
   async night() {
     renderer.setSky({ hour: 21 });

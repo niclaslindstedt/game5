@@ -226,7 +226,9 @@ export function createBurnView(haze: HazeUniforms): BurnView {
         p.xz += lay * h * v * v;
         vUv = vec2(position.x, v);
         vSeed = s;
-        vFade = aSize.z * fadeAt(far);
+        // ...and gone right at the lens: through his own eyes a tongue at his
+        // face would be a hard-edged shard across the picture.
+        vFade = aSize.z * fadeAt(far) * smoothstep(0.3, 1.0, far);
         gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
       }`,
       FLAME_FRAGMENT,

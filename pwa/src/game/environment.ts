@@ -29,12 +29,15 @@ import { createHazeUniforms, writeHaze, type HazeUniforms } from "./haze.ts";
 import { horizonDip } from "./horizon.ts";
 import { createClouds, type Clouds } from "./clouds.ts";
 import { createSkyDome, type SkyDome } from "./sky-dome.ts";
+import { createContrails, type Contrails } from "./contrails.ts";
 import {
   CLOUD_TIER,
   mistFor,
   SKY_TIER,
   type DistanceLevel,
   type ShadowLook,
+  type HorizonLevel,
+  type SkyLevel,
 } from "./settings-video.ts";
 import { createSkyGpu, type SkyGpu } from "./sky-gpu.ts";
 import type { AloftLook } from "./view-aloft.ts";
@@ -65,6 +68,9 @@ export type Environment = {
   /** THE CLOUD FIELD on the GPU (`clouds.ts`): its tier rides the DISTANCE
    * row too. */
   clouds: Clouds;
+  /** THE CONTRAILS (`contrails.ts`), drawn in the dome: their rung rides
+   * the DISTANCE row with the cloud's. */
+  contrails: Contrails;
   /** Apply a look, and aim the shadow ahead of `camera`, its box standing
    * at height `y` (the skier's: what the depth range is centred on);
    * `cloud` the map the cloud field stands over and the run's clock it
@@ -93,6 +99,12 @@ export type Environment = {
   setShadow(look: ShadowLook): void;
   /** The DISTANCE row, whose mist is `mistFor`'s. */
   setDistance(distance: DistanceLevel): void;
+  /** The SKY row: PLAIN draws the dome as the air's colour alone, on the
+   * baked table, with no cloud pass. */
+  setSky(sky: SkyLevel): void;
+  /** The HORIZON row: PAINTED the far ranges as a skyline on the dome, 3D
+   * the rings' own mesh. */
+  setHorizon(horizon: HorizonLevel): void;
   /** The mist as a lens over the snow sees it (`view-aloft.ts`), every frame. */
   setAloft(look: Pick<AloftLook, "mist" | "aloft">): void;
   /** The map the mountain's shadow is baked off and the far ranges are
@@ -224,7 +236,8 @@ export function createEnvironment(
   const gpu = createSkyGpu(gl, haze);
   const terrain = createTerrainShade(haze);
   const clouds = createClouds(gl, haze);
-  const dome = createSkyDome(haze, domeRadius, clouds);
+  const contrails = createContrails();
+  const dome = createSkyDome(haze, domeRadius, clouds, contrails);
   dome.mesh.name = "sky";
   scene.add(dome.mesh);
   const ranges = createFarRanges(haze);
@@ -280,7 +293,16 @@ export function createEnvironment(
   const origin = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
   const cull = createViewCull();
+  const px = new THREE.Vector2();
   const cadence = createSunCadence();
+  let distance: DistanceLevel = "medium";
+  let plain = false;
+  /** The GPU sky and the cloud by the DISTANCE row — or, under a PLAIN sky,
+   * the baked table and the shell, whose layers the dome no longer reads. */
+  const skyTiers = (): void => {
+    gpu.setTier(plain ? "low" : SKY_TIER[distance]);
+    clouds.setTier(plain ? "shell" : CLOUD_TIER[distance]);
+  };
 
   return {
     haze,
@@ -288,11 +310,19 @@ export function createEnvironment(
     dome,
     gpu,
     clouds,
+    contrails,
     update(sky, camera, y, cloud, steady = false, ahead = null, far = 0) {
       writeHaze(haze, sky);
       haze.uFar.value.set(horizonDip(far), far);
       gpu.update(sky, camera);
       clouds.update(sky, cloud?.level ?? null, cloud?.t ?? 0, camera);
+      contrails.update(
+        sky,
+        cloud?.level ?? null,
+        cloud?.t ?? 0,
+        camera,
+        gl ? gl.getDrawingBufferSize(px).y : 720,
+      );
       dome.update(sky);
       ranges.update(sky);
       // The key is the sun by day and the moon by night (`sky.ts`).
@@ -336,10 +366,20 @@ export function createEnvironment(
     },
     setShadow,
     setDistance(next) {
+      distance = next;
       haze.uMist.value = mistFor(next);
-      gpu.setTier(SKY_TIER[next]);
-      clouds.setTier(CLOUD_TIER[next]);
+      skyTiers();
+      contrails.setTier(next);
       ranges.setTier(FAR_TIER[next]);
+    },
+    setSky(next) {
+      plain = next === "plain";
+      dome.setPlain(plain);
+      skyTiers();
+    },
+    setHorizon(next) {
+      ranges.setPainted(next === "painted");
+      dome.setSkyline(ranges.silhouette());
     },
     setAloft(look) {
       haze.uMist.value = look.mist;
@@ -351,6 +391,7 @@ export function createEnvironment(
       gpu.setGround(ground);
       const shade = terrain.setGround(ground, key, sun.castShadow);
       ranges.setLevel(level, key, level ? await farFaceGrid(level) : null);
+      dome.setSkyline(ranges.silhouette());
       await shade;
     },
     shadeSettled: () => terrain.settled(),

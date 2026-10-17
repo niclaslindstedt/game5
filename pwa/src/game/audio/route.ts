@@ -516,6 +516,13 @@ export function soundForEvent(
             id: "bike_crash",
             shape: { ...heard, gain: heard.gain! * (0.6 + 0.6 * ramp(event.speed, 0, 14)) },
           };
+        // Caught in it, or met by it as he came off: its steel again, lower.
+        case "snag":
+        case "struck":
+          return {
+            id: "bike_crash",
+            shape: { ...heard, gain: heard.gain! * 0.5, pitch: 1.25 },
+          };
         default:
           return null;
       }
@@ -523,7 +530,7 @@ export function soundForEvent(
 
     // THE SNOWMOBILE (`sled-bank.ts`), heard from where the ear is: the
     // boots on the boards and the engine starting, the boots off them, the
-    // machine heaved back up, and the crash of it going over.
+    // machine heaved back up, the crash of it going over, and its fire.
     case "sled": {
       const heard = heardAt(event, contact.ear, HEARD_NEAR);
       switch (event.phase) {
@@ -539,6 +546,22 @@ export function soundForEvent(
             id: "sled_crash",
             shape: { ...heard, gain: heard.gain! * (0.7 + 0.5 * ramp(event.speed, 0, 20)) },
           };
+        // Ridden into a fire: the whoomph as its belly catches, and the
+        // tank going up — the helicopter's explosion, a smaller ball's,
+        // higher and shorter.
+        case "alight":
+          return { id: "fire_catch", shape: heard };
+        case "boom": {
+          const blast = heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR);
+          return {
+            id: "heli_crash",
+            shape: {
+              gain: blast.gain! * 0.95,
+              pitch: blast.pitch! * 1.15,
+              stretch: blast.stretch! * 0.8,
+            },
+          };
+        }
         default:
           return null;
       }

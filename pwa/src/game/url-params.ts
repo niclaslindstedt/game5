@@ -93,7 +93,7 @@
 //                   the level card a RACE picks its pinned map on (the
 //                   discipline `mode=` names); `gallery` on the pictures
 //                   kept; `dev` on the DEVELOPER page (let out, as the
-//                   title's hold lets it out), `benchHistory` behind it.
+//                   title's hold lets it out), `benchHistory` and `benchCosts` behind it.
 //   ?bench=1        run DEVELOPER ▸ BENCHMARK the moment the app is up —
 //                   how a lab takes a score off the built site.
 //   ?gpu=<mode>     ...with the GPU's timer cutting each frame into its
@@ -105,8 +105,14 @@
 //                   every variant on the GPU (the interleaved A/B).
 //   ?frames=<n>     ...timing this many frames instead of the plan's (60 up
 //                   to the plan's own) — a price list's shorter stretch.
-//   ?view=vista     ...from high on a side ridge, looking across the whole
-//                   mountain (`vistaOf`): the view DISTANCE is dearest from.
+//   ?sweep=<n>      ...PRICING EVERY PICTURE ROW in one long run: n random
+//                   pictures (60 up; `1` the plan's 240), a block of frames
+//                   each, every stop's cost fitted off the lot
+//                   (`picture-sweep.ts`; `make bench ARGS=--sweep`).
+//   ?view=<scene>   ...in another of the benchmark's scenes (`bench-scenes.ts`):
+//                   vista (from high on a side ridge across the whole
+//                   mountain, where DISTANCE is dearest), sunset, night or
+//                   snow; race (the default) is the plan's own.
 //   ?weather=<kind> ski the mountain under this sky instead of the one R19
 //                   dealt it (clear, fair, high, overcast, snow, fog) —
 //                   how a lab photographs every weather on one seed.
@@ -114,6 +120,10 @@
 //                   stand a race in the dark — the sun HELD at it unless
 //                   `?skyclock=` says otherwise, so a link's picture is
 //                   the hour it names.
+//   ?temp=<°C>      ...and with the air at the valley floor at the start
+//                   hour this warm (−40–20; `Weather.temp`, the start
+//                   card's TEMPERATURE row) — how a lab photographs the
+//                   same snow cold and dry beside warm and wet.
 //   ?skyclock=<r>   the sky's clock this visit: sky seconds a run second
 //                   (`sky-clock.ts`; the game's own is 12 — five minutes
 //                   an hour of sun), 0 holding the sun at the start hour,
@@ -210,6 +220,8 @@ import {
 } from "@engine";
 
 import { BENCHMARK } from "./benchmark-plan.ts";
+import { isBenchScene, type BenchSceneId } from "./bench-scenes.ts";
+import { SWEEP, SWEEP_LEAST } from "./picture-sweep.ts";
 import { GPU_MODES, HIDEABLE, type GpuMode, type Hideable } from "./benchmark-report.ts";
 import { readPose, type SkisPose } from "./debug-readout.ts";
 import { isHoldMove, type HoldMove } from "./hold-input.ts";
@@ -219,7 +231,7 @@ import { RUN_CAMERAS } from "./settings.ts";
 import { readPicture, TIERS, type Tier, type VideoSettings } from "./settings-video.ts";
 
 /** The developer's pages (`menu-dev.tsx`). */
-export type DevPage = "dev" | "benchHistory";
+export type DevPage = "dev" | "benchHistory" | "benchCosts";
 
 /** The cards a link may open on. */
 export type MenuPage =
@@ -257,6 +269,7 @@ const MENU_PAGES: readonly MenuPage[] = [
   "stats",
   "dev",
   "benchHistory",
+  "benchCosts",
 ];
 
 /** The free ride's own cards: the WHERE steps and the start card. A link
@@ -283,7 +296,9 @@ export type UrlParams = {
   hide: Hideable[];
   ab: boolean;
   frames: number | null;
-  view: "race" | "vista";
+  view: BenchSceneId;
+  /** Pictures a picture sweep deals (`?sweep=`), or none. */
+  sweep: number | null;
   shot: boolean;
   paused: boolean;
   camera: CameraRung | null;
@@ -391,7 +406,9 @@ function skyOf(q: URLSearchParams): SkyOverride | null {
     sky.weather = weather as WeatherKind;
   }
   if (q.get("hour") !== null && Number.isFinite(hour) && hour >= 0 && hour <= 24) sky.hour = hour;
-  return sky.weather === undefined && sky.hour === undefined ? null : sky;
+  const temp = Number(q.get("temp") ?? NaN);
+  if (q.get("temp") !== null && Number.isFinite(temp) && temp >= -40 && temp <= 20) sky.temp = temp;
+  return sky.weather === undefined && sky.hour === undefined && sky.temp === undefined ? null : sky;
 }
 
 /** The sky's clock a link names (`?skyclock=`), held when it names only an
@@ -407,6 +424,14 @@ function skyClockOf(q: URLSearchParams): number {
 function framesOf(raw: string | null): number | null {
   const n = Number(raw);
   return raw !== null && Number.isInteger(n) && n >= 60 && n <= BENCHMARK.frames ? n : null;
+}
+
+/** A picture sweep's pictures a link may name: `1` the plan's, or a whole
+ * number from the least the fit can read to 2000. */
+function sweepOf(raw: string | null): number | null {
+  if (raw === "1") return SWEEP.blocks;
+  const n = Number(raw);
+  return raw !== null && Number.isInteger(n) && n >= SWEEP_LEAST && n <= 2000 ? n : null;
 }
 
 /** A held ride a link may name: a speed, km/h (0–150), a move and the
@@ -468,7 +493,8 @@ export function readParams(search: string): UrlParams {
       .filter((name): name is Hideable => HIDEABLE.includes(name as Hideable)),
     ab: q.get("ab") === "1",
     frames: framesOf(q.get("frames")),
-    view: q.get("view") === "vista" ? "vista" : "race",
+    view: isBenchScene(q.get("view")) ? (q.get("view") as BenchSceneId) : "race",
+    sweep: sweepOf(q.get("sweep")),
     shot: q.get("shot") === "1",
     paused,
     camera:

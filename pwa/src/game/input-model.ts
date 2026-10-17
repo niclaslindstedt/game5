@@ -156,17 +156,18 @@ export function jumpTapUp(tap: JumpTap, t: number): void {
  * A flick is a rise of `FLICK_PX` or more inside `FLICK_WINDOW` s at
  * `FLICK_SPEED` px/s or faster: a deliberate flick runs well past a
  * thousand, while a thumb coming back up off the brake to full speed rises
- * slower and is never one. The jump is then held for a load that grows
- * with the flick's speed, from `FLICK_LOAD_MIN` s to `FLICK_LOAD_MAX` s at
- * `FLICK_SPEED_FULL`, and let go — the pop a keyboard's held key would
- * give for that long (`TUNING.jump`). Fired, the flick waits for the thumb
- * to come back down `FLICK_REARM_PX` or a new touch before it fires again. */
+ * slower and is never one. The jump springs AT ONCE, the moment the flick
+ * is read (`SkierInput.pop`), as high as a keyboard's key held for a share
+ * of `TUNING.jump.full` that grows with the flick's speed, from
+ * `FLICK_POP_MIN` to `FLICK_POP_MAX` at `FLICK_SPEED_FULL`. Fired, the
+ * flick waits for the thumb to come back down `FLICK_REARM_PX` or a new
+ * touch before it fires again. */
 export const FLICK_PX = 30;
 export const FLICK_WINDOW = 0.1;
 export const FLICK_SPEED = 600;
 export const FLICK_SPEED_FULL = 2400;
-export const FLICK_LOAD_MIN = 0.2;
-export const FLICK_LOAD_MAX = 0.55;
+export const FLICK_POP_MIN = 0.15;
+export const FLICK_POP_MAX = 0.75;
 export const FLICK_REARM_PX = 12;
 
 /** The flick's memory: the thumb's recent heights (screen px, y down) and
@@ -186,8 +187,8 @@ export function flickDown(f: Flick, y: number, t: number): void {
   f.peak = y;
 }
 
-/** The thumb at `y` px at `t` s. Returns the jump's load, s, when this
- * move completes a flick, and 0 otherwise. */
+/** The thumb at `y` px at `t` s. Returns the pop, 0..1 of a full load,
+ * when this move completes a flick, and 0 otherwise. */
 export function flickMove(f: Flick, y: number, t: number): number {
   f.ys.push(y);
   f.ts.push(t);
@@ -211,7 +212,7 @@ export function flickMove(f: Flick, y: number, t: number): number {
   f.armed = false;
   f.peak = y;
   const strength = clamp((speed - FLICK_SPEED) / (FLICK_SPEED_FULL - FLICK_SPEED), 0, 1);
-  return FLICK_LOAD_MIN + (FLICK_LOAD_MAX - FLICK_LOAD_MIN) * strength;
+  return FLICK_POP_MIN + (FLICK_POP_MAX - FLICK_POP_MIN) * strength;
 }
 
 /** THE BACK KEY'S TWO MEANINGS, told apart by ORDER. Pressed with no edge
@@ -349,9 +350,9 @@ export type TouchChannel = {
   lever: boolean;
   /** The lever's thumb loading the jump (`jumpTapDown`). */
   jump: boolean;
-  /** THE FLICK's jump (`flickMove`): held for its load whether or not the
-   * thumb is still on the lever, then let go to spring him. */
-  flick: boolean;
+  /** THE FLICK's pop (`flickMove`), 0..1, set by the move that made it and
+   * kept until a step has taken it; 0 none. */
+  pop: number;
   /** THE TRICK KEY on touch: a ski jumper's TELEMARK press
    * (`hud-skijump.tsx`'s `JumpPad`), held while it is down. */
   trick: boolean;
@@ -384,7 +385,7 @@ export function neutralTouch(): TouchChannel {
     brake: 0,
     lever: false,
     jump: false,
-    flick: false,
+    pop: 0,
     trick: false,
     tap2: false,
     stickX: 0,
@@ -555,7 +556,10 @@ export function sampleInput(
     reset,
     trick: keys.trick || touch.trick || jumpGrab,
     carve: back === "carve",
-    jump: keys.jump || (touch.lever && touch.jump) || touch.flick,
+    // A flick springs him this step, and is a press and release of the
+    // jump key to everything else that reads it.
+    jump: keys.jump || (touch.lever && touch.jump) || touch.pop > 0,
+    pop: touch.pop > 0 ? touch.pop : undefined,
   });
 }
 

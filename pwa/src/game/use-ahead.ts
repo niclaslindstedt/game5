@@ -5,9 +5,14 @@
 // already knows the map RIDE will stand up, so it is built while the
 // player picks rather than under the loading card:
 //
-//   * A FREE RIDE's world (`free-stage.ts`): staged from the START CARD once
-//     its rows have been still a moment (a row changed starts the wait
-//     again), and from the rider and gear cards at once.
+//   * A FREE RIDE's world (`free-stage.ts`): staged from the rider and gear
+//     cards, never from the START CARD. Building a world is seconds of the
+//     page's own thread on a phone, and every row there changes it (the
+//     season, the start, the run) — a stage behind it was thrown away and
+//     begun again on nearly every press, and the rows answered seconds
+//     late. The start card keeps only its map (its own worker's) and its
+//     chart; the rider card's stage covers the screen while the world is
+//     built behind it.
 //   * A PINNED RUN's map (a race's, a trick map's): ordered on a worker of
 //     its own from the level card or the trick map card on, the rider and
 //     gear cards keeping it (`map-build.ts`'s `buildAhead`) — and a race's
@@ -27,10 +32,6 @@ import type { Shell } from "./shell.ts";
 import { isTrickRun } from "./trick-maps.ts";
 import type { MenuPage } from "./url-params.ts";
 
-/** How long the start card's rows must be still before its world is staged
- * behind it, ms: a skier rowing through the hours stages none of them. */
-export const START_STILL_MS = 1500;
-
 export function useAhead(p: {
   page: MenuPage;
   shell: Shell;
@@ -47,10 +48,10 @@ export function useAhead(p: {
   useEffect(() => {
     const free = p.mode.current === "free" && shell === "menu";
     const cards = page === "dress" || page === "skis";
-    p.presses.current.stageFree(
-      free && (cards || page === "start") ? p.freeOptions() : null,
-      page === "start" ? START_STILL_MS : undefined,
-    );
+    // The start card neither stages nor throws a stage away: back from the
+    // rider card to change nothing, the world built is still the ride's.
+    if (page === "start") return;
+    p.presses.current.stageFree(free && cards ? p.freeOptions() : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the ride's own fields
   }, [page, shell, settings.ride, settings.outfit]);
   useEffect(() => {

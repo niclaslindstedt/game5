@@ -45,6 +45,7 @@ export const GRADE_INK = {
   black: [20, 20, 22],
 };
 const ROAD_INK = [235, 140, 20];
+const ROUTE_INK = [242, 120, 12];
 const HUB_INK = [255, 214, 150];
 const TUNNEL_INK = [0, 160, 190];
 const FAIL_INK = [210, 30, 170];
@@ -269,6 +270,37 @@ export function renderResortPlan({
       if (run.kind === "road" && Math.floor(pts[i].s / 24) % 2 === 1) continue;
       canvas.line(px(pts[i].x), py(pts[i].z), px(pts[i + 1].x), py(pts[i + 1].z), ink, 2);
     }
+  }
+  // The ski routes (R42) in orange, dashed: each jump a white-ringed
+  // triangle pointing the way it throws, each drop a bar across the line.
+  for (const r of level.resort?.routes ?? []) {
+    const pts = r.points;
+    for (let i = 0; i + 1 < pts.length; i++) {
+      if (Math.floor(pts[i].s / 16) % 2 === 1) continue;
+      canvas.line(px(pts[i].x), py(pts[i].z), px(pts[i + 1].x), py(pts[i + 1].z), ROUTE_INK, 3);
+    }
+    for (const d of r.drops ?? []) {
+      const p = pts[Math.min(pts.length - 1, Math.round(d.s / 4))];
+      const ax = Math.cos(p.heading) * 9;
+      const az = -Math.sin(p.heading) * 9;
+      canvas.line(px(p.x + ax), py(p.z + az), px(p.x - ax), py(p.z - az), INK, 3);
+    }
+    halo(canvas, px(pts[0].x) + 6, py(pts[0].z) + 6, r.id, ROUTE_INK, 1);
+  }
+  for (const k of level.kickers ?? []) {
+    if (k.route === undefined) continue;
+    const fx = Math.sin(k.heading);
+    const fz = Math.cos(k.heading);
+    const tip = [px(k.x + fx * 12), py(k.z + fz * 12)];
+    const l = [px(k.x - fx * 6 + fz * 7), py(k.z - fz * 6 - fx * 7)];
+    const r = [px(k.x - fx * 6 - fz * 7), py(k.z - fz * 6 + fx * 7)];
+    for (const [a, b] of [
+      [tip, l],
+      [l, r],
+      [r, tip],
+    ])
+      canvas.line(a[0], a[1], b[0], b[1], INK, 2);
+    halo(canvas, tip[0] + 4, tip[1], k.id, INK, 1);
   }
   // Where a branch lane leaves its piste, a ring on the piste; where a link
   // lane reaches its lift's bottom station, a ring at the station.

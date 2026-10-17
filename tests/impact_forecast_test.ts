@@ -4,10 +4,20 @@
 // at the step it does, and the run itself left exactly as it was.
 
 import { describe, expect, it } from "vitest";
-import { TUNING, step, type GameState } from "@engine";
+import {
+  TUNING,
+  createGame,
+  liftPlans,
+  ropeOver,
+  standSkier,
+  step,
+  NEUTRAL_INPUT,
+  type GameState,
+} from "@engine";
 
 import { forecast, forkRun } from "../pwa/src/game/impact-forecast.ts";
 import { stageTrial, type Staging } from "./support/injury-stage.ts";
+import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 const INTO_A_TRUNK: Staging = {
   stage: { how: "ski", stuff: "trunk", speed: 22, offset: 0 },
@@ -36,6 +46,26 @@ describe("the blow seen coming", () => {
     const at = firstBreak(state, input, 200);
     expect(at).toBeGreaterThan(0);
     expect(Math.abs(at * TUNING.dt - seen!.in)).toBeLessThan(TUNING.dt * 1.5);
+  });
+
+  it("sees a lift's rope go through him at the waist as the blow, not the hand it cut first", () => {
+    // Flown square at a chair's down rope at 25 m/s, the rope at his waist:
+    // it goes through a hand and an arm a step before it parts him there.
+    const level = levelFor(LEVEL_SEEDS[0]);
+    const chair = liftPlans(level).find((p) => p.lift.kind === "chair")!;
+    const run = createGame({ level, mode: "free", quiet: true, gore: true });
+    const p = ropeOver(chair, 1, chair.length * 0.5);
+    const hx = chair.dz;
+    const hz = -chair.dx;
+    standSkier(run, p.x + hx * 5, p.z + hz * 5, Math.atan2(-hx, -hz));
+    const c = run.skier;
+    c.y = p.y + c.spec.cogHeight - 1.3;
+    c.vx = -hx * 25;
+    c.vz = -hz * 25;
+    c.airborne = true;
+    const seen = forecast(run, NEUTRAL_INPUT, 0.5);
+    expect(seen?.tear?.piece).toBe("lower");
+    expect(seen?.fatal).toBe(true);
   });
 
   it("leaves the run it reads exactly as it was", () => {

@@ -317,6 +317,18 @@ export function createXrayDirector(): XrayDirector {
       const bone = bestBone(f.bones);
       if (on && bone && !BIG_BONES.includes(boneKind(bone))) return;
       if (on && !bone && !f.gore) return;
+      // A blow that tears him open with no bone to look for (a rope's wire
+      // through him, a limb torn off) is shot as that tear, at its place.
+      if (!bone && f.tear) {
+        if (!on) {
+          begin(false);
+          leading = true;
+          firstAt = at;
+          leadAge = 0;
+        }
+        want({ kind: "tear", piece: f.tear.piece, at: f.tear.at }, at, false);
+        return;
+      }
       // The first shot is of the part the blow lands on: its own bone if
       // that is one that breaks, else the bone it is best seen on.
       let look = bone ?? partBone(f.part);

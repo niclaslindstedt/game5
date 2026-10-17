@@ -216,6 +216,15 @@ describe("the X-ray director", () => {
     );
     expect(run(d, s, 0.5).shot).toEqual({ kind: "bone", bone: "femurL" });
   });
+
+  it("closes first on a tear with no bone to look for, where it will be", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    d.step(as(s));
+    const at = { x: 3, y: 2, z: 1 };
+    d.seen({ ...femur, part: null, bones: [], gore: true, tear: { piece: "lower", at } }, as(s));
+    expect(run(d, s, 0.5).shot).toEqual({ kind: "tear", piece: "lower", at });
+  });
 });
 
 describe("the shred cam (a body taken apart by a machine)", () => {

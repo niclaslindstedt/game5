@@ -6,13 +6,16 @@
 // HE LIES IN WAIT. A while into the ride he picks a trunk ahead of the
 // skier and beside his line — never on it — and stands behind it, the tree
 // between them, before the skier can have seen him. When the skier is a
-// couple of seconds from passing he BREAKS COVER and runs at him, leading
-// him the way a dog leads a hare.
+// few seconds from passing he BREAKS COVER and runs at him, leading him
+// the way a dog leads a hare — out early, so a pace a little over the
+// skier's own is enough to meet him.
 //
 // HE CATCHES HIM ONCE, AND MISSES MOST TIMES HE TRIES. On a hunt (`hunt`)
-// he runs at whatever speed it takes; most runs (`GRIMBEAR.miss`) he dives
-// at the skier from a step off, swipes the air beside him and stumbles on
-// past, roaring, and is still hunting the next time. The run that lands
+// he runs at whatever speed that takes; most runs (`GRIMBEAR.miss`) he dives
+// at the skier from a step off and his paw only glances off him — the
+// skier is shoved aside and skis on — and he stumbles past, picks himself
+// up and RUNS AFTER HIM, falling behind, until he gives up roaring; he is
+// still hunting the next time. The run that lands
 // takes him: the skier is thrown (the `maul` crash cause), the
 // beast stands over him, then walks back into the woods, and the reset
 // stands the skier at the TOP OF THE SLOPE (`top`). Every sighting after
@@ -61,6 +64,7 @@ export function freshGrimbear(seed: number, ask: GrimbearAsk): GrimbearState {
     top: false,
     lands: false,
     sightings: 0,
+    missed: false,
   };
 }
 
@@ -197,6 +201,7 @@ export function stepGrimbear(state: GameState, events: GameEvent[]): void {
       if (dist < close || (v > 0.5 && ahead / v < soon)) {
         enter(b, "run");
         b.sightings += 1;
+        b.missed = false;
         b.lands = b.hunt && !b.rng.chance(K.miss);
         events.push({ kind: "grimbear", t: state.t, phase: "burst", x: b.x, z: b.z });
       }
@@ -207,7 +212,7 @@ export function stepGrimbear(state: GameState, events: GameEvent[]): void {
         enter(b, "leave");
         return;
       }
-      if (b.hunt) {
+      if (b.hunt && !b.missed) {
         // He LEADS the skier: where he will be by the time the beast gets
         // there, a few seconds out at most.
         const pace = Math.max(K.sprint, v * K.outrun);
@@ -219,10 +224,21 @@ export function stepGrimbear(state: GameState, events: GameEvent[]): void {
         else if (b.t > K.huntFor) enter(b, "leave");
         return;
       }
-      // ...and on a chase he runs after him, at a point behind him.
+      // ...and on a chase, or after a miss, he runs after him, at a point
+      // behind him.
       const back = v > 0.5 ? K.short / v : 0;
-      runToward(b, Math.atan2(dx - c.vx * back, dz - c.vz * back), Math.min(K.sprint, v * K.share));
-      if (b.t > K.chaseFor || hypot(c.x - b.x, c.z - b.z) < K.short) {
+      // After a miss he is not held to a sprinter's pace: he makes up the
+      // ground the dive lost and hangs a few strides behind the skier,
+      // never quite on him — up to his own top speed.
+      const pace = b.missed
+        ? Math.min(K.pursueTop, v * clamp(K.pursue + (dist - K.tail) * K.gain, K.pursue, K.catchUp))
+        : Math.min(K.sprint, v * K.share);
+      runToward(b, Math.atan2(dx - c.vx * back, dz - c.vz * back), pace);
+      // After a miss he is already at the skier's shoulder: held clear of
+      // him, and running on until he tires rather than pulling up short.
+      if (b.missed) keepClear(b, c.x, c.z);
+      const short = !b.missed && hypot(c.x - b.x, c.z - b.z) < K.short;
+      if (b.t > (b.missed ? K.pursueFor : K.chaseFor) || short) {
         enter(b, "halt");
         events.push({ kind: "grimbear", t: state.t, phase: "halt", x: b.x, z: b.z });
       }
@@ -250,20 +266,14 @@ export function stepGrimbear(state: GameState, events: GameEvent[]): void {
     }
     case "miss": {
       // Flown past on the dive, then stumbling on, slowing, no longer
-      // turned after him — and never through him, however he turns: held
-      // `clear` m off him where the dive would close nearer.
+      // turned after him — and never through him.
       if (b.t > K.diveFor) b.speed = Math.max(0, b.speed - K.skid * dt);
       move(b);
-      const ox = b.x - c.x;
-      const oz = b.z - c.z;
-      const gap = hypot(ox, oz);
-      if (gap < K.clear && gap > 1e-6) {
-        b.x = c.x + (ox / gap) * K.clear;
-        b.z = c.z + (oz / gap) * K.clear;
-      }
+      keepClear(b, c.x, c.z);
+      // Up again, and after him.
       if (b.t > K.missFor) {
-        enter(b, "halt");
-        events.push({ kind: "grimbear", t: state.t, phase: "halt", x: b.x, z: b.z });
+        b.missed = true;
+        enter(b, "run");
       }
       return;
     }
@@ -282,6 +292,18 @@ export function stepGrimbear(state: GameState, events: GameEvent[]): void {
       }
       return;
     }
+  }
+}
+
+/** Never through the skier he missed, however either turns: held `clear`
+ * m off him. */
+function keepClear(b: GrimbearState, x: number, z: number): void {
+  const ox = b.x - x;
+  const oz = b.z - z;
+  const gap = hypot(ox, oz);
+  if (gap < K.clear && gap > 1e-6) {
+    b.x = x + (ox / gap) * K.clear;
+    b.z = z + (oz / gap) * K.clear;
   }
 }
 
@@ -319,10 +341,20 @@ function beside(state: GameState, b: GrimbearState): number {
 }
 
 /** THE MISS: he dives past the skier, a stride wide, and is carried on by
- * it. */
+ * it — his paw glancing off the skier, who is shoved `nudge` m/s across his
+ * way, away from the beast, and stays on his feet. */
 function lunge(state: GameState, b: GrimbearState, events: GameEvent[]): void {
   b.speed *= K.dive;
   b.heading = beside(state, b);
+  const c = state.skier;
+  const v = hypot(c.vx, c.vz);
+  if (v > 0.5) {
+    const fx = c.vx / v;
+    const fz = c.vz / v;
+    const side = (c.x - b.x) * fz - (c.z - b.z) * fx >= 0 ? 1 : -1;
+    c.vx += fz * side * K.nudge;
+    c.vz -= fx * side * K.nudge;
+  }
   enter(b, "miss");
   events.push({ kind: "grimbear", t: state.t, phase: "miss", x: b.x, z: b.z });
 }

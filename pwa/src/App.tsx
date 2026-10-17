@@ -268,7 +268,6 @@ export function App() {
 
   // THE RENDER STACK, FETCHED RATHER THAN BUNDLED (see the header).
   const renderKit = useRenderKit();
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !renderKit) return;
@@ -505,6 +504,7 @@ export function App() {
     };
     const onSnow = (next: GameState): void => {
       adopt(rescueAgain(state, next), ticketFor(next), true);
+      if (!drawable()) void build(state); // never freeze on a map not built
       frozen = false;
       clock.resume();
       setShellNow("run");

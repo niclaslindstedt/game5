@@ -540,7 +540,10 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     built.moguls?.base ??
     built.aerials?.base ??
     built.skiJump?.base ??
-    built.bikePark?.base ??
+    // A SUMMER ride handed back the map it was stood on keeps it whole:
+    // under the park lie the day, the place and the dry sky the first ride
+    // laid, and unwinding past them builds a copy the renderer never built.
+    (summerOf(options) ? undefined : built.bikePark?.base) ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
   // qualification's, or the final's; a FREESTYLE VENUE builds one of its own (R37).

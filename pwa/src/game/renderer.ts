@@ -52,7 +52,7 @@ import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./cam
 import { compileByParts, compiled } from "./scene-compile.ts";
 import { byMaterial, depthByKind } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
-import { createForest, type Forest, type ForestOptions } from "./forest.ts";
+import { createForest, forestOptionsOf, type Forest, type ForestOptions } from "./forest.ts";
 import { createBuildCount } from "./build-count.ts";
 import { createHurtLens } from "./xray-scene.ts";
 import { wrecked } from "./impact-forecast.ts";
@@ -114,7 +114,6 @@ import {
 } from "./snowpack.ts";
 import {
   DEFAULT_VIDEO,
-  DISTANCE_LOOK,
   FOREST_LOOK,
   RESOLUTION_SHARE,
   SHADOW_LOOK,
@@ -383,12 +382,7 @@ export function createWorldRenderer(
     scene.add(ground.group);
     return ground;
   }
-  const forestOptions = (): ForestOptions => ({
-    ...FOREST_LOOK[video.forest],
-    far: DISTANCE_LOOK[video.distance].trees,
-    view: DISTANCE_LOOK[video.distance].view,
-    casters: SHADOW_LOOK[video.shadows].trees ? FOREST_LOOK[video.forest].casters : "none",
-  });
+  const forestOptions = (): ForestOptions => forestOptionsOf(video);
 
   /** The player's outfit: slot 0 wears it, the field its slots' own. */
   let outfit: Outfit = DEFAULT_OUTFIT;
@@ -754,7 +748,7 @@ export function createWorldRenderer(
         filled = state.fresh;
       }
       timer.pop();
-      setRunSnow(env.haze, state.fresh, state.piste, pack?.age, pack?.tracks);
+      setRunSnow(env.haze, state.fresh, state.piste, pack?.age, pack?.tracks, state.snowDepth);
       const trailed = performance.now();
       // THE VIEW ALOFT (`view-aloft.ts`): the reach grows with the height over the snow.
       const eyeAt = lens.camera.position;
@@ -773,6 +767,7 @@ export function createWorldRenderer(
       const overMap = { level: sky, t: state.t }; // the cloud field over the map, at the run's clock
       env.update(look, lens.camera, d.y, overMap, lone, keyAheadAt(sky, state.t), far);
       crowd?.update(state, lens.camera.position); // after the lens and the sun's box (`env.cull`)
+      forest?.setWind(wind.x, wind.z, state.t);
       if (present) forest?.update(lens.camera, env.shadow());
       if (present) {
         heroModels.length = 0;
@@ -850,9 +845,9 @@ export function createWorldRenderer(
       }
       if (present) timer.frame(hiddenTag);
     },
-
     cost: () => cost,
     sceneTally: () => tallyScene(scene, lens.camera),
+    group: (name) => scene.getObjectByName(name),
     plumes: () => plumeBits(spray, cloud?.mesh ?? null),
     skisUnder: () =>
       terrain && level && riders[0]

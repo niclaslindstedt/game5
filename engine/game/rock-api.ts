@@ -14,3 +14,20 @@ export {
 export { ROCKS } from "./defs/rocks.ts";
 export { SKIN_SALT, bedrockOf, rockStrike, withRock } from "./rock-ground.ts";
 export { cliffWalls, faceShare, wallSolids, type CliffWall } from "./cliff-wall.ts";
+export {
+  bareKept,
+  bedCoord,
+  bedLevel,
+  bedOf,
+  jointOf,
+  riserOf,
+  liftOf,
+  ribOf,
+  STRIDE as SLICE_STRIDE,
+  sliceTri,
+  snowShare,
+  strataOf,
+  type SliceVerts,
+  type Strata,
+  type StrataCorner,
+} from "./strata.ts";

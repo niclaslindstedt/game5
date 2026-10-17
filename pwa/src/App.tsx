@@ -80,7 +80,6 @@ import {
   freeGameOptions,
   freeRestart,
 } from "./game/free-ride.ts";
-import { useQuickRide } from "./game/use-quick.ts";
 import { createFreeRides } from "./game/app-free.ts";
 import { createWorldBuild } from "./game/world-build.ts";
 import { outfitKey } from "./game/dress.ts";
@@ -115,7 +114,8 @@ import type { WorldRenderer } from "./game/renderer-api.ts";
 import { useRenderKit } from "./game/use-render-kit.ts";
 import { useAhead } from "./game/use-ahead.ts";
 import { backdropHeld } from "./game/backdrop-hold.ts";
-import { backdropInput, backdropNext, backdropTaken } from "./game/backdrop-run.ts";
+import { backdropInput, backdropTaken } from "./game/backdrop-run.ts";
+import { createResumeRun } from "./game/resume-run.ts";
 import { createCinemaRun } from "./game/cinema-run.ts";
 import { createRunActions, type RunPress } from "./game/run-actions.ts";
 import type { LoadPhase } from "./game/run-loader.ts";
@@ -146,7 +146,7 @@ import {
   type Shell,
 } from "./game/shell.ts";
 import { useTitle } from "./game/title-app.tsx";
-import { splashSkipped } from "./game/splash.ts";
+import { firstShell } from "./game/splash.ts";
 import { readHudLayer } from "@niclaslindstedt/oss-game-framework/shots/shot-hud";
 import { createShotRequest } from "./game/shot-request.ts";
 import { takeSnapshot, type HudSnapshot } from "./game/snapshot.ts";
@@ -174,15 +174,8 @@ export function App() {
   /** The TAB is away and the clock with it (§37.3) — not the pause card. */
   const [away, setAway] = useState(false);
   const [again, setAgain] = useState<AgainAt>("start");
-  const [shell, setShell] = useState<Shell>(() =>
-    params.rides
-      ? params.paused
-        ? "pause"
-        : "run"
-      : splashSkipped(location.search)
-        ? "menu"
-        : "splash",
-  );
+  const [canResume, setCanResume] = useState(false);
+  const [shell, setShell] = useState<Shell>(() => firstShell(params, location.search));
   const title = useTitle(params, shell);
   const [loadingPhase, setLoadingPhase] = useState<LoadPhase | null>(null);
   const [loadLeaving, setLoadLeaving] = useState(false);
@@ -300,6 +293,7 @@ export function App() {
     const cinema = createCinemaRun(renderer, backdropInput);
     const audio = createRunAudio();
     const clock = createRunClock(TUNING.physicsHz);
+    const resume = createResumeRun(); // the run left for the menu (`resume-run.ts`)
     const nav = createMenuNav();
 
     /* ── WHICH MAP THE RENDERER HOLDS (`world-build.ts`) ──────────────── */
@@ -597,7 +591,14 @@ export function App() {
         setShellNow(out.back);
       },
       resume: () => {
-        if (shellRef.current === "pause") setShellNow("run");
+        if (shellRef.current === "pause") return setShellNow("run");
+        // RESUME on the door: the run left for it, from wherever the bot has got to.
+        const asked = shellRef.current === "menu" && !loader.busy() ? resume.take(state) : null;
+        if (asked === null) return;
+        mode = asked;
+        adopt(state, null, true); // filed nowhere: the bot rode some of it
+        setPage("root");
+        setShellNow("run");
       },
       toMenu: () => {
         // The run goes back to the bot: nothing more is filed or recorded.
@@ -606,6 +607,7 @@ export function App() {
         stats.rig.flush();
         pinned.clear();
         replays.clear();
+        resume.leave(state, mode);
         const taken = backdropTaken(state); // a plain mountain's run: a showcase
         if (taken) adopt(taken);
         setPage("root");
@@ -674,8 +676,9 @@ export function App() {
       // THE BACKDROP RACES ON, never left coasting: over, a showcase (`backdrop-run.ts`).
       const backdrop = !playerRides(shellRef.current) && !watching(shellRef.current);
       if (backdrop && shellRef.current !== "pause" && !loader.busy()) {
-        const next = backdropNext(state);
+        const next = resume.next(state, freeAgain);
         if (next) adopt(next);
+        setCanResume(resume.can(state));
       }
       const held = !simulates(shellRef.current);
       const shown = drawable();
@@ -831,16 +834,13 @@ export function App() {
 
   /** The start card's map: its own, or the free ride's first (`FREE_SEEDS`). */
   const startSeed = settings.ride.seed ?? FIRST_FREE_SEED;
-  const quick = useQuickRide(settings.ride);
-  useAhead({
+  const quick = useAhead({
     page,
     shell,
     settings,
     mode: modeRef,
     linkSeed: params.seed,
-    freeOptions: () => freeGameOptions(settings.ride, startSeed, skierOf(settings, "free")),
-    quickOptions: () => quick.options(skierOf(settings, "free")),
-    quickKey: quick.dealt,
+    skier: () => skierOf(settings, "free"),
     presses: pressRef,
     live: input !== null,
   });
@@ -948,6 +948,7 @@ export function App() {
           onRace={() => setPage("races")}
           onFree={() => picks.openCard("free", "world")}
           onQuick={() => (freeRide(quick.next()), quick.ridden())}
+          onResume={canResume ? () => pressRef.current.resume() : undefined}
           tricks={tricksTile(settings.trickMap, params.seed)}
           onTricks={() => setPage("freestyle")}
           onOptions={() => setPage("options")}

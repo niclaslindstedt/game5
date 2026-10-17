@@ -60,7 +60,12 @@ export function tallyScene(root: THREE.Object3D, camera?: THREE.Camera): SceneSh
           : ((object as Partial<THREE.InstancedMesh>).count ?? 1);
       // Points and lines draw no triangles; they are still objects.
       const isMesh = (object as Partial<THREE.Mesh>).isMesh === true;
-      if (isMesh) share.triangles += Math.floor(verts / 3) * instances;
+      // A batch that draws its shapes off a list of its own (the forest's,
+      // `forest-batch.ts`) says what it draws: its geometry holds every
+      // shape once, and that is not what a frame submits.
+      const tally = object.userData.drawnTriangles as (() => number) | undefined;
+      if (tally) share.triangles += tally();
+      else if (isMesh) share.triangles += Math.floor(verts / 3) * instances;
       buckets.set(name, share);
     }
     for (const child of object.children) walk(child, name);

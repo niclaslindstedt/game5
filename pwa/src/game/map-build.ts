@@ -90,11 +90,22 @@ export function buildAhead(order: MapOrder | null): void {
   if (ahead) park(ahead.key, ahead.job);
   // Asked for again while parked: taken back rather than begun again.
   const back = unpark(key);
+  // A new mountain ordered: nothing let go is kept beside it.
+  if (key !== null) for (const k of [...parked.keys()]) unpark(k)?.cancel();
   ahead = back
     ? { key: key!, job: back }
     : order && key !== null && typeof Worker !== "undefined"
       ? { key, job: onWorker(order) }
       : null;
+}
+
+/** Stop every map ordered ahead or let go, at once: another worker is
+ * about to raise a mountain of its own, and two ski areas' heaps side by
+ * side are what runs a phone's tab out of memory. */
+export function dropAhead(): void {
+  for (const key of [...parked.keys()]) unpark(key)?.cancel();
+  ahead?.job.cancel();
+  ahead = null;
 }
 
 /** The map ordered ahead, once it is built, where it is `seed`'s. */
@@ -112,6 +123,8 @@ export function buildMap(order: MapOrder): MapJob {
     return held.job;
   }
   const back = unpark(keyOf(order));
+  // Whatever else was let go goes now: one mountain raised at a time.
+  for (const k of [...parked.keys()]) unpark(k)?.cancel();
   if (back && !back.failed()) return back;
   if (cachedHere(order) || typeof Worker === "undefined") {
     try {

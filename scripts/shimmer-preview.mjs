@@ -169,12 +169,13 @@ if (args.json) {
 } else {
   const pad = (s, n) => String(s).padStart(n);
   console.log(
-    `\n${"shot".padEnd(10)}${pad("range m", 9)}${pad("flicker", 9)}${pad("hot %", 8)}${pad("crag %", 8)}${pad("through %", 11)}${pad("blink %", 9)}`,
+    `\n${"shot".padEnd(10)}${pad("range m", 9)}${pad("flicker", 9)}${pad("hot %", 8)}${pad("crag %", 8)}${pad("through %", 11)}${pad("blink %", 9)}${pad("crag fl", 9)}${pad("crag %fl", 10)}`,
   );
   for (const r of rows) {
     console.log(
       `${r.shot.padEnd(10)}${pad(r.range.toFixed(0), 9)}${pad(r.flicker.toFixed(2), 9)}${pad(r.hot.toFixed(2), 8)}` +
-        `${pad(r.crag.toFixed(1), 8)}${pad(r.through.toFixed(1), 11)}${pad(r.blink.toFixed(2), 9)}`,
+        `${pad(r.crag.toFixed(1), 8)}${pad(r.through.toFixed(1), 11)}${pad(r.blink.toFixed(2), 9)}` +
+        `${pad(r.cragFlicker.toFixed(2), 9)}${pad(r.cragShare.toFixed(0), 10)}`,
     );
   }
   console.log(`\n(${((Date.now() - t0) / 1000).toFixed(0)} s)`);

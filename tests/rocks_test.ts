@@ -11,7 +11,12 @@ import {
   rockHash,
   rockShare,
   rockyCliff,
+  bedLevel,
+  bedOf,
+  ribOf,
+  snowShare,
   solidsOf,
+  strataOf,
   wallOf,
   wallSolids,
   type GameEvent,
@@ -30,10 +35,10 @@ const band = regionLookOf(regionOf(level).id).rock;
 const walls = cliffWalls(level);
 
 /** The whole map's skin at a lattice of `cell` m. */
-function skinOf(cell: number) {
+function skinOf(cell: number, every = 1) {
   const m = rockMesh();
   const n = Math.round(level.size / cell);
-  buildSkin(m, level, band!.tone, rockHash(level.seed, 1), cell, 0, 0, n, n);
+  buildSkin(m, level, band!.tone, rockHash(level.seed, 1), cell, 0, 0, n, n, every);
   return m;
 }
 
@@ -134,8 +139,9 @@ describe("rocks", () => {
 
   it("cost a phone little: a few thousand triangles a square kilometre, fewer at a cheaper share", () => {
     const whole = skinOf(ROCKS.skin.cell);
-    const cheap = skinOf(ROCKS.skin.cheap);
-    for (const w of walls) buildWall(whole, w, band!.tone);
+    // The middle distance's cut, its beds two at a time (`CUTS`).
+    const cheap = skinOf(ROCKS.skin.cheap, 2);
+    for (const w of walls) buildWall(whole, w, band!.tone, level);
     const tris = whole.pos.length / 9;
     const km2 = (level.size / 1000) ** 2;
     expect(tris).toBeGreaterThan(1000);
@@ -161,5 +167,48 @@ describe("rocks", () => {
       }
     }
     expect(low).toBeLessThan(alpine / 4);
+  });
+});
+
+// THE BEDS (`engine/game/strata.ts`): thick and thin by packets, never out
+// of order (`bedOf` reads them in order — a bed below the one under it is a
+// drawing and a physics that disagree), and the ribs furrowing the face.
+describe("the beds", () => {
+  it("swell and thin bed to bed and never cross, at every cut", () => {
+    const st = strataOf(level);
+    for (const every of [1, 2, 4, 8]) {
+      let least = Infinity;
+      let most = 0;
+      for (let k = -300; k < 300; k++) {
+        const t = bedLevel(st, k + 1, every) - bedLevel(st, k, every);
+        least = Math.min(least, t / (st.bed * every));
+        most = Math.max(most, t / (st.bed * every));
+        const mid = (bedLevel(st, k, every) + bedLevel(st, k + 1, every)) / 2;
+        expect(bedOf(st, mid, every)).toBe(k);
+      }
+      expect(least).toBeGreaterThan(0.1);
+      if (every === 1) expect(most - least).toBeGreaterThan(0.8);
+    }
+  });
+
+  it("furrow the face into buttresses and gullies, and a gully holds snow", () => {
+    const st = strataOf(level);
+    let up = 0;
+    let down = 0;
+    for (let z = 300; z < level.size - 300; z += 37) {
+      for (let x = 300; x < level.size - 300; x += 37) {
+        if (rockShare(level, x, z) <= 0.5) continue;
+        const r = ribOf(st, level, x, z);
+        expect(Math.abs(r)).toBeLessThanOrEqual(1);
+        if (r > 0.3) up++;
+        if (r < -0.3) down++;
+      }
+    }
+    expect(up).toBeGreaterThan(5);
+    expect(down).toBeGreaterThan(5);
+    // On a 55° facet, bare on a buttress and white in a gully.
+    const ny = Math.cos((55 * Math.PI) / 180);
+    expect(snowShare(st, 0.5, ny, 1)).toBe(0);
+    expect(snowShare(st, 0.5, ny, -1)).toBeGreaterThan(0);
   });
 });

@@ -16,7 +16,7 @@ import { freeGameOptions, quickRide, type FreeRide } from "./free-ride.ts";
 
 const newSalt = (): number => Math.floor(Math.random() * 2 ** 32);
 
-export function useQuickRide(base: FreeRide): {
+export type QuickRide = {
   /** The ride QUICK START will stand up. */
   next: () => FreeRide;
   /** …as the options its run is stood up with, for the skier given. */
@@ -25,7 +25,9 @@ export function useQuickRide(base: FreeRide): {
   dealt: number;
   /** The ride was pressed: deal the next. */
   ridden: () => void;
-} {
+};
+
+export function useQuickRide(base: FreeRide): QuickRide {
   const [salt, setSalt] = useState(newSalt);
   const next = (): FreeRide => quickRide(base, createRng(salt).next);
   return {

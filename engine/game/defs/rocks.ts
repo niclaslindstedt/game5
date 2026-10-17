@@ -24,17 +24,18 @@ export const ROCKS = {
    * (the middle distance's cut `cheap` m), jittered `jitter` of a cell
    * in plan; a bare corner stands `proud` m over the ground plus up to
    * `rough` m by how bare it is, a corner where the snow holds is tucked
-   * `sink` m under it; a cell is laid where a corner is bare past `from`.
+   * `sink` m under it, the ledges of its beds (`strata`) on top of that;
+   * a cell is laid where a corner is bare past `from`.
    * No corner within `clear` m of packed snow or a bike trail is bare:
    * every facet that can hold a point is laid off corners that near it
-   * (a jittered cell's corner is under 10 m off any point it holds), so no
+   * (a jittered cell's corner is under 1.84 cells — 22 m — off any point it holds), so no
    * facet ever stands over a run or a trail, and the surface a body meets
    * there is the map's — as drawn. */
   skin: {
-    cell: 4,
-    clear: 10,
-    cheap: 6,
-    jitter: 0.35,
+    cell: 12,
+    clear: 23,
+    cheap: 16,
+    jitter: 0.3,
     proud: 0.15,
     rough: 0.75,
     sink: 0.35,
@@ -70,6 +71,54 @@ export const ROCKS = {
     sink: 0.25,
     least: 0.8,
     wobble: 0.12,
+  },
+  /** A WALL'S BEDS (`strata.ts`): the rock is LAYERED. One dip plane the
+   * whole massif over, dealt off the map's seed — tipped `dip` rad (the
+   * least and the most) toward a heading of its own — and folded `fold` m
+   * over `foldOver` m, so a bed's trace runs across a wall and on into the
+   * next one as a real band does. The beds are `bed` m thick on the mean;
+   * they come in PACKETS — the thickness swelling and thinning `swell` of
+   * a bed either way over `packet` beds, so a run of thin beds stands
+   * between thick ones — and each bed's foot is dealt `vary` of a bed
+   * either way on top of that (the three together keep every bed over a
+   * tenth of one thick, so the beds never cross: `bedOf` reads them in
+   * order). Each weathers back into a RISER (`riser` of the bed, the least
+   * and the most, near vertical and bare) over a TREAD that lies `depth`
+   * of the way flat (the least and the most: a deep ledge holds snow, a
+   * shallow one sheds it), never standing more than `most` m proud of the
+   * ground. Two JOINT SETS cut across the beds every `joints` m (along and
+   * across the dip), warped `jointWarp` of a spacing: each block they cut
+   * shifts its beds up to `jog` of a bed and stands its ledges `block`
+   * deeper or shallower. Far out the beds are drawn `every` few at once, a
+   * band of them a ledge (`coarse`). A tread holds snow up to `tread` of
+   * the sky further over than a facet as steep.
+   *
+   * THE RIBS (`ribs`): a face is furrowed down its fall line into
+   * BUTTRESSES and the GULLIES between them, `across` m from one to the
+   * next and running `along` m down it — a buttress stands up to `relief`
+   * m prouder, a gully's floor is smoothed (its ledges `smooth` of the way
+   * gone), cut `cut` of the relief back and, in its floor (the rib under
+   * `-floor`, all of it by `-1`), holds snow `snow` of the sky further
+   * over than a facet as steep: the face's rhythm of bare ribs and narrow
+   * white chutes. */
+  strata: {
+    dip: [0.07, 0.38] as const,
+    fold: 7,
+    foldOver: 240,
+    bed: 11,
+    swell: 0.8,
+    packet: 5,
+    vary: 0.2,
+    riser: [0.22, 0.45] as const,
+    depth: [0.4, 0.92] as const,
+    most: 3.2,
+    joints: [13, 24] as const,
+    jointWarp: 0.3,
+    jog: 0.45,
+    block: 0.5,
+    coarse: 4,
+    tread: 0.26,
+    ribs: { across: 30, along: 110, relief: 2.0, smooth: 0.7, cut: 0.45, floor: 0.35, snow: 0.28 },
   },
   lip: 0.35,
   /** WHAT A SKIER MEETS of a cliff's wall: a column inside the face no

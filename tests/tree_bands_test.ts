@@ -27,9 +27,9 @@ import {
 const E: BandEdges = { full: 110, mid: 320, far: 1100 };
 const fresh = (): TreeDraw => ({ from: -1, band: -1, split: 0 });
 
-/** Each cut's share of the tree's pixels: FULL, MID, FAR. */
+/** Each cut's share of the tree's pixels: FULL, MID, FAR, the CARD tree. */
 function shares(t: TreeDraw): number[] {
-  const s = [0, 0, 0];
+  const s = [0, 0, 0, 0];
   if (t.from >= 0) s[t.from] += t.split;
   if (t.band >= 0) s[t.band] += 1 - t.split;
   return s;
@@ -55,7 +55,12 @@ function ride(e: BandEdges, inFar: boolean, from: number, to: number, speed: num
 const pairings = TIERS.flatMap((f) =>
   DISTANCE_LEVELS.map((d) => ({
     name: `forest ${f}, distance ${d}`,
-    edges: { full: FOREST_LOOK[f].full, mid: FOREST_LOOK[f].mid, far: DISTANCE_LOOK[d].trees },
+    edges: {
+      cards: FOREST_LOOK[f].cards,
+      full: FOREST_LOOK[f].full,
+      mid: FOREST_LOOK[f].mid,
+      far: DISTANCE_LOOK[d].trees,
+    },
   })),
 );
 
@@ -66,6 +71,19 @@ describe("the forest's hand-over between its cuts", () => {
     expect(bandAt(500, E, true)).toBe(2);
     expect(bandAt(500, E, false)).toBe(-1);
     expect(bandAt(1200, E, true)).toBe(-1);
+    // The card band, where a row has one, nearest of all.
+    expect(bandAt(10, { ...E, cards: 40 }, true)).toBe(3);
+    expect(bandAt(50, { ...E, cards: 40 }, true)).toBe(0);
+    expect(bandAt(10, { ...E, cards: 0 }, true)).toBe(0);
+  });
+
+  it("dissolves a card tree into its full cut, never a frame swapped", () => {
+    const run = ride({ ...E, cards: 40 }, true, 20, 70, 30);
+    expect(run[0]).toEqual([0, 0, 0, 1]);
+    expect(run[run.length - 1]).toEqual([1, 0, 0, 0]);
+    for (let k = 1; k < run.length; k++)
+      for (let c = 0; c < 4; c++)
+        expect(Math.abs(run[k][c] - run[k - 1][c])).toBeLessThan(1000 / 60 / HAND_OVER_MS + 1e-9);
   });
 
   it("draws a tree first seen whole in its own cut, discarding nothing", () => {
@@ -86,7 +104,7 @@ describe("the forest's hand-over between its cuts", () => {
     expect(shares(t)[0]).toBeCloseTo(0.5, 6);
     expect(shares(t)[1]).toBeCloseTo(0.5, 6);
     expect(handOver(h, 0, 116, E, true, 100 + HAND_OVER_MS, 5, t)).toBe(false);
-    expect(shares(t)).toEqual([0, 1, 0]);
+    expect(shares(t)).toEqual([0, 1, 0, 0]);
   });
 
   it("holds a tree's cut while the lens bobs at the edge", () => {
@@ -119,7 +137,7 @@ describe("the forest's hand-over between its cuts", () => {
     handOver(h, 0, 100, E, true, 0, 2, t);
     // Out of sight for a while (a head turned), back at 400 m.
     expect(handOver(h, 0, 400, E, true, 900, 9, t)).toBe(false);
-    expect(shares(t)).toEqual([0, 0, 1]);
+    expect(shares(t)).toEqual([0, 0, 1, 0]);
   });
 
   for (const { name, edges } of pairings) {
@@ -133,8 +151,8 @@ describe("the forest's hand-over between its cuts", () => {
           let jump = 0;
           let most = 0;
           for (let k = 1; k < run.length; k++) {
-            most = Math.max(most, run[k][0] + run[k][1] + run[k][2]);
-            for (let c = 0; c < 3; c++) jump = Math.max(jump, Math.abs(run[k][c] - run[k - 1][c]));
+            most = Math.max(most, run[k][0] + run[k][1] + run[k][2] + run[k][3]);
+            for (let c = 0; c < 4; c++) jump = Math.max(jump, Math.abs(run[k][c] - run[k - 1][c]));
           }
           // Two windows of one 0..1 threshold: never more than a whole tree,
           // and no cut's share moves more than a frame of the dissolve.

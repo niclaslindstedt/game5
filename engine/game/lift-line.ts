@@ -637,6 +637,10 @@ export function ruledLiftPlans(level: Level): readonly LiftPlan[] {
  * reads its rope every step. */
 const plans = new WeakMap<Level, LiftPlan[]>();
 export function liftPlans(level: Level): readonly LiftPlan[] {
+  // Planned on the map's own ground, never on the rock skin dressing it
+  // (`withRock`): a tower stands where the map has it, and the drawing (on
+  // the plain map) and the ride (on the rocked one) read one rope.
+  if (level.bedrock) return liftPlans(level.bedrock);
   let out = plans.get(level);
   if (!out) {
     out = (level.resort?.lifts ?? []).map((l) => planLift(level, l));

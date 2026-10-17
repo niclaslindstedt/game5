@@ -47,9 +47,14 @@ const args = parseArgs(
     lod: {
       kind: "number",
       default: 0,
-      help: "the cut drawn: 0 full, 1 mid, 2 the far band's sketch",
+      help: "the cut drawn: 0 full, 1 mid, 2 the far band's sketch (with --cards: 0 full, 1 light, 2 cloud)",
     },
     sketch: { kind: "flag", help: "draw the far band's sketches instead (--lod=2)" },
+    zoom: { kind: "number", default: 1, help: "every cell this many times larger" },
+    cards: {
+      kind: "flag",
+      help: "the card trees the MEDIUM and HIGH forests draw, not the faceted cuts",
+    },
     ages: {
       kind: "flag",
       help: "each kind's lead variant at the ages a wood holds, sapling to veteran",
@@ -109,16 +114,18 @@ const lod = args.sketch ? 2 : Math.max(0, Math.min(2, Math.round(args.lod)));
 params.set("lod", String(lod));
 params.set("age", String(args.age));
 if (args.ages) params.set("ages", "1");
+if (args.cards) params.set("cards", "1");
+if (args.zoom > 1) params.set("zoom", String(args.zoom));
 const query = `?${params}`;
-const cut = ["", "-mid", "-sketch"][lod];
+const cut = (args.cards ? ["", "-light", "-cloud"] : ["", "-mid", "-sketch"])[lod];
 const out =
   args.out ||
   join(
     outDir,
-    `trees${args.ages ? "-ages" : ""}${cut}${args.region === "alpine" ? "" : `-${args.region}`}.png`,
+    `trees${args.ages ? "-ages" : ""}${args.cards ? "-cards" : ""}${cut}${args.region === "alpine" ? "" : `-${args.region}`}.png`,
   );
 console.log(
-  `trees — ${args.kinds || "every kind"}, ${args.region}, ${["full", "mid", "far"][lod]} cut${args.ages ? ", by age" : `, ${args.age} yr`}`,
+  `trees — ${args.kinds || "every kind"}, ${args.region}, ${(args.cards ? ["full", "light", "cloud"] : ["full", "mid", "far"])[lod]} cut${args.ages ? ", by age" : `, ${args.age} yr`}`,
 );
 await page.goto(`${server.url}trees-preview.html${query}`);
 await Promise.race([

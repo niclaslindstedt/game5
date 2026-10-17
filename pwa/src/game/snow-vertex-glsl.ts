@@ -120,7 +120,8 @@ float snowRelief;
 // ground is the track's graded surface; the skier drawn in powder is lowered
 // by as much in renderer.ts.)
 vec4 snowGroundV = textureLod(uGround, (snowXZ - uHeightOrigin + 0.5 * uCell) / (uHeightCount * uCell), 0.0);
-float snowPackedV = snowGroundV.b;
+// The packed channel carries the rock's share below nought (\`terrain.ts\`).
+float snowPackedV = max(snowGroundV.b, 0.0);
 // THE TREE WELLS (\`tree-wells.ts\`): the hollows round the trunks in deep
 // powder, off the engine's own wells.
 float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - snowPackedV) - wellDepth(snowXZ)

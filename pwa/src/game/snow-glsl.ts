@@ -436,8 +436,17 @@ ${SLIDE_ALBEDO}
     alb = mix(alb, fresh * mix(1.0, 0.88, clod), smoothstep(0.0, 0.35, snowBerm));
   }${SNOW_TRAIL_ALBEDO}
   // A wood seen from afar is a darker, greener ground — the trees past the
-  // draw distance are still there in its colour.
-  alb = mix(alb, uForestTint, snowForest * 0.55 * smoothstep(160.0, 520.0, snowDist));
+  // draw distance are still there — STIPPLED, a dark crown a cell of 5.5 m as
+  // thick as the wood, averaged where a cell is finer than a pixel.
+  float farW = snowForest * smoothstep(160.0, 520.0, snowDist);
+  vec2 fc = p / 5.5; float fpx = length(fwidth(fc));
+  if (farW > 0.0) {
+    vec2 fi = floor(fc); float fh = snowHash1(fi);
+    vec2 ff = fract(fc) - 0.5 - (vec2(fh, snowHash1(fi + 7.3)) - 0.5) * 0.4;
+    float core = step(fh, snowForest * 1.15) * smoothstep(0.42, 0.12, length(ff));
+    core = mix(core, min(1.0, snowForest * 1.15) * 0.3, smoothstep(0.35, 0.9, fpx));
+    alb = mix(alb, mix(uForestTint, uForestTint * 0.5, core), farW * mix(0.5, 0.72, core));
+  }
   // THE REGION'S OWN SNOW: the wind slab, the river's bare ice, the rock.
   alb = mix(alb, alb * uCrustTone, snowCrust * (1.0 - snowPacked * 0.5));
   if (snowIce > 0.0) {

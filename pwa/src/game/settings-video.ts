@@ -208,6 +208,17 @@ export type ForestLook = {
    * switched on by riding closer to its tree. */
   full: number;
   mid: number;
+  /** HOW THE TREES ARE DRAWN: `faceted` — the solid, chunky cuts
+   * (`tree-shapes.ts`) at every distance — or `cards`, the same trees with
+   * their needles on cards over a painted atlas (`tree-cards.ts`): the
+   * boughs, their snow, the dark gaps between them, lighter with distance
+   * (the full cut, the light cut, the billboard cloud) out to the mid
+   * band's edge, the far band the faceted sketch a few pixels high. */
+  style: TreeStyle;
+  /** THE FULL CARD TREES run out to here, m, inside the full band (0: none,
+   * the light cut is the nearest): every bough its own pair of cards. Only
+   * the richest row affords them. */
+  cards: number;
   /** The share of the far band's sketches that stand, 0..1. */
   farShare: number;
   /** HOW MANY VARIANTS OF EACH KIND are drawn, 1..10 (`tree-variants.ts`,
@@ -248,10 +259,14 @@ export type WildLook = { readonly forms: number; readonly near: number };
 
 export type TreeCasters = "full" | "sketch";
 
+export type TreeStyle = "faceted" | "cards";
+
 export const FOREST_LOOK: Record<Tier, ForestLook> = {
   low: {
     full: 50,
     mid: 140,
+    style: "faceted",
+    cards: 0,
     farShare: 0.5,
     variants: 2,
     casters: "sketch",
@@ -262,6 +277,8 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
   medium: {
     full: 80,
     mid: 220,
+    style: "cards",
+    cards: 0,
     farShare: 0.75,
     variants: 5,
     casters: "sketch",
@@ -272,6 +289,8 @@ export const FOREST_LOOK: Record<Tier, ForestLook> = {
   high: {
     full: 110,
     mid: 320,
+    style: "cards",
+    cards: 25,
     farShare: 1,
     variants: 10,
     casters: "full",

@@ -171,12 +171,12 @@ export type TreeLod = 0 | 1 | 2;
 export const LOD_NAMES = ["full", "mid", "far"] as const;
 
 /** The trunk's sides at each level. */
-const TRUNK_SIDES = [5, 4, 3] as const;
+export const TRUNK_SIDES = [5, 4, 3] as const;
 
 /** A trunk up `heights` (shares of the tree's height), tagged so the
  * tree's girth sizes it: `share` of the reference radius (a stem of
  * several), tapering to `tip` at the last joint, each joint coloured. */
-function trunk(
+export function trunk(
   s: Shape,
   heights: readonly number[],
   share: number,
@@ -202,16 +202,16 @@ function trunk(
 
 /** The joints a trunk to `top` is built of at each level: the flare at the
  * foot always, breast height, and the rest of the way. */
-function joints(top: number, lod: TreeLod): number[] {
+export function joints(top: number, lod: TreeLod): number[] {
   if (lod === 2) return [0, top];
   if (lod === 1) return [0, BREAST, top];
   return [0, BREAST, BREAST + (top - BREAST) * 0.45, top];
 }
 
-type Tier = { bottom: number; top: number; radius: number };
+export type Tier = { bottom: number; top: number; radius: number };
 
 /** The tiers from `base` to `top`, narrowing by `taper`. */
-function tiersOf(count: number, base: number, top: number, taper: number): Tier[] {
+export function tiersOf(count: number, base: number, top: number, taper: number): Tier[] {
   const out: Tier[] = [];
   const span = top - base;
   for (let i = 0; i < count; i++) {
@@ -311,6 +311,59 @@ function conifer(v: TreeVariant, form: ConiferForm, p: KindPaint, lod: TreeLod, 
     // is the dark inside of the tree.
     const capped = p.load > 0 && jitter(seed * 7 + ti * 3) < 0.35 + snow;
     const cap = capped ? SNOW : needle;
+    if (lod === 0) {
+      // NEAR, THE SKIRT IS JAGGED: between two bough tips the rim is
+      // notched back in and up, so a tier reads as boughs drooping out of
+      // the crown rather than a lampshade. The snow lies as a white SHELF
+      // on the inner half of each bough (the flat the snow can rest on)
+      // and the drooping tips stay green, as a loaded spruce's do; the
+      // notches' dark underside shows between them.
+      const notch: V3[] = [];
+      for (let i = 0; i < sides; i++) {
+        const j = (i + 1) % sides;
+        const k = seed * 31 + ti * 17 + i;
+        const nr = 0.58 + 0.12 * jitter(k + 19);
+        notch.push([
+          ox + (rim[i][0] + rim[j][0] - 2 * ox) * 0.5 * nr,
+          t.bottom + (t.top - t.bottom) * (0.22 + 0.08 * jitter(k + 23)),
+          (rim[i][2] + rim[j][2]) * 0.5 * nr,
+        ]);
+      }
+      for (let i = 0; i < sides; i++) {
+        const j = (i + 1) % sides;
+        const shelf =
+          snowy[i] || snowy[j] ? SNOW : i % 2 === 0 ? needle : dark.clone().lerp(needle, 0.55);
+        // A heavy load (a maritime wood's) plasters the tips too.
+        const heavy = (snow - 0.45) * 1.6;
+        const tipL =
+          snowy[i] && jitter(seed + ti * 5 + i) < Math.max(snow * 0.5, heavy) ? SNOW_SHADE : needle;
+        const tipR =
+          jitter(seed * 3 + ti * 7 + i) < heavy
+            ? SNOW_SHADE
+            : i % 2 === 0
+              ? dark.clone().lerp(needle, 0.55)
+              : needle;
+        s.push(apex, cap, vol(apex, 1));
+        s.push(mid[j], cap, vol(mid[j], 0.9));
+        s.push(mid[i], cap, vol(mid[i], 0.9));
+        s.push(mid[i], shelf, vol(mid[i], 0.7));
+        s.push(mid[j], shelf, vol(mid[j], 0.7));
+        s.push(notch[i], shelf, vol(notch[i], 0.6));
+        s.push(mid[i], tipL, vol(mid[i], 0.5));
+        s.push(notch[i], tipL, vol(notch[i], 0.4));
+        s.push(rim[i], tipL, vol(rim[i], 0.2));
+        s.push(mid[j], tipR, vol(mid[j], 0.5));
+        s.push(rim[j], tipR, vol(rim[j], 0.2));
+        s.push(notch[i], tipR, vol(notch[i], 0.4));
+        s.push(under, dark, vol(under, -0.3));
+        s.push(rim[i], dark, vol(rim[i], -0.1));
+        s.push(notch[i], dark, vol(notch[i], -0.2));
+        s.push(under, dark, vol(under, -0.3));
+        s.push(notch[i], dark, vol(notch[i], -0.2));
+        s.push(rim[j], dark, vol(rim[j], -0.1));
+      }
+      return;
+    }
     for (let i = 0; i < sides; i++) {
       const j = (i + 1) % sides;
       const bough = snowy[i]

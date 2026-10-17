@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
+.PHONY: contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
 
 build:
 	npm run build
@@ -1258,6 +1258,19 @@ menu-stalls:
 # trunk from a sapling to a veteran).
 trees:
 	npm run trees -- $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE TREES EVAL LAB: the woods through the game's own renderer from a fixed
+# list of scenes (inside the densest stand, its edge, the piste, the tree
+# line, the valley, the vista, from the air, pines, broadleaves; at night,
+# in falling snow and in the other regions), each PRICED with and without
+# the forest — its draw calls, triangles and ms in a software rasterizer —
+# and the APPROACH walked in from 400 m to 20 m for pops. Out:
+# previews/tree-eval/ (the sheet tree-eval.png, the table tree-eval.txt).
+# Needs a Chromium like `world`. ARGS="--json=before.json", then
+# "--compare=before.json"; "--groups=alpine --scenes=inside,edge";
+# "--refs=DIR" local photographs beside the scenes (never committed).
+tree-eval:
+	npm run tree-eval -- $(ARGS)
 
 # THE CABIN LAB: every kind of log building the ski area keeps beside its
 # runs and lanes (hut, cabin, chalet, woodshed) through the game's own

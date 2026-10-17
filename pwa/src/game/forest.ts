@@ -19,22 +19,43 @@
 // meshes on the GPU and makes fewer draws, and the wood is still the same
 // wood.
 //
-// TENS OF THOUSANDS OF THEM, so they are instanced — one instanced mesh a
-// shape, each sized to the trees it draws — in THREE BANDS of distance, the
-// same tree cut lighter in each (`TreeLod`): FULL at the lens, MID (the same
-// variant at a third of the triangles, so the hand-over keeps its
-// silhouette) and FAR (a sketch, one a kind). The trees are binned into
-// 64 m cells once; when the lens moves, the cells in reach are tested
-// against the view frustum and their trees are copied into the bands'
-// instance buffers. No band ends at a line: over the last stretch of each a
+// TENS OF THOUSANDS OF THEM, drawn in ONE BATCH (`forest-batch.ts`): every
+// shape of every kind at every cut packed into one geometry, every tree's
+// matrix and numbers written once into a table, and the whole wood sent as
+// one multi-draw a pass — the picture's and the shadow map's — whatever
+// the kinds, variants and bands. In THREE BANDS of distance, the same tree
+// cut lighter in each (`TreeLod`): FULL at the lens, MID (the same variant
+// at a third of the triangles, so the hand-over keeps its silhouette) and
+// FAR (a sketch, one a kind). The trees are binned into 64 m cells once;
+// when the lens moves, the cells in reach are tested against the view
+// frustum and their trees are listed, a word a tree, by the shape they are
+// drawn as. No band ends at a line: over the last stretch of each a
 // tree is drawn in both cuts, dithered into one another (`tree-bands.ts`),
 // so a skier never sees a tree swap its cut. Past the far band the
 // terrain's own forest tint (`snow-glsl.ts`) carries the woods to the
 // ridge.
 //
-// THE SHADOWS ARE A THIRD SET, NOT A BAND. No band casts. Every tree whose
+// THE CARD WOODS, on the MEDIUM and HIGH FOREST rows (`style: "cards"`):
+// every tree out to the mid band's edge drawn as its CARD TREE
+// (`tree-cards.ts` — its boughs as sprays of needles on cards over an atlas
+// painted in code, a dark opaque core in every crown, its snow laid in the
+// world's up) in a SECOND BATCH over the same table of trees, so it stands
+// where its solid cuts would, with its kind, variant, girth, lean, tint and
+// load. One style from the skis to the far woods: the card band (HIGH's
+// nearest `cards` m) draws the FULL card cut, the full band the LIGHT one
+// (fewer, wider cards), the mid band the billboard CLOUD, dissolved into one
+// another as every band is; the far band, a few pixels a tree, is the
+// faceted sketch, which reads the same at that size for a fraction of a
+// card's fill. The cards are cut by their coverage in one pass. (A depth
+// pre-pass and a colour pass at an equal depth over it was measured too: it
+// saved the hidden layers' shading and cost as much again drawing every
+// card twice.) The cards cast nothing of their own: the casters below are
+// the faceted cuts, from the faceted batch, whatever the picture draws.
+// LOW draws the faceted trees at every distance.
+//
+// THE SHADOWS ARE A SECOND LIST, NOT A BAND. No band casts. Every tree whose
 // shadow can land in the sun's circle (`shadow-box.ts`'s `castsInto`) is
-// copied into a CASTER set drawn only into the shadow map — whatever band
+// listed for the shadow map, the same batch's other pass — whatever band
 // the picture draws it in, in front of the lens or behind it — its kind's
 // MID cut or its sketch, as the FOREST row says. So a wood's
 // shadows are all there or fading out at the circle's rim together, and
@@ -45,15 +66,47 @@ import { felledTrees, regionOf, type Level } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createShadeDepth } from "./terrain-shade.ts";
-import type { ForestLook, TreeCasters } from "./settings-video.ts";
+import {
+  DISTANCE_LOOK,
+  FOREST_LOOK,
+  SHADOW_LOOK,
+  type ForestLook,
+  type TreeCasters,
+  type VideoSettings,
+} from "./settings-video.ts";
 import { castsInto, shadowLength, type ShadowBox } from "./shadow-box.ts";
 import { regionLookOf } from "./region-look.ts";
 import { createRocks } from "./rocks.ts";
-import { graftGirth } from "./tree-mesh.ts";
+import { GIRTH_VERTEX } from "./tree-mesh.ts";
+import {
+  CASTERS,
+  COLOUR,
+  TREE_DATA,
+  batchUniforms,
+  createTreeBatch,
+  graftBatch,
+  type TreeBatch,
+} from "./forest-batch.ts";
 import { summerShown } from "./season-look.ts";
-import { buildTree, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
-import { HYSTERESIS, createHandOver, handOver, type TreeDraw } from "./tree-bands.ts";
+import { buildTree, kindPaint, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
+import {
+  CARDS as CARD_BAND,
+  HYSTERESIS,
+  createHandOver,
+  handOver,
+  type TreeDraw,
+} from "./tree-bands.ts";
+import { packCards } from "./tree-card-parts.ts";
+import { buildCardTree, type CardLod } from "./tree-cards.ts";
+import { atlasBytes, atlasTexture, cardMaterial } from "./tree-card-material.ts";
 import { createTreePlace, placeTree, treeHash } from "./tree-place.ts";
+import {
+  TREE_SNOW_PARS,
+  TREE_SNOW_VERTEX,
+  TREE_WIND_PARS,
+  TREE_WIND_VERTEX,
+  packTree,
+} from "./tree-snow.ts";
 import { crownAt, leadVariant, treeVariant, type TreeVariant } from "./tree-variants.ts";
 
 /** Where the bands end (the FOREST row's `full` and `mid`, the DISTANCE
@@ -68,23 +121,40 @@ export type ForestOptions = Omit<ForestLook, "casters"> & {
   casters: TreeCasters | "none";
 };
 
+/** The woods a picture's rows ask for: the FOREST row's bands, the DISTANCE
+ * row's reach and the SHADOW row's casters. */
+export const forestOptionsOf = (video: VideoSettings): ForestOptions => ({
+  ...FOREST_LOOK[video.forest],
+  far: DISTANCE_LOOK[video.distance].trees,
+  view: DISTANCE_LOOK[video.distance].view,
+  casters: SHADOW_LOOK[video.shadows].trees ? FOREST_LOOK[video.forest].casters : "none",
+});
+
 const CELL = 64;
 
-/** An instanced shape's girth attribute (`withGirth`). */
-const girthOf = (im: THREE.InstancedMesh): THREE.InstancedBufferAttribute =>
-  im.geometry.getAttribute("girth") as THREE.InstancedBufferAttribute;
-
-/** An instanced band shape's dither window (`withFade`). */
-const fadeOf = (im: THREE.InstancedMesh): THREE.InstancedBufferAttribute =>
-  im.geometry.getAttribute("fade") as THREE.InstancedBufferAttribute;
-
-/** THE HAND-OVER, in the tree material: every band instance carries the
- * window `[lo, hi)` of a screen-space dither its pixels are kept in
- * (`tree-bands.ts`); a whole tree's is `[0, 1)` and discards nothing. */
-function graftFade(shader: { vertexShader: string; fragmentShader: string }): void {
+/** THE TREE IN THE BATCH, in the tree material: the trunk pushed out to its
+ * girth (`tree-mesh.ts`), the tree's tone on its colours, and THE HAND-OVER
+ * — every listed tree carries the window `[lo, hi)` of a screen-space
+ * dither its pixels are kept in (`tree-bands.ts`); a whole tree's is
+ * `[0, 1)` and discards nothing. */
+function graftTree(
+  shader: {
+    vertexShader: string;
+    fragmentShader: string;
+    uniforms: Record<string, THREE.IUniform>;
+  },
+  wind: THREE.IUniform<THREE.Vector4>,
+): void {
+  shader.uniforms.uTreeWind = wind;
   shader.vertexShader = shader.vertexShader
-    .replace("#include <common>", "#include <common>\nattribute vec2 fade;\nvarying vec2 vFade;")
-    .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vFade = fade;");
+    .replace(
+      "#include <common>",
+      `#include <common>\nattribute vec3 stem;\n${TREE_SNOW_PARS}\n${TREE_WIND_PARS}\nvarying vec2 vFade;`,
+    )
+    .replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>\n${GIRTH_VERTEX}\n${TREE_WIND_VERTEX}\n  vFade = tbFade;\n${TREE_SNOW_VERTEX}`,
+    );
   shader.fragmentShader = shader.fragmentShader
     .replace("#include <common>", "#include <common>\nvarying vec2 vFade;")
     .replace(
@@ -92,6 +162,53 @@ function graftFade(shader: { vertexShader: string; fragmentShader: string }): vo
       `void main() {
   float lodDither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
   if (lodDither < vFade.x || lodDither >= vFade.y) discard;`,
+    );
+}
+
+/** THE CARD TREE IN THE BATCH: the trunk to its girth, swayed as the tree
+ * is, its colours under the tree's own tint and tone (its snow is the card
+ * material's to lay, off the tree's load), and the hand-over's dither — the
+ * same lines as the solid cuts', so a card tree dissolves into its full
+ * cut with nothing moved. */
+function graftCardTree(
+  shader: {
+    vertexShader: string;
+    fragmentShader: string;
+    uniforms: Record<string, THREE.IUniform>;
+  },
+  wind: THREE.IUniform<THREE.Vector4>,
+): void {
+  shader.uniforms.uTreeWind = wind;
+  shader.vertexShader = shader.vertexShader
+    .replace(
+      "#include <common>",
+      `#include <common>\nattribute vec3 stem;\n${TREE_WIND_PARS}\nvarying vec2 vFade;`,
+    )
+    .replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>\n${GIRTH_VERTEX}\n${TREE_WIND_VERTEX}\n  vFade = tbFade;\n  vColor.rgb *= tbMore.rgb * tbData.z;`,
+    );
+  shader.fragmentShader = shader.fragmentShader
+    .replace("#include <common>", "#include <common>\nvarying vec2 vFade;")
+    .replace(
+      "void main() {",
+      `void main() {
+  float lodDither = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  if (lodDither < vFade.x || lodDither >= vFade.y) discard;`,
+    );
+}
+
+/** The casters' depth: the trunk to its girth, swayed as the tree is. */
+function graftCaster(
+  shader: { vertexShader: string; uniforms: Record<string, THREE.IUniform> },
+  wind: THREE.IUniform<THREE.Vector4>,
+): void {
+  shader.uniforms.uTreeWind = wind;
+  shader.vertexShader = shader.vertexShader
+    .replace("#include <common>", `#include <common>\nattribute vec3 stem;\n${TREE_WIND_PARS}`)
+    .replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>\n${GIRTH_VERTEX}\n${TREE_WIND_VERTEX}`,
     );
 }
 
@@ -139,6 +256,10 @@ function atLens(
  * full tree drawn over it is not shaded blotchy by its own stand-in. */
 const SKETCH_INSET = 0.85;
 
+/** How far the lens may move between two fills before it is taken for a
+ * cut, m: far past any lens's travel in a frame, a craft's included. */
+const JUMP = 25;
+
 /** How far the lens has to stand from a tree before it cannot be inside
  * it, m — past this, `atLens` is not asked. */
 const LENS_REACH = 24;
@@ -156,6 +277,8 @@ export type Forest = {
    * each tree's cut chosen at its slant distance from a lens `lift` m over
    * the snow, the crags out to `view` m — none of it under the row's own. */
   setAloft(far: number, lift: number, view: number): void;
+  /** The wind in the crowns: its x and z, m/s, at the run's clock `t`, s. */
+  setWind(x: number, z: number, t: number): void;
   dispose(): void;
 };
 
@@ -177,10 +300,13 @@ export type Planting = {
   readonly xs: Float64Array;
   readonly zs: Float64Array;
   readonly matrices: Float32Array;
-  readonly colours: Float32Array;
+  /** Every tree's own numbers, read by the batch (`TREE_DATA` a tree). */
+  readonly data: Float32Array;
   readonly girths: Float32Array;
   readonly thin: Float32Array;
   readonly leans: Float32Array;
+  /** The trees felled for the village or a building's site, 1 a tree. */
+  readonly gone: Uint8Array;
 };
 
 /** How many trees go in between asks of the clock. */
@@ -225,7 +351,8 @@ export function plantForest(level: Level): Planting {
   }
   // Every tree's matrix, once.
   const matrices = new Float32Array(count * 16);
-  const colours = new Float32Array(count * 3);
+  /** Every tree's own numbers, read by the batch (`TREE_DATA` a tree). */
+  const data = new Float32Array(count * TREE_DATA);
   /** Every tree's GIRTH: its trunk's radius over the radius the shapes are
    * built with, on each of the instance's stretched axes. */
   const girths = new Float32Array(count * 2);
@@ -233,6 +360,10 @@ export function plantForest(level: Level): Planting {
    * this is under `farShare`, so a thinner wood is a subset of a thicker
    * one and walking the row never swaps one tree for another. */
   const thin = new Float32Array(count);
+  /** The mountain's foot and the climb to its summit, for the load. */
+  const mount = level.mountain
+    ? { base: level.mountain.base.y, span: Math.max(1, level.mountain.vertical) }
+    : undefined;
   /** Each tree's LEAN as the shift of its axis in plan a metre up. */
   const leans = new Float32Array(count * 2);
   const m = new THREE.Matrix4();
@@ -258,10 +389,26 @@ export function plantForest(level: Level): Planting {
         // is drawn as nothing: its matrix squashed to its foot.
         if (gone[i]) at.s.set(0, 0, 0);
         m.compose(at.p, at.q, at.s).toArray(matrices, i * 16);
-        const tone = 0.9 + hash(t.z, t.x) * 0.2;
-        colours[i * 3] = tone;
-        colours[i * 3 + 1] = tone;
-        colours[i * 3 + 2] = tone;
+        const d = i * TREE_DATA;
+        data[d] = girths[i * 2];
+        data[d + 1] = girths[i * 2 + 1];
+        data[d + 2] = 0.9 + hash(t.z, t.x) * 0.2;
+        // THE TREE'S OWN SNOW AND HUE (`tree-snow.ts`): most carry the whole
+        // load, more and more of them less of it — one shaken by the wind, one
+        // shed in the sun — and every one's green and bark pulled a few per
+        // cent toward yellow or toward blue, so a wood of one kind is never one
+        // colour.
+        // Higher up the mountain the snow stays on the boughs longer (colder,
+        // fewer thaws), so the load climbs with the altitude.
+        const shed = hash(t.x * 0.53 + 17, t.z * 2.71 - 3);
+        const high = mount ? Math.min(1, Math.max(0, (t.y - mount.base) / mount.span)) : 0.5;
+        data[d + 3] = 1.05 + 0.25 * high - 0.95 * shed * shed;
+        const warm = hash(t.x * 3.1 - 8, t.z * 0.29 + 4) * 2 - 1;
+        const light = hash(t.x * 0.19 + 5, t.z * 3.7) * 2 - 1;
+        data[d + 4] = 1 + 0.07 * warm + 0.03 * light;
+        data[d + 5] = 1 + 0.02 * warm + 0.05 * light;
+        data[d + 6] = 1 - 0.07 * warm + 0.02 * light;
+        data[d + 7] = hash(t.x * 0.71 - 2, t.z * 1.31 + 9);
       }
       planted = end;
       if (!more()) break;
@@ -279,10 +426,11 @@ export function plantForest(level: Level): Planting {
     xs,
     zs,
     matrices,
-    colours,
+    data,
     girths,
     thin,
     leans,
+    gone,
   };
 }
 
@@ -295,7 +443,7 @@ export function createForest(
   let options = { ...initial };
   // The view aloft over the row's own (`setAloft`); on the snow, the row's.
   const aloft = { far: options.far, lift: 0, view: options.view };
-  const edges = { full: 0, mid: 0, far: 0 };
+  const edges = { cards: 0, full: 0, mid: 0, far: 0 };
   const group = new THREE.Group();
   // THE CRAGS on the drops stand with the woods, out to the whole view,
   // and the far share is the share of their blocks (`rocks.ts`).
@@ -303,8 +451,7 @@ export function createForest(
   group.add(rocks.group);
   const plot = sown ?? plantForest(level);
   plot.step(() => true); // the rest of it, whole
-  const { count, cols, binStart, trees, rank, xs, zs, matrices, colours, girths, thin, leans } =
-    plot;
+  const { count, cols, binStart, trees, rank, xs, zs, matrices, data, thin, leans, gone } = plot;
   const binTop = new Float32Array(cols * cols).fill(-Infinity);
   const binLow = new Float32Array(cols * cols).fill(Infinity);
   /** How far a crown in each cell leans out past its trunk, m. */
@@ -320,208 +467,184 @@ export function createForest(
     }
   }
 
+  // The batch's uniforms, held across rebuilds: the picture's and the
+  // casters' (their lists start in different places).
+  const colourU = batchUniforms();
+  const casterU = batchUniforms();
+  const wind = { value: new THREE.Vector4() };
   const material = hazeMaterial(
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
     haze,
     "tree",
     (shader) => {
-      graftGirth(shader);
-      graftFade(shader);
+      graftBatch(shader, colourU);
+      graftTree(shader, wind);
     },
   );
   // The casters' depth, with the same girth: a veteran's trunk throws a
-  // veteran's shadow.
+  // veteran's shadow. A tree the mountain already shades casts nothing
+  // (`terrain-shade.ts`).
   const casterDepth = createShadeDepth(haze);
   const shadeCompile = casterDepth.onBeforeCompile.bind(casterDepth);
-  casterDepth.customProgramCacheKey = (): string => "terrain-shade-depth-girth";
+  casterDepth.customProgramCacheKey = (): string => "terrain-shade-depth-batch";
   casterDepth.onBeforeCompile = (shader, renderer) => {
     shadeCompile(shader, renderer);
-    graftGirth(shader);
+    graftBatch(shader, casterU);
+    graftCaster(shader, wind);
   };
-  // THE CASTERS are drawn into the shadow map and nowhere else. Three picks
-  // its shadow pass off the MAIN camera's layers, so a layer cannot keep
-  // them out of the picture; instead their own material puts every vertex
-  // outside the clip volume — the picture's pass culls them before a pixel
-  // is shaded — while the shadow pass draws them with three's own depth
-  // material, which never runs this one.
-  const casterMaterial = new THREE.ShaderMaterial({
-    vertexShader: "void main() { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); }",
-    fragmentShader: "void main() { gl_FragColor = vec4(0.0); }",
-    side: material.side,
-  });
+  // THE CARD TREES' atlas and material (`tree-card-material.ts`): painted
+  // and made the first time a row asks for the card woods, kept after.
+  const cardU = batchUniforms();
+  let atlas: THREE.Texture | null = null;
+  let cardMat: THREE.Material | null = null;
+  const cardsKit = (): { material: THREE.Material; atlas: THREE.Texture } => {
+    atlas ??= atlasTexture();
+    cardMat ??= cardMaterial(haze, atlas, (shader) => {
+      graftBatch(shader, cardU);
+      graftCardTree(shader, wind);
+    });
+    return { material: cardMat, atlas };
+  };
   const region = treePaint(regionLookOf(regionOf(level).id));
   const paint = summerShown() ? summerPaint(region) : region;
 
-  /** A band's meshes, and each one's instance arrays held once: a refill
-   * writes thousands of trees a frame, and an attribute looked up or a
-   * subarray made per tree was half of what the refill cost. */
-  type Band = {
-    meshes: THREE.InstancedMesh[];
-    fill: number[];
-    shape: Uint8Array;
-    mats: Float32Array[];
-    tints: Float32Array[];
-    girths: Float32Array[];
-    fades: Float32Array[];
-    /** The tree in each slot, as last sent to the card (-1: none yet). */
-    who: Int32Array[];
-    /** The first slot this refill wrote anything new into. */
-    from: number[];
-  };
-  type Casters = {
-    meshes: THREE.InstancedMesh[];
-    shape: Uint8Array;
-    mats: Float32Array[];
-    girths: Float32Array[];
-  };
+  /** Where each of the batches' runs of shapes starts. On a FACETED row a
+   * tree's shape in band `b` is `first[b] + its row` (its variant's for the
+   * full and mid cuts, its kind's lead for the far band and the casters);
+   * on a CARD row the faceted batch holds the far band's sketch and the
+   * casters, and the card batch the full, light and cloud cuts:
+   * `cardFirst[c] + its row` for card cut `c` (its variant's row). */
   type Shapes = {
     variants: number;
+    /** Whether the picture draws the card trees. */
+    cards: boolean;
     /** Each tree's variant, for the lens to clear it by. */
     variantOf: TreeVariant[];
-    full: Band;
-    mid: Band;
-    far: Band;
-    casters: { full: Casters; sketch: Casters };
+    near: Uint16Array;
+    far: Uint16Array;
+    /** The full, mid and far bands', the full casters' and the sketch
+     * casters' first shape (only the far band's and the casters' on a card
+     * row). */
+    first: [number, number, number, number, number];
+    batch: TreeBatch;
+    /** The card trees' batch over the same table (none on a faceted row),
+     * and its cuts' first shapes (the full cut's only where the row has a
+     * card band). */
+    cardBatch: TreeBatch | null;
+    cardFirst: [number, number, number];
     geometries: THREE.BufferGeometry[];
   };
 
-  /** The girth attribute an instanced shape carries, `room` trees long. */
-  const withGirth = (g: THREE.BufferGeometry, room: number): THREE.BufferGeometry => {
-    const a = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, room) * 2), 2);
-    a.setUsage(THREE.DynamicDrawUsage);
-    g.setAttribute("girth", a);
-    return g;
-  };
-
-  /** The dither window an instanced band shape carries, `room` trees long. */
-  const withFade = (g: THREE.BufferGeometry, room: number): THREE.BufferGeometry => {
-    const a = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, room) * 2), 2);
-    a.setUsage(THREE.DynamicDrawUsage);
-    g.setAttribute("fade", a);
-    return g;
-  };
-
   /** THE SHAPES for `variants` of every kind (the FOREST row's): which
-   * variant every tree is, the meshes the map's own variants are built into
-   * at the full and the mid cut (only the ones it grows), and the far band
-   * and the casters over them, each mesh sized to the trees that can ever be
-   * drawn with it. The far band and the casters draw ONE shape a kind (its
-   * lead variant: the sketch, or the mid cut when the casters are full), so
-   * their cost is the number of kinds, not of variants. */
-  function buildShapes(variants: number): Shapes {
+   * variant every tree is, the map's own variants built at each cut (only
+   * the ones it grows), each kind's lead at the far cut, and the casters'
+   * cuts. The far band and the casters draw ONE shape a kind (its lead
+   * variant). `cards`: the card woods, with their full cut built only when
+   * `nearest` — the row's card band — is asked for. */
+  function buildShapes(variants: number, cards: boolean, nearest: boolean): Shapes {
     const variantOf: TreeVariant[] = new Array<TreeVariant>(count);
-    const nearShape = new Uint8Array(count);
-    const farShape = new Uint8Array(count);
+    const near = new Uint16Array(count);
+    const far = new Uint16Array(count);
     const nearRows: TreeVariant[] = [];
     const farRows: TreeVariant[] = [];
-    const nearCount: number[] = [];
-    const farCount: number[] = [];
-    const indexOf = (row: TreeVariant, rows: TreeVariant[], n: number[]): number => {
+    const indexOf = (row: TreeVariant, rows: TreeVariant[]): number => {
       let k = rows.indexOf(row);
       if (k < 0) {
         k = rows.length;
         rows.push(row);
-        n.push(0);
       }
-      n[k]++;
       return k;
     };
-    // In the generator's order, so every shape keeps the mesh it had.
+    // In the generator's order, so every shape keeps the place it had.
     for (let k = 0; k < count; k++) {
       const i = rank[k];
       const t = trees[i];
       const kind = t.kind ?? "spruce";
       const v = treeVariant(kind, t.x, t.z, variants);
       variantOf[i] = v;
-      nearShape[i] = indexOf(v, nearRows, nearCount);
-      farShape[i] = indexOf(leadVariant(kind), farRows, farCount);
+      near[i] = indexOf(v, nearRows);
+      far[i] = indexOf(leadVariant(kind), farRows);
     }
-    const shape = (v: TreeVariant, lod: TreeLod) => buildTree(v, paint, lod);
-    const full = nearRows.map((v) => shape(v, 0));
-    const mid = nearRows.map((v) => shape(v, 1));
-    const sketch = farRows.map((v) => shape(v, 2));
-    const leads = farRows.map((v) => shape(v, 1));
-    const insetSketch = farRows.map((v) => inset(shape(v, 2), SKETCH_INSET));
-    const makeBand = (geos: THREE.BufferGeometry[], shape: Uint8Array, room: number[]): Band => {
-      const meshes = geos.map((g, k) => {
-        const im = new THREE.InstancedMesh(
-          withFade(withGirth(g, room[k]), room[k]),
-          material,
-          room[k],
-        );
-        im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(room[k] * 3), 3);
-        im.instanceColor.setUsage(THREE.DynamicDrawUsage);
-        im.castShadow = false;
-        im.receiveShadow = true;
-        im.frustumCulled = false;
-        im.count = 0;
-        im.visible = false;
-        group.add(im);
-        return im;
-      });
-      return {
-        meshes,
-        fill: geos.map(() => 0),
-        shape,
-        mats: meshes.map((im) => im.instanceMatrix.array as Float32Array),
-        tints: meshes.map((im) => im.instanceColor!.array as Float32Array),
-        girths: meshes.map((im) => girthOf(im).array as Float32Array),
-        fades: meshes.map((im) => fadeOf(im).array as Float32Array),
-        who: room.map((n) => new Int32Array(Math.max(1, n)).fill(-1)),
-        from: geos.map(() => 0),
-      };
+    const shape = (v: TreeVariant, lod: TreeLod, by = 1): THREE.BufferGeometry => {
+      const kp = kindPaint(paint, v.kind);
+      const g = buildTree(v, paint, lod);
+      if (by !== 1) inset(g, by);
+      return packTree(g, kp.needle, kp.dark.clone().lerp(kp.needle, 0.55));
     };
-    const makeCasters = (
-      geos: THREE.BufferGeometry[],
-      shape: Uint8Array,
-      room: number[],
-    ): Casters => {
-      const meshes = geos.map((g, k) => {
-        const im = new THREE.InstancedMesh(withGirth(g, room[k]), casterMaterial, room[k]);
-        im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        im.castShadow = true;
-        // A tree the mountain already shades casts nothing (`terrain-shade.ts`).
-        im.customDepthMaterial = casterDepth;
-        im.receiveShadow = false;
-        im.frustumCulled = false;
-        im.count = 0;
-        im.visible = false;
-        group.add(im);
-        return im;
-      });
-      return {
-        shape,
-        meshes,
-        mats: meshes.map((im) => im.instanceMatrix.array as Float32Array),
-        girths: meshes.map((im) => girthOf(im).array as Float32Array),
-      };
-    };
+    const casterShapes = [
+      ...farRows.map((v) => shape(v, 1)),
+      ...farRows.map((v) => shape(v, 2, SKETCH_INSET)),
+    ];
+    const geometries = cards
+      ? [...farRows.map((v) => shape(v, 2)), ...casterShapes]
+      : [
+          ...nearRows.map((v) => shape(v, 0)),
+          ...nearRows.map((v) => shape(v, 1)),
+          ...farRows.map((v) => shape(v, 2)),
+          ...casterShapes,
+        ];
+    const nN = nearRows.length;
+    const nF = farRows.length;
+    const batch = createTreeBatch(
+      geometries,
+      count,
+      matrices,
+      data,
+      { colour: count * 2, casters: count },
+      material,
+      casterDepth,
+    );
+    batch.bind(colourU, casterU);
+    group.add(batch.mesh);
+    let cardBatch: TreeBatch | null = null;
+    let cardGeometries: THREE.BufferGeometry[] = [];
+    const n0 = nearest ? nN : 0;
+    const cardFirst: [number, number, number] = [0, n0, n0 + nN];
+    if (cards) {
+      const kit = cardsKit();
+      const cut = (lod: CardLod): THREE.BufferGeometry[] =>
+        nearRows.map((v) => packCards(buildCardTree(v, paint, lod)));
+      cardGeometries = [...(nearest ? cut(0) : []), ...cut(1), ...cut(2)];
+      cardBatch = createTreeBatch(
+        cardGeometries,
+        count,
+        matrices,
+        data,
+        { colour: count * 2, casters: 0 },
+        kit.material,
+        casterDepth,
+        { table: batch.table },
+      );
+      cardBatch.bind(cardU, batchUniforms());
+      cardBatch.mesh.userData.gpuBytes += atlasBytes(kit.atlas);
+      group.add(cardBatch.mesh);
+    }
     return {
       variants,
+      cards,
       variantOf,
-      full: makeBand(full, nearShape, nearCount),
-      mid: makeBand(mid, nearShape, nearCount),
-      far: makeBand(sketch, farShape, farCount),
-      casters: {
-        full: makeCasters(leads, farShape, farCount),
-        sketch: makeCasters(insetSketch, farShape, farCount),
-      },
-      geometries: [...full, ...mid, ...sketch, ...leads, ...insetSketch],
+      near,
+      far,
+      first: cards ? [0, 0, 0, nF, 2 * nF] : [0, nN, 2 * nN, 2 * nN + nF, 2 * nN + 2 * nF],
+      batch,
+      cardBatch,
+      cardFirst,
+      geometries: [...geometries, ...cardGeometries],
     };
   }
 
   function dropShapes(old: Shapes): void {
-    for (const set of [old.full, old.mid, old.far, old.casters.full, old.casters.sketch]) {
-      for (const im of set.meshes) {
-        group.remove(im);
-        im.dispose();
-      }
+    if (old.cardBatch) {
+      group.remove(old.cardBatch.mesh);
+      old.cardBatch.dispose();
     }
+    group.remove(old.batch.mesh);
+    old.batch.dispose();
     for (const g of old.geometries) g.dispose();
   }
 
-  let shapes = buildShapes(options.variants);
+  const cardRow = (o: ForestOptions): boolean => o.style === "cards";
+  let shapes = buildShapes(options.variants, cardRow(options), options.cards > 0);
   /** The tallest tree, for how far up-sun a caster can stand. */
   let tallest = 0;
   for (const t of trees) tallest = Math.max(tallest, t.height);
@@ -542,34 +665,19 @@ export function createForest(
   const lastShadow: ShadowBox = { x: Infinity, y: 0, z: 0, reach: 0, sx: 0, sy: 0, sz: 0 };
   let castersOn = false;
 
-  /** Tree `i` into `band`, keeping the dither window `[lo, hi)`. A slot
-   * still holding the tree it held when last sent keeps its matrix, tint
-   * and girth; only what is new is written, and only from the first new
-   * slot on is sent — while the lens runs on, most of a band is the same
-   * trees in the same slots, frame after frame. */
-  function place(band: Band, i: number, lo: number, hi: number) {
+  /** Tree `i` listed in `band` (0 full, 1 mid, 2 far, 3 the card tree),
+   * kept in the dither window `[lo, hi)`. */
+  function place(band: number, i: number, lo: number, hi: number) {
     if (hi <= lo) return;
-    const sh = band.shape[i];
-    const k = band.fill[sh]++;
-    const fade = band.fades[sh];
-    const who = band.who[sh];
-    if (who[k] !== i) {
-      who[k] = i;
-      const mat = band.mats[sh];
-      for (let j = 0; j < 16; j++) mat[k * 16 + j] = matrices[i * 16 + j];
-      const tint = band.tints[sh];
-      tint[k * 3] = colours[i * 3];
-      tint[k * 3 + 1] = colours[i * 3 + 1];
-      tint[k * 3 + 2] = colours[i * 3 + 2];
-      const girth = band.girths[sh];
-      girth[k * 2] = girths[i * 2];
-      girth[k * 2 + 1] = girths[i * 2 + 1];
-    } else if (fade[k * 2] === lo && fade[k * 2 + 1] === hi) {
+    if (shapes.cardBatch && band !== 2) {
+      // The card band is the full card cut, the full band the light one,
+      // the mid band the cloud; the far band is the faceted sketch.
+      const cut = band === CARD_BAND ? 0 : band + 1;
+      shapes.cardBatch.push(COLOUR, shapes.cardFirst[cut] + shapes.near[i], i, lo, hi);
       return;
     }
-    fade[k * 2] = lo;
-    fade[k * 2 + 1] = hi;
-    if (k < band.from[sh]) band.from[sh] = k;
+    const row = band < 2 ? shapes.near[i] : shapes.far[i];
+    shapes.batch.push(COLOUR, shapes.first[band] + row, i, lo, hi);
   }
   /** Every tree's cut and its dissolve into the next (`tree-bands.ts`). */
   const hand = createHandOver(count);
@@ -580,15 +688,10 @@ export function createForest(
 
   /** Refill the casters: every tree whose shadow can reach the circle. */
   function fillCasters(shadow: ShadowBox | null) {
-    const sets = [shapes.casters.full, shapes.casters.sketch];
-    let n: number[] = [];
-    const into =
-      !shadow || options.casters === "none"
-        ? null
-        : options.casters === "full"
-          ? shapes.casters.full
-          : shapes.casters.sketch;
-    if (shadow && into) {
+    const batch = shapes.batch;
+    batch.begin(CASTERS);
+    if (shadow && options.casters !== "none") {
+      const first = shapes.first[options.casters === "full" ? 3 : 4];
       // The cells the circle, and the shadows reaching into it, can touch.
       const plan = Math.hypot(shadow.sx, shadow.sz);
       const tail = plan > 1e-6 ? shadowLength(shadow, tallest) : 0;
@@ -603,40 +706,20 @@ export function createForest(
       const cMax = Math.min(cols - 1, Math.floor(x1 / CELL));
       const rMin = Math.max(0, Math.floor(z0 / CELL));
       const rMax = Math.min(cols - 1, Math.floor(z1 / CELL));
-      n = into.meshes.map(() => 0);
       for (let row = rMin; row <= rMax; row++) {
         for (let c = cMin; c <= cMax; c++) {
           const b = row * cols + c;
           for (let i = binStart[b]; i < binStart[b + 1]; i++) {
+            if (gone[i]) continue;
             const t = trees[i];
             const crown = t.crown + t.height * Math.hypot(leans[i * 2], leans[i * 2 + 1]);
             if (!castsInto(shadow, t.x, t.z, t.height, crown)) continue;
-            const sh = into.shape[i];
-            const k = n[sh]++;
-            const mat = into.mats[sh];
-            for (let j = 0; j < 16; j++) mat[k * 16 + j] = matrices[i * 16 + j];
-            const girth = into.girths[sh];
-            girth[k * 2] = girths[i * 2];
-            girth[k * 2 + 1] = girths[i * 2 + 1];
+            batch.push(CASTERS, first + shapes.far[i], i, 0, 1);
           }
         }
       }
     }
-    for (const set of sets) {
-      set.meshes.forEach((im, k) => {
-        const used = set === into ? n[k] : 0;
-        im.count = used;
-        im.visible = used > 0;
-        if (used === 0) return;
-        im.instanceMatrix.clearUpdateRanges();
-        im.instanceMatrix.addUpdateRange(0, used * 16);
-        im.instanceMatrix.needsUpdate = true;
-        const g = girthOf(im);
-        g.clearUpdateRanges();
-        g.addUpdateRange(0, used * 2);
-        g.needsUpdate = true;
-      });
-    }
+    batch.end(CASTERS);
   }
 
   return {
@@ -669,6 +752,11 @@ export function createForest(
       ) {
         return;
       }
+      // A CUT — the lens put down somewhere else in one frame (a restart, a
+      // camera rung, a replay's new shot) — is a new frame of reference:
+      // every tree takes its cut at once rather than dissolving into it in
+      // plain sight of the new shot.
+      if (camera.position.distanceToSquared(lastAt) > JUMP * JUMP) tick++;
       lastAt.copy(camera.position);
       lastLook.copy(look);
       lastFov = camera.fov;
@@ -678,15 +766,14 @@ export function createForest(
       const cx = camera.position.x;
       const cy = camera.position.y;
       const cz = camera.position.z;
-      const { full, mid, far } = shapes;
-      for (const b of [full, mid, far]) {
-        b.fill.fill(0);
-        b.from.fill(Infinity);
-      }
+      const batch = shapes.batch;
+      batch.begin(COLOUR);
+      shapes.cardBatch?.begin(COLOUR);
       // Aloft, a tree's cut is chosen at its SLANT distance from the lens
       // (`lift` over the snow), so the far edge is the plan reach's slant.
       const lift = aloft.lift;
       const lift2 = lift * lift;
+      edges.cards = shapes.cardBatch ? options.cards : 0;
       edges.full = options.full;
       edges.mid = options.mid;
       edges.far = lift > 0 ? Math.hypot(aloft.far, lift) + 2 * HYSTERESIS : aloft.far;
@@ -698,7 +785,9 @@ export function createForest(
       const ux = plan > 1e-6 ? look.x / plan : 0;
       const uz = plan > 1e-6 ? look.z / plan : 0;
       const far2 = aloft.far * aloft.far;
-      const bands = [full, mid, far];
+      // On the snow the row's own edges, the card band only where it was
+      // built.
+      const bands = { ...options, cards: edges.cards };
       const now = performance.now();
       tick++;
       dissolving = false;
@@ -716,6 +805,9 @@ export function createForest(
           if (dx * dx + dz * dz > far2) continue;
           if (!frustum.intersectsBox(box)) continue;
           for (let i = lo; i < hi; i++) {
+            // A tree felled for the village or a building's site is never
+            // listed (`felledTrees`).
+            if (gone[i]) continue;
             const e2 = (xs[i] - cx) ** 2 + (zs[i] - cz) ** 2;
             // THE TREES AT THE LENS are drawn while they come at it and while
             // it passes through them — the boughs across the frame are the
@@ -733,41 +825,16 @@ export function createForest(
               continue;
             const inFar = thin[i] < options.farShare;
             const d = Math.sqrt(lift > 0 ? e2 + lift2 : e2);
-            if (handOver(hand, i, d, lift > 0 ? edges : options, inFar, now, tick, draw)) {
+            if (handOver(hand, i, d, lift > 0 ? edges : bands, inFar, now, tick, draw)) {
               dissolving = true;
             }
-            if (draw.from >= 0) place(bands[draw.from], i, 0, draw.split);
-            if (draw.band >= 0) place(bands[draw.band], i, draw.split, 1);
+            if (draw.from >= 0) place(draw.from, i, 0, draw.split);
+            if (draw.band >= 0) place(draw.band, i, draw.split, 1);
           }
         }
       }
-      for (const b of [full, mid, far]) {
-        b.meshes.forEach((im, k) => {
-          const n = b.fill[k];
-          im.count = n;
-          im.visible = n > 0;
-          // Nothing of an empty shape is drawn, so nothing of it is sent;
-          // nor of one whose slots all hold what they held.
-          const from = b.from[k];
-          if (n === 0 || from >= n) return;
-          // Upload only what is new and used: a whole band's buffer is
-          // megabytes.
-          im.instanceMatrix.clearUpdateRanges();
-          im.instanceMatrix.addUpdateRange(from * 16, (n - from) * 16);
-          im.instanceMatrix.needsUpdate = true;
-          im.instanceColor!.clearUpdateRanges();
-          im.instanceColor!.addUpdateRange(from * 3, (n - from) * 3);
-          im.instanceColor!.needsUpdate = true;
-          const girth = girthOf(im);
-          girth.clearUpdateRanges();
-          girth.addUpdateRange(from * 2, (n - from) * 2);
-          girth.needsUpdate = true;
-          const fade = fadeOf(im);
-          fade.clearUpdateRanges();
-          fade.addUpdateRange(from * 2, (n - from) * 2);
-          fade.needsUpdate = true;
-        });
-      }
+      batch.end(COLOUR);
+      shapes.cardBatch?.end(COLOUR);
     },
     invalidate() {
       // A new frame of reference: every tree takes its cut at once.
@@ -775,15 +842,24 @@ export function createForest(
       lastAt.set(Infinity, 0, 0);
       lastShadow.x = Infinity;
     },
+    setWind(x, z, t) {
+      // The clock wrapped every ten minutes, so a float holds it finely.
+      wind.value.set(x, z, 0, t % 600);
+    },
     setAloft(far, lift, view) {
       aloft.far = Math.max(far, options.far);
       aloft.lift = lift;
       aloft.view = Math.max(view, options.view);
     },
     setOptions(next) {
-      if (next.variants !== options.variants) {
+      if (
+        next.variants !== options.variants ||
+        cardRow(next) !== shapes.cards ||
+        (cardRow(next) && next.cards > 0 !== options.cards > 0)
+      ) {
+        options = { ...next };
         dropShapes(shapes);
-        shapes = buildShapes(next.variants);
+        shapes = buildShapes(next.variants, cardRow(next), next.cards > 0);
       }
       rocks.setLook(next.rocks);
       options = { ...next };
@@ -796,8 +872,9 @@ export function createForest(
       rocks.dispose();
       dropShapes(shapes);
       material.dispose();
-      casterMaterial.dispose();
       casterDepth.dispose();
+      atlas?.dispose();
+      cardMat?.dispose();
     },
   };
 }

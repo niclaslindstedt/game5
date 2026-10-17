@@ -505,6 +505,9 @@ export function App() {
     };
     const onSnow = (next: GameState): void => {
       adopt(rescueAgain(state, next), ticketFor(next), true);
+      // A run started again on a map the renderer does not hold would
+      // never step or draw: build it rather than freeze on the last frame.
+      if (!drawable()) void build(state);
       frozen = false;
       clock.resume();
       setShellNow("run");

@@ -523,6 +523,23 @@ describe("what the rows ask for", () => {
     ).toBe(false);
   });
 
+  it("starts a summer ride again on the very map it was stood on", () => {
+    // The renderer holds the map the first ride built and draws nothing
+    // else: a restart on a copy of it never steps or draws.
+    const ride = { ...freshRide(), season: "summer" as const };
+    const opts = {
+      ...freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } }),
+      quiet: true,
+    };
+    const first = createGame(opts);
+    expect(first.level.bikePark).toBeDefined();
+    const free = freeAgainOptions(opts, first.level);
+    const again = createGame(freeRestart(first, free)!);
+    expect(again.level).toBe(first.level);
+    expect(again.level.sun.dayOfYear).toBe(first.level.sun.dayOfYear);
+    expect(createGame({ ...free, run: undefined }).level).toBe(first.level);
+  });
+
   it("puts the seasons in winter's order, December to April, then summer", () => {
     const winter = SEASONS.filter((s) => s.id !== "summer").map((s) => s.day);
     expect(winter).toEqual([...winter].sort((a, b) => a - b));

@@ -398,7 +398,9 @@ function gotUp(st: Stage, fell: { s: GameState; at: P3 }): void {
 
 export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
   // ── INTO A TRUNK ────────────────────────────────────────────────────────
-  /** Skied square into a trunk at 108 km/h: his body stops on it. */
+  /** Skied square into a trunk at 108 km/h, past what a body holds together:
+   * what met it crushed (`GORE.smash`) and smeared on its face, his middle
+   * crushed and his limbs flung on past it. */
   "ski-trunk"(st) {
     const { s, tree, side } = skiAtTree(st, 30);
     st.shoot(s, "coming", around(st.level, tree, side, 9, 1.8, 50));
@@ -406,6 +408,13 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
     st.until(s, (q) => !!q.skier.thrown, 2, still);
     strobe(st, s, [0.02, 0.08, 0.2, 0.45, 1, 2.5, 5], lens);
     st.shoot(s, "chase", "chase");
+    // What the smash left on the trunk's face, from up the way he came.
+    st.shoot(s, "smear", around(st.level, tree, side + Math.PI / 2, 2.4, 1.3, 45, 1.1));
+    st.shoot(s, "smear-side", around(st.level, tree, side + Math.PI / 4, 2.2, 0.9, 45, 0.9));
+    // ...and down past it, where his limbs and his blood were flung.
+    const h = side - Math.PI / 2;
+    const past = { x: tree.x + Math.sin(h) * 10, y: tree.y, z: tree.z + Math.cos(h) * 10 };
+    st.shoot(s, "beyond", around(st.level, past, side, 15, 7, 60, 0));
   },
   /** Flown head first into a trunk at 90 km/h: the head torn off. */
   decapitation(st) {

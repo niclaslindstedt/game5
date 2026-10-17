@@ -696,7 +696,7 @@ export function createWorldRenderer(
       player.model.setSkierVisible(!under && figureShown(lens.rung(), own, rigPose.airborne));
       const over = lensGround(state, level.groundAt); // over an avalanche's snow
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), over, boomClear, trunks, own);
-      hurt.update(state, player.model.skin());
+      hurt.update(state, player.model.skin(), (piece, out) => gore?.flown(piece, out) ?? null);
       // THE LENS ON A HURT BODY (`xray-scene.ts`); a wreck he was on is `camera-crash.ts`'s.
       const allowed = !override && !watched && lens.rung() !== "orbit" && !wrecked(state);
       const dead = hurt.lens(

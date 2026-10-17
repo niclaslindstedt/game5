@@ -14,6 +14,7 @@ export {
   type GorePiece,
   type GoreState,
   type Impaled,
+  type Smear,
   type TornPiece,
 } from "./gore-state.ts";
 export { GORE } from "./defs/gore.ts";

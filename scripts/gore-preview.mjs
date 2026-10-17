@@ -6,7 +6,8 @@
 // photographed through the game's own renderer, so each can be judged by
 // eye and iterated on:
 //
-//   trunk    ski-trunk (skied square into a trunk at 108 km/h, frame by
+//   trunk    ski-trunk (skied square into a trunk at 108 km/h: smashed on it, the
+//            smear it left on the bark close, frame by
 //            frame), decapitation (flown head first into one: the head off)
 //   snow     mangled (thrown on his side at 100 km/h: the limbs off, the
 //            trunk burst), crush (head first: the skull), fracture (onto

@@ -65,6 +65,29 @@ export type TornPiece = {
   vx: number;
   vy: number;
   vz: number;
+  /** CRUSHED rather than torn (`GORE.smash`): left as meat on the solid it
+   * met, never flown off whole. */
+  pulped?: true;
+};
+
+/** WHAT A SMASH LEFT ON THE SOLID (`GORE.smash`): the brain of a burst
+ * skull, the chest's or the belly's insides, a limb's meat — where the
+ * point met it (world frame, m), the way out of the solid's face there
+ * (a unit vector), the upright's axis and radius (`r` 0: a flat face —
+ * a wall, a box, the crag's rock), m, and when. */
+export type Smear = {
+  what: "brain" | "chest" | "belly" | "limb";
+  point: number;
+  t: number;
+  x: number;
+  y: number;
+  z: number;
+  nx: number;
+  ny: number;
+  nz: number;
+  cx: number;
+  cz: number;
+  r: number;
 };
 
 /** RUN THROUGH: the spike's tip (world frame, m), its radius, m, what it is
@@ -103,6 +126,18 @@ export type GoreState = {
   open: number;
   /** When the skull was crushed (−1: it was not). */
   crushed: number;
+  /** The pieces of `lost` CRUSHED on a solid rather than torn off (a bit
+   * each, as `lost`), and what each smash left on it. */
+  pulped: number;
+  smears: Smear[];
+  /** The run clock his body last went faster than `GORE.smash.speed`
+   * (−1: never), and his way then, m/s, world. */
+  fast: number;
+  way: { x: number; y: number; z: number };
+  /** When the middle of him was crushed met square on (−1: it was not),
+   * and the litres of that burst still to leave him. */
+  middle: number;
+  burst: number;
   impaled: Impaled | null;
   /** The limbs and the head torn open on a spike's tip they came down
    * onto (`Gash`): only the trunk is run through. */
@@ -135,6 +170,12 @@ export function freshGore(): GoreState {
     torn: [],
     open: 0,
     crushed: -1,
+    pulped: 0,
+    smears: [],
+    fast: -1,
+    way: { x: 0, y: 0, z: 0 },
+    middle: -1,
+    burst: 0,
     impaled: null,
     gashes: [],
     mortal: -1,
@@ -165,7 +206,7 @@ export type GoreEvent =
   | {
       kind: "gore";
       t: number;
-      what: "torn" | "crush" | "open" | "impaled" | "gash";
+      what: "torn" | "crush" | "open" | "impaled" | "gash" | "pulped";
       piece?: GorePiece | GoreOpen;
       x: number;
       y: number;

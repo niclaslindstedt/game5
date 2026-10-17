@@ -53,6 +53,7 @@ import { BONES, INJURIES, type InjuryDef } from "./defs/anatomy.ts";
 import { throwRider } from "./crash.ts";
 import { RAGDOLL } from "./ragdoll-points.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
+import { bodyWay, smashedPoints, type Smashed } from "./gore-smash.ts";
 import {
   GORE_OPEN,
   GORE_PIECES,
@@ -60,6 +61,7 @@ import {
   type GoreOpen,
   type GorePiece,
   type GoreState,
+  type Smear,
 } from "./gore-state.ts";
 import type { BodyPart } from "./defs/anatomy.ts";
 import type { GameEvent, GameState, Thrown } from "./state.ts";
@@ -178,10 +180,17 @@ export function stepGore(state: GameState, events: GameEvent[]): void {
     mortality(state, g, events);
   } else {
     if (state.skier.thrown?.pin) slide(state, g, state.skier.thrown);
+    // What of the dead still meets the solid at speed is crushed on it too.
+    smashAll(state, g, events);
     // A machine runs over the dead as it does the living, and a rotor
     // cuts them.
     underMachine(state, g, events);
     rotor(state, g, events);
+  }
+  const w = bodyWay(state, way);
+  if (hypot3(w.x, w.y, w.z) > GORE.smash.speed) {
+    g.fast = state.t;
+    g.way = { x: w.x, y: w.y, z: w.z };
   }
   heart(state, g);
 }
@@ -204,11 +213,20 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
   // THE GRIMBEAR'S CATCH: the body torn in two in his arms.
   const off0 = state.skier.thrown;
   if (off0?.cause === "maul" && g.mortal < 0 && !(g.lost & bit("lower"))) tear.push("lower");
-  if (!tear.length && !crush && !open.length) return;
+  // SMASHED on a solid at speed: what hit it crushed, before anything tears.
+  smashAll(state, g, events);
+  if (g.crushed >= 0) crush = false;
+  // A skull burst is not torn off after.
+  const tearing = tear.filter(
+    (piece) => !(g.lost & bit(piece)) && !(piece === "head" && g.crushed >= 0),
+  );
+  const opening = open.filter((part) => !(g.open & (1 << GORE_OPEN.indexOf(part))));
+  if (!tearing.length && !crush && !opening.length) return;
   // Torn apart on his skis, he is off them now.
   const c = state.skier;
   const off = off0 ?? throwRider(state, "tree", { x: c.vx, y: c.vy, z: c.vz }, events);
-  for (const piece of tear) {
+  for (const piece of tearing) {
+    if (g.lost & bit(piece)) continue;
     tearOff(state, g, off, piece, velocityOf(off, TEAR[piece].takes), events);
     mortalBy(
       state,
@@ -223,7 +241,95 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
     );
   }
   if (crush) crushSkull(state, g, off, events);
-  for (const part of open) openTrunk(state, g, off, part, events);
+  for (const part of opening) openTrunk(state, g, off, part, events);
+}
+
+const way = { x: 0, y: 0, z: 0 };
+
+/** Every point of him smashed on a solid this step. */
+function smashAll(state: GameState, g: GoreState, events: GameEvent[]): void {
+  const b = state.skier.thrown;
+  if (b) for (const h of smashedPoints(state, g, b)) smash(state, g, b, h, events);
+}
+
+/** ONE POINT SMASHED on a solid (`GORE.smash`): the head's skull burst
+ * off his neck,
+ * a shoulder's chest stove in, a hip's belly burst, a limb's piece pulped
+ * to the joint above — and what it was smeared on the solid's face. */
+function smash(state: GameState, g: GoreState, off: Thrown, h: Smashed, events: GameEvent[]): void {
+  const i = h.point;
+  let what: Smear["what"];
+  if (i === R.head) {
+    if (g.lost & bit("head") || g.crushed >= 0) return;
+    // Burst, not flattened: nothing of the head is left on his neck.
+    crushSkull(state, g, off, events);
+    tearOff(state, g, off, "head", velocityOf(off, [i]), events, true);
+    what = "brain";
+  } else if (i === R.shoulderL || i === R.shoulderR || i === R.hipL || i === R.hipR) {
+    const part: GoreOpen = i === R.shoulderL || i === R.shoulderR ? "chest" : "abdomen";
+    const opened = g.open & (1 << GORE_OPEN.indexOf(part));
+    const squarely = g.middle < 0 && square(g, h);
+    if (opened && !squarely) return;
+    if (!opened) openTrunk(state, g, off, part, events);
+    if (squarely) crushMiddle(state, g, off, h, events);
+    what = part === "chest" ? "chest" : "belly";
+  } else {
+    const piece = PIECE_AT[i];
+    if (!piece || g.lost & bit(piece)) return;
+    tearOff(state, g, off, piece, velocityOf(off, [i]), events, true);
+    mortalBy(state, g, "bled");
+    what = "limb";
+  }
+  const { nx, ny, nz, cx, cz, r } = h;
+  g.smears.push({ what, point: i, t: state.t, ...pointOf(off, i), nx, ny, nz, cx, cz, r });
+}
+
+/** Whether the solid was met SQUARE ON: his way into its face. */
+function square(g: GoreState, h: Smashed): boolean {
+  const w = g.way;
+  const s = hypot(w.x, w.z);
+  return s > 0 && -(w.x * h.nx + w.z * h.nz) / s >= GORE.smash.square;
+}
+
+/** THE MIDDLE OF HIM CRUSHED, met square on (`GORE.smash`): the chest and
+ * the belly burst together, the blood in them out at once, and the arms
+ * and the legs torn off and gone on past the solid the way he was going. */
+function crushMiddle(
+  state: GameState,
+  g: GoreState,
+  off: Thrown,
+  h: Smashed,
+  events: GameEvent[],
+): void {
+  const S = GORE.smash;
+  g.middle = state.t;
+  g.burst += S.burst;
+  for (const part of GORE_OPEN)
+    if (!(g.open & (1 << GORE_OPEN.indexOf(part)))) openTrunk(state, g, off, part, events);
+  const w = g.way;
+  const s = hypot(w.x, w.z) || 1;
+  // Across his way, to his right as he goes (heading clockwise from +z).
+  const ax = w.z / s;
+  const az = -w.x / s;
+  const limbs: [GorePiece, number][] = [
+    ["armL", R.elbowL],
+    ["armR", R.elbowR],
+    ["legL", R.kneeL],
+    ["legR", R.kneeR],
+  ];
+  for (const [piece, i] of limbs) {
+    if (g.lost & bit(piece)) continue;
+    // Past the solid on the side it was on.
+    const p = pointOf(off, i);
+    const side = Math.sign((p.x - h.cx) * ax + (p.z - h.cz) * az) || (i % 2 ? 1 : -1);
+    const v = {
+      x: w.x * S.fling + ax * side * S.past,
+      y: Math.max(0, w.y * S.fling) + S.up,
+      z: w.z * S.fling + az * side * S.past,
+    };
+    tearOff(state, g, off, piece, v, events);
+  }
+  mortalBy(state, g, "opened");
 }
 
 /** CARRIED ON THROUGH (`cable-cut.ts`): every point of `off` and its skis
@@ -282,15 +388,26 @@ function tearOff(
   piece: GorePiece,
   v: { x: number; y: number; z: number },
   events: GameEvent[],
+  pulped = false,
 ): void {
   const with_ = WITH[piece];
   // A whole limb gone takes the lower half with it; the lower half
   // already gone leaves the upper to tear on its own.
-  g.lost |= bit(piece) | (with_ ? bit(with_) : 0);
+  const gone = bit(piece) | (with_ ? bit(with_) : 0);
+  g.lost |= gone;
+  if (pulped) g.pulped |= gone;
   if (piece === "lower") for (const p of LOWER) g.lost |= bit(p);
   const at = pointOf(off, TEAR[piece].at);
-  g.torn.push({ piece, t: state.t, ...at, vx: v.x, vy: v.y, vz: v.z });
-  events.push({ kind: "gore", t: state.t, what: "torn", piece, ...at });
+  g.torn.push({
+    piece,
+    t: state.t,
+    ...at,
+    vx: v.x,
+    vy: v.y,
+    vz: v.z,
+    ...(pulped ? { pulped } : {}),
+  });
+  events.push({ kind: "gore", t: state.t, what: pulped ? "pulped" : "torn", piece, ...at });
 }
 
 function crushSkull(state: GameState, g: GoreState, off: Thrown, events: GameEvent[]): void {
@@ -795,9 +912,13 @@ function heart(state: GameState, g: GoreState): void {
     const since = state.t - g.dead - H.agonal;
     g.flow = q * GORE.blood.drain * 0.5 ** (since / GORE.blood.halve);
   }
+  // THE MIDDLE BURST: its litres out through the opened trunk at once.
+  const burst = Math.min(g.burst, GORE.smash.pour * dt);
+  g.burst -= burst;
+  const shown = g.flow;
   // Never more than is left in him.
-  g.flow = Math.min(g.flow, (V - g.blood) / dt);
-  g.out = q > 0 ? (g.flow * qOut) / q : 0;
+  g.flow = Math.min(g.flow + burst / dt, (V - g.blood) / dt);
+  g.out = Math.min(g.flow, (q > 0 ? (shown * qOut) / q : 0) + burst / dt);
   g.blood = Math.min(V, g.blood + g.flow * dt);
   g.shed += g.out * dt;
 }

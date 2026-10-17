@@ -15,7 +15,7 @@ import { createLineClear, heliBox, type SolidBox } from "./camera-clear.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
 import type { LensPose, LineClear, Vec3 } from "./camera-rigs.ts";
 import { XRAY_LENS, createXrayLens, frameXray, type LensSide } from "./camera-xray.ts";
-import { createXrayView, type XraySkin } from "./xray-view.ts";
+import { createXrayView, type Flown, type XraySkin } from "./xray-view.ts";
 import { IDLE_XRAY, type XrayLook } from "./xray-shots.ts";
 
 export type HurtLens = {
@@ -25,8 +25,8 @@ export type HurtLens = {
   setDeathCam(on: boolean): void;
   /** The X-ray cam's look this frame (null: off). */
   setXray(look: XrayLook | null): void;
-  /** Pose the skeleton inside his skin. */
-  update(state: GameState, skin: XraySkin): void;
+  /** Pose the skeleton inside his skin, and in the pieces torn off him. */
+  update(state: GameState, skin: XraySkin, flown?: Flown): void;
   /** The lens to draw, or null for the ladder's own. `snap` is called on
    * the frame a cam lets go, so the ladder cuts back in. */
   lens(
@@ -129,7 +129,7 @@ export function createHurtLens(): HurtLens {
     setXray(next) {
       look = next;
     },
-    update(state, skin) {
+    update(state, skin, flown) {
       run = state;
       if (builtFor !== state.level) {
         builtFor = state.level;
@@ -147,7 +147,7 @@ export function createHurtLens(): HurtLens {
       skin.group.traverse((o) => {
         if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.Mesh);
       });
-      view.update(look ?? IDLE_XRAY, state, skin, meshes);
+      view.update(look ?? IDLE_XRAY, state, skin, meshes, flown);
     },
     lens(allowed, body, ladder, dt, groundAt, clear, snap) {
       const shot = allowed && look?.active ? look.shot : null;

@@ -52,6 +52,10 @@ export const BLEED = {
     kidney: 0.05,
     bladder: 0.05,
   } as Record<string, number>,
+  /** A middle crushed square on: the 2.2 l its heart, lungs and great
+   * vessels burst with (`GORE.smash.burst`), half to the chest and half to
+   * the belly, drawn a little past its volume as it sprays through both. */
+  burst: { chest: 0.1, belly: 0.11 },
   /** A hairline bleeds this share of a break. */
   hairline: 0.35,
   /** A long bone's pool is drawn out along it this much. */
@@ -116,7 +120,7 @@ void main() {
 /** One bleed this frame: where (in the frame of `matrix`), how big it gets,
  * the game second it began, and the axis a long bone's pool is drawn along. */
 export type Bleed = {
-  key: Bone | Organ;
+  key: Bone | Organ | `burst-${string}`;
   matrix: THREE.Matrix4;
   at: THREE.Vector3;
   axis: THREE.Vector3 | null;

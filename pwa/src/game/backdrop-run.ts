@@ -8,8 +8,10 @@
 // whenever a run it rides is over by the restart rule, and in place of the
 // race the door would otherwise stand over at boot. A discipline's course
 // or venue is skied on to its flag first, and a free ride keeps its own
-// mountain until it is over. A link's pre-roll and `?bot=1` keep the plain
-// bot (`App.tsx`'s `inputFor`).
+// mountain until it is over — and, where it is the ride the player left for
+// the menu (`resume-run.ts`), is stood up again as that ride at the top of
+// its last piste rather than handed on, so RESUME still has it. A link's
+// pre-roll and `?bot=1` keep the plain bot (`App.tsx`'s `inputFor`).
 
 import {
   botInput,
@@ -18,9 +20,12 @@ import {
   showcaseNow,
   showcaseOptions,
   showcaseOver,
+  type CreateGameOptions,
   type GameState,
   type SkierInput,
 } from "@engine";
+
+import { againAt, freeRestart } from "./free-ride.ts";
 
 /** The controls the backdrop is ridden on this step — by the plain bot
  * where `plain` (a link's pre-roll, `?bot=1`). */
@@ -28,10 +33,21 @@ export function backdropInput(state: GameState, plain = false): SkierInput {
   return plain ? botInput(state) : botInput(state, DARING_BOT);
 }
 
-/** The showcase that takes over from `state` once the restart rule says
- * its run is over, or null while it goes on. */
-export function backdropNext(state: GameState): GameState | null {
-  return showcaseOver(state) ? createGame(showcaseOptions(state)) : null;
+/** The run that takes over from `state` once the restart rule says it is
+ * over, or null while it goes on: a showcase — or, handed the free ride's
+ * `again` (`freeAgainOptions`), that ride stood at the top of its last
+ * piste where it was ridden on skis or a board (a machine's ride is left
+ * to the showcase, which would otherwise stand it up on its pad again and
+ * again). */
+export function backdropNext(
+  state: GameState,
+  again: CreateGameOptions | null = null,
+): GameState | null {
+  const end = showcaseOver(state);
+  if (!end) return null;
+  const ride = again && end !== "finished" ? freeRestart(state, again) : null;
+  const top = ride && ["top", "start"].includes(againAt(state.rules, ride));
+  return createGame(top ? ride : showcaseOptions(state));
 }
 
 /** The showcase the menu stands over when the player leaves `state` for

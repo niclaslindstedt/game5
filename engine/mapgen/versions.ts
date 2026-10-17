@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// WHICH GENERATOR BUILT THIS MAP — the world generator's versions, and the
+// PDD-05@v1: WHICH GENERATOR BUILT THIS MAP — the world generator's versions, and the
 // contract that lets a pinned map outlive a change to the rules.
 //
 // The problem this exists for: a map is generated fresh from its seed, so

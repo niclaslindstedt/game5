@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// EVERY WORD THE PLAYER READS, in one table (OSS_GAME_SPEC §39.1). The HUD
+// PDD-06@v1: EVERY WORD THE PLAYER READS, in one table (OSS_GAME_SPEC §39.1). The HUD
 // and the cards reference a key here and never carry a literal of their own,
 // so a line can be fixed without a code review and a second language is a
 // second table rather than a rewrite. Composed lines are templates —

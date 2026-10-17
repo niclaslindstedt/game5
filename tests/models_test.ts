@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE MODELLED SKIS AND HELICOPTER the game ships (`pwa/models/`, made by
+// PDD-04@v1: THE MODELLED SKIS AND HELICOPTER the game ships (`pwa/models/`, made by
 // `make models`, packed by `pwa/models-plugin.ts`, the skis drawn by
 // `skier-models.ts`, the helicopter by `heli-view.ts`): every one
 // committed, none older than the sources it is made from, each within its

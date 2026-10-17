@@ -2,6 +2,7 @@
 // THE DETERMINISM CONTRACT: the same map, the same seed and the same inputs
 // give the same run, to the bit — solo, with a field, and skied by the bot
 // through the harness. Nothing in `step` may read a clock or `Math.random`.
+// PDD-01@v1.
 
 import { describe, expect, it } from "vitest";
 

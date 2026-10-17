@@ -61,6 +61,10 @@ export type Stage = {
   fly(rung: CameraRung): void;
   /** Photograph the run as it stands, as `label`, through `lens`. */
   shoot(state: GameState, label: string, lens?: Lens): void;
+  /** Ride `frames` frames on through `lens` held still, each frame filmed
+   * and the film read by the flicker meter (`flicker-meter.ts`); every
+   * `every`th frame goes on the sheet, the rest are written alone. */
+  film(state: GameState, label: string, lens: Lens, frames: number, every?: number): void;
   /** The sky the picture is drawn under (`withSky`); null for the lab's
    * own. */
   sky(over: SkyOverride | null): Promise<void>;
@@ -625,6 +629,31 @@ export const VIEWS: Record<string, (st: Stage) => Promise<void> | void> = {
     st.shoot(s, "3.5s-lens", "chase");
   },
 
+  // THE FIRE ON FILM: the wreck burning, filmed at 60 Hz through a lens
+  // planted on the snow and held still, close and from further off, so
+  // the flicker meter reads the fire alone.
+  "wreck-film"(st) {
+    const s = crashed(st);
+    const w = s.heli!.wreck!;
+    const at = { x: w.x, y: w.y + 1.5, z: w.z };
+    st.run(s, 3, still);
+    st.film(s, "3s-near", outside(st.level, at, s.heli!.heading + 1, 18, 2), 36);
+    st.film(s, "4s-far", outside(st.level, at, s.heli!.heading + 3.5, 50, 5), 36);
+    // And as the player sees it: through the crash's own lens, moving.
+    const t = crashed(st);
+    st.run(t, 3, still);
+    st.film(t, "3s-lens", "chase", 36);
+  },
+  async "wreck-film-night"(st) {
+    await st.sky({ hour: 21, weather: "clear" });
+    const s = crashed(st);
+    const w = s.heli!.wreck!;
+    const at = { x: w.x, y: w.y + 1.5, z: w.z };
+    st.run(s, 3, still);
+    st.film(s, "3s-night", outside(st.level, at, s.heli!.heading + 1, 22, 3), 36);
+    await st.sky(null);
+  },
+
   restart(st) {
     const s = crashed(st);
     st.until(s, (q) => q.heli!.mode !== "wreck", 8, still);
@@ -773,6 +802,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   drop: ["drop", "plunge", "fall", "impact", "home"],
   crash: ["crash", "thrown", "crash-nose", "crash-fast", "wreck", "restart"],
   handover: ["handover"],
+  fire: ["wreck-film", "wreck-film-night"],
   night: ["night"],
   turntable: ["turntable"],
   perch: ["react"],

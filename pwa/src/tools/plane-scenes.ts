@@ -21,7 +21,7 @@ import {
 import type { LensPose } from "../game/camera-rigs.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 import { COCKPIT_SHEET, cockpitViews } from "./plane-cockpit-scenes.ts";
-import { CRASH_SHEET, CRASH_VIEWS, KINDS_SHEET } from "./plane-crash-scenes.ts";
+import { CRASH_SHEET, CRASH_VIEWS, FILM_SHEET, KINDS_SHEET } from "./plane-crash-scenes.ts";
 import { STRIP_SHEET, STRIP_VIEWS } from "./plane-strip-scenes.ts";
 import { WING_VIEWS, WINGS_SHEET } from "./plane-wing-scenes.ts";
 
@@ -45,6 +45,10 @@ export type Stage = {
   until(state: GameState, test: (s: GameState) => boolean, limit: number, drive?: Drive): boolean;
   camera(rung: CameraRung): void;
   shoot(state: GameState, label: string, lens?: Lens): void;
+  /** Ride `frames` frames on through `lens` held still, each frame filmed
+   * and the film read by the flicker meter (`flicker-meter.ts`); every
+   * `every`th frame goes on the sheet, the rest are written alone. */
+  film(state: GameState, label: string, lens: Lens, frames: number, every?: number): void;
   sky(over: SkyOverride | null): Promise<void>;
 };
 
@@ -233,6 +237,7 @@ export const GROUPS: Record<string, readonly string[]> = {
   cockpit: COCKPIT_SHEET,
   crash: CRASH_SHEET,
   "crash-kinds": KINDS_SHEET,
+  fire: FILM_SHEET,
   wings: WINGS_SHEET,
   airstrip: STRIP_SHEET,
 };

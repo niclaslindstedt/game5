@@ -26,9 +26,10 @@ import {
 
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
+import { createFilm, flickerLine } from "./flicker-meter.ts";
 import { GROUPS, VIEWS, type Drive, type Lens, type Stage } from "./plane-scenes.ts";
 
-type Frame = { view: string; label: string; caption: string; png: string };
+type Frame = { view: string; label: string; caption: string; png: string; hide?: boolean };
 
 declare global {
   interface Window {
@@ -169,6 +170,30 @@ const stage: Stage = {
       png: canvas.toDataURL("image/png"),
     });
   },
+  film(state, label, lens, count, every = 6) {
+    const film = createFilm(canvas);
+    const shot: Frame[] = [];
+    if (typeof lens === "string") stage.camera(lens);
+    const pose = typeof lens === "string" ? null : typeof lens === "function" ? lens(state) : lens;
+    for (let k = 0; k < count; k++) {
+      renderer.setOverride(pose);
+      // Stepped and drawn on screen: the frame a player would see.
+      for (let i = 0; i < STEPS; i++) step(state, NEUTRAL_INPUT);
+      renderer.draw(state, 1, FRAME, true);
+      film.take();
+      shot.push({
+        view,
+        label: `${label}-${String(k).padStart(2, "0")}`,
+        caption: "",
+        png: canvas.toDataURL("image/png"),
+        hide: k % every !== 0,
+      });
+    }
+    renderer.setOverride(null);
+    const line = flickerLine(film.read());
+    for (const f of shot) f.caption = `${view} ${f.label} · ${count} frames at 60 Hz\n${line}`;
+    frames.push(...shot);
+  },
   async sky(over) {
     const sky = over ? { ...(baseSky ?? {}), ...over } : baseSky;
     renderer.setSky(sky);
@@ -195,6 +220,7 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
   header.style.whiteSpace = "pre-wrap";
   const cells: HTMLElement[] = [header];
   for (const f of frames) {
+    if (f.hide) continue;
     const cell = document.createElement("figure");
     const img = document.createElement("img");
     img.src = f.png;

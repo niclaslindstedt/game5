@@ -365,7 +365,7 @@ export function createPlaneWreckView(): PlaneWreckView {
         b.update(dt, groundAt, eye);
       }
       // The fire's light: the flash and the ball, then the pool's flicker.
-      const flick = 0.82 + 0.12 * Math.sin(clock * 9.3) + 0.06 * Math.sin(clock * 23.1);
+      const flick = 0.9 + 0.06 * Math.sin(clock * 4.3) + 0.04 * Math.sin(clock * 7.1 + 1.1);
       const flash = b ? Math.min(3, b.light().power / 6) : 0;
       flood.x = heart.x;
       flood.y = ground + L.light.up;

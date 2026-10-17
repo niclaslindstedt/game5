@@ -61,15 +61,12 @@ export type Thrown = {
   /** RUN THROUGH (`gore.ts`): the point held on a spike, and where — the
    * rest of him hangs off it. Absent while nothing holds him. */
   pin?: { point: number; x: number; y: number; z: number } | null;
-  /** CUT THROUGH (`gore.ts`): the way he was going, m/s, world, as a lift's
-   * rope stopped him astride it (`cable.ts`). Read once, the step he was
-   * thrown: a blow that tears him apart there is the steel going through
-   * him, and what is left of him carries on at it rather than hanging on
-   * the rope. Absent on every other throw. */
-  through?: { x: number; y: number; z: number };
   /** THE SKIS LET GO (`lone-skis.ts`), the left one first: each its own
    * body from the moment its binding releases. */
   skis: LoneSki[];
+  /** THE PIECES OF THEM a lift's rope cut off (`ski-cut.ts`), each its own
+   * body. Absent until one is. */
+  halves?: LoneSki[];
   /** THE BOARD KEPT ON (`board-crash.ts`): a snowboarder's two feet held
    * `stance` m apart on its deck through the whole fall — no binding lets
    * go, so `skis` is empty — and `back`, a fall onto his back (the heel
@@ -107,4 +104,9 @@ export type LoneSki = {
   hooked: number;
   hook: number[];
   tried: number;
+  /** CUT BY A LIFT'S ROPE (`ski-cut.ts`): the share of the whole ski this
+   * piece is, from its tail (0) to its tip (1) — `ends` are this piece's,
+   * `mount` where the binding was on the whole one, as a share of this
+   * piece. Absent on a whole ski. */
+  part?: [number, number];
 };

@@ -213,10 +213,6 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
   // THE GRIMBEAR'S CATCH: the body torn in two in his arms.
   const off0 = state.skier.thrown;
   if (off0?.cause === "maul" && g.mortal < 0 && !(g.lost & bit("lower"))) tear.push("lower");
-  // Stopped astride a lift's rope this step (`cable.ts`): torn apart on
-  // it, the steel has gone through him, and he goes on.
-  const through = off0?.through;
-  if (off0) delete off0.through;
   // SMASHED on a solid at speed: what hit it crushed, before anything tears.
   smashAll(state, g, events);
   if (g.crushed >= 0) crush = false;
@@ -229,7 +225,6 @@ function wound(state: GameState, g: GoreState, events: GameEvent[]): void {
   // Torn apart on his skis, he is off them now.
   const c = state.skier;
   const off = off0 ?? throwRider(state, "tree", { x: c.vx, y: c.vy, z: c.vz }, events);
-  if (through && tearing.length) carryOn(off, through);
   for (const piece of tearing) {
     if (g.lost & bit(piece)) continue;
     tearOff(state, g, off, piece, velocityOf(off, TEAR[piece].takes), events);
@@ -337,9 +332,9 @@ function crushMiddle(
   mortalBy(state, g, "opened");
 }
 
-/** CUT THROUGH: every point of `off` and the skis still on its feet going
- * `v` (m/s, world) — the rope's stop and the turn over it undone. */
-function carryOn(off: Thrown, v: { x: number; y: number; z: number }): void {
+/** CARRIED ON THROUGH (`cable-cut.ts`): every point of `off` and its skis
+ * going `v` (m/s, world) — the throw's slowing and its turn over undone. */
+export function carryOn(off: Thrown, v: { x: number; y: number; z: number }): void {
   const set = (now: number[], last: number[]): void => {
     for (let i = 0; i < now.length; i += 3) {
       last[i] = now[i] - v.x * dt;
@@ -348,13 +343,41 @@ function carryOn(off: Thrown, v: { x: number; y: number; z: number }): void {
     }
   };
   set(off.points, off.last);
-  for (const ski of off.skis) {
+  for (const ski of [...off.skis, ...(off.halves ?? [])]) {
     set(ski.ends, ski.last);
     ski.spin = 0;
   }
   off.vx = v.x;
   off.vy = v.y;
   off.vz = v.z;
+}
+
+/** CUT THROUGH BY A LIFT'S ROPE (`cable-cut.ts`): each of `pieces` (the
+ * far ones first, a shin before its leg) torn off where it is and going on
+ * as it was going, and each of `open` opened — the steel stops nothing it
+ * goes through. Whether anything was cut that was not already gone. */
+export function sever(
+  state: GameState,
+  pieces: readonly GorePiece[],
+  open: readonly GoreOpen[],
+  events: GameEvent[],
+): boolean {
+  const g = state.gore;
+  const off = state.skier.thrown;
+  if (!g || !off) return false;
+  let cut = false;
+  for (const piece of pieces) {
+    if (g.lost & bit(piece)) continue;
+    tearOff(state, g, off, piece, velocityOf(off, TEAR[piece].takes), events);
+    mortalBy(state, g, piece === "head" ? "head" : piece === "lower" ? "torn" : "bled");
+    cut = true;
+  }
+  for (const part of open) {
+    if (g.open & (1 << GORE_OPEN.indexOf(part))) continue;
+    openTrunk(state, g, off, part, events);
+    cut = true;
+  }
+  return cut;
 }
 
 /** `piece` torn off `off`, going `v` (m/s, world). */

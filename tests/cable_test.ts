@@ -157,12 +157,14 @@ describe("the cable grind (cable.ts)", () => {
     expect(run.skier.body.injuries.some((i) => i.part === "pelvis")).toBe(true);
   });
 
-  it("cuts through a skier come down astride it hard enough to tear him apart: he goes on down", () => {
+  it("cuts through a skier come down onto it too fast, the injuries on: he goes on down", () => {
     const fall = 30;
     const cut = dropped(chair, 1, 6, 0.5, 0, undefined, true);
+    cut.skier.y += 0.4;
     cut.skier.vy = -fall;
-    const events = ride(cut, 1 / 120);
+    const events = ride(cut, 0.1);
     expect(events.some((e) => e.kind === "gore" && e.what === "torn")).toBe(true);
+    expect(events.some((e) => e.kind === "grind" && e.phase === "straddle")).toBe(false);
     // Not stopped on the rope: what is left of him carries on at his fall.
     expect(cut.skier.thrown?.vy).toBeLessThan(-0.9 * fall);
     // ...where the same drop, the injuries off, hangs him on it by the crotch.

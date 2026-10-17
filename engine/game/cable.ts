@@ -19,10 +19,9 @@
 // ON SKIS HE MUST COME DOWN ACROSS IT. Two skis stand apart: landed along
 // the rope rather than square across it, it goes up between his legs, he
 // is stopped on it by the crotch (`CABLE.straddle`), tips over and drops to
-// the snow — the `straddle` crash cause, and a blow `body.ts` judges. A blow
-// hard enough to tear him apart there (`gore.ts`) is the rope cutting
-// through him: nothing is left to hold him on it, and the pieces carry on
-// at the speed he came down at.
+// the snow — the `straddle` crash cause, and a blow `body.ts` judges. Come
+// down onto it too fast on a run that carries its injuries, it holds
+// nothing: it cuts him (`cable-cut.ts`).
 //
 // OFF IT. The jump let go POPS him off it where he is, on his speed along
 // it and `CABLE.pop` up: in the air the strokes and the grabs are his as
@@ -34,7 +33,7 @@
 //
 // Nothing here is random and nothing reads a clock but the run's.
 
-import { angleDiff, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
+import { angleDiff, clamp, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { CABLE } from "./defs/cable.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -111,6 +110,9 @@ function mount(run: GameState, events: GameEvent[]): boolean {
       const over = feet - ropeAt(plan, u);
       const under = ollie ? -CABLE.ollie.reach : -CABLE.below;
       if (over < under || over > CABLE.above) continue;
+      // Come down on it too fast, on a run that carries its injuries, it
+      // cuts him rather than holding him (`cable-cut.ts`).
+      if (run.gore && hypot3(c.vx, c.vy, c.vz) >= CABLE.cut.speed) return false;
       if (along(run, plan, u) && !c.spec.board) straddle(run, plan, side, u, ollie, events);
       else put(run, i, plan, side, u, events);
       return true;
@@ -157,18 +159,14 @@ function straddle(
   c.z = at.z;
   c.y = at.y + c.spec.cogHeight - S.crotch;
   const keep = S.keep * speedAlong(run, plan, u);
-  const through = { x: c.vx, y: c.vy, z: c.vz };
   events.push({ kind: "grind", t: run.t, id: plan.lift.id, phase: "straddle" });
-  const thrown = throwRider(
+  throwRider(
     run,
     "straddle",
     { x: plan.dx * keep, y: ollie ? 0 : -0.5, z: plan.dz * keep },
     events,
     { blow: close },
   );
-  // Come down hard enough that the steel cuts him, he goes on through it
-  // (`gore.ts`).
-  thrown.through = through;
 }
 
 /** ON IT: his speed along the rope kept, his skis to the nearest quarter

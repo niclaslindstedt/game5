@@ -101,6 +101,26 @@ export const GORE = {
     slide: 2.4,
     least: 0.2,
   },
+  /** SMASHED AGAINST STONE OR WOOD: a body ARRIVING at a rigid solid — a
+   * trunk, a boulder, steel, a wall, or a crag's bare rock underfoot; never
+   * a padded tower or the snow, which give — at more than `speed` m/s
+   * (100 km/h), or having done so inside the last `window` s, is not broken
+   * there but CRUSHED: every point of him that meets the solid faster than
+   * `hit` m/s is pulped where it hit. The head bursts (the skull and the
+   * brain out of it); a shoulder stoves in the chest, a hip bursts the
+   * belly; a hand, an elbow, a knee or a foot is gone to the joint above it,
+   * left as meat on the solid rather than flung off whole. What was crushed
+   * is SMEARED on the solid where it met it.
+   *
+   * Where the number comes from: forensic series of fatal falls find the
+   * head injuries extensive, the skull burst and the brain extruded, in
+   * falls from above some 30 m — an arrival at 24 m/s or more; and the
+   * reconstruction rule of thumb for frontal collisions puts the torso torn
+   * and the limbs amputated past about 100 km/h. A body met at 90 km/h is
+   * broken (the dose's wounds, above, still tear and crush on their own); at
+   * 100 km/h on a solid, what hits is pulp. `rock` is the share of a cell's
+   * bare rock (`bareRockAt`) that counts as stone underfoot. */
+  smash: { speed: 27.8, window: 0.3, hit: 9, rock: 0.5 },
   /** THE BLOOD: the body's volume, L, the share whose loss kills, and the
    * flow out of each wound at the full pressure, L/s (shortened, above). */
   blood: {
@@ -116,6 +136,7 @@ export const GORE = {
       chest: 0.18,
       abdomen: 0.12,
       crush: 0.22,
+      pulped: 0.3,
       impaled: 0.2,
       gash: 0.05,
       fracture: 0.03,

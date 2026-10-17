@@ -134,3 +134,50 @@ export function pieceCollapse(
   }
   return { bones };
 }
+
+/** The far end of a piece, off its own bones: where its stick ends. */
+export function farEnd(piece: GorePiece, f: Record<SkierBone, BoneFrame>): V3 {
+  const tail = (b: BoneFrame, k = 1): V3 => ({
+    x: b.head.x + b.y.x * b.length * k,
+    y: b.head.y + b.y.y * b.length * k,
+    z: b.head.z + b.y.z * b.length * k,
+  });
+  switch (piece) {
+    case "head":
+      return tail(f.head, 1.6);
+    case "armL":
+    case "forearmL":
+      return tail(f.hand_l);
+    case "armR":
+    case "forearmR":
+      return tail(f.hand_r);
+    case "legL":
+    case "shinL":
+      return f.boot_l.head;
+    case "legR":
+    case "shinR":
+      return f.boot_r.head;
+    case "lower": {
+      const l = f.boot_l.head;
+      const r = f.boot_r.head;
+      return { x: (l.x + r.x) / 2, y: (l.y + r.y) / 2, z: (l.z + r.z) / 2 };
+    }
+  }
+}
+
+/** The ragdoll's points (`RAGDOLL`) as the skin's bones nearest them. */
+export const POINT_BONE: SkierBone[] = [
+  "pelvis",
+  "pelvis",
+  "upperarm_l",
+  "upperarm_r",
+  "head",
+  "shin_l",
+  "shin_r",
+  "boot_l",
+  "boot_r",
+  "forearm_l",
+  "forearm_r",
+  "hand_l",
+  "hand_r",
+];

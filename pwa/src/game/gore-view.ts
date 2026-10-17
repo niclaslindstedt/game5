@@ -62,7 +62,7 @@ import { gapAt, lowestGap, PART_BONE, partAt, soakPath, spreadAt } from "./gore-
 import { rotorStruck } from "./gore-rotor.ts";
 import { tillerSpray } from "./gore-tiller.ts";
 import { createSoak } from "./gore-soak.ts";
-import { bodyHides, cutOf, cutsOf, pieceCollapse } from "./gore-cut.ts";
+import { bodyHides, cutOf, cutsOf, farEnd, pieceCollapse, POINT_BONE } from "./gore-cut.ts";
 import { bakeFigure, disposeFigure } from "./gore-remains.ts";
 import {
   lump,
@@ -87,6 +87,7 @@ import {
   tubeGeometry,
   type OrganKind,
 } from "./gore-shapes.ts";
+import { createSmears } from "./gore-smear.ts";
 import { createBloodTrees } from "./gore-tree.ts";
 import { armBreaks } from "./skier-broken.ts";
 import { createDressed, type Dressed, type SkierDress } from "./skier-dress.ts";
@@ -149,53 +150,6 @@ const PIECE_LOOK: Record<
   shinR: { r: 0.08, bone: 0.055, flow: "shin" },
   lower: { r: 0.17, bone: 0.045, flow: "waist" },
 };
-
-/** The far end of a piece, off its own bones: where its stick ends. */
-function farEnd(piece: GorePiece, f: Record<SkierBone, BoneFrame>): V3 {
-  const tail = (b: BoneFrame, k = 1): V3 => ({
-    x: b.head.x + b.y.x * b.length * k,
-    y: b.head.y + b.y.y * b.length * k,
-    z: b.head.z + b.y.z * b.length * k,
-  });
-  switch (piece) {
-    case "head":
-      return tail(f.head, 1.6);
-    case "armL":
-    case "forearmL":
-      return tail(f.hand_l);
-    case "armR":
-    case "forearmR":
-      return tail(f.hand_r);
-    case "legL":
-    case "shinL":
-      return f.boot_l.head;
-    case "legR":
-    case "shinR":
-      return f.boot_r.head;
-    case "lower": {
-      const l = f.boot_l.head;
-      const r = f.boot_r.head;
-      return { x: (l.x + r.x) / 2, y: (l.y + r.y) / 2, z: (l.z + r.z) / 2 };
-    }
-  }
-}
-
-/** The ragdoll's points (`RAGDOLL`) as the skin's bones nearest them. */
-const POINT_BONE: SkierBone[] = [
-  "pelvis",
-  "pelvis",
-  "upperarm_l",
-  "upperarm_r",
-  "head",
-  "shin_l",
-  "shin_r",
-  "boot_l",
-  "boot_r",
-  "forearm_l",
-  "forearm_r",
-  "hand_l",
-  "hand_r",
-];
 
 /** The litres his clothes hold round a wound before it runs out at a
  * gap: the cloth round it soaked through, a tablespoon or so. */
@@ -309,6 +263,9 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     abdomen: keep(openingGeometry(0.11, false, 9.1)),
   };
   const spikeGeo = keep(spikeGeometry(0.6, 0.045));
+  // What a smash left on the solid it met (`gore-smear.ts`).
+  const smears = createSmears(flesh, level.seed ^ 0x5ea5, level.groundAt);
+  group.add(smears.group);
 
   const ground: GibGround = {
     heightAt: (x, z) => level.groundAt(x, z),
@@ -321,6 +278,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
   // What has been drawn of the engine's wounds so far.
   let rng: Rng = createRng(level.seed ^ 0x5eed90e);
   let pieces: Piece[] = [];
+  let tornSeen = 0; // of the engine's torn pieces, flown or crushed
   let gibs: Gib[] = [];
   let guts: Gut[] = [];
   let opened = 0;
@@ -436,6 +394,31 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     }
   };
 
+  /** A piece CRUSHED on a solid (`TornPiece.pulped`): no limb flies, only
+   * the meat and the splinters of its bone, in a burst of blood. */
+  const pulp = (
+    piece: GorePiece,
+    v: { vx: number; vy: number; vz: number },
+    f: Record<SkierBone, BoneFrame>,
+    M: THREE.Matrix4,
+  ) => {
+    const cut = cutOf(piece, f);
+    const at = world(farEnd(piece, f), M);
+    const dir = worldDir(cut.out, M);
+    const carry = v2.set(v.vx * 0.3, v.vy * 0.3, v.vz * 0.3);
+    const head = piece === "head";
+    throwOut(
+      head ? ["brain", "brain", "brain", "brain", "skull", "skull", "eye"] : [],
+      at,
+      dir,
+      carry,
+      3,
+    );
+    throwOut(["gobbet", "gobbet", "gobbet", "gobbet", "gobbet", "gobbet"], at, dir, carry, 3);
+    throwBones(3, at, dir, carry);
+    blood.emit(at, dir, 2.2, 90, 0.9, carry, () => rng.next());
+  };
+
   /** A piece just torn off: its own skin, its stick, a gout of blood. */
   const tear = (
     piece: GorePiece,
@@ -528,6 +511,8 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     }
     if (spike) group.remove(spike);
     pieces = [];
+    tornSeen = 0;
+    smears.clear();
     gibs = [];
     guts = [];
     bodyStumps.clear();
@@ -567,7 +552,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     const r: Remains = {
       body,
       pieces: pieces.map((p) => p.dressed),
-      loose: [...gibs.map((g) => g.mesh), ...(spike ? [spike] : [])],
+      loose: [...gibs.map((g) => g.mesh), ...(spike ? [spike] : []), ...smears.take()],
       guts: guts.map((g) => g.mesh),
       blood,
     };
@@ -615,13 +600,15 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
       const f = skin.frames;
       const carry = carryOf(state, new THREE.Vector3());
 
-      // THE PIECES, as they tear.
-      while (pieces.length < g.torn.length) {
-        const t = g.torn[pieces.length];
+      // THE PIECES, as they tear — or are crushed — and what a smash left on the solid.
+      for (; tornSeen < g.torn.length; tornSeen++) {
+        const t = g.torn[tornSeen];
         let before = 0;
-        for (const p of pieces) before |= 1 << GORE_PIECES.indexOf(p.piece);
-        tear(t.piece, t.t, t, skin, M, before);
+        for (const p of g.torn.slice(0, tornSeen)) before |= 1 << GORE_PIECES.indexOf(p.piece);
+        if (t.pulped) pulp(t.piece, t, f, M);
+        else tear(t.piece, t.t, t, skin, M, before);
       }
+      smears.update(g.smears);
       // THE TRUNK OPENED.
       GORE_OPEN.forEach((_, bit) => {
         if (!(g.open & (1 << bit)) || opened & (1 << bit)) return;

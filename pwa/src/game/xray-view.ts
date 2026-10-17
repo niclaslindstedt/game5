@@ -15,7 +15,11 @@
 //   * a hurt ORGAN swells and throbs dark red on his heart's beat;
 //   * the blood from a break or a torn organ pools inside him
 //     (`xray-blood.ts`).
-// A piece torn off him (`gore.ts`) takes its bones out of the skeleton.
+// A piece torn off him (`gore.ts`) takes its bones out of the skeleton and
+// off with it: they fly where the piece flies (`Flown`), and a piece
+// crushed to pulp takes them out for good. An opened trunk has spilled
+// what it held, and a middle crushed square on (`GoreState.middle`)
+// shatters every bone of the trunk, its burst filling chest and belly.
 //
 // It is an X-RAY: nothing in the world hides him while it is on — the veil
 // clears the depth behind it, so a trunk, a piste machine or the snow he is
@@ -57,10 +61,19 @@ export type XraySkin = {
   group: THREE.Object3D;
 };
 
+/** How a piece torn off whole has moved since it tore (`GoreView.flown`). */
+export type Flown = (piece: GorePiece, out: THREE.Matrix4) => THREE.Matrix4 | null;
+
 export type XrayView = {
   group: THREE.Group;
   /** Draw this frame: the look, the run, his skin. */
-  update(look: XrayLook, state: GameState, skin: XraySkin, meshes: THREE.Mesh[]): void;
+  update(
+    look: XrayLook,
+    state: GameState,
+    skin: XraySkin,
+    meshes: THREE.Mesh[],
+    flown?: Flown,
+  ): void;
   /** Where a bone (or an organ) is, world frame, at the last update. */
   centreOf(name: Bone | Organ, out: THREE.Vector3): THREE.Vector3 | null;
   /** Where his trunk is. */
@@ -104,6 +117,15 @@ const TORN: Record<GorePiece, readonly SkierBone[]> = {
   shinR: ["shin_r", "boot_r"],
   lower: ["thigh_l", "shin_l", "boot_l", "thigh_r", "shin_r", "boot_r"],
 };
+
+/** What an opened trunk throws out of him (`gore-view.ts`), by `GORE_OPEN`. */
+const SPILLED: readonly (readonly string[])[] = [
+  ["heart", "lungL", "lungR"],
+  ["liver", "kidneyL", "kidneyR", "spleen"],
+];
+
+/** The bones a middle crushed square on shatters. */
+const CRUSHED = new Set(["ribs", "sternum", "thoracic", "lumbar", "pelvis", "scapula", "clavicle"]);
 
 const hash = (i: number, k: number): number => {
   const s = Math.sin(i * 127.1 + k * 311.7) * 43758.5453;
@@ -696,7 +718,34 @@ export function createXrayView(): XrayView {
   const brokeAt = new Map<Bone, number>();
   const hurtAt = new Map<Organ, number>();
   const seenGrade: number[] = [];
+  /** Each bone torn off whole: the piece that took it and where it was then. */
+  const tornAt = new Map<Piece, { piece: GorePiece; m: THREE.Matrix4 }>();
+  const move = new THREE.Matrix4();
   let lastState: GameState | null = null;
+
+  /** A piece's matrix on its bone frame, its length stretched to the frame's. */
+  const place = (p: Piece, f: BoneFrame, world: THREE.Matrix4, out: THREE.Matrix4): void => {
+    const k = f.length / p.bind;
+    basis.set(
+      f.x.x,
+      f.y.x * k,
+      f.z.x,
+      f.head.x,
+      f.x.y,
+      f.y.y * k,
+      f.z.y,
+      f.head.y,
+      f.x.z,
+      f.y.z * k,
+      f.z.z,
+      f.head.z,
+      0,
+      0,
+      0,
+      1,
+    );
+    out.multiplyMatrices(world, basis);
+  };
 
   /** A broken bone's bleed: round its break, or in the cavity it bounds. */
   const boneBleed = (p: Piece, grade: number, since: number): Bleed => {
@@ -711,10 +760,11 @@ export function createXrayView(): XrayView {
 
   return {
     group,
-    update(look, state, skin, meshes) {
+    update(look, state, skin, meshes, flown) {
       if (state !== lastState) {
         brokeAt.clear();
         hurtAt.clear();
+        tornAt.clear();
         seenGrade.length = 0;
         blood.clear();
         lastState = state;
@@ -725,6 +775,23 @@ export function createXrayView(): XrayView {
         load();
         dress(meshes);
       }
+      // Where each bone was the frame its piece tore — whether or not the
+      // cam has him yet.
+      const gone = new Map<SkierBone, GorePiece>();
+      if (state.gore)
+        for (const p of Object.keys(TORN) as GorePiece[])
+          if (lostPiece(state.gore, p)) for (const b of TORN[p]) if (!gone.has(b)) gone.set(b, p);
+      skin.group.updateWorldMatrix(true, false);
+      const world = skin.group.matrixWorld;
+      if (pieces)
+        for (const p of pieces) {
+          const piece = gone.get(p.bone);
+          const f = skin.frames[p.bone];
+          if (!piece || !f || tornAt.has(p)) continue;
+          const m = new THREE.Matrix4();
+          place(p, f, world, m);
+          tornAt.set(p, { piece, m });
+        }
       const on = look.active && look.xray > 0.01;
       showGlass(on ? look.xray : 0);
       group.visible = on;
@@ -733,8 +800,15 @@ export function createXrayView(): XrayView {
       if (!look.active || !pieces) return;
       veilMat.uniforms.uAlpha.value = Math.min(1, look.xray * 1.2);
       const body = state.skier.body;
-      const grade = fracturesOf(body);
-      const energy = fractureEnergyOf(body);
+      const grade = [...fracturesOf(body)];
+      const energy = [...fractureEnergyOf(body)];
+      const g = state.gore;
+      if (g && g.middle >= 0)
+        BONES.forEach((b, i) => {
+          if (!CRUSHED.has(b.replace(/[LR]$/, ""))) return;
+          grade[i] = 3;
+          energy[i] = 3;
+        });
       const organ = organsOf(body);
       // A bone breaks (or breaks worse) the frame its grade rises.
       for (let i = 0; i < BONES.length; i++)
@@ -744,39 +818,23 @@ export function createXrayView(): XrayView {
         }
       for (let i = 0; i < ORGANS.length; i++)
         if (organ[i] > 0 && !hurtAt.has(ORGANS[i])) hurtAt.set(ORGANS[i], state.t);
-      const gone = new Set<SkierBone>();
-      if (state.gore)
-        for (const p of Object.keys(TORN) as GorePiece[])
-          if (lostPiece(state.gore, p)) for (const b of TORN[p]) gone.add(b);
-      skin.group.updateWorldMatrix(true, false);
-      const world = skin.group.matrixWorld;
+      const spilled = new Set<string>();
+      if (g)
+        SPILLED.forEach(
+          (names, bit) => g.open & (1 << bit) && names.forEach((n) => spilled.add(n)),
+        );
       const beat = state.gore ? state.gore.pulse : 0.5 + 0.5 * Math.sin(state.t * 7.5);
       const alpha = Math.min(1, look.xray * 1.25);
       const bleeds: Bleed[] = [];
       for (const p of pieces) {
         const f = skin.frames[p.bone];
-        p.mesh.visible = !!f && !gone.has(p.bone);
+        const torn = gone.has(p.bone) ? tornAt.get(p) : undefined;
+        // A torn bone flies with its piece; one crushed to pulp is gone.
+        const by = torn && flown?.(torn.piece, move);
+        p.mesh.visible = !!f && !spilled.has(p.name) && (!gone.has(p.bone) || !!by);
         if (!p.mesh.visible) continue;
-        const k = f.length / p.bind;
-        basis.set(
-          f.x.x,
-          f.y.x * k,
-          f.z.x,
-          f.head.x,
-          f.x.y,
-          f.y.y * k,
-          f.z.y,
-          f.head.y,
-          f.x.z,
-          f.y.z * k,
-          f.z.z,
-          f.head.z,
-          0,
-          0,
-          0,
-          1,
-        );
-        p.mesh.matrix.multiplyMatrices(world, basis);
+        if (by && torn) p.mesh.matrix.multiplyMatrices(by, torn.m);
+        else place(p, f, world, p.mesh.matrix);
         p.mesh.matrixWorldNeedsUpdate = true;
         const u = p.mat.uniforms;
         u.uAlpha.value = alpha;
@@ -807,11 +865,30 @@ export function createXrayView(): XrayView {
           if (g > 0) bleeds.push(boneBleed(p, g, brokeAt.get(p.name as Bone) ?? state.t));
         }
       }
+      // THE BURST of a middle crushed square on (`GORE.smash.burst`) fills
+      // the chest and the belly at once.
+      if (g && g.middle >= 0)
+        for (const [name, radius] of [
+          ["thoracic", BLEED.burst.chest],
+          ["lumbar", BLEED.burst.belly],
+        ] as const) {
+          const room = pieces.find((q) => q.name === name && q.mesh.visible);
+          if (room)
+            bleeds.push({
+              key: `burst-${name}`,
+              matrix: room.mesh.matrix,
+              at: room.centre,
+              axis: null,
+              radius,
+              since: g.middle,
+            });
+        }
       blood.update(bleeds, state.t, alpha, beat);
     },
     centreOf(name, out) {
+      // A bone flown off with its piece is looked for in the body it left.
       const p = pieces?.find((q) => q.name === name);
-      if (!p || !p.mesh.visible) return null;
+      if (!p || !p.mesh.visible || tornAt.has(p)) return null;
       return out.copy(p.centre).applyMatrix4(p.mesh.matrix);
     },
     bodyCentre(out) {

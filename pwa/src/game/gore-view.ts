@@ -130,6 +130,9 @@ export type GoreView = {
   leave(model: GoreModel): void;
   /** Every body left lying gone. */
   clearRemains(): void;
+  /** How a piece torn off whole has moved since it tore (its world now
+   * over its world then), for the X-ray's bones in it; null if not flying. */
+  flown(piece: GorePiece, out: THREE.Matrix4): THREE.Matrix4 | null;
   dispose(): void;
 };
 
@@ -588,6 +591,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
       const veiled = veil > 0.4;
       blood.group.visible = !veiled;
       for (const m of fractures.values()) m.visible = !veiled;
+      for (const p of pieces) p.dressed.group.visible = !veiled; // its bones fly in the X-ray
       if (state !== last || state.tick === 0) {
         if (last) clearAll(model);
         last = state;
@@ -952,15 +956,9 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
         for (const bone of open.keys()) {
           const o = OPEN_BONES[bone as (typeof BONES)[number]]!;
           const b = bind[o.on];
-          const along = breakAlong(bone, b, null);
-          at.push({
-            at: {
-              x: b.head.x + b.y.x * along,
-              y: b.head.y + b.y.y * along,
-              z: b.head.z + b.y.z * along,
-            },
-            r: 0.08 + reach * 0.4,
-          });
+          const k = breakAlong(bone, b, null);
+          const p = { x: b.head.x + b.y.x * k, y: b.head.y + b.y.y * k, z: b.head.z + b.y.z * k };
+          at.push({ at: p, r: 0.08 + reach * 0.4 });
         }
         for (const h of hard) {
           if (h.part === "head") {
@@ -985,6 +983,10 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     clear(model) {
       clearAll(model);
       last = null;
+    },
+    flown(piece, out) {
+      const p = pieces.find((q) => q.piece === piece);
+      return p ? out.copy(p.base).invert().premultiply(p.dressed.group.matrix) : null;
     },
     dispose() {
       clearAll(null);

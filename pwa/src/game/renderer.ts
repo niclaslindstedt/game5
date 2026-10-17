@@ -850,7 +850,6 @@ export function createWorldRenderer(
       }
       if (present) timer.frame(hiddenTag);
     },
-
     cost: () => cost,
     sceneTally: () => tallyScene(scene, lens.camera),
     group: (name) => scene.getObjectByName(name),

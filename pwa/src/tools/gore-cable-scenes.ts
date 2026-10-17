@@ -20,10 +20,13 @@ const still: Drive = () => NEUTRAL_INPUT;
  * up its line, mid-span, at `speed` m/s, his feet `feet` m off the rope
  * (negative under it) — or, with `fall`, dropping onto it from above at
  * `fall` m/s, his skis across it ahead of his boots (`tests/cable_cut_test.ts`
- * stages the same, the rope under them). Null when the map has no chair. */
-function acrossRope(
+ * stages the same, the rope under them). With `lead`, flown that many
+ * seconds out from it instead, thrown up so he comes back down to that
+ * height at the rope — time for the X-ray cam's read ahead to see the cut
+ * coming. Null when the map has no chair. */
+export function acrossRope(
   st: Stage,
-  o: { speed?: number; feet?: number; fall?: number },
+  o: { speed?: number; feet?: number; fall?: number; lead?: number },
 ): { s: GameState; heading: number; at: { x: number; y: number; z: number } } | null {
   const chair = liftPlans(st.level).find((p) => p.lift.kind === "chair");
   if (!chair) return null;
@@ -39,15 +42,16 @@ function acrossRope(
   const hz = -chair.dx;
   // Dropped half a metre behind it, so the rope comes down across the
   // forebodies clear of the boots and the cut shows.
-  const back = o.fall ? 0.5 : 0.6;
+  const speed = o.fall ? 3 : (o.speed ?? 0);
+  const lead = o.fall ? 0 : (o.lead ?? 0);
+  const back = o.fall ? 0.5 : 0.6 + speed * lead;
   const heading = Math.atan2(-hx, -hz);
   standSkier(s, p.x + hx * back, p.z + hz * back, heading);
   const c = s.skier;
   c.y = p.y + c.spec.cogHeight + (o.fall ? 0.6 : (o.feet ?? 0));
-  const speed = o.fall ? 3 : (o.speed ?? 0);
   c.vx = -hx * speed;
   c.vz = -hz * speed;
-  c.vy = -(o.fall ?? 0);
+  c.vy = o.fall ? -o.fall : (9.81 * lead) / 2;
   c.airborne = true;
   return { s, heading, at: { x: p.x, y: p.y, z: p.z } };
 }

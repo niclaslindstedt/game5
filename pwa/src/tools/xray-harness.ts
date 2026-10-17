@@ -31,6 +31,7 @@ import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, withPreset } from "../game/settings-video.ts";
 import { createXrayRun, dying } from "../game/xray-run.ts";
 import type { XrayLook, XrayShot } from "../game/xray-shots.ts";
+import { acrossRope } from "./gore-cable-scenes.ts";
 import {
   flatSpot,
   intoTree,
@@ -197,6 +198,13 @@ const SCENES: Record<string, () => Scene> = {
     roll(s, (q) => !!q.heli && q.heli.y - level.groundAt(q.heli.x, q.heli.z) < 12, 40, flying(0.1));
     return { s, drive: flying(0.1) };
   },
+  /** CUT BY A LIFT'S ROPE: flown square across a chair's down rope at
+   * 90 km/h, his chest to it (`cable-cut.ts`). */
+  cable: () => ({ s: acrossRope(stage, { speed: 25, feet: -1.3, lead: 1.5 })?.s ?? fresh() }),
+  /** ...his shins to it, the skis cut with them. */
+  "cable-shins": () => ({
+    s: acrossRope(stage, { speed: 25, feet: -0.2, lead: 1.5 })?.s ?? fresh(),
+  }),
   /** INTO THE ROTOR: on the skid, flown up and looped over the top until
    * his grip goes over the disc. */
   rotor: () => {

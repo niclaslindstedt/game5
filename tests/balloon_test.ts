@@ -98,7 +98,8 @@ describe("the hot air balloon (balloon.ts)", () => {
     expect(s.balloon!.mode).toBe("tethered");
     expect(s.balloon!.temp).toBeGreaterThan(balloonTrim(s, s.balloon!) - 1.5);
     let burnt = 0;
-    for (; burnt < 10 && s.balloon!.mode === "tethered"; burnt += 1 / 120) step(s, ask({ tuck: 1 }));
+    for (; burnt < 10 && s.balloon!.mode === "tethered"; burnt += 1 / 120)
+      step(s, ask({ tuck: 1 }));
     expect(s.balloon!.mode).toBe("flown");
     expect(burnt).toBeLessThan(5);
   });

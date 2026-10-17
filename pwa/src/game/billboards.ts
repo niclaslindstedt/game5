@@ -31,7 +31,10 @@ export type Billboards = {
    * coloured (r, g, b) — linear, over one for a glow — at opacity `a`,
    * drawn with cell `cell` of the texture — or, `mode` 1, as fire at
    * `heat` 0..1 (its colour then the soot it cools to), `mode` 2 as smoke
-   * glowing `glow` 0..1 underneath; `seed` its own noise. */
+   * glowing `glow` 0..1 underneath; `seed` its own noise; `key`, where
+   * given, the squared distance it is sorted by in place of its own (a
+   * flame sorted where it was lit, so two licking up side by side never
+   * swap in front of each other from one frame to the next). */
   push(
     x: number,
     y: number,
@@ -48,12 +51,19 @@ export type Billboards = {
     heat?: number,
     seed?: number,
     glow?: number,
+    key?: number,
   ): void;
   /** Sort the list back to front from `eye` and hand it to the GPU; `time`
    * the clock the fire and smoke flow by, s. */
   end(eye: { x: number; y: number; z: number }, time?: number): void;
   dispose(): void;
 };
+
+/** How fast the fire's noise licks up through a quad, its radii a second,
+ * and how fast its pattern changes as it goes, 1/s — slow enough at 60 Hz
+ * that a pixel's brightness flows from one frame to the next. */
+const FIRE_FLOW = 1.2;
+const FIRE_CHURN = 0.2;
 
 /** A batch of at most `capacity` quads over `map`, a strip of `cells`
  * square cells side by side; `additive` adds them on rather than laying
@@ -147,6 +157,22 @@ export function createBillboards(
         }
         return s / 0.9375;
       }
+      // The fire's own: the noise FLOWING rather than boiling — each finer
+      // octave's pattern carried along with the coarse one and changing
+      // only a little faster (×1.3 an octave, never ×2), so the fine
+      // tongues and the dark rifts between them move with the flame and
+      // never shimmer from one frame to the next.
+      float flow(vec2 p, float t) {
+        float a = 0.5;
+        float s = 0.0;
+        for (int i = 0; i < 4; i++) {
+          s += a * noise3(vec3(p, t));
+          p = p * 2.07 + vec2(1.7, 9.2);
+          t = t * 1.3 + 3.1;
+          a *= 0.5;
+        }
+        return s / 0.9375;
+      }
       // Glowing soot by its temperature, 0 cold to 1 white heat: a dull
       // red, orange, yellow, white-yellow — linear and over one, for the
       // tone map to keep it glowing.
@@ -171,9 +197,15 @@ export function createBillboards(
           float up = dot(p, vUp);
           if (mode < 1.5) {
             // FIRE: the noise flowing up through it, warped by itself.
-            vec3 q = vec3(p * 1.5, uTime * 0.55) + vec3(seed * 3.1, seed * 1.7, seed);
-            float w = fbm(q - vec3(vUp * uTime * 1.3, 0.0));
-            float n = fbm(q * 1.9 + vec3(w * 1.6, w * 1.6, 0.0) - vec3(vUp * uTime * 2.1, 0.0));
+            // Licking up through it at FIRE_FLOW quads a second, its shape
+            // changing at FIRE_CHURN.
+            vec2 q = p * 1.5 + vec2(seed * 3.1, seed * 1.7);
+            float tq = uTime * ${FIRE_CHURN.toFixed(3)} + seed;
+            float w = flow(q - vUp * uTime * ${(FIRE_FLOW * 0.6).toFixed(3)}, tq);
+            float n = flow(
+              q * 1.9 + vec2(w * 1.6) - vUp * uTime * ${FIRE_FLOW.toFixed(3)},
+              tq * 1.4 + 5.0
+            );
             float body = 1.0 - r * r * 1.1;
             float d = body + (n - 0.5) * 1.25;
             float dens = smoothstep(0.02, 0.32, d) * smoothstep(1.0, 0.7, r);
@@ -215,6 +247,7 @@ export function createBillboards(
   mesh.frustumCulled = false;
   // The list as pushed, before it is sorted into the attributes.
   const raw = new Float32Array(capacity * 14);
+  const keys = new Float32Array(capacity);
   const order: number[] = [];
   const depth = new Float32Array(capacity);
   let n = 0;
@@ -223,7 +256,7 @@ export function createBillboards(
     begin() {
       n = 0;
     },
-    push(x, y, z, w, h, rot, r, g, b, a, cell, mode = 0, heat = 0, seed = 0, glow = 0) {
+    push(x, y, z, w, h, rot, r, g, b, a, cell, mode = 0, heat = 0, seed = 0, glow = 0, key = -1) {
       if (n >= capacity || a <= 0.002) return;
       const k = n * 14;
       raw[k] = x;
@@ -241,6 +274,7 @@ export function createBillboards(
       raw[k + 11] = heat;
       raw[k + 12] = seed;
       raw[k + 13] = glow;
+      keys[n] = key;
       n++;
     },
     end(eye, time = 0) {
@@ -251,7 +285,10 @@ export function createBillboards(
       for (let i = 0; i < n; i++) {
         order[i] = i;
         const k = i * 14;
-        depth[i] = (raw[k] - eye.x) ** 2 + (raw[k + 1] - eye.y) ** 2 + (raw[k + 2] - eye.z) ** 2;
+        depth[i] =
+          keys[i] >= 0
+            ? keys[i]
+            : (raw[k] - eye.x) ** 2 + (raw[k + 1] - eye.y) ** 2 + (raw[k + 2] - eye.z) ** 2;
       }
       order.sort((p, q) => depth[q] - depth[p]);
       for (let j = 0; j < n; j++) {

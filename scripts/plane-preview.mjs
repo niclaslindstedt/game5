@@ -25,6 +25,9 @@
 //              5, 30 and 90 s, by day and after dark
 //   crash-kinds  nose in, cartwheeled, on its belly, out of a spin, into the
 //              trees — each frame by frame through the crash's lens
+//   fire       the wreck burning, filmed at 60 Hz through a lens held still
+//              (close, far, after dark) and read by the flicker meter
+//              (`flicker-meter.ts`: step, index, pops, light — printed)
 //   wings      a wingtip scuffed on the take-off roll and flown on, a wing
 //              torn off by a trunk and on landing, the plane flying on with
 //              one wing, the torn wing on the snow, a crash that does not
@@ -67,7 +70,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (model, strip, flight, door, lenses, cockpit, crash, crash-kinds, wings, airstrip); every one when left out",
+      help: "which sheets, comma-separated (model, strip, flight, door, lenses, cockpit, crash, crash-kinds, fire, wings, airstrip); every one when left out",
     },
     views: {
       kind: "string",
@@ -223,6 +226,13 @@ for (const [group, views] of Object.entries(groups)) {
       writeFileSync(file, Buffer.from(f.png.split(",")[1], "base64"));
     }
   }
+  // A film's numbers (`flicker-meter.ts`), once a film.
+  const films = new Map();
+  for (const f of frames) {
+    const line = f.caption.split("\n").find((l) => l.startsWith("flicker:"));
+    if (line) films.set(`${f.view} ${f.label.replace(/-\d+$/, "")}`, line);
+  }
+  for (const [film, line] of films) console.log(`  ${film}  ${line}`);
   // An element is photographed within the viewport: open it to the sheet.
   const box = await page.locator("#sheet").boundingBox();
   await page.setViewportSize({

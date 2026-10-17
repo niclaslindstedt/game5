@@ -37,6 +37,9 @@
 //              pad)
 //   handover   a press of the camera key mid-flight: chase to the nose
 //              lens, frame by frame, and on to the far lens
+//   fire       wreck-film, wreck-film-night (the wreck burning, filmed at
+//              60 Hz through a lens held still and read by the flicker
+//              meter, `flicker-meter.ts`: step, index, pops, light — printed)
 //   night      night (the pad calling, a hover, a burst for the beacon,
 //              cruising — under the stars at 21:00)
 //   turntable  turntable (the model alone: 8 angles close, 8 at chase
@@ -84,7 +87,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (pad, board, lift, flight, land, drop, crash, handover, night, turntable, cockpit, cockpit-death, perch, hang); every one when left out",
+      help: "which sheets, comma-separated (pad, board, lift, flight, land, drop, crash, handover, fire, night, turntable, cockpit, cockpit-death, perch, hang); every one when left out",
     },
     views: {
       kind: "string",
@@ -234,6 +237,13 @@ for (const [group, views] of Object.entries(groups)) {
       writeFileSync(file, Buffer.from(f.png.split(",")[1], "base64"));
     }
   }
+  // A film's numbers (`flicker-meter.ts`), once a film.
+  const films = new Map();
+  for (const f of frames) {
+    const line = f.caption.split("\n").find((l) => l.startsWith("flicker:"));
+    if (line) films.set(`${f.view} ${f.label.replace(/-\d+$/, "")}`, line);
+  }
+  for (const [film, line] of films) console.log(`  ${film}  ${line}`);
   // An element is photographed within the viewport: open it to the sheet.
   const box = await page.locator("#sheet").boundingBox();
   await page.setViewportSize({

@@ -187,6 +187,22 @@ export const CRASH_VIEWS: Record<string, (st: Stage) => void | Promise<void>> = 
     st.shoot(s, "90s-close", near(16, 2.2, 3));
     st.shoot(s, "90s-far", near(70, -2, 12, 12, 45));
   },
+  // THE FIRE ON FILM: the wreck burning on, filmed at 60 Hz through a
+  // lens planted on the snow and held still, so the flicker meter reads
+  // the fire alone — close and from further off by day, and after dark.
+  async "crash-film"(st) {
+    st.camera("chase");
+    const s = staged(st, "belly");
+    st.run(s, 8, still);
+    st.film(s, "8s-close", near(18, 2.2, 3), 36);
+    st.film(s, "9s-far", near(60, -2, 8, 6, 45), 36);
+    st.film(s, "9s-lens", "chase", 36);
+    await st.sky({ hour: 21, weather: "clear" });
+    const n = staged(st, "belly");
+    st.run(n, 8, still);
+    st.film(n, "8s-night", near(22, 2.2, 3.5), 36);
+    await st.sky(null);
+  },
   // AFTER DARK: the fire lighting the snow, the trees and the wreck.
   async "crash-night"(st) {
     await st.sky({ hour: 21, weather: "clear" });
@@ -206,6 +222,8 @@ export const CRASH_VIEWS: Record<string, (st: Stage) => void | Promise<void>> = 
 /** The crash's two sheets: the fire (the ball's growth and burn-out, the
  * wreck burning on by day and after dark) and the kinds frame by frame. */
 export const CRASH_SHEET = ["crash-ball", "crash-burn", "crash-night"] as const;
+/** The fire filmed for the flicker meter. */
+export const FILM_SHEET = ["crash-film"] as const;
 export const KINDS_SHEET = [
   "crash-nose",
   "crash-cart",

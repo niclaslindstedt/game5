@@ -41,9 +41,42 @@ export const POOL = {
   plume: 10,
 } as const;
 
+/** THE CONTINUOUS FLAME: a pool fire's lowest part burns STEADY — a
+ * luminous base of nearly constant shape over the fuel, the flames only
+ * intermittent (puffing, tearing off as tongues) above it. Drawn as
+ * standing flames that never go out while the pool burns, each turning
+ * its own noise: how many over the helicopter's pool (more over a wider
+ * one, by its area), their height against the flames', their width
+ * against the pool's radius, how slowly each one breathes, Hz, and by how
+ * much, and how fast the base lights and dies down, 1/s. */
+export const BASE = {
+  count: 9,
+  most: 24,
+  height: 0.42,
+  width: 0.9,
+  breathe: 0.35,
+  swell: 0.08,
+  follow: 1.5,
+} as const;
+
+/** A loose flame: its fade, in over its first `rise` of its life and out
+ * over its last `fall` — eased, so no tongue blinks on or off; how long a
+ * pool's tongue lives, s, and how many are lit against the pool's own
+ * `flames` (fewer and longer-lived, so the ones in the picture are
+ * always mostly the same ones); a burning piece's tongue's life, s; and
+ * how much one tongue's heat differs from the next. */
+export const TONGUE = {
+  rise: 0.25,
+  fall: 0.5,
+  life: [1, 1.7],
+  rate: 0.65,
+  trail: [0.7, 1.3],
+  jitter: 0.08,
+} as const;
+
 /** A BURNING PIECE's trail: the flames, smoke puffs and embers it throws a
  * second at full heat. */
-export const TRAIL = { flames: 14, smoke: 10, embers: 4 } as const;
+export const TRAIL = { flames: 9, smoke: 10, embers: 4 } as const;
 
 /** THE SCORCH: the snow round the wreck melted to a dark wet ring and
  * speckled with soot — its radius, m, how long it takes to darken, s, and
@@ -109,6 +142,8 @@ type Puff = {
   glow: number;
   /** How thick it is, 0..1: a burning piece's trail is a thin wisp. */
   thick: number;
+  /** The height a flame was lit at, m: what it is sorted by. */
+  y0: number;
 };
 
 type Shard = {
@@ -175,6 +210,12 @@ export type Explosion = {
  * winter day's sky alone is thousands in the shade — a point light at
  * the night's power would paint every shadow near the wreck rose. */
 const POOL_DAY = 0.08;
+
+/** 0 below 0, 1 above 1, eased between. */
+function smooth(t: number): number {
+  const c = Math.max(0, Math.min(1, t));
+  return c * c * (3 - 2 * c);
+}
 
 /** A seeded stream of its own for the scatter — never the engine's. */
 function makeRandom(seed: number): () => number {
@@ -341,6 +382,7 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
     shade: 0,
     glow: 0,
     thick: 1,
+    y0: 0,
   });
   const fire: Puff[] = Array.from({ length: FIRE }, puff);
   const smoke: Puff[] = Array.from({ length: SMOKE }, puff);
@@ -391,12 +433,21 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
   let nextSmoke = 0;
   let burn: { x: number; y: number; z: number } | null = null;
   let burnHeat = 1;
+  /** Where the pool last burnt, and how lit its steady base is, 0..1. */
+  const pool = { x: 0, y: 0, z: 0 };
+  let base = 0;
   const breeze = { x: 0, z: 0 };
   const glowOut: FireLight = { x: 0, y: 0, z: 0, power: 0 };
   const debt = { flame: 0, smoke: 0, ember: 0 };
   let clock = 0;
   const heli = fireballOf(BALL.fuel * BALL.share);
   let full: BallSize = heli;
+
+  /** How many standing flames the pool's base is: more over a wider pool. */
+  function baseCount(): number {
+    const r = (POOL_.radius * (POOL_.core ?? 1)) / POOL.radius;
+    return Math.max(5, Math.min(BASE.most, Math.round(BASE.count * r ** 1.4)));
+  }
 
   function spawn(list: Puff[], at: number, p: Partial<Puff>): number {
     Object.assign(list[at], { age: 0, rot: random() * Math.PI * 2 }, p);
@@ -415,10 +466,11 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
     heat = 0.9,
   ): void {
     nextFire = spawn(fire, nextFire, {
-      heat: heat * (0.85 + 0.3 * random()),
+      heat: heat * (1 + TONGUE.jitter * (2 * random() - 1)),
       x,
       y,
       z,
+      y0: y,
       vx: (random() - 0.5) * 1.2,
       vy: rise * (0.7 + 0.6 * random()),
       vz: (random() - 0.5) * 1.2,
@@ -493,15 +545,80 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
       const h = b.halo;
       halos.push(h.x, h.y, h.z, h.size, h.size, 0, 1.1, 0.5, 0.16, h.a, 0);
     }
+    if (base > 0.002) {
+      // THE STEADY BASE: each standing flame in its own place over the
+      // fuel, breathing slowly, sorted where it stands.
+      const R = POOL_.radius * (POOL_.core ?? 1);
+      const count = baseCount();
+      const hot = 0.5 + 0.5 * burnHeat;
+      const tall = POOL_.flame * BASE.height * (0.35 + 0.65 * burnHeat);
+      const wide = Math.max(1.6, POOL_.radius * BASE.width) * (POOL_.girth ?? 1) * hot;
+      for (let i = 0; i < count; i++) {
+        const a = i * 2.39996;
+        const d = R * 0.78 * Math.sqrt((i + 0.5) / count);
+        const x = pool.x + Math.sin(a) * d;
+        const z = pool.z + Math.cos(a) * d;
+        const w = BASE.breathe * Math.PI * 2 * (0.75 + 0.5 * ((i * 0.618) % 1));
+        const breath =
+          1 +
+          BASE.swell * Math.sin(clock * w + i * 1.7) +
+          0.5 * BASE.swell * Math.sin(clock * w * 1.9 + i);
+        // The heart of the pool burns tallest and hottest.
+        const out = d / Math.max(R, 0.1);
+        const h = tall * (1 - 0.35 * out) * breath;
+        const y = pool.y + 0.3 + h * 0.42;
+        const lean = 0.08 * Math.sin(clock * w * 0.7 + i * 2.3);
+        const key = (x - eye.x) ** 2 + (pool.y - eye.y) ** 2 + (z - eye.z) ** 2;
+        batch.push(
+          x,
+          y,
+          z,
+          wide * (1 - 0.25 * out) * (2 - breath),
+          h,
+          lean,
+          sr,
+          sg,
+          sb,
+          base,
+          0,
+          1,
+          (0.62 - 0.12 * out) * hot,
+          i * 3.7 + 0.5,
+          0,
+          key,
+        );
+      }
+    }
+    const { rise, fall } = TONGUE;
     for (const p of fire) {
       if (p.age >= p.life) continue;
       const k = p.age / p.life;
       const size = p.size0 + (p.size1 - p.size0) * k;
-      const a = k < 0.12 ? k / 0.12 : Math.min(1, (1 - k) / 0.5);
+      const a = smooth(k / rise) * smooth((1 - k) / fall);
       // Tongues: taller than they are wide, never turned far off upright.
       const lean = 0.18 * Math.sin(p.rot);
       const heat = p.heat * (1 - k * 0.8);
-      batch.push(p.x, p.y, p.z, size, size * 1.7, lean, sr, sg, sb, a, 0, 1, heat, p.rot * 1.3);
+      // Sorted where it was lit: it licks up past its neighbours, never
+      // jumping in front of one.
+      const key = (p.x - eye.x) ** 2 + (p.y0 - eye.y) ** 2 + (p.z - eye.z) ** 2;
+      batch.push(
+        p.x,
+        p.y,
+        p.z,
+        size,
+        size * 1.7,
+        lean,
+        sr,
+        sg,
+        sb,
+        a,
+        0,
+        1,
+        heat,
+        p.rot * 1.3,
+        0,
+        key,
+      );
     }
     for (const p of smoke) {
       if (p.age >= p.life) continue;
@@ -540,6 +657,10 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
       const fx = flat > 1 ? vx / flat : 0;
       const fz = flat > 1 ? vz / flat : 0;
       full = ball;
+      // The fire's clock starts again with each fire: the noise it flows
+      // by is read off it, and a clock run on for an hour of riding has
+      // too few bits left in a float to flow smoothly.
+      clock = 0;
       // THE FIREBALL, and the smaller ones the fuel's spray lights along
       // the way it was going — or, with no ball (fuel spilt too slowly to
       // mist), the pool lighting with a WHOOMP of flame off its whole face.
@@ -645,7 +766,9 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
     },
     flame(x, y, z, heat, dt) {
       debt.flame += dt * TRAIL.flames * heat;
-      for (; debt.flame >= 1; debt.flame--) flameAt(x, y + 0.2, z, 1.2 + 1.6 * heat, 2.5);
+      const [t0, t1] = TONGUE.trail;
+      for (; debt.flame >= 1; debt.flame--)
+        flameAt(x, y + 0.2, z, 1.3 + 1.7 * heat, 2.5, t0 + (t1 - t0) * random());
       debt.smoke += dt * TRAIL.smoke * heat;
       for (; debt.smoke >= 1; debt.smoke--)
         smokeAt(x, y + 0.6, z, 0.6 + 0.6 * heat, 2.5, 0, 0, 3, 0.6, 0.45);
@@ -665,6 +788,14 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
         return;
       }
       clock += dt;
+      // The steady base: lit with the pool, at its heat, and dying down
+      // with it — never switched.
+      if (burn) {
+        pool.x = burn.x;
+        pool.y = burn.y;
+        pool.z = burn.z;
+      }
+      base += ((burn ? Math.sqrt(burnHeat) : 0) - base) * Math.min(1, dt * BASE.follow);
       // The flash: a white-hot instant, an orange glow fading with the
       // ball.
       flashAge += dt;
@@ -695,14 +826,20 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
         const R = POOL_.radius;
         const hot = burnHeat;
         const pulse = 0.5 + 0.5 * Math.sin(clock * (1.5 / Math.sqrt(2 * R)) * Math.PI * 2);
-        const flick = (0.7 + 0.3 * pulse) * (0.9 + 0.1 * Math.sin(clock * 23));
+        // Its light breathes with the puffing and wavers slowly — a big
+        // fire's glow on the snow never strobes.
+        const flick =
+          (0.75 + 0.25 * pulse) *
+          (0.95 + 0.03 * Math.sin(clock * 5.1) + 0.02 * Math.sin(clock * 8.3 + 1.3));
         flash.position.set(burn.x, burn.y + 5, burn.z);
         flash.intensity = Math.max(
           flash.intensity,
           160 * flick * Math.sqrt(hot) * (R / POOL.radius) * (POOL_DAY + (1 - POOL_DAY) * dark),
         );
         const rise = POOL_.flame * (0.85 + 0.45 * pulse) * (0.35 + 0.65 * hot);
-        for (let n = POOL_.flames * (0.6 + 0.6 * pulse) * hot * dt + random(); n >= 1; n--) {
+        const [l0, l1] = TONGUE.life;
+        const lit = POOL_.flames * TONGUE.rate * (0.6 + 0.6 * pulse) * hot * dt;
+        for (let n = lit + random(); n >= 1; n--) {
           const a = random() * Math.PI * 2;
           const d = Math.sqrt(random()) * R * (POOL_.core ?? 1);
           flameAt(
@@ -714,7 +851,7 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
               (0.5 + 0.5 * hot) *
               (POOL_.girth ?? 1),
             rise * (1 - 0.5 * (d / R)),
-            0.7 + 0.6 * random(),
+            l0 + (l1 - l0) * random(),
             0.58 - 0.2 * (d / R),
           );
         }
@@ -817,6 +954,7 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
       flash.intensity = 0;
       flashAge = 99;
       burn = null;
+      base = 0;
       full = heli;
     },
     dispose() {

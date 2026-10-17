@@ -195,6 +195,16 @@ A lesson that applies in most-but-not-all runs stays a fragment, and gets a
 
 **Reflection is the ONLY time lesson content moves into a `SKILL.md`.**
 
+### 6. Is a lesson true in EVERY subject? → propose it as a principle
+
+A rule that keeps turning up in lessons across several skills, or a correction
+the owner has made more than once whatever the task, is not one skill's — it is
+a candidate for [`docs/principles/`](../../../docs/principles/README.md). Propose
+it in the PR as a new `PDD-NN` file (rule, why, prevents, exceptions, history)
+with its row in AGENTS.md's index, cite its token where code depends on it, and
+delete the lessons it replaces. A principle that already covers the lesson gets
+a citation instead of a new fragment.
+
 ---
 
 ## The size bars — a playbook nobody finishes is a playbook nobody follows

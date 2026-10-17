@@ -35,7 +35,8 @@ import { felledTrees } from "./felled.ts";
 const K = GRIMBEAR;
 const dt = TUNING.dt;
 
-/** His stream's salt off the run's seed — no other stream shares it. */
+/** His stream's salt off the run's seed — no other stream shares it
+ * (PDD-01@v1: a system only some runs have draws off its own stream). */
 const GRIMBEAR_SALT = 0x6b3a91c5;
 
 /** Whether a run is dealt the beast that CATCHES its skier once (`hunt`),

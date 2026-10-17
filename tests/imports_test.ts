@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE DEPENDENCY DIRECTION, walked — OSS_GAME_SPEC §23.7's "enforce
+// PDD-02@v1: THE DEPENDENCY DIRECTION, walked — OSS_GAME_SPEC §23.7's "enforce
 // direction with a test, not with discipline". The arrows AGENTS.md states
 // are read off the REAL import graph here: every `import`/`export … from`
 // in engine/, pwa/src/, scripts/ and tests/, resolved to the role it lands

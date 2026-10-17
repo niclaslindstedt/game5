@@ -43,7 +43,18 @@ export const CABLE = {
    * a haul rope under tension stops a body or throws it). How thick a
    * limb's bone and the trunk are to it, half each, m, and a ski, and how
    * near the rope his middle must come to be looked at, m. */
-  cut: { speed: 20, limb: 0.06, trunk: 0.14, ski: 0.03, near: 3 },
+  cut: {
+    speed: 20,
+    limb: 0.06,
+    trunk: 0.14,
+    ski: 0.03,
+    near: 3,
+    /** A SKI CUT IN TWO springs apart (`ski-cut.ts`, an arcade's, so the cut
+     * reads): the piece cut off thrown on along the ski, m/s, and up, m/s,
+     * turning end over end, rad/s; the binding's piece checked back the
+     * `back` share of that. */
+    split: { along: 2.5, lift: 1.5, spin: 5, back: 0.35 },
+  },
   /** THE SWAP, THE PRESS AND THE TURN, as on a rail (`JIBS`) — on skis a
    * tap turns him half round, slide to slide, never along the rope. */
   tap: 0.6,

@@ -8,6 +8,7 @@
 // (`LoneSki.mount`, which may now lie off its own ends), so the drawing
 // lays the whole ski where it would be and shows only that share of it.
 
+import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { RopeFrame } from "./cable-cut.ts";
 import { sweptThrough } from "./cable-cut.ts";
 import { CABLE } from "./defs/cable.ts";
@@ -96,6 +97,33 @@ function stretch(ski: LoneSki, a: number, b: number): LoneSki {
   };
 }
 
+/** THE SPRING OF A CUT: `off` sent `CABLE.cut.part` m/s along the ski
+ * (`way` 1 toward its tip, −1 its tail) and `lift` up, its ends turned
+ * apart at `spin` rad/s end over end; `kept` a third of it back. */
+function part(kept: LoneSki, off: LoneSki, way: number): void {
+  const S = CABLE.cut.split;
+  const P = off.ends;
+  const dx = P[0] - P[3];
+  const dy = P[1] - P[4];
+  const dz = P[2] - P[5];
+  const len = hypot3(dx, dy, dz) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const uz = dz / len;
+  const shove = (ski: LoneSki, along: number, up: number, turn: number): void => {
+    for (let e = 0; e < 2; e++) {
+      const j = 3 * e;
+      // The tip end up and the tail end down for a turn end over end.
+      const flip = (e === 0 ? 1 : -1) * turn * (len / 2);
+      ski.last[j] -= ux * along * dt;
+      ski.last[j + 1] -= (uy * along + up + flip) * dt;
+      ski.last[j + 2] -= uz * along * dt;
+    }
+  };
+  shove(off, way * S.along, S.lift, way * S.spin);
+  shove(kept, -way * S.along * S.back, 0, 0);
+}
+
 /** THE THROWN BODY'S SKIS the rope `f` went through this step cut in two
  * where it crossed them — or, for a pair let go this very step, where it
  * crossed them as they stood under him (`stood`, from `skisCrossed`).
@@ -120,6 +148,10 @@ export function cutSkis(
       const bound = ski.mount < k;
       const kept = bound ? stretch(ski, 0, k) : stretch(ski, k, 1);
       const off = bound ? stretch(ski, k, 1) : stretch(ski, 0, k);
+      // The steel through it springs the two apart: the piece cut off
+      // thrown on away from the binding's along the ski, up off it and
+      // turning end over end, the binding's checked the other way.
+      part(kept, off, bound ? 1 : -1);
       list[i] = kept;
       b.halves.push(off);
       n++;

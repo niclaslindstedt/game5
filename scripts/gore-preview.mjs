@@ -31,6 +31,11 @@
 //            90 km/h, at chest and at shin height: cut through there),
 //            cable-drop (dropped onto it, the skis across it: the skis cut
 //            in two, each piece drawn as its share — `ski-cut-view.ts`)
+//   beast    moose-70, moose-110, reindeer-80, roe-60, hare-60, fox-60
+//            (run square into an animal's flank on a free ride: both
+//            crushed — the body broken, the blood, the guts, the slide and
+//            the pool), moose-safe (the same with the injuries off: knocked
+//            down and up again)
 //   hud      wreck (the HUD over a fatal crash: the jolt,
 //            the readouts fading away, DIED and the dark — each frame
 //            an iframe of `pwa/gore-hud.html` at the frame's own size)
@@ -66,7 +71,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, rotor, blood, leak, pools, close, bones, cable, hud, remains); every one when left out",
+      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, rotor, blood, leak, pools, close, bones, cable, beast, hud, remains); every one when left out",
     },
     views: {
       kind: "string",
@@ -101,6 +106,9 @@ const args = parseArgs(
   },
   "usage: node scripts/gore-preview.mjs [--sheet=a,b] [--views=a,b] [--seed=n] [--region=id] [--hour=h] [--weather=kind] [--skip-build]",
 );
+
+/** The beast sheet's views (`gore-beast-scenes.ts`). */
+const BEAST_VIEW = /^(moose|reindeer|roe|hare|fox)-/;
 
 const list = (s) =>
   s
@@ -165,6 +173,10 @@ const query = new URLSearchParams({
   ...(args.region ? { region: args.region } : {}),
   ...(Number.isFinite(args.hour) ? { hour: String(args.hour) } : {}),
   ...(args.weather ? { weather: args.weather } : {}),
+  // The beast sheet lays its own animals down the piste: only when it is drawn.
+  ...(list(args.sheet).includes("beast") || list(args.views).some((v) => BEAST_VIEW.test(v))
+    ? { beasts: "1" }
+    : {}),
 }).toString();
 /** `work`, or a failure the moment the page throws — never the timeout
  * burnt on a page that died. */

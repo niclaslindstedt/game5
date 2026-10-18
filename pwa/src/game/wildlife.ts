@@ -13,10 +13,11 @@
 import * as THREE from "three";
 import type { GameState, Level } from "@engine";
 
+import { createBeastGore, type BeastGore } from "./beast-gore.ts";
 import { createBeasts, type Beasts, type PrintSnow, type TrailWindow } from "./beasts.ts";
 import { createBirds, type Birds } from "./birds.ts";
 import { createGrimbearView } from "./grimbear-view.ts";
-import type { HazeUniforms } from "./haze.ts";
+import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import type { WildLook } from "./settings-video.ts";
 import type { Stamp } from "./trail-stamp.ts";
 
@@ -54,17 +55,26 @@ export function createWildlife(
   const grimbear = createGrimbearView(level, haze);
   const group = new THREE.Group();
   group.add(birds.group, beasts.group, grimbear.group);
+  // What comes out of an animal run down (`beast-gore.ts`): built on the
+  // first run with its injuries on that carries the animals as bodies.
+  let gore: BeastGore | null = null;
   return {
     group,
     update(state, eyeX, eyeZ, stamps, window) {
       birds.update(state, eyeX, eyeZ);
       beasts.update(state, eyeX, eyeZ, stamps, window);
       grimbear.update(state);
+      if (!gore && state.wild && state.gore) {
+        gore = createBeastGore(level, (m, name) => hazeMaterial(m, haze, name));
+        group.add(gore.group);
+      }
+      gore?.update(state);
     },
     retrack: () => beasts.retrack(),
     reset() {
       birds.reset();
       beasts.reset();
+      gore?.clear();
     },
     setLook(look) {
       birds.setLook(look);
@@ -76,6 +86,7 @@ export function createWildlife(
       birds.dispose();
       beasts.dispose();
       grimbear.dispose();
+      gore?.dispose();
     },
   };
 }

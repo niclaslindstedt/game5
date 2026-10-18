@@ -17,7 +17,7 @@
 // place — is not news, and neither is a landing the skis simply rode away
 // from.
 
-import { isBoard, TUNING, type GameEvent, type GameState } from "@engine";
+import { BEAST_HIT, isBoard, TUNING, type GameEvent, type GameState } from "@engine";
 
 import { gapAt, timingGates } from "./slalom-board.ts";
 import { gatesTaken } from "./snapshot.ts";
@@ -113,6 +113,15 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       };
     case "stuck":
       return { text: e.well ? STRINGS.newsWell : STRINGS.newsStuck, tone: "bad" };
+    case "beast": {
+      // Thrown, the wipeout's line says so; a brush says nothing.
+      if (e.thrown) return null;
+      const word = STRINGS.beastWord[e.species];
+      if (e.killed) return { text: STRINGS.newsBeastSplat(word), tone: "bad" };
+      return e.speed >= BEAST_HIT.knock
+        ? { text: STRINGS.newsBeastKnocked(word), tone: "info" }
+        : null;
+    }
     case "grimbear":
       // Out of the trees, diving past, and pulled up short; the catch is
       // the wipeout's.

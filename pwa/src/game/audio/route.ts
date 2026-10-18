@@ -21,7 +21,7 @@
 // is the groomer's and every trunk a middling living one — the sound the
 // bank had before it knew.
 
-import type { GameEvent, JumpLanding, Level } from "@engine";
+import { BEAST_HIT, type GameEvent, type JumpLanding, type Level } from "@engine";
 
 import type { PlayShape } from "@niclaslindstedt/oss-game-framework/audio/types";
 
@@ -336,13 +336,33 @@ export function soundForEvent(
       };
     }
 
-    // AN ANIMAL RUN INTO (`beast-hit.ts`): a body against a body, the
-    // thump deeper the more of him it stopped.
+    // AN ANIMAL RUN INTO (`beast-hit.ts`, `wild-bank.ts`): one barely
+    // touched is a shoulder's bump; one knocked down thumps and cries out;
+    // one killed is run clean through — louder, lower and longer the
+    // bigger it was and the harder it was met.
     case "beast": {
       const hard = ramp(event.taken, 0.5, 12);
+      const big = ramp(event.height, 0.3, 1.9);
+      if (event.killed) {
+        const smash = Math.max(hard, event.crush);
+        return {
+          id: "beast_crush",
+          shape: {
+            gain: 0.7 + 0.5 * smash + 0.2 * big,
+            pitch: 1.25 - 0.45 * big,
+            stretch: 0.8 + 0.5 * big,
+          },
+        };
+      }
+      if (event.speed < BEAST_HIT.knock) {
+        return {
+          id: "bump",
+          shape: { gain: 0.6 + 0.8 * hard, pitch: 1.05 - 0.4 * hard, stretch: 0.9 + 0.6 * hard },
+        };
+      }
       return {
-        id: "bump",
-        shape: { gain: 0.6 + 0.8 * hard, pitch: 1.05 - 0.4 * hard, stretch: 0.9 + 0.6 * hard },
+        id: "beast_knock",
+        shape: { gain: 0.7 + 0.5 * hard, pitch: 1.3 - 0.5 * big, stretch: 0.9 + 0.4 * big },
       };
     }
 

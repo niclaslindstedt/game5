@@ -33,6 +33,7 @@ import { bodyTile, type BodyTile } from "../game/body-tile.ts";
 import { diedOf } from "../game/hud-wreck.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
+import { BEAST_GROUPS, BEAST_VIEWS, labBeasts } from "./gore-beast-scenes.ts";
 import { BONE_GROUPS, BONE_VIEWS } from "./gore-bone-scenes.ts";
 import { CABLE_GROUPS, CABLE_VIEWS } from "./gore-cable-scenes.ts";
 import {
@@ -45,8 +46,8 @@ import {
   type Stage,
 } from "./gore-scenes.ts";
 
-const VIEWS = { ...SCENE_VIEWS, ...BONE_VIEWS, ...CABLE_VIEWS };
-const GROUPS = { ...SCENE_GROUPS, ...BONE_GROUPS, ...CABLE_GROUPS };
+const VIEWS = { ...SCENE_VIEWS, ...BONE_VIEWS, ...CABLE_VIEWS, ...BEAST_VIEWS };
+const GROUPS = { ...SCENE_GROUPS, ...BONE_GROUPS, ...CABLE_GROUPS, ...BEAST_GROUPS };
 
 type Frame = { view: string; label: string; caption: string; png: string };
 
@@ -112,14 +113,15 @@ const STEPS = Math.round(FRAME / TUNING.dt);
 const STILL = 1e-4;
 
 function fresh(ask: Fresh = false): GameState {
-  const o = typeof ask === "boolean" ? { grimbear: ask } : ask;
+  const o: Exclude<Fresh, boolean> = typeof ask === "boolean" ? { grimbear: ask } : ask;
   const grimbear = !!o.grimbear;
   return createGame({
     level,
     seed,
     region,
     mode: "free",
-    gore: true,
+    gore: !o.safe,
+    ...(o.safe ? { sfw: true } : {}),
     crowd: 0,
     quiet: true,
     ...(grimbear ? { grimbear: "hunt" as const } : {}),
@@ -132,6 +134,8 @@ const ready = (async () => {
   // Loaded with the machines out, so their scene is built for the sheets
   // that ask for them.
   const first = fresh({ groomer: true });
+  // The beast sheet's animals, laid before the wildlife is built off the plan.
+  if (params.get("beasts") === "1") labBeasts(first.level);
   await renderer.load(first);
   if (baseSky) renderer.setSky(baseSky);
   renderer.draw(first, 1, FRAME);

@@ -25,9 +25,9 @@
 //
 // Sets `window.__done` when the sheet is on screen.
 
+import { BEASTS, beastRarity, type BeastSpec } from "@engine";
 import * as THREE from "three";
 
-import { BEASTS, beastRarity, type BeastSpec } from "../game/beast-defs.ts";
 import { BEAST_STYLES, beastMaterial, buildBeast, type BeastLod } from "../game/beast-shapes.ts";
 import { BIRDS, birdRarity, type BirdSpec } from "../game/bird-defs.ts";
 import { BIRD_STYLES, birdMaterial, buildBird, type BirdLod } from "../game/bird-shapes.ts";

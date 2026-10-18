@@ -4,7 +4,7 @@
 // FORM (grown or young — `wild-traits.ts`) at two cuts (`BeastLod`: NEAR,
 // and FAR at a third of the triangles, cut from the same builder so the
 // hand-over keeps the silhouette), sized off the roster's row
-// (`beast-defs.ts`) and shaped and painted off `BEAST_STYLES` here.
+// (the engine's `defs/beasts.ts`) and shaped and painted off `BEAST_STYLES` here.
 //
 // SEEN ACROSS THE SNOW at chase range is the design constraint: what reads
 // is the SILHOUETTE against white — the hare's long ears and its tucked
@@ -38,9 +38,9 @@
 // take five of the sixteen a vertex may carry. One draw call a species form
 // and cut, whatever the herd is doing.
 
+import { type BeastId, type BeastSpec, type Gait } from "@engine";
 import * as THREE from "three";
 
-import type { BeastId, BeastSpec, Gait } from "./beast-defs.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { Shape, type V3 } from "./tree-mesh.ts";
 import { TINE_AT, type BeastForm } from "./wild-traits.ts";

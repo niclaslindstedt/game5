@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE WILDLIFE — the birds over the woods (`bird-defs.ts`, `bird-roost.ts`,
-// `bird-plan.ts`), the animals in the snow (`beast-defs.ts`,
+// `bird-plan.ts`), the animals in the snow (`defs/beasts.ts`,
 // `beast-plan.ts`), their prints (`beast-tracks.ts`) and the birds' voices
 // (`audio/bird-voice.ts`, `bird-bank.ts`) — held without a renderer.
 //
@@ -23,17 +23,18 @@ import {
   type GameState,
   type Level,
   type RegionId,
-} from "@engine";
-
-import { BEASTS, beastById, beastRarity } from "../pwa/src/game/beast-defs.ts";
-import {
+  BEASTS,
+  beastById,
+  beastRarity,
   CALM,
-  beastPose,
-  freshBeastPose,
   planBeasts,
   spookAt,
   walked,
-} from "../pwa/src/game/beast-plan.ts";
+  RARITY_FLOOR,
+  rarityOf,
+} from "@engine";
+
+import { beastPose, freshBeastPose } from "../pwa/src/game/beast-plan.ts";
 import { footfall, priorPrints } from "../pwa/src/game/beast-tracks.ts";
 import { BIRDS, birdById, birdRarity } from "../pwa/src/game/bird-defs.ts";
 import {
@@ -49,7 +50,6 @@ import {
   type Flock,
 } from "../pwa/src/game/bird-plan.ts";
 import { planBirds } from "../pwa/src/game/bird-roost.ts";
-import { RARITY_FLOOR, rarityOf } from "../pwa/src/game/rarity.ts";
 import { TRAIL, type Stamp } from "../pwa/src/game/trail-stamp.ts";
 import { wildGround } from "../pwa/src/game/wild-ground.ts";
 import { RUN_BANK } from "../pwa/src/game/audio/bank.ts";

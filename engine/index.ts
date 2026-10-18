@@ -670,6 +670,7 @@ export {
   TRACK_RUN,
 } from "./game/skied.ts";
 export * from "./game/hazards-api.ts";
+export * from "./game/wild-api.ts"; // the animals: the roster, the plan, the fright, the hit
 export { GROOMER } from "./game/defs/groomer.ts";
 export {
   freshGroomers,

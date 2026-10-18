@@ -34,6 +34,7 @@ import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { AvalancheEvent, AvalancheState } from "./avalanche-state.ts";
 import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
 import type { TrafficEvent } from "./traffic-contact.ts";
+import type { BeastEvent, WildState } from "./beast-hit.ts";
 import type { PisteDay } from "./piste-day.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { ContestState } from "./contest-state.ts";
@@ -428,7 +429,7 @@ export type BodyState = {
 /** WHAT A BLOW CAME FROM: a landing on the skis, the body on the snow, a
  * trunk, another skier, a crashed helicopter's seat, a piste machine. */
 export type ImpactSource =
-  "landing" | "snow" | "tree" | "skier" | "heli" | "groomer" | "car" | "cable" | "bike";
+  "landing" | "snow" | "tree" | "skier" | "heli" | "groomer" | "car" | "cable" | "bike" | "beast";
 
 /** ONE BLOW on the g meter: its peak, g, the part that took it, what it
  * came from, how long ago, s, and its number (`BodyState.blows`); whether
@@ -729,6 +730,7 @@ export type GameEvent =
   | AfterskiEvent
   | GroomerEvent
   | TrafficEvent
+  | BeastEvent
   | GoreEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number; well?: true }
@@ -958,6 +960,9 @@ export type GameState = ContestState & {
   /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;
+  /** THE WILDLIFE AS BODIES (`beast-hit.ts`): a free ride's frights and the
+   * animals met; absent on every other run, so no digest sees an animal. */
+  wild?: WildState;
   /** HIS CLOTHES ALIGHT (`fire-burn.ts`): a free ride's, once he has
    * ridden into a fire; absent otherwise, so no digest moves. */
   burn?: import("./fire-burn.ts").BurnState;

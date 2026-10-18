@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // HOW OFTEN A THING IS MET, as a word — the ladder every row of the wildlife
-// (`bird-defs.ts`, `beast-defs.ts`) is filed on.
+// (the app's `bird-defs.ts`, `defs/beasts.ts`) is filed on.
 //
 // The NUMBER is the truth: `perKm`, groups per kilometre of the loop, which
 // the placers turn into a count by drawing the fraction rather than rounding
@@ -14,7 +14,7 @@
 // word that means nothing, and `tests/birds_test.ts` holds every rung to at
 // least one row.
 
-import type { Rng } from "@engine";
+import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 
 export type Rarity = "common" | "uncommon" | "scarce" | "rare" | "legendary";
 

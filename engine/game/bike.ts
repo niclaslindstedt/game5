@@ -48,6 +48,7 @@ import { mendBody, stepBody } from "./body.ts";
 import { standSkier } from "./course.ts";
 import { throwRider } from "./crash.ts";
 import { trafficStrike } from "./traffic-contact.ts";
+import { beastStrike } from "./beast-hit.ts";
 import { BIKE } from "./defs/bike.ts";
 import { BIKE_TANGLE } from "./defs/bike-tangle.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -486,10 +487,11 @@ function walk(run: GameState, b: BikeState, input: SkierInput): void {
   if (a.push) pushed(run, b);
 }
 
-/** THE TRAFFIC against the rider on the bike (`trafficStrike`, which meets
- * the skier where `hold` stood him): held off a vehicle at a shuffle, the
- * bike moved with him; knocked off it past one — the `car` crash cause, the
- * bike left down where it was. True when it threw him. */
+/** THE TRAFFIC AND THE WILDLIFE against the rider on the bike
+ * (`trafficStrike`, `beastStrike`, which meet the skier where `hold` stood
+ * him): held off a vehicle at a shuffle, staggered by an animal, the bike
+ * moved with him; knocked off past it — the `car` or the `beast` crash
+ * cause, the bike left down where it was. True when it threw him. */
 function traffic(run: GameState, b: BikeState, events: GameEvent[]): boolean {
   const c = run.skier;
   const x = c.x;
@@ -500,6 +502,13 @@ function traffic(run: GameState, b: BikeState, events: GameEvent[]): boolean {
   if (car) {
     leave(run, b, events, "hit");
     throwRider(run, "car", car.v, events, { keepSkis: true });
+    return true;
+  }
+  // ...and an animal on the trail (`beast-hit.ts`), on a free ride.
+  const beast = run.wild ? beastStrike(run, events) : null;
+  if (beast) {
+    leave(run, b, events, "hit");
+    throwRider(run, "beast", beast, events, { keepSkis: true });
     return true;
   }
   if (c.x !== x || c.z !== z) shiftBike(b, c.x - x, c.z - z);

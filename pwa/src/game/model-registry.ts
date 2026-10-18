@@ -16,9 +16,8 @@
 // (`make model-registry` rewrites it, and prettier pads its columns).
 // DOM-free and three-free.
 
-import { CROWD_BODIES, SKI_CATALOG, TREE_KINDS } from "@engine";
+import { CROWD_BODIES, SKI_CATALOG, TREE_KINDS, BEAST_IDS } from "@engine";
 
-import { BEAST_IDS } from "./beast-defs.ts";
 import { BIRD_IDS } from "./bird-defs.ts";
 
 export type ModelSource = "blender" | "code";

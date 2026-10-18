@@ -29,9 +29,8 @@
 // drawn is drawn in the first, still at its own size, shade and rack. Every
 // species is drawn at every picture setting; only its forms thin.
 
-import { hash2 } from "@engine";
+import { hash2, type BeastId } from "@engine";
 
-import type { BeastId } from "./beast-defs.ts";
 import type { BirdId } from "./bird-defs.ts";
 
 /** The forms a bird is drawn in: the cock, the hen, a first-winter bird. */

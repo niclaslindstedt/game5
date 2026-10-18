@@ -10,10 +10,10 @@
 // pure function of its group's scatter — the same animal every time, never
 // a draw from the engine's stream.
 
+import { BEASTS } from "@engine";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
-import { BEASTS } from "../pwa/src/game/beast-defs.ts";
 import { BEAST_STYLES, LEG_PHASE, buildBeast } from "../pwa/src/game/beast-shapes.ts";
 import { BIRDS } from "../pwa/src/game/bird-defs.ts";
 import { BIRD_STYLES, birdPaint, buildBird } from "../pwa/src/game/bird-shapes.ts";

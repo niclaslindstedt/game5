@@ -34,7 +34,6 @@ import {
   GORE,
   GORE_OPEN,
   GORE_PIECES,
-  TUNING,
   bleedsOf,
   brokeAt,
   fracturesOf,
@@ -55,24 +54,39 @@ import {
   openBreaksOf,
   placeBreak,
 } from "./gore-bones.ts";
-import { createBlood, type Blood } from "./gore-blood.ts";
-import { arterial, createDrips, faceRuns, hardLeaks, pourOf, STREAM } from "./gore-flow.ts";
+import { createBlood } from "./gore-blood.ts";
+import {
+  arterial,
+  bodyVelocity,
+  createDrips,
+  faceRuns,
+  hardLeaks,
+  pourOf,
+  STREAM,
+} from "./gore-flow.ts";
 import type { Cheek, Leak } from "./gore-flow.ts";
 import { gapAt, lowestGap, PART_BONE, partAt, soakPath, spreadAt } from "./gore-leaks.ts";
 import { rotorStruck } from "./gore-rotor.ts";
 import { tillerSpray } from "./gore-tiller.ts";
 import { createSoak } from "./gore-soak.ts";
-import { bodyHides, cutOf, cutsOf, farEnd, pieceCollapse, POINT_BONE } from "./gore-cut.ts";
-import { bakeFigure, disposeFigure } from "./gore-remains.ts";
+import {
+  bodyHides,
+  cutOf,
+  cutsOf,
+  farEnd,
+  PIECE_BONES,
+  PIECE_LOOK,
+  pieceCollapse,
+  POINT_BONE,
+} from "./gore-cut.ts";
+import { bakeFigure, disposeFigure, REMAINS, type Remains } from "./gore-remains.ts";
 import {
   lump,
   rope,
-  stepLump,
   stepRope,
   stepStick,
   stick,
   gibGround,
-  type Lump,
   type Rope,
   type Stick,
 } from "./gore-gibs.ts";
@@ -80,6 +94,7 @@ import {
   layTube,
   openingGeometry,
   organGeometry,
+  ORGAN_KINDS,
   ribGeometry,
   shardGeometry,
   spikeGeometry,
@@ -87,10 +102,11 @@ import {
   tubeGeometry,
   type OrganKind,
 } from "./gore-shapes.ts";
+import { createLumps, gorePrimer } from "./gore-lumps.ts";
 import { createSmears } from "./gore-smear.ts";
 import { createBloodTrees } from "./gore-tree.ts";
 import { armBreaks } from "./skier-broken.ts";
-import { createDressed, type Dressed, type SkierDress } from "./skier-dress.ts";
+import { createDressed, cutAhead, type Dressed, type SkierDress } from "./skier-dress.ts";
 import type { BoneFrame, SkierBone } from "./skier-rig.ts";
 import type { V3 } from "./skier-pose.ts";
 
@@ -136,24 +152,6 @@ export type GoreView = {
   dispose(): void;
 };
 
-/** Each piece's measures: its stump's radius and the bone out of it, m,
- * and which of the engine's flows it bleeds as. */
-const PIECE_LOOK: Record<
-  GorePiece,
-  { r: number; bone: number; flow: keyof typeof GORE.blood.flow }
-> = {
-  head: { r: 0.075, bone: 0.035, flow: "head" },
-  armL: { r: 0.08, bone: 0.05, flow: "arm" },
-  armR: { r: 0.08, bone: 0.05, flow: "arm" },
-  forearmL: { r: 0.065, bone: 0.04, flow: "forearm" },
-  forearmR: { r: 0.065, bone: 0.04, flow: "forearm" },
-  legL: { r: 0.11, bone: 0.07, flow: "leg" },
-  legR: { r: 0.11, bone: 0.07, flow: "leg" },
-  shinL: { r: 0.08, bone: 0.055, flow: "shin" },
-  shinR: { r: 0.08, bone: 0.055, flow: "shin" },
-  lower: { r: 0.17, bone: 0.045, flow: "waist" },
-};
-
 /** The litres his clothes hold round a wound before it runs out at a
  * gap: the cloth round it soaked through, a tablespoon or so. */
 const HOLD = 0.015;
@@ -172,7 +170,6 @@ type Piece = {
   out: THREE.Vector3;
 };
 
-type Gib = { mesh: THREE.Mesh; lump: Lump };
 type Gut = { mesh: THREE.Mesh; rope: Rope; held: boolean };
 
 const yUp = new THREE.Vector3(0, 1, 0);
@@ -186,20 +183,16 @@ const m2 = new THREE.Matrix4();
 
 const toV = (p: V3, out = new THREE.Vector3()) => out.set(p.x, p.y, p.z);
 
-/** How many dead are left lying at once; the oldest goes first. */
-const REMAINS = 4;
+/** What the last frame's `update` cost the processor, ms — read by the
+ * gore cost lab (`scripts/gore-cost.mjs`). */
+export const goreMeter = { updateMs: 0 };
 
-/** ONE BODY LEFT LYING: the statue of him, what was torn out of him, and
- * the blood he left — all owned here now. */
-type Remains = {
-  body: THREE.Group;
-  pieces: Dressed[];
-  loose: THREE.Mesh[];
-  guts: THREE.Mesh[];
-  blood: Blood;
-};
-
-export function createGoreView(level: Level, wrap: Wrap, variants?: () => number): GoreView {
+export function createGoreView(
+  level: Level,
+  wrap: Wrap,
+  variants?: () => number,
+  model?: GoreModel,
+): GoreView {
   const group = new THREE.Group();
   group.name = "gore";
   const trees = createBloodTrees(level, wrap, variants);
@@ -228,14 +221,15 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
   };
   // The shapes, built once a view: a few of each kind to deal from.
   const organs = new Map<OrganKind, THREE.BufferGeometry[]>();
-  const organ = (kind: OrganKind, rng: Rng): THREE.BufferGeometry => {
+  const organsOf = (kind: OrganKind): THREE.BufferGeometry[] => {
     let list = organs.get(kind);
     if (!list) {
       list = [0, 1, 2].map((i) => keep(organGeometry(kind, 3.1 + i * 7.7)));
       organs.set(kind, list);
     }
-    return rng.pick(list);
+    return list;
   };
+  const organ = (kind: OrganKind, rng: Rng) => rng.pick(organsOf(kind));
   const stumps = new Map<GorePiece, THREE.BufferGeometry>();
   const stumpOf = (piece: GorePiece) => {
     let g = stumps.get(piece);
@@ -276,7 +270,15 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
   let rng: Rng = createRng(level.seed ^ 0x5eed90e);
   let pieces: Piece[] = [];
   let tornSeen = 0; // of the engine's torn pieces, flown or crushed
-  let gibs: Gib[] = [];
+  let lumps = createLumps(flesh);
+  group.add(lumps.group);
+  // Built with his model, at load: the hit's programs compiled and its shapes cut behind the card.
+  const primed = model && createDressed(model.skin().dress, wrap, PIECE_BONES.head);
+  if (model) cutAhead(model.skin().dress, Object.values(PIECE_BONES));
+  for (const kind of model ? ORGAN_KINDS : []) organsOf(kind);
+  for (const piece of model ? GORE_PIECES : []) stumpOf(piece);
+  const primer = primed ? gorePrimer(flesh, primed.group) : null;
+  if (primer) group.add(primer.group);
   let guts: Gut[] = [];
   let opened = 0;
   let crushed = false;
@@ -310,21 +312,6 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     return m;
   };
 
-  /** The body's velocity, m/s: the mean of his points' over the step. */
-  const carryOf = (state: GameState, out: THREE.Vector3): THREE.Vector3 => {
-    const b = state.skier.thrown;
-    out.set(state.skier.vx, state.skier.vy, state.skier.vz);
-    if (!b) return out;
-    out.set(0, 0, 0);
-    const n = b.points.length / 3;
-    for (let i = 0; i < n; i++) {
-      out.x += b.points[3 * i] - b.last[3 * i];
-      out.y += b.points[3 * i + 1] - b.last[3 * i + 1];
-      out.z += b.points[3 * i + 2] - b.last[3 * i + 2];
-    }
-    return out.multiplyScalar(1 / (n * TUNING.dt));
-  };
-
   /** A point of the skin's frame in the world. */
   const world = (p: V3, M: THREE.Matrix4, out = new THREE.Vector3()) => toV(p, out).applyMatrix4(M);
   const worldDir = (d: V3, M: THREE.Matrix4, out = new THREE.Vector3()) =>
@@ -339,8 +326,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     speed: number,
   ) => {
     for (const kind of kinds) {
-      const mesh = meshOf(organ(kind, rng));
-      group.add(mesh);
+      const geo = organ(kind, rng);
       v1.set(
         dir.x + rng.range(-0.7, 0.7),
         dir.y + rng.range(-0.3, 0.8),
@@ -349,9 +335,9 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
       const u = speed * rng.range(0.4, 1.1);
       v2.set(carry.x + v1.x * u, carry.y + v1.y * u, carry.z + v1.z * u);
       v3.set(rng.range(-1, 1), rng.range(-1, 1), rng.range(-1, 1)).normalize();
-      gibs.push({
-        mesh,
-        lump: lump(
+      lumps.add(
+        geo,
+        lump(
           { x: at.x + v1.x * 0.05, y: at.y + v1.y * 0.05, z: at.z + v1.z * 0.05 },
           { x: v2.x, y: v2.y, z: v2.z },
           kind === "liver" ? 0.035 : kind === "gobbet" ? 0.015 : 0.025,
@@ -359,7 +345,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
           rng.range(4, 14),
           1 / 60,
         ),
-      });
+      );
     }
   };
   const throwBones = (
@@ -369,8 +355,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     carry: THREE.Vector3,
   ) => {
     for (let i = 0; i < count; i++) {
-      const mesh = meshOf(rng.chance(0.5) ? rng.pick(ribs) : rng.pick(shards));
-      group.add(mesh);
+      const geo = rng.chance(0.5) ? rng.pick(ribs) : rng.pick(shards);
       v1.set(
         dir.x + rng.range(-1, 1),
         dir.y + rng.range(0, 1),
@@ -378,9 +363,9 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
       ).normalize();
       const u = rng.range(1.5, 4.5);
       v3.set(rng.range(-1, 1), rng.range(-1, 1), rng.range(-1, 1)).normalize();
-      gibs.push({
-        mesh,
-        lump: lump(
+      lumps.add(
+        geo,
+        lump(
           { x: at.x, y: at.y, z: at.z },
           { x: carry.x + v1.x * u, y: carry.y + v1.y * u, z: carry.z + v1.z * u },
           0.01,
@@ -388,7 +373,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
           rng.range(8, 20),
           1 / 60,
         ),
-      });
+      );
     }
   };
 
@@ -427,7 +412,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     before: number,
   ) => {
     const frames = skin.frames;
-    const dressed = createDressed(skin.dress, wrap);
+    const dressed = createDressed(skin.dress, wrap, PIECE_BONES[piece]);
     dressed.frames(frames, pieceCollapse(piece, frames, before));
     dressed.group.matrixAutoUpdate = false;
     dressed.group.matrix.copy(M);
@@ -499,7 +484,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
       group.remove(p.dressed.group);
       p.dressed.dispose();
     }
-    for (const g of gibs) group.remove(g.mesh);
+    lumps.clear();
     for (const g of guts) {
       group.remove(g.mesh);
       g.mesh.geometry.dispose();
@@ -511,7 +496,6 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     pieces = [];
     tornSeen = 0;
     smears.clear();
-    gibs = [];
     guts = [];
     bodyStumps.clear();
     openMeshes.clear();
@@ -534,8 +518,10 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
   };
 
   const forget = (r: Remains) => {
-    dead.remove(r.body, r.blood.group, ...r.loose, ...r.guts, ...r.pieces.map((d) => d.group));
+    dead.remove(r.body, r.blood.group, r.lumps.group, ...r.loose, ...r.guts);
+    dead.remove(...r.pieces.map((d) => d.group));
     disposeFigure(r.body);
+    r.lumps.dispose();
     for (const d of r.pieces) d.dispose();
     for (const m of r.guts) m.geometry.dispose();
     r.blood.dispose();
@@ -551,16 +537,19 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     const r: Remains = {
       body,
       pieces: pieces.map((p) => p.dressed),
-      loose: [...gibs.map((g) => g.mesh), ...(spike ? [spike] : []), ...smears.take()],
+      loose: [...(spike ? [spike] : []), ...smears.take()],
+      lumps,
       guts: guts.map((g) => g.mesh),
       blood,
     };
     for (const o of [...r.pieces.map((d) => d.group), ...r.loose, ...r.guts]) dead.add(o);
+    dead.add(lumps.group);
     remains.push(r);
     while (remains.length > REMAINS) forget(remains.shift()!);
     // Owned by the dead now: the next rider starts with none of it.
     pieces = [];
-    gibs = [];
+    lumps = createLumps(flesh);
+    group.add(lumps.group);
     guts = [];
     spike = null;
     blood = createBlood(wrap);
@@ -576,410 +565,412 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
     trees.clear();
   };
 
+  const frame = (state: GameState, model: GoreModel, simDt: number, dt: number, veil = 0): void => {
+    if (primer) primer.group.visible = false;
+    const veiled = veil > 0.4;
+    blood.group.visible = !veiled;
+    for (const m of fractures.values()) m.visible = !veiled;
+    for (const p of pieces) p.dressed.group.visible = !veiled; // its bones fly in the X-ray
+    if (state !== last || state.tick === 0) {
+      if (last) clearAll(model);
+      last = state;
+    }
+    const g = state.gore;
+    if (!g) return;
+    const crush = g.crushed >= 0 ? Math.min(1, (state.t - g.crushed) * 12) : 0;
+    model.setGore(g.lost, crush);
+    const skin = model.skin();
+    skin.group.updateWorldMatrix(true, false);
+    const M = skin.group.matrixWorld;
+    const f = skin.frames;
+    const carry = bodyVelocity(state, new THREE.Vector3());
+
+    // THE PIECES, as they tear — or are crushed — and what a smash left on the solid.
+    for (; tornSeen < g.torn.length; tornSeen++) {
+      const t = g.torn[tornSeen];
+      let before = 0;
+      for (const p of g.torn.slice(0, tornSeen)) before |= 1 << GORE_PIECES.indexOf(p.piece);
+      if (t.pulped) pulp(t.piece, t, f, M);
+      else tear(t.piece, t.t, t, skin, M, before);
+    }
+    smears.update(g.smears, state.t);
+    // THE TRUNK OPENED.
+    GORE_OPEN.forEach((_, bit) => {
+      if (!(g.open & (1 << bit)) || opened & (1 << bit)) return;
+      opened |= 1 << bit;
+      const o = openAt(bit, f);
+      const at = world(o.at, M);
+      const dir = worldDir(o.out, M);
+      if (bit === 0) {
+        throwOut(["heart", "lung", "lung", "gobbet", "gobbet", "gobbet"], at, dir, carry, 3.5);
+        throwBones(4, at, dir, carry);
+      } else {
+        throwOut(["liver", "kidney", "spleen", "gobbet", "gobbet"], at, dir, carry, 2.8);
+        for (let i = 0; i < 2; i++) {
+          const count = 22;
+          const geo = tubeGeometry(count);
+          const mesh = new THREE.Mesh(geo, flesh);
+          mesh.castShadow = true;
+          mesh.frustumCulled = false;
+          group.add(mesh);
+          // Unfurled out of the wound, going his way with him — spilled
+          // slower the faster he goes, the wind taking it back at once.
+          const spill = 1 / (1 + carry.length() / 4);
+          v1.copy(dir).multiplyScalar(rng.range(1.5, 3) * spill);
+          v1.y += rng.range(0.5, 1.5) * spill;
+          guts.push({
+            mesh,
+            rope: rope(
+              { x: at.x, y: at.y, z: at.z },
+              { x: carry.x, y: carry.y, z: carry.z },
+              { x: v1.x, y: v1.y, z: v1.z },
+              count,
+              0.06,
+              0.017,
+              1 / 60,
+            ),
+            held: true,
+          });
+        }
+      }
+      blood.emit(at, dir, 1.2, 80, 0.7, carry, () => rng.next());
+    });
+    // THE MIDDLE CRUSHED square on: its blood flung on ahead past the solid and back off its face.
+    if (g.middle >= 0 && !middled) {
+      middled = true;
+      const at = world(f.chest.head, M);
+      const u = Math.hypot(g.way.x, g.way.y, g.way.z);
+      const way = new THREE.Vector3(g.way.x, g.way.y, g.way.z).normalize();
+      // Round a wide solid (a tower's pad), never through it: out past both its sides.
+      const o = [...g.smears].reverse().find((m) => m.r > 0);
+      const ahead = (from: THREE.Vector3, n: number) =>
+        blood.emit(from, way, u * 0.45, n, 0.9, carry, () => rng.next());
+      if (o && o.r > 0.25)
+        for (const k of [1, -1])
+          ahead(at.clone().add(v1.set(way.z * k, 0, -way.x * k).setLength(o.r + 0.15)), 250);
+      else ahead(at, 500);
+      blood.emit(at, way.clone().negate(), 3.5, 300, 1.3, carry, () => rng.next());
+      smears.fling(at, g.way, state.t, o && { x: o.cx, z: o.cz, r: o.r });
+    }
+    // THE SKULL CRUSHED.
+    if (g.crushed >= 0 && !crushed) {
+      crushed = true;
+      const at = world(f.head.head, M);
+      const dir = worldDir(f.head.y, M);
+      throwOut(
+        ["brain", "brain", "brain", "skull", "skull", "skull", "skull", "eye", "gobbet"],
+        at,
+        dir,
+        carry,
+        3,
+      );
+      blood.emit(at, dir, 1.4, 90, 0.9, carry, () => rng.next());
+    }
+    // THROUGH THE ROTOR (`gore-rotor.ts`), a fan off every point a blade went through,
+    // and UNDER A PISTE MACHINE (`gore-tiller.ts`), spat out of the back of its tiller.
+    const fling = (at: THREE.Vector3, way: THREE.Vector3, k: number) => {
+      throwOut(["gobbet", "gobbet", "gobbet", "gobbet"], at, way, carry, k * 0.8);
+      throwBones(2, at, way, carry);
+    };
+    bladed = rotorStruck(state, bladed, blood, carry, rng, fling);
+    tillerSpray(state, simDt, blood, rng, level.groundAt, fling);
+    // THE SPIKE through him.
+    if (g.impaled && !spike) {
+      spike = meshOf(spikeGeo);
+      group.add(spike);
+    }
+    // The bloodied point stands out of him by how far he has slid.
+    const i = g.impaled;
+    if (i && spike) spike.scale.set(1, Math.min(0.6, 0.18 + i.sunk) / 0.6, 1);
+    if (i && spike) spike.position.set(i.x, i.y - i.sunk - 0.18, i.z);
+    trees.update(state);
+
+    // THE BODY'S STUMPS and the opened trunk, carried on his skin.
+    const cuts = new Set(cutsOf(g.lost));
+    for (const [piece, mesh] of bodyStumps) {
+      if (!cuts.has(piece)) {
+        mesh.parent?.remove(mesh);
+        bodyStumps.delete(piece);
+      }
+    }
+    for (const piece of cuts) {
+      let mesh = bodyStumps.get(piece);
+      if (!mesh) {
+        mesh = meshOf(stumpOf(piece));
+        skin.group.add(mesh);
+        bodyStumps.set(piece, mesh);
+      }
+      const c = cutOf(piece, f);
+      placeOn(mesh, c.at, c.out);
+    }
+    GORE_OPEN.forEach((name, bit) => {
+      if (!(g.open & (1 << bit))) return;
+      let mesh = openMeshes.get(bit);
+      if (!mesh) {
+        mesh = meshOf(openings[name]);
+        skin.group.add(mesh);
+        openMeshes.set(bit, mesh);
+      }
+      const o = openAt(bit, f);
+      placeOn(mesh, o.at, o.out);
+    });
+    // THE OPEN FRACTURES: a long bone broken through, its end out of the skin.
+    const grades = fracturesOf(state.skier.body);
+    const hidden = bodyHides(g.lost);
+    const open = openBreaksOf(grades, hidden);
+    const arms = armBreaks(state.skier.body.injuries);
+    for (const [bone, m] of fractures) {
+      if (open.has(bone)) continue;
+      m.parent?.remove(m);
+      fractures.delete(bone);
+    }
+    for (const [bone, grade] of open) {
+      const limb = limbAt(skin.cloth, bone);
+      const geo = breakOf(bone, grade, limb);
+      let mesh = fractures.get(bone);
+      if (!mesh) {
+        mesh = meshOf(geo);
+        skin.group.add(mesh);
+        fractures.set(bone, mesh);
+      }
+      mesh.geometry = geo;
+      const o = OPEN_BONES[bone as (typeof BONES)[number]]!;
+      const arm = arms[bone.endsWith("L") ? 0 : 1];
+      placeBreak(mesh, o, f[o.on], breakAlong(bone, f[o.on], arm), limb);
+    }
+
+    // THE PIECES AND THE GIBS FLOWN.
+    const fly = Math.min(dt, 1 / 30);
+    for (const p of pieces) {
+      stepStick(p.stick, ground, fly);
+      const a = v1.set(p.stick.a.x, p.stick.a.y, p.stick.a.z);
+      const d = v2.set(p.stick.b.x - a.x, p.stick.b.y - a.y, p.stick.b.z - a.z).normalize();
+      q1.setFromUnitVectors(p.d0, d);
+      q2.setFromAxisAngle(p.d0, p.stick.roll);
+      q1.multiply(q2);
+      m1.makeTranslation(-p.a0.x, -p.a0.y, -p.a0.z);
+      m2.makeRotationFromQuaternion(q1);
+      m2.multiply(m1);
+      m1.makeTranslation(a.x, a.y, a.z);
+      m1.multiply(m2);
+      p.dressed.group.matrix.multiplyMatrices(m1, p.base);
+      p.dressed.group.matrixWorldNeedsUpdate = true;
+    }
+    lumps.update(ground, fly);
+    const belly = GORE_OPEN.indexOf("abdomen");
+    const held = world(openAt(belly, f).at, M, v3);
+    for (const gut of [...guts]) {
+      // Held at the wound by the mesentery while there is a body to hold
+      // it and it has not been torn off it; a piece torn off flies alone.
+      gut.rope.held = gut.held ? { x: held.x, y: held.y, z: held.z } : null;
+      const torn = stepRope(gut.rope, ground, fly);
+      if (!gut.rope.held) gut.held = false;
+      layTube(gut.mesh.geometry, gut.rope.p, gut.rope.r);
+      if (torn) {
+        const mesh = new THREE.Mesh(tubeGeometry(torn.p.length), flesh);
+        mesh.castShadow = true;
+        mesh.frustumCulled = false;
+        group.add(mesh);
+        layTube(mesh.geometry, torn.p, torn.r);
+        guts.push({ mesh, rope: torn, held: false });
+      }
+    }
+
+    // THE BLOOD. A torn wound has no cloth over it: it pours out where
+    // it is, pumped on the beat until its artery closes. Every part hit
+    // hard bleeds under his clothes until they hold no more, then runs
+    // out of the lowest gap in them (`gore-leaks.ts`) — a slow bleed in
+    // drops, not a stream (`gore-flow.ts`). What reaches the snow pools.
+    const beat = g.rate > 0 ? g.pulse : 0;
+    drift.lerp(carry, 1 - Math.exp(-dt / 0.2));
+    if (simDt > 0) {
+      const fallen = Math.min(1, Math.max(0, -(carry.y - lastFall) / (G * simDt)));
+      felt += (1 - fallen - felt) * (1 - Math.exp(-simDt / 0.1));
+      lastFall = carry.y;
+    }
+    // A stream takes the body's way only when it is really going (lying, it jitters).
+    const going = drift.length();
+    const along = new THREE.Vector3()
+      .copy(drift)
+      .multiplyScalar(Math.min(1, Math.max(0, (going - 1.5) / 2)));
+    const wounds: Leak[] = [];
+    for (const piece of cuts) {
+      const c = cutOf(piece, f);
+      const torn = g.torn.find((p) => p.piece === piece)?.t ?? g.mortal;
+      const flow = arterial(GORE.blood.flow[PIECE_LOOK[piece].flow], state.t - torn);
+      wounds.push({ at: world(c.at, M), dir: worldDir(c.out, M), ...flow, key: piece });
+    }
+    GORE_OPEN.forEach((name, bit) => {
+      if (!(g.open & (1 << bit))) return;
+      const o = openAt(bit, f);
+      wounds.push({
+        at: world(o.at, M),
+        dir: worldDir(o.out, M),
+        ...arterial(GORE.blood.flow[name], state.t - g.mortal),
+        key: name,
+      });
+    });
+    if (g.crushed >= 0) {
+      wounds.push({
+        at: world(f.head.head, M),
+        dir: worldDir(f.head.y, M),
+        ...arterial(GORE.blood.flow.crush, state.t - g.crushed),
+        key: "skull",
+      });
+    }
+    if (g.impaled) {
+      const i = g.impaled;
+      wounds.push({
+        at: new THREE.Vector3(i.x, i.y - i.sunk, i.z),
+        dir: new THREE.Vector3(0, 1, 0),
+        ...arterial(GORE.blood.flow.impaled, state.t - i.t),
+        key: "spike",
+      });
+    }
+    // A limb or the head torn open on a spike's tip welling where it tore.
+    for (const h of g.gashes) {
+      const share = GORE.blood.flow.gash * woundFlow(state.t - h.t, false).ooze;
+      const at = world(f[POINT_BONE[h.point]].head, M);
+      wounds.push({ at, dir: new THREE.Vector3(0, 1, 0), share, key: `gash${h.point}` });
+    }
+    // Every open fracture bleeds where the bone stands out.
+    for (const [bone, mesh] of fractures) {
+      wounds.push({
+        at: mesh.getWorldPosition(new THREE.Vector3()),
+        dir: new THREE.Vector3(0, 1, 0).applyQuaternion(
+          mesh.getWorldQuaternion(new THREE.Quaternion()),
+        ),
+        share: GORE.blood.flow.fracture * woundFlow(state.t - brokeAt(state, bone), false).ooze,
+        key: bone,
+      });
+    }
+    // A piece's own end bleeds out what was in it, for a moment.
+    for (const p of pieces) {
+      const age = state.t - p.t;
+      if (age > 3) continue;
+      v1.set(
+        p.stick.a.x - p.stick.b.x,
+        p.stick.a.y - p.stick.b.y,
+        p.stick.a.z - p.stick.b.z,
+      ).normalize();
+      wounds.push({
+        at: new THREE.Vector3(p.stick.a.x, p.stick.a.y, p.stick.a.z),
+        dir: v1.clone(),
+        share: 0.08 * Math.exp(-age),
+        key: `piece${pieces.indexOf(p)}`,
+      });
+    }
+    // The parts hit hard, under his clothes.
+    const height = (p: V3) => world(p, M, v3).y;
+    const hard = bleedsOf(state).filter((h) => h.out > 0 && !hidden.has(PART_BONE[h.part]));
+    wounds.push(...hardLeaks(hard, f, M, cheek));
+    const total = wounds.reduce((s, w) => s + w.share, 0) || 1;
+    const lying = carry.length() < 0.6;
+    poolClock += dt;
+    const pool = poolClock > 0.1;
+    if (pool) poolClock = 0;
+    const hips = world(f.pelvis.head, M);
+    const low = hips.y - level.groundAt(hips.x, hips.z) < 0.5;
+    for (const w of wounds) {
+      const q = g.out * (w.share / total);
+      if (w.part) {
+        // Soaked into the clothes round the wound until full, then out at the gap.
+        const had = soakedIn.get(w.part) ?? 0;
+        soakedIn.set(w.part, had + q * simDt);
+        if (had < HOLD) continue;
+      }
+      const speed = pourOf(w, beat, g.rate);
+      // A torn artery spurting streams whatever it pours; anything else
+      // streams only fast enough, and lets go as drops below that.
+      if (q >= STREAM || (w.spurt ?? 0) > 0.5)
+        blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next(), w.lead, felt);
+      const n = drips.count(w.key, w.lead || q < STREAM ? q : 0, simDt);
+      if (n > 0) blood.emit(w.at, w.dir, speed, n, 0.25, along, () => rng.next());
+      // What reaches the snow under a gap lying on it pools there; a
+      // share runs on under him, into the one pool round his body.
+      if (w.at.y - level.groundAt(w.at.x, w.at.z) < 0.45) {
+        poolAcc.set(w.key, (poolAcc.get(w.key) ?? 0) + q * simDt * (low ? 0.3 : 1));
+        if (low) poolAcc.set("body", (poolAcc.get("body") ?? 0) + q * simDt * 0.7);
+      }
+    }
+    if (pool && lying) {
+      for (const [key, litres] of poolAcc) {
+        const at = key === "body" ? hips : wounds.find((w) => w.key === key)?.at;
+        if (at && litres > 0) blood.pool(key, at.x, at.z, litres, spreadAt(state, at.x, at.z));
+      }
+      poolAcc.clear();
+    }
+    // The pieces lying on the snow bleed into it too.
+    if (pool) {
+      for (const p of pieces) {
+        if (!p.stick.down || state.t - p.t > 8) continue;
+        blood.pool(
+          `lying${pieces.indexOf(p)}`,
+          p.stick.a.x,
+          p.stick.a.z,
+          0.012 * Math.exp(-(state.t - p.t) / 4),
+          spreadAt(state, p.stick.a.x, p.stick.a.z),
+        );
+      }
+    }
+    blood.update(fly, {
+      heightAt: (x, z) => level.groundAt(x, z),
+      normalAt: (x, z, out) => ground.normalAt(x, z, out as V3),
+    });
+
+    // HIS CLOTHES SOAKED: round every torn wound, and from every part hit
+    // hard down the way it runs to the gap it comes out of.
+    soakClock += dt;
+    if (soakClock > 0.25) {
+      soakClock = 0;
+      const bind = bindPose().frames;
+      const wet = Math.min(1, 0.3 + g.blood / 1.2);
+      const reach = 0.1 + Math.min(0.35, g.blood * 0.12);
+      const at: { at: V3; r: number; blood?: readonly [number, number, number] }[] = [];
+      for (const piece of cuts)
+        at.push({ at: cutOf(piece, bind).at, r: reach + PIECE_LOOK[piece].r });
+      GORE_OPEN.forEach((_, bit) => {
+        if (g.open & (1 << bit)) at.push({ at: openAt(bit, bind).at, r: reach + 0.12 });
+      });
+      if (g.crushed >= 0) at.push({ at: bind.head.head, r: reach + 0.1 });
+      if (g.impaled) at.push({ at: bind[POINT_BONE[g.impaled.point]].head, r: reach + 0.1 });
+      for (const bone of open.keys()) {
+        const o = OPEN_BONES[bone as (typeof BONES)[number]]!;
+        const b = bind[o.on];
+        const k = breakAlong(bone, b, null);
+        const p = { x: b.head.x + b.y.x * k, y: b.head.y + b.y.y * k, z: b.head.z + b.y.z * k };
+        at.push({ at: p, r: 0.08 + reach * 0.4 });
+      }
+      for (const h of hard) {
+        if (h.part === "head") {
+          at.push(...faceRuns(bind, cheek));
+          continue;
+        }
+        const litres = soakedIn.get(h.part) ?? 0;
+        if (litres <= 0.005) continue;
+        const gap = lowestGap(h.part, f, height);
+        at.push(
+          ...soakPath(
+            partAt(h.part, bind),
+            gapAt(gap, bind),
+            Math.min(1, litres / HOLD),
+            0.07 + Math.min(0.2, 0.5 * Math.sqrt(litres)),
+          ),
+        );
+      }
+      if (at.length > 0) soak.cloth(skin.cloth, at, Math.max(wet, hard.length > 0 ? 0.9 : 0));
+    }
+  };
+
   return {
     group,
     leave,
     clearRemains,
     setPace: (k) => blood.setPace((pace = k)),
-    update(state, model, simDt, dt, veil = 0) {
-      const veiled = veil > 0.4;
-      blood.group.visible = !veiled;
-      for (const m of fractures.values()) m.visible = !veiled;
-      for (const p of pieces) p.dressed.group.visible = !veiled; // its bones fly in the X-ray
-      if (state !== last || state.tick === 0) {
-        if (last) clearAll(model);
-        last = state;
-      }
-      const g = state.gore;
-      if (!g) return;
-      const crush = g.crushed >= 0 ? Math.min(1, (state.t - g.crushed) * 12) : 0;
-      model.setGore(g.lost, crush);
-      const skin = model.skin();
-      skin.group.updateWorldMatrix(true, false);
-      const M = skin.group.matrixWorld;
-      const f = skin.frames;
-      const carry = carryOf(state, new THREE.Vector3());
-
-      // THE PIECES, as they tear — or are crushed — and what a smash left on the solid.
-      for (; tornSeen < g.torn.length; tornSeen++) {
-        const t = g.torn[tornSeen];
-        let before = 0;
-        for (const p of g.torn.slice(0, tornSeen)) before |= 1 << GORE_PIECES.indexOf(p.piece);
-        if (t.pulped) pulp(t.piece, t, f, M);
-        else tear(t.piece, t.t, t, skin, M, before);
-      }
-      smears.update(g.smears, state.t);
-      // THE TRUNK OPENED.
-      GORE_OPEN.forEach((_, bit) => {
-        if (!(g.open & (1 << bit)) || opened & (1 << bit)) return;
-        opened |= 1 << bit;
-        const o = openAt(bit, f);
-        const at = world(o.at, M);
-        const dir = worldDir(o.out, M);
-        if (bit === 0) {
-          throwOut(["heart", "lung", "lung", "gobbet", "gobbet", "gobbet"], at, dir, carry, 3.5);
-          throwBones(4, at, dir, carry);
-        } else {
-          throwOut(["liver", "kidney", "spleen", "gobbet", "gobbet"], at, dir, carry, 2.8);
-          for (let i = 0; i < 2; i++) {
-            const count = 22;
-            const geo = tubeGeometry(count);
-            const mesh = new THREE.Mesh(geo, flesh);
-            mesh.castShadow = true;
-            mesh.frustumCulled = false;
-            group.add(mesh);
-            // Unfurled out of the wound, going his way with him — spilled
-            // slower the faster he goes, the wind taking it back at once.
-            const spill = 1 / (1 + carry.length() / 4);
-            v1.copy(dir).multiplyScalar(rng.range(1.5, 3) * spill);
-            v1.y += rng.range(0.5, 1.5) * spill;
-            guts.push({
-              mesh,
-              rope: rope(
-                { x: at.x, y: at.y, z: at.z },
-                { x: carry.x, y: carry.y, z: carry.z },
-                { x: v1.x, y: v1.y, z: v1.z },
-                count,
-                0.06,
-                0.017,
-                1 / 60,
-              ),
-              held: true,
-            });
-          }
-        }
-        blood.emit(at, dir, 1.2, 80, 0.7, carry, () => rng.next());
-      });
-      // THE MIDDLE CRUSHED square on: its blood flung on ahead past the solid and back off its face.
-      if (g.middle >= 0 && !middled) {
-        middled = true;
-        const at = world(f.chest.head, M);
-        const u = Math.hypot(g.way.x, g.way.y, g.way.z);
-        const way = new THREE.Vector3(g.way.x, g.way.y, g.way.z).normalize();
-        // Round a wide solid (a tower's pad), never through it: out past both its sides.
-        const o = [...g.smears].reverse().find((m) => m.r > 0);
-        const ahead = (from: THREE.Vector3, n: number) =>
-          blood.emit(from, way, u * 0.45, n, 0.9, carry, () => rng.next());
-        if (o && o.r > 0.25)
-          for (const k of [1, -1])
-            ahead(at.clone().add(v1.set(way.z * k, 0, -way.x * k).setLength(o.r + 0.15)), 250);
-        else ahead(at, 500);
-        blood.emit(at, way.clone().negate(), 3.5, 300, 1.3, carry, () => rng.next());
-        smears.fling(at, g.way, state.t, o && { x: o.cx, z: o.cz, r: o.r });
-      }
-      // THE SKULL CRUSHED.
-      if (g.crushed >= 0 && !crushed) {
-        crushed = true;
-        const at = world(f.head.head, M);
-        const dir = worldDir(f.head.y, M);
-        throwOut(
-          ["brain", "brain", "brain", "skull", "skull", "skull", "skull", "eye", "gobbet"],
-          at,
-          dir,
-          carry,
-          3,
-        );
-        blood.emit(at, dir, 1.4, 90, 0.9, carry, () => rng.next());
-      }
-      // THROUGH THE ROTOR (`gore-rotor.ts`), a fan off every point a blade went through,
-      // and UNDER A PISTE MACHINE (`gore-tiller.ts`), spat out of the back of its tiller.
-      const fling = (at: THREE.Vector3, way: THREE.Vector3, k: number) => {
-        throwOut(["gobbet", "gobbet", "gobbet", "gobbet"], at, way, carry, k * 0.8);
-        throwBones(2, at, way, carry);
-      };
-      bladed = rotorStruck(state, bladed, blood, carry, rng, fling);
-      tillerSpray(state, simDt, blood, rng, level.groundAt, fling);
-      // THE SPIKE through him.
-      if (g.impaled && !spike) {
-        spike = meshOf(spikeGeo);
-        group.add(spike);
-      }
-      // The bloodied point stands out of him by how far he has slid.
-      const i = g.impaled;
-      if (i && spike) spike.scale.set(1, Math.min(0.6, 0.18 + i.sunk) / 0.6, 1);
-      if (i && spike) spike.position.set(i.x, i.y - i.sunk - 0.18, i.z);
-      trees.update(state);
-
-      // THE BODY'S STUMPS and the opened trunk, carried on his skin.
-      const cuts = new Set(cutsOf(g.lost));
-      for (const [piece, mesh] of bodyStumps) {
-        if (!cuts.has(piece)) {
-          mesh.parent?.remove(mesh);
-          bodyStumps.delete(piece);
-        }
-      }
-      for (const piece of cuts) {
-        let mesh = bodyStumps.get(piece);
-        if (!mesh) {
-          mesh = meshOf(stumpOf(piece));
-          skin.group.add(mesh);
-          bodyStumps.set(piece, mesh);
-        }
-        const c = cutOf(piece, f);
-        placeOn(mesh, c.at, c.out);
-      }
-      GORE_OPEN.forEach((name, bit) => {
-        if (!(g.open & (1 << bit))) return;
-        let mesh = openMeshes.get(bit);
-        if (!mesh) {
-          mesh = meshOf(openings[name]);
-          skin.group.add(mesh);
-          openMeshes.set(bit, mesh);
-        }
-        const o = openAt(bit, f);
-        placeOn(mesh, o.at, o.out);
-      });
-      // THE OPEN FRACTURES: a long bone broken through, its end out of the skin.
-      const grades = fracturesOf(state.skier.body);
-      const hidden = bodyHides(g.lost);
-      const open = openBreaksOf(grades, hidden);
-      const arms = armBreaks(state.skier.body.injuries);
-      for (const [bone, m] of fractures) {
-        if (open.has(bone)) continue;
-        m.parent?.remove(m);
-        fractures.delete(bone);
-      }
-      for (const [bone, grade] of open) {
-        const limb = limbAt(skin.cloth, bone);
-        const geo = breakOf(bone, grade, limb);
-        let mesh = fractures.get(bone);
-        if (!mesh) {
-          mesh = meshOf(geo);
-          skin.group.add(mesh);
-          fractures.set(bone, mesh);
-        }
-        mesh.geometry = geo;
-        const o = OPEN_BONES[bone as (typeof BONES)[number]]!;
-        const arm = arms[bone.endsWith("L") ? 0 : 1];
-        placeBreak(mesh, o, f[o.on], breakAlong(bone, f[o.on], arm), limb);
-      }
-
-      // THE PIECES AND THE GIBS FLOWN.
-      const fly = Math.min(dt, 1 / 30);
-      for (const p of pieces) {
-        stepStick(p.stick, ground, fly);
-        const a = v1.set(p.stick.a.x, p.stick.a.y, p.stick.a.z);
-        const d = v2.set(p.stick.b.x - a.x, p.stick.b.y - a.y, p.stick.b.z - a.z).normalize();
-        q1.setFromUnitVectors(p.d0, d);
-        q2.setFromAxisAngle(p.d0, p.stick.roll);
-        q1.multiply(q2);
-        m1.makeTranslation(-p.a0.x, -p.a0.y, -p.a0.z);
-        m2.makeRotationFromQuaternion(q1);
-        m2.multiply(m1);
-        m1.makeTranslation(a.x, a.y, a.z);
-        m1.multiply(m2);
-        p.dressed.group.matrix.multiplyMatrices(m1, p.base);
-        p.dressed.group.matrixWorldNeedsUpdate = true;
-      }
-      for (const o of gibs) {
-        stepLump(o.lump, ground, fly);
-        o.mesh.position.set(o.lump.p.x, o.lump.p.y, o.lump.p.z);
-        v1.set(o.lump.axis.x, o.lump.axis.y, o.lump.axis.z);
-        o.mesh.quaternion.setFromAxisAngle(v1, o.lump.turn);
-      }
-      const belly = GORE_OPEN.indexOf("abdomen");
-      const held = world(openAt(belly, f).at, M, v3);
-      for (const gut of [...guts]) {
-        // Held at the wound by the mesentery while there is a body to hold
-        // it and it has not been torn off it; a piece torn off flies alone.
-        gut.rope.held = gut.held ? { x: held.x, y: held.y, z: held.z } : null;
-        const torn = stepRope(gut.rope, ground, fly);
-        if (!gut.rope.held) gut.held = false;
-        layTube(gut.mesh.geometry, gut.rope.p, gut.rope.r);
-        if (torn) {
-          const mesh = new THREE.Mesh(tubeGeometry(torn.p.length), flesh);
-          mesh.castShadow = true;
-          mesh.frustumCulled = false;
-          group.add(mesh);
-          layTube(mesh.geometry, torn.p, torn.r);
-          guts.push({ mesh, rope: torn, held: false });
-        }
-      }
-
-      // THE BLOOD. A torn wound has no cloth over it: it pours out where
-      // it is, pumped on the beat until its artery closes. Every part hit
-      // hard bleeds under his clothes until they hold no more, then runs
-      // out of the lowest gap in them (`gore-leaks.ts`) — a slow bleed in
-      // drops, not a stream (`gore-flow.ts`). What reaches the snow pools.
-      const beat = g.rate > 0 ? g.pulse : 0;
-      drift.lerp(carry, 1 - Math.exp(-dt / 0.2));
-      if (simDt > 0) {
-        const fallen = Math.min(1, Math.max(0, -(carry.y - lastFall) / (G * simDt)));
-        felt += (1 - fallen - felt) * (1 - Math.exp(-simDt / 0.1));
-        lastFall = carry.y;
-      }
-      // A stream takes the body's way only when it is really going (lying, it jitters).
-      const going = drift.length();
-      const along = new THREE.Vector3()
-        .copy(drift)
-        .multiplyScalar(Math.min(1, Math.max(0, (going - 1.5) / 2)));
-      const wounds: Leak[] = [];
-      for (const piece of cuts) {
-        const c = cutOf(piece, f);
-        const torn = g.torn.find((p) => p.piece === piece)?.t ?? g.mortal;
-        const flow = arterial(GORE.blood.flow[PIECE_LOOK[piece].flow], state.t - torn);
-        wounds.push({ at: world(c.at, M), dir: worldDir(c.out, M), ...flow, key: piece });
-      }
-      GORE_OPEN.forEach((name, bit) => {
-        if (!(g.open & (1 << bit))) return;
-        const o = openAt(bit, f);
-        wounds.push({
-          at: world(o.at, M),
-          dir: worldDir(o.out, M),
-          ...arterial(GORE.blood.flow[name], state.t - g.mortal),
-          key: name,
-        });
-      });
-      if (g.crushed >= 0) {
-        wounds.push({
-          at: world(f.head.head, M),
-          dir: worldDir(f.head.y, M),
-          ...arterial(GORE.blood.flow.crush, state.t - g.crushed),
-          key: "skull",
-        });
-      }
-      if (g.impaled) {
-        const i = g.impaled;
-        wounds.push({
-          at: new THREE.Vector3(i.x, i.y - i.sunk, i.z),
-          dir: new THREE.Vector3(0, 1, 0),
-          ...arterial(GORE.blood.flow.impaled, state.t - i.t),
-          key: "spike",
-        });
-      }
-      // A limb or the head torn open on a spike's tip welling where it tore.
-      for (const h of g.gashes) {
-        const share = GORE.blood.flow.gash * woundFlow(state.t - h.t, false).ooze;
-        const at = world(f[POINT_BONE[h.point]].head, M);
-        wounds.push({ at, dir: new THREE.Vector3(0, 1, 0), share, key: `gash${h.point}` });
-      }
-      // Every open fracture bleeds where the bone stands out.
-      for (const [bone, mesh] of fractures) {
-        wounds.push({
-          at: mesh.getWorldPosition(new THREE.Vector3()),
-          dir: new THREE.Vector3(0, 1, 0).applyQuaternion(
-            mesh.getWorldQuaternion(new THREE.Quaternion()),
-          ),
-          share: GORE.blood.flow.fracture * woundFlow(state.t - brokeAt(state, bone), false).ooze,
-          key: bone,
-        });
-      }
-      // A piece's own end bleeds out what was in it, for a moment.
-      for (const p of pieces) {
-        const age = state.t - p.t;
-        if (age > 3) continue;
-        v1.set(
-          p.stick.a.x - p.stick.b.x,
-          p.stick.a.y - p.stick.b.y,
-          p.stick.a.z - p.stick.b.z,
-        ).normalize();
-        wounds.push({
-          at: new THREE.Vector3(p.stick.a.x, p.stick.a.y, p.stick.a.z),
-          dir: v1.clone(),
-          share: 0.08 * Math.exp(-age),
-          key: `piece${pieces.indexOf(p)}`,
-        });
-      }
-      // The parts hit hard, under his clothes.
-      const height = (p: V3) => world(p, M, v3).y;
-      const hard = bleedsOf(state).filter((h) => h.out > 0 && !hidden.has(PART_BONE[h.part]));
-      wounds.push(...hardLeaks(hard, f, M, cheek));
-      const total = wounds.reduce((s, w) => s + w.share, 0) || 1;
-      const lying = carry.length() < 0.6;
-      poolClock += dt;
-      const pool = poolClock > 0.1;
-      if (pool) poolClock = 0;
-      const hips = world(f.pelvis.head, M);
-      const low = hips.y - level.groundAt(hips.x, hips.z) < 0.5;
-      for (const w of wounds) {
-        const q = g.out * (w.share / total);
-        if (w.part) {
-          // Soaked into the clothes round the wound until full, then out at the gap.
-          const had = soakedIn.get(w.part) ?? 0;
-          soakedIn.set(w.part, had + q * simDt);
-          if (had < HOLD) continue;
-        }
-        const speed = pourOf(w, beat, g.rate);
-        // A torn artery spurting streams whatever it pours; anything else
-        // streams only fast enough, and lets go as drops below that.
-        if (q >= STREAM || (w.spurt ?? 0) > 0.5)
-          blood.stream(w.at, w.dir, speed, q, simDt, along, () => rng.next(), w.lead, felt);
-        const n = drips.count(w.key, w.lead || q < STREAM ? q : 0, simDt);
-        if (n > 0) blood.emit(w.at, w.dir, speed, n, 0.25, along, () => rng.next());
-        // What reaches the snow under a gap lying on it pools there; a
-        // share runs on under him, into the one pool round his body.
-        if (w.at.y - level.groundAt(w.at.x, w.at.z) < 0.45) {
-          poolAcc.set(w.key, (poolAcc.get(w.key) ?? 0) + q * simDt * (low ? 0.3 : 1));
-          if (low) poolAcc.set("body", (poolAcc.get("body") ?? 0) + q * simDt * 0.7);
-        }
-      }
-      if (pool && lying) {
-        for (const [key, litres] of poolAcc) {
-          const at = key === "body" ? hips : wounds.find((w) => w.key === key)?.at;
-          if (at && litres > 0) blood.pool(key, at.x, at.z, litres, spreadAt(state, at.x, at.z));
-        }
-        poolAcc.clear();
-      }
-      // The pieces lying on the snow bleed into it too.
-      if (pool) {
-        for (const p of pieces) {
-          if (!p.stick.down || state.t - p.t > 8) continue;
-          blood.pool(
-            `lying${pieces.indexOf(p)}`,
-            p.stick.a.x,
-            p.stick.a.z,
-            0.012 * Math.exp(-(state.t - p.t) / 4),
-            spreadAt(state, p.stick.a.x, p.stick.a.z),
-          );
-        }
-      }
-      blood.update(fly, {
-        heightAt: (x, z) => level.groundAt(x, z),
-        normalAt: (x, z, out) => ground.normalAt(x, z, out as V3),
-      });
-
-      // HIS CLOTHES SOAKED: round every torn wound, and from every part hit
-      // hard down the way it runs to the gap it comes out of.
-      soakClock += dt;
-      if (soakClock > 0.25) {
-        soakClock = 0;
-        const bind = bindPose().frames;
-        const wet = Math.min(1, 0.3 + g.blood / 1.2);
-        const reach = 0.1 + Math.min(0.35, g.blood * 0.12);
-        const at: { at: V3; r: number; blood?: readonly [number, number, number] }[] = [];
-        for (const piece of cuts)
-          at.push({ at: cutOf(piece, bind).at, r: reach + PIECE_LOOK[piece].r });
-        GORE_OPEN.forEach((_, bit) => {
-          if (g.open & (1 << bit)) at.push({ at: openAt(bit, bind).at, r: reach + 0.12 });
-        });
-        if (g.crushed >= 0) at.push({ at: bind.head.head, r: reach + 0.1 });
-        if (g.impaled) at.push({ at: bind[POINT_BONE[g.impaled.point]].head, r: reach + 0.1 });
-        for (const bone of open.keys()) {
-          const o = OPEN_BONES[bone as (typeof BONES)[number]]!;
-          const b = bind[o.on];
-          const k = breakAlong(bone, b, null);
-          const p = { x: b.head.x + b.y.x * k, y: b.head.y + b.y.y * k, z: b.head.z + b.y.z * k };
-          at.push({ at: p, r: 0.08 + reach * 0.4 });
-        }
-        for (const h of hard) {
-          if (h.part === "head") {
-            at.push(...faceRuns(bind, cheek));
-            continue;
-          }
-          const litres = soakedIn.get(h.part) ?? 0;
-          if (litres <= 0.005) continue;
-          const gap = lowestGap(h.part, f, height);
-          at.push(
-            ...soakPath(
-              partAt(h.part, bind),
-              gapAt(gap, bind),
-              Math.min(1, litres / HOLD),
-              0.07 + Math.min(0.2, 0.5 * Math.sqrt(litres)),
-            ),
-          );
-        }
-        if (at.length > 0) soak.cloth(skin.cloth, at, Math.max(wet, hard.length > 0 ? 0.9 : 0));
-      }
+    update(state, model, simDt, dt, veil) {
+      const at = performance.now();
+      frame(state, model, simDt, dt, veil);
+      goreMeter.updateMs = performance.now() - at;
     },
     clear(model) {
       clearAll(model);
@@ -993,6 +984,8 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
       clearAll(null);
       clearRemains();
       blood.dispose();
+      primer?.dispose();
+      primed?.dispose();
       flesh.dispose();
       for (const g of geometries) g.dispose();
     },

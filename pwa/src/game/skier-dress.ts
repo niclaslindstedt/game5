@@ -128,6 +128,92 @@ function geometryOf(part: DressPart | ModelPart, ghost: boolean): THREE.BufferGe
   return g;
 }
 
+/** Every array a part holds a value a vertex in, and how many values. */
+const PER_VERTEX = [
+  ["position", 3],
+  ["normal", 3],
+  ["color", 3],
+  ["skinIndex", 4],
+  ["skinWeight", 4],
+  ["flutter", 1],
+  ["shiver", 1],
+] as const;
+/** The parts cut down so far, a part's by the bones kept. */
+const TRIMMED = new WeakMap<DressPart, Map<string, DressPart>>();
+
+/** `part` cut down to the triangles that move with one of the bones `keep`
+ * (any weight on one), its vertices renumbered — the skin of a piece torn
+ * off, whose every other triangle its pose gathers into a point. Cut once
+ * a part and a set of bones, and shared: never written to. */
+function keepBones<P extends DressPart>(part: P, keep: readonly number[]): P {
+  const key = keep.join();
+  let cuts = TRIMMED.get(part);
+  if (!cuts) TRIMMED.set(part, (cuts = new Map()));
+  const known = cuts.get(key);
+  if (known) return known as P;
+  const kept = new Set(keep);
+  const count = part.position.length / 3;
+  // Each vertex's verdict, and the number it is given: -1 none yet.
+  const moves = new Int8Array(count);
+  for (let v = 0; v < count; v++) {
+    for (let k = 0; k < 4; k++) {
+      if (part.skinWeight[4 * v + k] > 0 && kept.has(part.skinIndex[4 * v + k])) moves[v] = 1;
+    }
+  }
+  const to = new Int32Array(count).fill(-1);
+  const order: number[] = [];
+  const index: number[] = [];
+  const tri = part.index;
+  for (let i = 0; i < tri.length; i += 3) {
+    if (!moves[tri[i]] && !moves[tri[i + 1]] && !moves[tri[i + 2]]) continue;
+    for (let k = 0; k < 3; k++) {
+      const v = tri[i + k];
+      if (to[v] < 0) {
+        to[v] = order.length;
+        order.push(v);
+      }
+      index.push(to[v]);
+    }
+  }
+  const out: Record<string, unknown> = { ...part, index };
+  for (const [name, n] of PER_VERTEX) {
+    const from = (part as Record<string, unknown>)[name] as number[] | undefined;
+    if (!from) continue;
+    const array = new Array<number>(order.length * n);
+    for (let i = 0; i < order.length; i++) {
+      for (let k = 0; k < n; k++) array[i * n + k] = from[order[i] * n + k];
+    }
+    out[name] = array;
+  }
+  cuts.set(key, out as P);
+  return out as P;
+}
+
+/** What `dress` is cut from: the modelled kit, the wingsuit or the outfit
+ * off the loom (each cut once and kept). */
+function cutOf(dress: SkierDress) {
+  const model =
+    dress.model && dress.suit === undefined && !dress.bare
+      ? modelOf(dress.outfit, dress.kit)
+      : null;
+  const cut = model
+    ? model
+    : dress.suit === undefined
+      ? dressOutfit(dress.outfit, dress.tone, dress.bare)
+      : suitDress(dress.outfit, dress.suit, dress.tone, dress.bare);
+  return { model, cut };
+}
+
+const boneIndices = (keep: readonly SkierBone[]) => keep.map((b) => SKIER_BONES.indexOf(b));
+
+/** Cut `dress` down to each of `pieces` ahead of the moment it is asked
+ * for (`createDressed`'s `keep`): a hit tears several at once. */
+export function cutAhead(dress: SkierDress, pieces: readonly (readonly SkierBone[])[]): void {
+  const { cut } = cutOf(dress);
+  for (const keep of pieces)
+    for (const part of [cut.cloth, cut.hard]) keepBones(part, boneIndices(keep));
+}
+
 const ax = new THREE.Vector3();
 const ay = new THREE.Vector3();
 const az = new THREE.Vector3();
@@ -142,8 +228,9 @@ function setBone(bone: THREE.Bone, f: BoneFrame): void {
   bone.position.set(f.head.x, f.head.y, f.head.z);
 }
 
-/** THE SKIER IN HIS OUTFIT, skinned and ready to pose. */
-export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
+/** THE SKIER IN HIS OUTFIT, skinned and ready to pose — or, with `keep`,
+ * only what moves with those bones (a piece torn off, `gore-view.ts`). */
+export function createDressed(dress: SkierDress, wrap: Wrap, keep?: readonly SkierBone[]): Dressed {
   const group = new THREE.Group();
   group.name = "dressed";
   const bones = SKIER_BONES.map((name) => {
@@ -157,10 +244,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   SKIER_BONES.forEach((name, i) => setBone(bones[i], bind[name]));
   // The modelled kit's SPRING BONES after the rig's own, bound with the
   // chest's axes at their heads (`player-model.ts`).
-  const model =
-    dress.model && dress.suit === undefined && !dress.bare
-      ? modelOf(dress.outfit, dress.kit)
-      : null;
+  const { model, cut } = cutOf(dress);
   const kit = model ? KITS[model.kit] : null;
   const springs = model && kit ? createSprings(bind, model.heads, kit.springs) : null;
   const fx =
@@ -176,14 +260,12 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
   group.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton([...bones, ...fx]);
 
-  const cut = model
-    ? model
-    : dress.suit === undefined
-      ? dressOutfit(dress.outfit, dress.tone, dress.bare)
-      : suitDress(dress.outfit, dress.suit, dress.tone, dress.bare);
   const ghost = !!dress.ghost;
   const flutter = flutterUniforms();
-  const geos = [geometryOf(cut.cloth, ghost), geometryOf(cut.hard, ghost)];
+  const kept = keep && boneIndices(keep);
+  const geos = [cut.cloth, cut.hard].map((part) =>
+    geometryOf(kept ? keepBones(part, kept) : part, ghost),
+  );
   const mats = [
     wrap(
       // Both sides of the cloth: a hem, a cuff and a collar are open, and
@@ -212,6 +294,7 @@ export function createDressed(dress: SkierDress, wrap: Wrap): Dressed {
     // A skinned mesh's bound is its bind pose's; the skier is small and on
     // screen whenever he matters.
     m.frustumCulled = false;
+    m.visible = (g.index?.count ?? 1) > 0;
     group.add(m);
     return m;
   });

@@ -180,6 +180,7 @@ export function createBlood(wrap: Wrap): Blood {
    * before it met the snow. */
   let torn = false;
   const relWay = { x: 0, y: 0, z: 0 };
+  drops.name = "blood-drops";
   drops.frustumCulled = false;
   drops.count = 0;
   group.add(drops);
@@ -201,6 +202,7 @@ export function createBlood(wrap: Wrap): Blood {
   );
   const splatGeo = splatGeometry();
   const splats = new THREE.InstancedMesh(splatGeo, splatMat, SPLATS);
+  splats.name = "blood-splats";
   splats.frustumCulled = false;
   splats.count = 0;
   splats.renderOrder = 1;
@@ -222,6 +224,7 @@ export function createBlood(wrap: Wrap): Blood {
     "blood-pool",
   );
   const pooled = new THREE.InstancedMesh(splatGeo, poolMat, POOLS);
+  pooled.name = "blood-pools";
   pooled.frustumCulled = false;
   pooled.count = 0;
   // Under the drops' blots.
@@ -261,6 +264,8 @@ export function createBlood(wrap: Wrap): Blood {
   const fresh = new THREE.Color().setHex(0x8e0a08);
   const old = new THREE.Color().setHex(GORE_COLOURS.clot);
   let ground: BloodGround | null = null;
+  /** The blots and the pools laid since they were last sent, first to last. */
+  const laid = [splats, pooled].map((mesh) => ({ mesh, lo: Infinity, hi: -1 }));
 
   const lay = (
     mesh: THREE.InstancedMesh,
@@ -284,8 +289,22 @@ export function createBlood(wrap: Wrap): Blood {
     mesh.setMatrixAt(index, m);
     c.copy(fresh).lerp(old, Math.max(0, Math.min(1, 1 - shade)));
     mesh.setColorAt(index, c);
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.instanceColor!.needsUpdate = true;
+    const d = mesh === splats ? laid[0] : laid[1];
+    d.lo = Math.min(d.lo, index);
+    d.hi = Math.max(d.hi, index);
+  };
+  /** Send the blots laid since the last frame, a run a mesh, and no more. */
+  const send = () => {
+    for (const d of laid) {
+      if (d.hi < d.lo) continue;
+      const n = d.hi - d.lo + 1;
+      d.mesh.instanceMatrix.addUpdateRange(d.lo * 16, n * 16);
+      d.mesh.instanceColor!.addUpdateRange(d.lo * 3, n * 3);
+      d.mesh.instanceMatrix.needsUpdate = true;
+      d.mesh.instanceColor!.needsUpdate = true;
+      d.lo = Infinity;
+      d.hi = -1;
+    }
   };
 
   /** How far back along stream `o` it reaches, s: to where it meets the
@@ -379,8 +398,12 @@ export function createBlood(wrap: Wrap): Blood {
       k++;
     }
     tubeGeo.setDrawRange(0, k * (RINGS - 1) * SIDES * 6);
-    tubeGeo.attributes.position.needsUpdate = true;
-    tubeGeo.attributes.normal.needsUpdate = true;
+    // Only the streams laid are sent — none, while none pours.
+    for (const a of [tubeGeo.attributes.position, tubeGeo.attributes.normal]) {
+      if (k === 0) break;
+      (a as THREE.BufferAttribute).addUpdateRange(0, k * RINGS * SIDES * 3);
+      a.needsUpdate = true;
+    }
     asked.length = 0;
   };
 
@@ -491,6 +514,7 @@ export function createBlood(wrap: Wrap): Blood {
     update(dt, g) {
       ground = g;
       layTubes();
+      send();
       if (dt <= 0) return;
       let j = 0;
       for (let i = 0; i < live; i++) {
@@ -535,13 +559,19 @@ export function createBlood(wrap: Wrap): Blood {
         drops.setMatrixAt(i, m);
       }
       drops.count = live;
-      drops.instanceMatrix.needsUpdate = true;
+      if (live > 0) {
+        drops.instanceMatrix.addUpdateRange(0, live * 16);
+        drops.instanceMatrix.needsUpdate = true;
+      }
+      // The blots the drops laid as they met the snow.
+      send();
     },
     setPace(k) {
       pace = k;
     },
     flying: () => live,
     settle() {
+      send();
       live = 0;
       drops.count = 0;
       pools.clear();

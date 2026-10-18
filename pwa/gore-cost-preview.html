@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Gore cost harness</title>
+    <!-- Tooling page for scripts/gore-cost.mjs: not part of the app build
+         (vite builds only index.html) and never deployed. It stages a
+         high-speed hit with the injuries on and measures every frame of it
+         through the game's own renderer. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0b1116;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <script type="module" src="/src/tools/gore-cost-harness.ts"></script>
+  </body>
+</html>

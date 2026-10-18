@@ -15,7 +15,25 @@
 
 import * as THREE from "three";
 
+import type { Blood } from "./gore-blood.ts";
+import type { Lumps } from "./gore-lumps.ts";
+import type { Dressed } from "./skier-dress.ts";
+
 type Wrap = <M extends THREE.Material>(m: M, name: string) => M;
+
+/** How many dead are left lying at once; the oldest goes first. */
+export const REMAINS = 4;
+
+/** ONE BODY LEFT LYING: the statue of him, what was torn out of him, and
+ * the blood he left — all owned here now. */
+export type Remains = {
+  body: THREE.Group;
+  pieces: Dressed[];
+  loose: THREE.Mesh[];
+  lumps: Lumps;
+  guts: THREE.Mesh[];
+  blood: Blood;
+};
 
 const p = new THREE.Vector3();
 const n = new THREE.Vector3();

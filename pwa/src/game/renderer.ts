@@ -58,7 +58,7 @@ import { createHurtLens } from "./xray-scene.ts";
 import { wrecked } from "./impact-forecast.ts";
 import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
-import { createGoreView, type GoreView } from "./gore-view.ts";
+import { createGoreView, type GoreModel, type GoreView } from "./gore-view.ts";
 import { createLifts, type Lifts, type SeatedRider } from "./lifts.ts";
 import { createThrownLens, subjectPose } from "./camera-subject.ts";
 import { summitShare } from "./camera-summit.ts";
@@ -166,7 +166,7 @@ export function createWorldRenderer(
   gl.toneMapping = THREE.ACESFilmicToneMapping;
   gl.toneMappingExposure = 1.05;
   gl.shadowMap.enabled = SHADOW_LOOK[video.shadows].size > 0;
-  gl.shadowMap.type = THREE.PCFSoftShadowMap;
+  gl.shadowMap.type = THREE.PCFShadowMap; // three draws PCFSoft as PCF, after compiling as PCFSoft
   gl.setOpaqueSort(byMaterial);
   // A ski cut by a lift's rope is drawn clipped to its piece (`ski-cut-view.ts`).
   gl.localClippingEnabled = true;
@@ -447,6 +447,10 @@ export function createWorldRenderer(
     gl.setRenderTarget(null);
   }
 
+  const addGore = (lv: Level, model: GoreModel): void => {
+    gore = createGoreView(lv, wrap, () => FOREST_LOOK[video.forest].variants, model);
+    scene.add(gore.group);
+  };
   const api: WorldRendererExt = {
     gl,
     async load(state, cold = false) {
@@ -521,6 +525,7 @@ export function createWorldRenderer(
       kit = playerKitOf(state);
       riders = runsOf(state).map((run, i) => riderFor(i, run.skier.spec));
       ghost = createGhostModel(scene, wrap);
+      if (state.gore) addGore(lv, riders[0].model); // its programs compiled behind the card
       lastTick = -1;
       lastState = null;
       lens.snap();
@@ -669,10 +674,7 @@ export function createWorldRenderer(
         r.airTime = skier.airborne ? skier.airTime : r.airTime * (skier.airborne ? 1 : 0);
         if (skier.airborne) r.vy = skier.vy;
       }
-      if (state.gore && !gore) {
-        gore = createGoreView(level, wrap, () => FOREST_LOOK[video.forest].variants);
-        scene.add(gore.group);
-      }
+      if (state.gore && !gore) addGore(level, riders[0].model);
       gore?.setPace(pace);
       gore?.update(state, riders[0].model, simDt, dt, hurt.veil());
       lastTick = state.tick;

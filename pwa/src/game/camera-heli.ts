@@ -32,8 +32,12 @@
 import { HELI, heliQuat, rotate, type HeliState, type Quat } from "@engine";
 
 import { blendLens, HANDOVER, type LensPose } from "./camera-rigs.ts";
+import { rollFor } from "./camera-roll.ts";
 import { bodyOf, COCKPIT, cockpitFov, headOf } from "./cockpit-plan.ts";
 import type { CameraRung } from "./renderer-api.ts";
+
+// The cockpits and the plane read the roll from here, as they always have.
+export { rollFor };
 
 /** Per rung: the standoff behind the machine, m, and what each m/s of
  * speed adds; the height over its middle, m; how far ahead of it the look
@@ -158,26 +162,6 @@ function noseLens(at: HeliAt, groundAt: (x: number, z: number) => number): LensP
     roll: 0,
   };
 }
-
-/** THE ROLL that stands a lens looking along `f` (unit, world) the right
- * way up for `up` (world), as `aimLens` lays it on: the angle from the
- * up a level lens would have to `up`, about the look. */
-export function rollFor(f: Vec, up: Vec): number {
-  // A level lens's right is the look crossed with the world's up, and its
-  // up the right crossed with the look.
-  let rx = -f.z;
-  let rz = f.x;
-  const rl = Math.hypot(rx, rz);
-  if (rl < 1e-6) return 0;
-  rx /= rl;
-  rz /= rl;
-  const ux = -rz * f.y;
-  const uy = rz * f.x - rx * f.z;
-  const uz = rx * f.y;
-  return Math.atan2(up.x * rx + up.z * rz, up.x * ux + up.y * uy + up.z * uz);
-}
-
-type Vec = { x: number; y: number; z: number };
 
 /** THE COCKPIT LENS: the pilot's eyes in the right seat, bolted to the
  * airframe, the head looking out or down and into a turn (`headOf`). */

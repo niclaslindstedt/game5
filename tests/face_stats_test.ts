@@ -4,7 +4,13 @@
 
 import { describe, expect, it } from "vitest";
 
-import { areaStats, loadFaceStats } from "../pwa/src/game/face-stats.ts";
+import {
+  areaStats,
+  loadFaceStats,
+  pitchOf,
+  profileOf,
+  profileStats,
+} from "../pwa/src/game/face-stats.ts";
 
 describe("a real face's figures", () => {
   it("reads a drop, a steepest pitch past the mean, and its pistes", async () => {
@@ -31,5 +37,20 @@ describe("a real face's figures", () => {
 
   it("is null for no face", async () => {
     expect(await loadFaceStats("no-such-face")).toBeNull();
+  });
+});
+
+describe("a run's pitch", () => {
+  it("is the fall line of the snow under it, not the line it takes across it", () => {
+    // A plane falling 0.6 in z, and a piste traversing it almost level.
+    const height = (_x: number, z: number): number => -0.6 * z;
+    const line = [
+      { x: 0, z: 0 },
+      { x: 400, z: 20 },
+    ];
+    const f = profileStats([profileOf(line, pitchOf(height, 10), (x, z) => height(x, z))])!;
+    expect(f.steepest).toBeCloseTo(0.6, 6);
+    expect(f.mean).toBeCloseTo(0.6, 6);
+    expect(f.drop).toBeCloseTo(12, 6);
   });
 });

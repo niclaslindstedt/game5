@@ -498,17 +498,20 @@ function buildLanding(kit: FacadeKit, level: Level, plan: SkiJumpPlan): void {
     const g = groundOf(level, plan, b.d, a);
     const top = g + L.board.lift + (b.tick ? 0 : L.board.h * 0.2);
     kit.box(a - 0.03, g - 0.1, b.d - 0.03, a + 0.03, top, b.d + 0.03, FACADE.steel, DARK, null);
+    kit.post(a, b.d, g - 0.1, top, 0.05, "steel");
   }
   // The flagpoles, and the anemometers' masts with their crossarm.
   for (const fl of plan.flags) {
     const a = fl.side * (landingWidth(hill, fl.d) / 2 + L.flag.out);
     const g = groundOf(level, plan, fl.d, a);
     kit.column(a, fl.d, g - 0.1, g + L.flag.pole, 0.035, FACADE.steel, 0xdfe3e6, 5);
+    kit.post(a, fl.d, g - 0.1, g + L.flag.pole, 0.05, "steel");
   }
   for (const m of plan.meters) {
     const a = m.side * (landingWidth(hill, m.d) / 2 + L.meter.out);
     const g = groundOf(level, plan, m.d, a);
     kit.column(a, m.d, g - 0.1, g + L.meter.pole, 0.06, FACADE.steel, STEEL, 6);
+    kit.post(a, m.d, g - 0.1, g + L.meter.pole, 0.06, "steel");
     kit.box(
       a - 0.5,
       g + L.meter.pole - 0.05,
@@ -563,6 +566,8 @@ function buildStands(kit: FacadeKit, level: Level, plan: SkiJumpPlan): void {
       CONCRETE,
       null,
     );
+    // The stalk, about as wide as it is deep, met as one post.
+    kit.post((x0 + x1) / 2, d, g - 0.5, floor + 2.3, (x1 - x0) / 2 - 0.3, "steel");
     kit.box(x0, floor, d - c, x1, floor + 2.3, d + c, FACADE.cladding, 0xdfe3e8, {
       layer: FACADE.snow,
       tint: 0xffffff,
@@ -596,6 +601,14 @@ function buildStands(kit: FacadeKit, level: Level, plan: SkiJumpPlan): void {
   // The stair tower beside the cabins.
   const top = J.d[0] - L.judges.cabin / 2 - 1.6;
   const gTop = groundOf(level, plan, top, a0);
+  kit.post(
+    a0,
+    top,
+    gTop - 0.5,
+    yOf(plan, J.d[0]) + L.judges.eye + 2.6,
+    (x1 - x0) / 2 - 0.3,
+    "steel",
+  );
   kit.box(
     x0 + 0.3,
     gTop - 0.5,
@@ -641,6 +654,7 @@ function buildStands(kit: FacadeKit, level: Level, plan: SkiJumpPlan): void {
           STEEL,
           null,
         );
+        kit.post(xx, c.d + da, gl - 0.2, deckY + 1.06, 0.08, "steel");
       }
     }
     kit.box(
@@ -688,6 +702,7 @@ function buildStands(kit: FacadeKit, level: Level, plan: SkiJumpPlan): void {
     const d = dx * f.fx + dz * f.fz;
     const a = dx * f.rx + dz * f.rz;
     kit.column(a, d, m.y - 0.2, m.y + m.height + 0.3, 0.18, FACADE.steel, STEEL, 8);
+    kit.post(a, d, m.y - 0.2, m.y + m.height, 0.18, "steel");
     const arm = (m.lamps.length * 0.7) / 2 + 0.3;
     kit.box(
       a - 0.06,

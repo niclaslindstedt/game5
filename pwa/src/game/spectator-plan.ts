@@ -107,6 +107,27 @@ export function netShape(level: Level): { out: number; height: number } {
   return nets ? { out: nets.gap, height: nets.height } : { out: NETS.out, height: NETS.height };
 }
 
+/** Where the nets' POSTS stand either side of the piste, on the snow: one
+ * every `NETS.post` m of the stretch they fence (`netStretch`). */
+export function netPosts(level: Level, finish: Checkpoint): { x: number; y: number; z: number }[] {
+  const { from, to } = netStretch(level, finish);
+  const shape = netShape(level);
+  // The piste's points are 2 m apart.
+  const every = Math.round(NETS.post / 2);
+  const out: { x: number; y: number; z: number }[] = [];
+  for (const side of [-1, 1]) {
+    let n = 0;
+    for (const p of level.track.points) {
+      if (p.s < from || p.s > to) continue;
+      if (n++ % every !== 0) continue;
+      const x = p.x + Math.cos(p.heading) * side * (p.width / 2 + shape.out);
+      const z = p.z - Math.sin(p.heading) * side * (p.width / 2 + shape.out);
+      out.push({ x, y: level.groundAt(x, z), z });
+    }
+  }
+  return out;
+}
+
 /** WHO GETS A CROWD: every run with something to watch — a course
  * counted (a race, or the labs' run alone) or a terrain park scored (the
  * tricks run). A free ride's ski area has its own people (`crowd.ts`). */

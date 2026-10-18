@@ -16,6 +16,8 @@
 // Three-free: the arrays it fills are made a geometry by `facade-mesh.ts`,
 // and the suite reads them as they are.
 
+import type { Stuff, Upright } from "@engine";
+
 import { FACADE, FACADE_TILE, tiledAlong, type FacadeLayer } from "./facade-paint.ts";
 
 export type V3 = [number, number, number];
@@ -112,6 +114,11 @@ export class FacadeKit {
   minArea = 0;
   /** Every `inset` set down, when an array is handed in. */
   openings: Opening[] | null = null;
+  /** Every `post` stood, in the world, when an array is handed in: what of
+   * the building a body meets (`drawn-solids.ts`). */
+  posts: Upright[] | null = null;
+  /** Lay no triangle at all: a kit run for its `posts` alone. */
+  dry = false;
 
   /** Set the frame down: the building's origin at (x, y, z), its +z turned
    * to `yaw`. */
@@ -122,6 +129,14 @@ export class FacadeKit {
     this.cos = Math.cos(yaw);
     this.sin = Math.sin(yaw);
     return this;
+  }
+
+  /** A POST a body meets, from (x, y0, z) of the frame up to `y1`, radius
+   * `r`: handed to `posts` when the kit is asked for them, nothing drawn. */
+  post(x: number, z: number, y0: number, y1: number, r: number, stuff: Stuff): void {
+    if (!this.posts) return;
+    const [wx, wy, wz] = this.world([x, y0, z]);
+    this.posts.push({ x: wx, z: wz, y: wy, height: y1 - y0, radius: r, stuff });
   }
 
   /** A point of the building's frame in the world. */
@@ -158,6 +173,7 @@ export class FacadeKit {
     layer: FacadeLayer,
     tint: Tint,
   ): void {
+    if (this.dry) return;
     const wa = this.world(a);
     const wb = this.world(b);
     const wc = this.world(c);

@@ -32,6 +32,9 @@ export const ARCH = {
   panel: 1.25,
   /** The dyed band on the snow: its depth along the track — three rows. */
   band: 1.8,
+  /** The FLOODLIGHT MAST outside each foot: how far out past it, its
+   * height and its foot's radius. */
+  mast: { out: 2.6, height: 8, radius: 0.09 },
 };
 
 /** THE OWED GATE'S MARKER, m: its width and its height over the panels it

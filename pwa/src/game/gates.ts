@@ -92,7 +92,7 @@ import type { SkyLook } from "./sky.ts";
 import { createRouteSigns } from "./route-sign.ts";
 import { createRunSigns } from "./run-signs.ts";
 import { createSlalomPoles } from "./slalom-poles.ts";
-import { netShape, netStretch, NETS } from "./spectator-plan.ts";
+import { netPosts, netShape, netStretch } from "./spectator-plan.ts";
 import { createStartHouse } from "./start-house.ts";
 import { FacadeKit } from "./facade-kit.ts";
 import { facadeGeometry, facadeMaterial } from "./facade-mesh.ts";
@@ -115,7 +115,7 @@ const WAND = { gap: 1.2, height: 0.45, post: 0.6 };
  * across. */
 /** How far off an edge pole is drawn, m. */
 const STAKE_REACH = 450;
-const FLOOD = { mast: 8, dip: 0.28, glow: 2.6, night: 4, day: 0.15 };
+const FLOOD = { mast: ARCH.mast.height, dip: 0.28, glow: 2.6, night: 4, day: 0.15 };
 
 /** One floodlight: where its lamp is and which way it shines, unit — and
  * a fire's light beside them (`fires-view.ts`). */
@@ -492,10 +492,10 @@ export function createGates(
         group.add(new THREE.Mesh(line, rope));
       }
       // The mast, outside the foot, and the lamp head on it.
-      const mx = f.x + a.rx * side * 2.6;
-      const mz = f.z + a.rz * side * 2.6;
+      const mx = f.x + a.rx * side * ARCH.mast.out;
+      const mz = f.z + a.rz * side * ARCH.mast.out;
       const my = level.groundAt(mx, mz);
-      const mast = new THREE.CylinderGeometry(0.06, 0.09, FLOOD.mast, 8);
+      const mast = new THREE.CylinderGeometry(0.06, ARCH.mast.radius, FLOOD.mast, 8);
       mast.translate(mx, my + FLOOD.mast / 2, mz);
       geos.push(mast);
       const pole = new THREE.Mesh(mast, alloy);
@@ -562,14 +562,15 @@ export function createGates(
     const shape = netShape(level);
     // THE POSTS, one instanced draw for both sides however long the course
     // (a downhill's nets run three kilometres).
-    const postEvery = Math.round(NETS.post / 2);
     const postGeo = new THREE.CylinderGeometry(0.03, 0.03, shape.height + 0.3, 5);
     postGeo.translate(0, shape.height / 2, 0);
     geos.push(postGeo);
-    let postCount = 0;
-    for (const p of pts) if (p.s >= from && p.s <= to) postCount += 1;
-    const posts = new THREE.InstancedMesh(postGeo, dark, 2 * Math.ceil(postCount / postEvery) + 2);
-    let postAt = 0;
+    const postsAt = netPosts(level, cp);
+    const posts = new THREE.InstancedMesh(postGeo, dark, Math.max(1, postsAt.length));
+    postsAt.forEach((p, i) =>
+      posts.setMatrixAt(i, m4.compose(at.set(p.x, p.y, p.z), q.identity(), one)),
+    );
+    posts.count = postsAt.length;
     // A downhill's A-nets are hung in rows, so the sheet can bulge round a
     // racer driven into it (`net-bulge.ts`); the B-nets are one strip.
     const rows = hasNets(level) ? NET_ROWS : 1;
@@ -596,9 +597,6 @@ export function createGates(
             idx.push(a, a + 1, k + r, k + r, a + 1, k + r + 1);
           }
         }
-        if (n % postEvery === 0 && postAt < posts.count) {
-          posts.setMatrixAt(postAt++, m4.compose(at.set(px, py, pz), q.identity(), one));
-        }
         n++;
         run += 2;
       }
@@ -612,7 +610,6 @@ export function createGates(
       group.add(new THREE.Mesh(g, netMat.back), new THREE.Mesh(g, netMat.front));
       if (rows > 1) sheets.push({ geo: g, base: Float32Array.from(pos), rows });
     }
-    posts.count = postAt;
     posts.instanceMatrix.needsUpdate = true;
     group.add(posts);
 

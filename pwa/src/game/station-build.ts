@@ -32,7 +32,7 @@ import { stationHouses, type Level, type LiftPlan } from "@engine";
 
 import { FACADE } from "./facade-paint.ts";
 import { FacadeKit, type Tint } from "./facade-kit.ts";
-import type { Part, StationLayout } from "./station-plan.ts";
+import { HOOD_STRUT, type Part, type StationLayout } from "./station-plan.ts";
 import type { Span } from "./village-cuts.ts";
 
 /** The tints, sRGB: white leaves a layer as painted. */
@@ -66,15 +66,15 @@ const SNOW = { roof: 0.35, small: 0.22 };
 /** Build every station of the map into one kit, leaving out triangles
  * under `minArea` m² (a far cut, `village-cuts.ts`), and push onto `spans`
  * the run of triangles each house took, at its place (the stations' own
- * parts by each triangle's middle). */
+ * parts by each triangle's middle) — onto `kit` when one is handed in. */
 export function buildStationHouses(
   level: Level,
   plans: readonly LiftPlan[],
   layout: StationLayout,
   minArea = 0,
   spans?: Span[],
+  kit = new FacadeKit(),
 ): FacadeKit {
-  const kit = new FacadeKit();
   kit.minArea = minArea;
   for (const p of plans) {
     stationHouses(level, p).forEach((h, end) => {
@@ -383,10 +383,12 @@ function terminal(
   // THE PEDESTAL under the wheel, and the struts at the back corners.
   kit.column(0, 0, ground(0, 0) - 0.4, 0, 0.36, FACADE.steel, T.as, 10);
   for (const sx of [-1, 1]) {
-    // `station-plan.ts`'s HOOD_INSET: past where the chairs swing round.
-    const x = sx * (w / 2 - 0.7);
-    const z = -1.6;
-    kit.box(x - 0.2, ground(x, z) - 0.4, z - 0.2, x + 0.2, 0, z + 0.2, FACADE.steel, T.as, null);
+    // Past where the chairs swing round.
+    const x = sx * (w / 2 - HOOD_STRUT.inset);
+    const z = -HOOD_STRUT.back;
+    const r = HOOD_STRUT.half;
+    kit.box(x - r, ground(x, z) - 0.4, z - r, x + r, 0, z + r, FACADE.steel, T.as, null);
+    kit.post(x, z, ground(x, z) - 0.4, 0, r * 1.2, "steel");
   }
   kit.column(0, -w / 2 + 1.4, body + cap, body + cap + 3.2, 0.03, FACADE.steel, T.dark, 4);
 }

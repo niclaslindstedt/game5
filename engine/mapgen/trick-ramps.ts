@@ -60,8 +60,8 @@ export type RampSpec = {
 export const TRICK_RAMPS = {
   kinds: {
     roller: { lip: 15, radius: 30, width: 6, gap: 0, knoll: 0, deck: 1, fall: 20, land: 18 },
-    table: { lip: 25, radius: 22, width: 8, gap: 0, knoll: 0, deck: 5, fall: 20, land: 27 },
-    big: { lip: 35, radius: 16, width: 9, gap: 0, knoll: 0, deck: 4, fall: 24, land: 32 },
+    table: { lip: 25, radius: 22, width: 8, gap: 0, knoll: 0, deck: 5, fall: 24, land: 27 },
+    big: { lip: 35, radius: 16, width: 9, gap: 0, knoll: 0, deck: 4, fall: 27, land: 32 },
     gap: { lip: 45, radius: 13, width: 9, gap: 7, knoll: 1.5, deck: 1, fall: 26, land: 34 },
     booter: { lip: 55, radius: 11, width: 8, gap: 5, knoll: 1.5, deck: 0.5, fall: 30, land: 37 },
   } satisfies Record<RampKind, RampSpec>,

@@ -79,6 +79,19 @@ export type Fence = {
 
 export type StationLayout = { parts: Part[]; fences: Fence[] };
 
+/** A FENCE'S POLES: one every so far along it, m, and how tall. */
+export const FENCE_POLE = { every: 2.2, height: 1.25 } as const;
+
+/** Where a fence's poles stand, from its `a` to its `b`. */
+export function fencePoles(f: Fence): { x: number; z: number }[] {
+  const dx = f.b.x - f.a.x;
+  const dz = f.b.z - f.a.z;
+  const n = Math.max(1, Math.round(Math.hypot(dx, dz) / FENCE_POLE.every));
+  const out: { x: number; z: number }[] = [];
+  for (let i = 0; i <= n; i++) out.push({ x: f.a.x + (dx * i) / n, z: f.a.z + (dz * i) / n });
+  return out;
+}
+
 /** The booth's set-back from the up rope at a foot, and from the way off
  * at a top, m, and how far short of the unload it stands along the line;
  * the corral lane's half-width, m. */
@@ -97,6 +110,10 @@ const CANOPY_CLEAR = 1.5;
 const CHAIR_HALF = 1.2;
 const HOOD_CLEAR = 0.6;
 const HOOD_INSET = 0.7;
+/** A hood's two STRUTS at its back corners (`station-build.ts`'s
+ * `terminal`): set in `HOOD_INSET` from its sides, `back` m behind its
+ * wheel, `half` m their square's half side. */
+export const HOOD_STRUT = { inset: HOOD_INSET, back: 1.6, half: 0.2 } as const;
 /** A hood's underside over the chairs' grips, m, and how far it reaches past
  * the load line or the unload point, m. */
 const HOOD_OVER = 0.2;

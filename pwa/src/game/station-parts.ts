@@ -9,7 +9,13 @@
 import * as THREE from "three";
 
 import { BOARD_FACE } from "./map-board.ts";
-import type { Part, PartKind, StationLayout } from "./station-plan.ts";
+import {
+  FENCE_POLE,
+  fencePoles,
+  type Part,
+  type PartKind,
+  type StationLayout,
+} from "./station-plan.ts";
 
 /** The paints, sRGB. */
 export const STATION_PAINT = {
@@ -157,10 +163,8 @@ const BUILT_ELSEWHERE: ReadonlySet<PartKind> = new Set(["hood", "booth", "canopy
 /** A hood, a canopy and a load line are scaled across to their width. */
 const WIDE: ReadonlySet<PartKind> = new Set(["hood", "canopy", "load"]);
 
-/** A fence's poles: every so far along it, m, and how tall; the rope's
- * height. */
-const POLE_EVERY = 2.2;
-const POLE = 1.25;
+/** A fence's poles' height (`FENCE_POLE`), and the rope's. */
+const POLE = FENCE_POLE.height;
 const ROPE_AT = 0.95;
 
 /** Every station's pieces and fences as instanced meshes, added to
@@ -223,11 +227,11 @@ export function buildStations(
     const dx = f.b.x - f.a.x;
     const dz = f.b.z - f.a.z;
     const len = Math.hypot(dx, dz);
-    const n = Math.max(1, Math.round(len / POLE_EVERY));
+    const at = fencePoles(f);
+    const n = at.length - 1;
     const yaw = Math.atan2(dx, dz) - Math.PI / 2;
     for (let i = 0; i <= n; i++) {
-      const x = f.a.x + (dx * i) / n;
-      const z = f.a.z + (dz * i) / n;
+      const { x, z } = at[i];
       poles.push({
         p: new THREE.Vector3(x, groundAt(x, z), z),
         yaw,

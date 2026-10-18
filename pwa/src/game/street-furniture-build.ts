@@ -150,6 +150,10 @@ function busStop(kit: FacadeKit, level: Level, v: Village): void {
     kit.wall(s * hx, -hz, s * hx, hz * 0.4, 0.12, top - 0.1, FACADE.glazing, 0xdfe8ee);
     kit.wall(s * hx, hz * 0.4, s * hx, -hz, 0.12, top - 0.1, FACADE.glazing, 0xdfe8ee);
   }
+  // The glass met as the posts between its corners (the corners' own are
+  // the engine's, `villageSolids`).
+  for (let i = 1; i < 6; i++) kit.post(-hx + (2 * hx * i) / 6, -hz, -0.3, top, 0.2, "steel");
+  for (const s of [-1, 1]) kit.post(s * hx, -hz * 0.3, -0.3, top, 0.2, "steel");
   // The roof: a thin slab overhanging the front, its snow.
   solid(kit, -hx - 0.15, top, -hz - 0.1, hx + 0.15, top + 0.12, hz + 0.35, STEEL, SNOW);
   solid(kit, -hx - 0.1, top + 0.12, -hz - 0.05, hx + 0.1, top + 0.3, hz + 0.3, SNOW);
@@ -171,6 +175,7 @@ function busStop(kit: FacadeKit, level: Level, v: Village): void {
   const sy = roadY(level, b.sign.x, b.sign.z) + KERB;
   kit.at(b.sign.x, sy, b.sign.z, b.heading + Math.PI / 2);
   solid(kit, -0.04, -0.3, -0.04, 0.04, 2.9, 0.04, STEEL);
+  kit.post(0, 0, -0.3, 2.9, 0.05, "steel");
   disc(kit, 0, 2.55, 0.32, 0xf2c230, 0.05);
   solid(kit, -0.2, 2.47, 0.06, 0.2, 2.63, 0.08, { layer: FACADE.plain, tint: 0x1c5a3a });
   solid(kit, -0.18, 1.3, 0.04, 0.18, 1.8, 0.1, { layer: FACADE.plain, tint: 0xf4f4f0 });
@@ -204,6 +209,7 @@ function snowPole(kit: FacadeKit, level: Level, x: number, z: number): void {
     const tint = i % 2 === 0 ? 0x1c1c1c : 0xf26a12;
     kit.column(0, 0, y0, y1, 0.02, FACADE.plain, tint, 4);
   }
+  kit.post(0, 0, -0.4, h, 0.03, "steel");
   // A reflector near the top.
   kit.glow = 0;
   solid(kit, -0.03, h - 0.35, 0.02, 0.03, h - 0.2, 0.03, { layer: FACADE.plain, tint: 0xfff4e0 });
@@ -225,6 +231,7 @@ function plate(
   const y = level.groundAt(x, z) + LOOSE;
   kit.at(x, y, z, heading);
   solid(kit, -0.035, -0.3, -0.035, 0.035, y0 + h, 0.035, STEEL);
+  kit.post(0, 0, -0.3, y0 + h, 0.05, "steel");
   draw(y0);
   solid(kit, -w / 2, y0 + h, -0.04, w / 2, y0 + h + 0.06, 0.06, SNOW);
 }

@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // WHAT IS DRAWN ON THE SNOW IS SOLID (`pwa/src/game/drawn-solids.ts`,
 // handed to the engine's `setDrawnSolids`): every station's house, booth,
-// hut, mast, canopy column and map board, every sign's post, a wind
-// tunnel's arches and a fire's benches and woodpile stand in `solidsOf`
-// after the map's own (`mapSolidsOf`), which no placement reads — so the
-// map, its fires and its digest are what they were.
+// hut, mast, hood strut, canopy column, map board and corral pole, every
+// sign's post, a wind tunnel's arches, a fire's benches and woodpile, the
+// course's start hut or start house, a ski cross's start frame, the finish
+// arch, its masts and the nets' posts, a ski jump's structure and the ski
+// area's props stand in `solidsOf` after the map's own (`mapSolidsOf`),
+// which no placement reads — so the map, its fires and its digest are what
+// they were — and a skier sent at one of each kind meets it.
 
 import { describe, expect, it } from "vitest";
 
@@ -20,6 +23,7 @@ import {
 
 import { drawnSolids } from "../pwa/src/game/drawn-solids.ts";
 import { summitSigns } from "../pwa/src/game/run-sign-plan.ts";
+import { meets } from "./support/drawn-hits.ts";
 import { levelFor } from "./support/levels.ts";
 
 describe("what is drawn on the snow is solid", () => {
@@ -82,6 +86,24 @@ describe("what is drawn on the snow is solid", () => {
       expect(solidsOf(fresh)).toBe(mapSolidsOf(fresh));
     } finally {
       setDrawnSolids(drawnSolids);
+    }
+  });
+});
+
+describe("what is drawn on the snow is met", () => {
+  it("stops a skier sent at a station's hood, a corral, a sign, the course and the ski area's props", () => {
+    const level = levelFor(38);
+    for (const kind of [
+      "station hood",
+      "corral pole",
+      "sign",
+      "start hut",
+      "finish arch",
+      "finish mast",
+      "net post",
+      "props",
+    ]) {
+      expect(meets(level, kind), kind).toBe(true);
     }
   });
 });

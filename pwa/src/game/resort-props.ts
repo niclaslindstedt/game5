@@ -269,6 +269,8 @@ export function picnicTable(kit: FacadeKit, x: number, z: number, y: number, tur
   // The two A-frame legs, each a block under the top and the benches.
   box(-L / 2 + 0.2, -L / 2 + 0.3, -0.75, 0.75, 0, 0.42);
   box(L / 2 - 0.3, L / 2 - 0.2, -0.75, 0.75, 0, 0.42);
+  for (const u of [-0.6, 0, 0.6])
+    kit.post(turned ? x : x + u, turned ? z + u : z, y, y + 0.76, 0.8, "log");
 }
 
 /** A DECK CHAIR at (x, z) on a floor at `y`, facing +z (the view): a seat
@@ -293,11 +295,13 @@ export function deckChair(kit: FacadeKit, x: number, z: number, y: number, tint:
   }
   solid(kit, x - 0.32, y, z + 0.5, x + 0.32, y + 0.25, z + 0.56, DARK_TIMBER);
   solid(kit, x - 0.32, y, z - 0.4, x + 0.32, y + 0.35, z - 0.34, DARK_TIMBER);
+  kit.post(x, z, y, y + 0.95, 0.4, "log");
 }
 
 /** A PARASOL furled in the wind: its pole and the cloth wrapped round it. */
 export function parasol(kit: FacadeKit, x: number, z: number, y: number, tint: Tint): void {
   kit.column(x, z, y, y + 2.9, 0.04, FACADE.steel, 0xffffff, 4);
+  kit.post(x, z, y, y + 2.9, 0.2, "steel");
   const sq = (r: number): [number, number][] => [
     [x - r, z - r],
     [x + r, z - r],
@@ -335,6 +339,10 @@ export function skiRack(
   solid(kit, x0, y + 0.25, z - 0.03, x1, y + 0.3, z + 0.03, steel);
   for (const px of [x0, (x0 + x1) / 2, x1])
     solid(kit, px - 0.03, y - 0.3, z - 0.03, px + 0.03, y + 1.02, z + 0.03, steel);
+  // The rail and the skis leaned on it, met as one fence.
+  const n = Math.max(1, Math.ceil((x1 - x0) / 0.3));
+  for (let i = 0; i <= n; i++)
+    kit.post(x0 + ((x1 - x0) * i) / n, z, y - 0.3, y + 1.6, 0.2, "steel");
   const slots = Math.floor((x1 - x0) / 0.32);
   for (let i = 0; i < slots; i++) {
     if (idHash(seed, i) > full) continue;
@@ -386,6 +394,7 @@ export function skisInSnow(
         tint,
       });
     }
+    kit.post(x, zz, y - 0.3, y + 1.55, 0.12, "log");
   }
 }
 
@@ -402,6 +411,7 @@ export function flagPole(
   cross = false,
 ): void {
   kit.column(x, z, y - 0.4, y + high, 0.05, FACADE.steel, 0xffffff, 5);
+  kit.post(x, z, y - 0.4, y + high, 0.05, "steel");
   const top = y + high - 0.15;
   const w = 1.5;
   const h = 1.0;
@@ -433,6 +443,7 @@ export function featherFlag(
   edge: Tint,
 ): void {
   kit.column(x, z, y - 0.3, y + 3.6, 0.03, FACADE.steel, 0x404448, 4);
+  kit.post(x, z, y - 0.3, y + 3.6, 0.05, "steel");
   const pts: [number, number][] = [
     [0.8, 0.55],
     [1.6, 0.6],
@@ -495,6 +506,7 @@ export function toboggan(kit: FacadeKit, x: number, z: number, y: number, tint =
     layer: FACADE.steel,
     tint: 0x30343a,
   });
+  kit.post(x, z + 0.16, y, y + 2.3, 0.3, "log");
 }
 
 /** A RED CROSS on a white plaque on a wall facing +z, its middle at (x, y),

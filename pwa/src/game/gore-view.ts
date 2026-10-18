@@ -68,18 +68,19 @@ import type { Cheek, Leak } from "./gore-flow.ts";
 import { gapAt, lowestGap, PART_BONE, partAt, soakPath, spreadAt } from "./gore-leaks.ts";
 import { rotorStruck } from "./gore-rotor.ts";
 import { tillerSpray } from "./gore-tiller.ts";
-import { createSoak } from "./gore-soak.ts";
+import { createSoak, wash } from "./gore-soak.ts";
 import {
   bodyHides,
   cutOf,
   cutsOf,
   farEnd,
+  openAt,
   PIECE_BONES,
   PIECE_LOOK,
   pieceCollapse,
   POINT_BONE,
 } from "./gore-cut.ts";
-import { bakeFigure, disposeFigure, REMAINS, type Remains } from "./gore-remains.ts";
+import { bakeFigure, disposeFigure, REMAINS, showRemains, type Remains } from "./gore-remains.ts";
 import {
   lump,
   rope,
@@ -146,6 +147,13 @@ export type GoreView = {
   leave(model: GoreModel): void;
   /** Every body left lying gone. */
   clearRemains(): void;
+  /** HELD ASIDE while a replay of `of` is watched over the same model
+   * (`gore-replay.ts`), or shown again: out of sight but for the dead other
+   * runs left lying — his own death the replay draws again — and with it
+   * all it hangs on his skin (the stumps, the opened trunk, the bone out
+   * through it) and the soak of his clothes, which the replay's body wears
+   * as its own; given back as they were when shown again. */
+  hold(on: boolean, model: GoreModel, of?: GameState | null): void;
   /** How a piece torn off whole has moved since it tore (its world now
    * over its world then), for the X-ray's bones in it; null if not flying. */
   flown(piece: GorePiece, out: THREE.Matrix4): THREE.Matrix4 | null;
@@ -458,22 +466,6 @@ export function createGoreView(
     throwOut(["gobbet", "gobbet"], a0, dir, carry, 2.5);
   };
 
-  /** The trunk's front at the chest (`chest`) or the belly (`abdomen`), in
-   * the skin's frame, and its way out. */
-  const openAt = (bit: number, f: Record<SkierBone, BoneFrame>): { at: V3; out: V3 } => {
-    const b = bit === 0 ? f.chest : f.pelvis;
-    const k = bit === 0 ? 0.55 : 0.9;
-    const d = bit === 0 ? 0.11 : 0.1;
-    return {
-      at: {
-        x: b.head.x + b.y.x * b.length * k + b.z.x * d,
-        y: b.head.y + b.y.y * b.length * k + b.z.y * d,
-        z: b.head.z + b.y.z * b.length * k + b.z.z * d,
-      },
-      out: b.z,
-    };
-  };
-
   const placeOn = (mesh: THREE.Mesh, at: V3, out: V3) => {
     toV(at, mesh.position);
     mesh.quaternion.setFromUnitVectors(yUp, toV(out, v1).normalize());
@@ -535,6 +527,7 @@ export function createGoreView(
     blood.settle();
     dead.add(blood.group);
     const r: Remains = {
+      run: last,
       body,
       pieces: pieces.map((p) => p.dressed),
       loose: [...(spike ? [spike] : []), ...smears.take()],
@@ -563,6 +556,18 @@ export function createGoreView(
     for (const r of remains) forget(r);
     remains.length = 0;
     trees.clear();
+  };
+
+  const hold = (on: boolean, model: GoreModel, of: GameState | null = null) => {
+    for (const o of group.children) o.visible = !on || o === dead;
+    for (const r of remains) showRemains(r, !on || r.run !== of);
+    for (const m of [...bodyStumps.values(), ...openMeshes.values(), ...fractures.values()]) {
+      m.visible = !on;
+    }
+    if (on) {
+      wash(model.skin().cloth);
+      model.setGore(0, 0);
+    } else soakClock = Infinity; // soaked again on the next frame
   };
 
   const frame = (state: GameState, model: GoreModel, simDt: number, dt: number, veil = 0): void => {
@@ -966,6 +971,7 @@ export function createGoreView(
     group,
     leave,
     clearRemains,
+    hold,
     setPace: (k) => blood.setPace((pace = k)),
     update(state, model, simDt, dt, veil) {
       const at = performance.now();

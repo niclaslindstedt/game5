@@ -10,7 +10,10 @@
 // would be, the piece cut off on its own — read as cut skis. The REPLAY
 // sheet cuts him at chest height on a recorded run, then watches the
 // recording (`replay.ts`) cut him again through its own drawing of the
-// wounds (`gore-replay.ts`), and goes back to the run as it was left.
+// wounds (`gore-replay.ts`), and goes back to the run as it was left; and
+// the same once he has DIED and a new rider is stood up, which leaves his
+// body lying — the crash then watched is the run before, and must not find
+// its own dead body lying at the rope ahead of it.
 
 import {
   NEUTRAL_INPUT,
@@ -70,7 +73,13 @@ export function acrossRope(
 
 /** A lens following his body (or him on his skis), `dist` m out at `yaw`
  * off `heading` (0 ahead, a quarter turn his left), `up` m over it. */
-function beside(heading: number, yaw: number, dist: number, up: number, fov = 40): Lens {
+function beside(
+  heading: number,
+  yaw: number,
+  dist: number,
+  up: number,
+  fov = 40,
+): (s: GameState) => LensPose {
   return (s: GameState): LensPose => {
     const b = s.skier.thrown;
     const c = b ? centreOf(b.points) : { x: s.skier.x, y: s.skier.y, z: s.skier.z };
@@ -198,6 +207,49 @@ function replayed(st: Stage): void {
   st.shoot(s, "run-again-+1.5s-above", above);
 }
 
+/** Cut at chest height on a recorded run and left to die, a new rider
+ * stood up after him (his body left lying), and the crash watched: the run
+ * before, at the rope before the cut and after it, then the new run. */
+function replayedAfter(st: Stage): void {
+  const staged = acrossRope(st, { speed: 25, feet: -1.3 });
+  if (!staged) {
+    st.shoot(st.fresh(), "no-chair-on-this-map", "chase");
+    return;
+  }
+  const { s, heading, at } = staged;
+  const rig = createReplayRig();
+  rig.arm(s, "free");
+  let taken: SkierInput | null = null;
+  const ride: Drive = (q) => {
+    if (taken) rig.step(taken, q);
+    return (taken = NEUTRAL_INPUT);
+  };
+  const side = beside(heading, Math.PI / 2, 4.5, 0.8);
+  const above = beside(heading, Math.PI / 2 + 0.6, 6, 4, 45);
+  const coming = atRope(heading, at, Math.PI / 2, 7, 0.5);
+  st.until(s, (q) => !!q.skier.thrown, 1, ride);
+  st.until(s, (q) => (q.gore?.dead ?? -1) >= 0, 20, ride);
+  if (taken) rig.step(taken, s);
+  st.shoot(s, "dead", above);
+  // A new rider: the dead one left lying where he died.
+  const next = st.fresh();
+  rig.arm(next, "free");
+  st.shoot(next, "next-rider", "chase");
+  const replay = rig.open("start");
+  if (!replay) return;
+  const play: Drive = () => replay.input();
+  st.shoot(replay.state, "replay-coming", coming);
+  st.until(replay.state, (q) => !!q.skier.thrown, 1, play);
+  st.run(replay.state, 0.2, play);
+  st.shoot(replay.state, "replay-+0.2s-side", side);
+  // On his way down to where he came to lie: one body, the replay's, and
+  // never his own lying ahead of it.
+  st.run(replay.state, 2.3, play);
+  st.shoot(replay.state, "replay-+2.5s-wide", beside(heading, Math.PI / 2 + 0.6, 14, 7, 60));
+  // Back to the new rider: the dead one lying there again.
+  st.shoot(next, "next-rider-again", above(s));
+}
+
 export const CABLE_VIEWS: Record<string, (st: Stage) => void> = {
   /** Flown square across a chair's rope at 90 km/h at chest height: cut in two. */
   "cable-chest"(st) {
@@ -214,9 +266,11 @@ export const CABLE_VIEWS: Record<string, (st: Stage) => void> = {
   },
   /** Cut at chest height, and the replay of it. */
   "cable-replay": replayed,
+  /** Cut and dead, a new rider stood up, and the crash watched. */
+  "cable-replay-after": replayedAfter,
 };
 
 export const CABLE_GROUPS: Record<string, readonly string[]> = {
   cable: ["cable-chest", "cable-shins", "cable-drop"],
-  replay: ["cable-replay"],
+  replay: ["cable-replay", "cable-replay-after"],
 };

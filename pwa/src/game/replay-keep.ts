@@ -294,29 +294,36 @@ function copyIn(v: unknown): unknown {
   return out;
 }
 
-/** ONE COPY OF THE RUN: after `step` steps of the recording. */
-export type Keyframe = { readonly step: number; readonly copy: unknown };
+/** ONE COPY OF THE RUN: after `step` steps of the recording, and the live
+ * run it was copied off. */
+export type Keyframe = { readonly step: number; readonly copy: unknown; readonly run: GameState };
 
 /** Copy a run as it stands. Teaches its streams to log, so it is taken on
  * the LIVE run, never on a run stood up from a copy. */
 export function keyframeOf(state: GameState, step: number): Keyframe {
-  return { step, copy: copyOut(state) };
+  return { step, copy: copyOut(state), run: state };
 }
 
-/** Every run stood up from a copy, so a drawing can tell a replay from a run. */
-const stood = new WeakSet<GameState>();
+/** Every run stood up from a copy, and the run it is a replay of, so a
+ * drawing can tell a replay from a run — and which run's it is. */
+const stood = new WeakMap<GameState, GameState>();
 
 /** A run stood up from a copy: a fresh state, free to be stepped, that the
  * copy itself survives. */
 export function standUp(frame: Keyframe): GameState {
   const state = copyIn(frame.copy) as GameState;
-  stood.add(state);
+  stood.set(state, frame.run);
   return state;
 }
 
 /** Whether `state` is a replay's — stood up from a copy — rather than a run. */
 export function isStoodUp(state: GameState): boolean {
   return stood.has(state);
+}
+
+/** The run `state` is a replay of, or null when it is a run itself. */
+export function replayOf(state: GameState): GameState | null {
+  return stood.get(state) ?? null;
 }
 
 /** The spacing a copy `age` seconds behind the newest is kept at, s — or

@@ -14,13 +14,14 @@ import {
   ropeOver,
   standSkier,
   step,
+  type GameState,
   type SkierInput,
 } from "@engine";
 import { snapInput } from "../pwa/src/game/ghost.ts";
 import { pairViews } from "../pwa/src/game/gore-replay.ts";
 import type { GoreModel, GoreView } from "../pwa/src/game/gore-view.ts";
 import { createReplayRig } from "../pwa/src/game/replay.ts";
-import { isStoodUp } from "../pwa/src/game/replay-keep.ts";
+import { isStoodUp, replayOf } from "../pwa/src/game/replay-keep.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
 
 const level = levelFor(LEVEL_SEEDS[0]);
@@ -92,23 +93,22 @@ describe("a replay deals the same wounds", () => {
 });
 
 describe("the run's wounds and its replay's, drawn apart (gore-replay.ts)", () => {
-  /** A hollow view that writes down what it was asked. */
-  const hollow = (log: string[], name: string): GoreView => {
-    const group = new THREE.Group();
-    const dead = new THREE.Group();
-    dead.name = "gore-remains";
-    group.add(dead, new THREE.Group());
-    return {
-      group,
-      update: (s) => void log.push(`${name}:draw:${s.tick}`),
-      setPace: () => {},
-      clear: () => void log.push(`${name}:clear`),
-      leave: () => void log.push(`${name}:leave`),
-      clearRemains: () => {},
-      flown: () => null,
-      dispose: () => {},
-    };
-  };
+  /** A hollow view that writes down what it was asked, and the runs it
+   * was held aside for. */
+  const hollow = (log: string[], name: string, held: (GameState | null)[] = []): GoreView => ({
+    group: new THREE.Group(),
+    update: (s) => void log.push(`${name}:draw:${s.tick}`),
+    setPace: () => {},
+    clear: () => void log.push(`${name}:clear`),
+    leave: () => void log.push(`${name}:leave`),
+    clearRemains: () => {},
+    hold: (on, _model, of) => {
+      log.push(`${name}:hold:${on}`);
+      held.push(of ?? null);
+    },
+    flown: () => null,
+    dispose: () => {},
+  });
 
   it("leaves nothing lying on the way into a replay, across a seek or out of it", () => {
     const run = createGame({ level, mode: "free", quiet: true });
@@ -119,12 +119,9 @@ describe("the run's wounds and its replay's, drawn apart (gore-replay.ts)", () =
       rig.step(NEUTRAL_INPUT, run);
     }
     const log: string[] = [];
-    const made: GoreView[] = [];
-    const views = pairViews(() => {
-      const v = hollow(log, made.length === 0 ? "run" : "replay");
-      made.push(v);
-      return v;
-    });
+    const held: (GameState | null)[] = [];
+    let made = 0;
+    const views = pairViews(() => hollow(log, made++ === 0 ? "run" : "replay", held));
     const model = {} as GoreModel;
     const replay = rig.open()!;
     expect(isStoodUp(replay.state)).toBe(true);
@@ -132,25 +129,50 @@ describe("the run's wounds and its replay's, drawn apart (gore-replay.ts)", () =
     views.update(run, model, 0, 0);
     views.leave(model, replay.state); // into the replay
     views.update(replay.state, model, 0, 0);
-    // The run held out of sight but for its dead.
-    expect(made[0].group.children.map((o) => o.visible)).toEqual([true, false]);
     replay.seek(10);
     replay.pump(() => true);
     views.leave(model, replay.state); // a seek: a new copy
     views.update(replay.state, model, 0, 0);
     views.leave(model, run); // back to the run
     views.update(run, model, 0, 0);
-    expect(made[0].group.children.map((o) => o.visible)).toEqual([true, true]);
     expect(log.filter((l) => l.endsWith(":leave"))).toEqual([]);
+    // The run held aside once for the whole replay, seek and all — for the
+    // run the replay is of — and given back once it is left.
     expect(log).toEqual([
       "run:draw:30",
+      "run:hold:true",
       "replay:draw:0",
       "replay:draw:10",
       "replay:clear",
+      "run:hold:false",
       "run:draw:30",
     ]);
+    expect(held[0]).toBe(run);
     // A new run leaves the last one lying, as it always did.
     views.leave(model, createGame({ level, mode: "free", quiet: true }));
     expect(log.at(-1)).toBe("run:leave");
+  });
+
+  it("names the run a replay is of, the run before a restart included", () => {
+    // A rider who dies is stood up again, which leaves the dead one lying
+    // (`leave`); the crash then offered is the run BEFORE, whose own body
+    // the replay must not find lying ahead of it — so a replay says which
+    // run it is a replay of, and a run itself is a replay of none.
+    const dead = createGame({ level, mode: "free", quiet: true });
+    const rig = createReplayRig();
+    rig.arm(dead, "free");
+    for (let i = 0; i < 30; i++) {
+      step(dead, NEUTRAL_INPUT);
+      rig.step(NEUTRAL_INPUT, dead);
+    }
+    const next = createGame({ level, mode: "free", quiet: true });
+    rig.arm(next, "free");
+    const replay = rig.open()!;
+    expect(replayOf(replay.state)).toBe(dead);
+    replay.seek(10);
+    replay.pump(() => true);
+    expect(replayOf(replay.state)).toBe(dead);
+    expect(replayOf(dead)).toBeNull();
+    expect(replayOf(next)).toBeNull();
   });
 });

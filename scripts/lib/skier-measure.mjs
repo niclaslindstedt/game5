@@ -174,7 +174,9 @@ export function measurePose(
   // THROUGH HIMSELF: the least clearance between parts that must not meet
   // (m, negative is inside): a hand or an elbow in the trunk (a capsule
   // from the hips to the neck, 0.15 m round), the knees through each
-  // other (0.06 m each), a forearm through a thigh (0.06 + 0.05 m).
+  // other (0.06 m each), a forearm through a thigh (0.06 + 0.05 m), a pole's
+  // rod (0.01 m round) through the trunk or a thigh, from a hand's width
+  // down it from the fist to its basket.
   const segDist = (pt, a, b) => {
     const d = sub(b, a);
     const t = Math.max(0, Math.min(1, dot(sub(pt, a), d) / (dot(d, d) || 1)));
@@ -205,6 +207,17 @@ export function measurePose(
       [0, 1].map((j) => segSeg(p.elbows[i], p.hands[i], hipJ[j], p.knees[j]) - 0.11),
     ),
   );
+  const poleClear = p.poles
+    ? Math.min(
+        ...[0, 1].flatMap((i) => {
+          const from = add(p.hands[i], scale(norm(sub(p.poles[i], p.hands[i])), 0.2));
+          return [
+            segSeg(from, p.poles[i], p.hips, p.neck) - 0.15 - 0.01,
+            ...[0, 1].map((j) => segSeg(from, p.poles[i], hipJ[j], p.knees[j]) - 0.06 - 0.01),
+          ];
+        }),
+      )
+    : Infinity;
   return {
     com,
     comAhead: com.z - feetMid.z,
@@ -229,7 +242,7 @@ export function measurePose(
     gaze,
     handsAhead,
     handsApart,
-    clear: { trunk: trunkClear, knees: kneeClear, thighs: thighClear, armLeg },
+    clear: { trunk: trunkClear, knees: kneeClear, thighs: thighClear, armLeg, poles: poleClear },
   };
 }
 

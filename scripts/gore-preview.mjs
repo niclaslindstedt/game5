@@ -33,7 +33,10 @@
 //            in two, each piece drawn as its share — `ski-cut-view.ts`)
 //   replay   cable-replay (cut at chest height on a recorded run, the
 //            replay of it cut again at the same moments, and the run once
-//            the replay is left: no body lying ahead, none left behind)
+//            the replay is left: no body lying ahead, none left behind),
+//            cable-replay-after (cut and dead, a new rider stood up, which
+//            leaves the body lying, and the crash watched: his own body not
+//            lying at the rope ahead of the replay, and lying again after)
 //   beast    moose-70, moose-110, reindeer-80, roe-60, hare-60, fox-60
 //            (run square into an animal's flank on a free ride: both
 //            crushed — the body broken, the blood, the guts, the slide and
@@ -79,7 +82,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (ski-trunk, ski-tower, ski-lamp, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, groomer, heli, heli-fly, spray, snow, closeup, open-arms, open-arms-hard, open-arms-ski, open-legs, cable-chest, cable-shins, cable-drop, cable-replay, wreck)",
+      help: "only these views, comma-separated (ski-trunk, ski-tower, ski-lamp, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, groomer, heli, heli-fly, spray, snow, closeup, open-arms, open-arms-hard, open-arms-ski, open-legs, cable-chest, cable-shins, cable-drop, cable-replay, cable-replay-after, wreck)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     region: {

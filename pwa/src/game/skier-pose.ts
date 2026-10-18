@@ -965,6 +965,7 @@ export function skierPose(input: SkierPoseInput): SkierPose {
     ...(blockW > 0 ? { block: { hand: blocker, w: blockW } } : {}),
     baskets,
     climbW,
+    body: { hips, waist, neck, hipJoints, knees },
   });
   return {
     hips,

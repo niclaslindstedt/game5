@@ -113,6 +113,79 @@ describe("the body on its legs", () => {
     expect(plant.poles![1].z).toBeGreaterThan(0.5);
   });
 
+  it("never runs a hung pole through his trunk or a thigh, leant into a turn tucked or in the air", () => {
+    // The rod laid back under the arms in a tuck runs past the hips on its
+    // own side; leant into a turn the hips swing in under the inside fist,
+    // and in the air the trunk folds down over it — the rod is swung out
+    // round him, by as little as clears him, and never jumps doing it.
+    // The body's capsules are the metrics lab's (`skier-measure.mjs`):
+    // the trunk 0.15 m round, a thigh 0.06, the rod itself 0.01.
+    const toSeg = (q: V3, a: V3, b: V3) => {
+      const ab = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+      const l2 = ab.x * ab.x + ab.y * ab.y + ab.z * ab.z;
+      const t = Math.max(
+        0,
+        Math.min(1, ((q.x - a.x) * ab.x + (q.y - a.y) * ab.y + (q.z - a.z) * ab.z) / l2),
+      );
+      return Math.hypot(q.x - a.x - ab.x * t, q.y - a.y - ab.y * t, q.z - a.z - ab.z * t);
+    };
+    const clearOf = (p: SkierPose) => {
+      let least = Infinity;
+      for (const i of [0, 1]) {
+        const h = p.hands[i];
+        const b = p.poles![i];
+        for (let s = 0.2; s <= MOUNTS.pole + 1e-9; s += 0.05) {
+          const k = s / MOUNTS.pole;
+          const q = {
+            x: h.x + (b.x - h.x) * k,
+            y: h.y + (b.y - h.y) * k,
+            z: h.z + (b.z - h.z) * k,
+          };
+          least = Math.min(
+            least,
+            toSeg(q, p.hips, p.waist) - 0.16,
+            toSeg(q, p.waist, p.neck) - 0.16,
+            ...[0, 1].map((j) => toSeg(q, p.hipJoints[j], p.knees[j]) - 0.07),
+          );
+        }
+      }
+      return least;
+    };
+    for (const crouch of [0, 0.5, 1]) {
+      for (const lean of [-1, 0, 1]) {
+        for (const airborne of [false, true]) {
+          let prev: SkierPose | null = null;
+          let jump = 0;
+          for (let edge = -0.95; edge <= 0.95 + 1e-9; edge += 0.01) {
+            const pose = skierPose({
+              ...base,
+              crouch,
+              lean,
+              edge,
+              hipRight: -0.4 * edge,
+              steer: edge,
+              roll: 0.6 * edge,
+              airborne,
+            });
+            const at = `tucked ${crouch}, lean ${lean}, edge ${edge.toFixed(2)}, air ${airborne}`;
+            expect(clearOf(pose), at).toBeGreaterThan(-0.005);
+            if (prev) {
+              for (const i of [0, 1]) {
+                const a = prev.poles![i];
+                const b = pose.poles![i];
+                jump = Math.max(jump, Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z));
+              }
+            }
+            prev = pose;
+          }
+          // A basket at the end of its 1.2 m rod, a hundredth of a radian
+          // of edge apart: a swing, never a snap.
+          expect(jump, `tucked ${crouch}, lean ${lean}, air ${airborne}`).toBeLessThan(0.03);
+        }
+      }
+    }
+  });
+
   it("works the poles without a twitch: every joint moves on through a whole cycle", () => {
     // Two strides (one each leg) sampled at 1/240 of a stride — about three
     // milliseconds at the skate's cadence — at a walk up a rise (the

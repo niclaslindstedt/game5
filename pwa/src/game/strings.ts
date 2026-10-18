@@ -665,6 +665,8 @@ export const STRINGS = {
   startSnow: "SNOW",
   /** THE AVALANCHES row (`free-ride.ts`'s `avalanche`). */
   startAvalanche: "AVALANCHES",
+  /** THE TRICK RAMPS row (`free-ride.ts`'s `ramps`). */
+  startRamps: "TRICK RAMPS",
   /** The SNOW row's stops (`SNOW_STOPS`). */
   snowNames: { thin: "THIN", medium: "MEDIUM", thick: "THICK", deep: "VERY DEEP" },
   /** THE START ROW: how the ride begins — on skis, or a way up with no

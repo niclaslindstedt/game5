@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
+.PHONY: contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
 
 build:
 	npm run build
@@ -1411,6 +1411,15 @@ level:
 # `make lift-tops SEED=2 REGION=maritime ARGS="--weather storm"`
 lift-tops:
 	npm run lift-tops -- $(if $(SEED),--seed $(SEED),) $(if $(COUNT),--count $(COUNT),) $(if $(REGION),--region $(REGION),) $(ARGS)
+
+# THE TRICK RAMPS LAB: the free ride's ramps down every piste on a seed —
+# how many each run carries and of which kind — and the first of every
+# kind ridden straight at from a ladder of speeds: the angle he leaves the
+# lip at, how high, how long and how far he flies, and the landing. Pure
+# Node over the engine. `make trick-ramps SEED=7` ·
+# `make trick-ramps SEED=38 ARGS="--speeds 10,15,20"`
+trick-ramps:
+	npm run trick-ramps -- $(if $(SEED),--seed $(SEED),) $(if $(REGION),--region $(REGION),) $(ARGS)
 
 # THE CHALLENGES LAB: what a free ride map deals (the timed lines, the trick
 # goals, the hidden spots, the summits) and every timed line skied by the

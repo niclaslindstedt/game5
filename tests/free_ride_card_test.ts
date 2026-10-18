@@ -104,6 +104,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       grade: null,
       run: null,
       avalanche: true,
+      ramps: false,
       where: false,
     });
   });
@@ -261,6 +262,7 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
       run: { seed: 9, region: "fell" as const, id: "4" },
       suit: "rig" as const,
       avalanche: true,
+      ramps: true,
       where: true,
     };
     const opts = freeGameOptions(ride, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });
@@ -273,6 +275,8 @@ describe("what the start card remembers (free-ride.ts, settings.ts)", () => {
         .grade,
     ).toBe(undefined);
     expect(opts.seed).toBe(9);
+    // THE TRICK RAMPS row, asked of the ride.
+    expect(opts.trickRamps).toBe(true);
     expect(opts.snowDepth).toBe(depthOf("thick"));
     expect(opts.day).toEqual({ time: "morning", dayOfYear: 56 });
     expect(opts.spawn).toEqual({ x: 400, z: 200 });
@@ -500,6 +504,7 @@ describe("what the rows ask for", () => {
     expect(opts.bike).toBe(true);
     expect(opts.heli).toBeFalsy();
     expect(opts.avalanche).toBeFalsy();
+    expect(opts.trickRamps).toBeFalsy();
     // The spot tapped on the chart goes with it: the trail head nearest it.
     const tapped = { ...ride, spot: { seed: 9, x: 120, z: -40 } };
     const there = freeGameOptions(tapped, 9, { spec: SKIS, assist: { yaw: 1, air: 1 } });

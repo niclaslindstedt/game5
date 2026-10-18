@@ -16,6 +16,7 @@
 
 import { drySummer, summerOf } from "./summer.ts";
 import { setBikePark } from "../mapgen/bike-park.ts";
+import { setTrickRamps } from "../mapgen/trick-ramps.ts";
 import { nearestBikeHead } from "../mapgen/bike-park-query.ts";
 import { createRng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import {
@@ -378,6 +379,10 @@ export type CreateGameOptions = {
    * the groomed runs may slide under the skier. None when left out.
    * Ignored by every other mode. */
   avalanche?: boolean;
+  /** TRICK RAMPS down every piste of a FREE RIDE's ski area
+   * (`trick-ramps.ts`), laid over the map off no stream. None when left
+   * out, and never in summer. Ignored by every other mode. */
+  trickRamps?: boolean;
   /** THE WEATHER OVER THE RUN (`mapgen/front.ts`) on a FREE RIDE: the
    * dealt sky (or the one picked) turning into others over the sky's clock.
    * The dealt sky holds when left out. Ignored by every other mode and in
@@ -516,6 +521,11 @@ export function levelFor(options: CreateGameOptions = {}): Level {
   return built;
 }
 
+/** Whether a run is asked onto the TRICK RAMPS: a winter free ride's. */
+function rampsOf(options: CreateGameOptions): boolean {
+  return options.trickRamps === true && options.mode === "free" && !summerOf(options);
+}
+
 export function createGame(options: CreateGameOptions = {}): GameState {
   const downhill = options.mode === "downhill";
   const superG = options.mode === "superG";
@@ -546,6 +556,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     // under the park lie the day, the place and the dry sky the first ride
     // laid, and unwinding past them builds a copy the renderer never built.
     (summerOf(options) ? undefined : built.bikePark?.base) ??
+    // A ride handed back the map its ramps were laid on keeps them when it
+    // still asks for them; asked without, it is the map under them.
+    (rampsOf(options) ? undefined : built.trickRamps?.base) ??
     built;
   // SPEED SKIING cuts a track of its own down the face (R34): the
   // qualification's, or the final's; a FREESTYLE VENUE builds one of its own (R37).
@@ -578,7 +591,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // mountain is the one the seed built.
   // IN SUMMER the ski area is a BIKE PARK (R44, R45): its trails laid over
   // the map off a stream of their own, so the map itself is not moved.
-  const parked = summerOf(options) ? setBikePark(course) : course;
+  // TRICK RAMPS down every piste, where a winter free ride asks for them.
+  const ramped = rampsOf(options) ? setTrickRamps(course) : course;
+  const parked = summerOf(options) ? setBikePark(ramped) : ramped;
   const placed = withPlace(parked, parked.face ? realFacePlace(parked.face) : null);
   const dayed = options.day ? withDay(placed, options.day) : placed;
   const sky = options.sky ? withSky(dayed, options.sky) : dayed;

@@ -192,6 +192,11 @@ function offSolids(p: V3, l: V3, r: number, ground: GibGround, dt: number): void
   }
 }
 
+/** A step shorter than this, s, flies nothing: the points carry their
+ * last step's way whatever the step, so a still frame (a lab's still, a
+ * twin drawn to be timed) would throw everything a whole frame on. */
+const STILL_STEP = 1e-3;
+
 function verlet(p: V3, l: V3, dt: number): void {
   const k = 1 - AIR * dt;
   const vx = (p.x - l.x) * k;
@@ -222,7 +227,7 @@ function hold(a: V3, b: V3, length: number, wa: number, wb: number): void {
 
 /** One frame of a stick. */
 export function stepStick(s: Stick, ground: GibGround, dt: number): void {
-  if (dt <= 0) return;
+  if (dt < STILL_STEP) return;
   const before = { x: s.a.x + s.b.x, y: s.a.y + s.b.y, z: s.a.z + s.b.z };
   verlet(s.a, s.la, dt);
   verlet(s.b, s.lb, dt);
@@ -268,7 +273,7 @@ export function lump(p: V3, v: V3, r: number, axis: V3, spin: number, dt: number
 }
 
 export function stepLump(o: Lump, ground: GibGround, dt: number): void {
-  if (dt <= 0) return;
+  if (dt < STILL_STEP) return;
   verlet(o.p, o.l, dt);
   offSolids(o.p, o.l, o.r, ground, dt);
   o.down = onSnow(o.p, o.l, o.r, ground, dt);
@@ -346,7 +351,7 @@ export function rope(
  * tore — the rope keeps the end at the wound, the piece the rest, let go —
  * and lets go of the wound itself (`held` left null) if it is jerked off it. */
 export function stepRope(o: Rope, ground: GibGround, dt: number): Rope | null {
-  if (dt <= 0) return null;
+  if (dt < STILL_STEP) return null;
   const n = o.p.length;
   // Each point's way this frame, m/frame: the air's drag off it, then the
   // tissue's loss toward its neighbours' way.

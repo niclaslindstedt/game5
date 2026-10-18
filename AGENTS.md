@@ -53,7 +53,7 @@ This project is tuned by measuring and LOOKING, not guessing. A change in a lab'
 | The skier's gear | `gear`, `glove-metrics`, `board` | `skier-gear` |
 | A tree, a rival, the map's edge, a gate, the finish, the reset; the race courses and their gates | `ride SCENARIO=tree`, `sim`, `sim ARGS="--mode …"` | `collision` |
 | A race discipline or a freestyle format (its course, field, par, bot, HUD) | the discipline's own tests, `sim ARGS="--mode …"`, `rate RACE=…`, `routes`, `skijump`, `skijump-flight`, `skijump-hills` | `engine-system` |
-| A crash, the body, injuries, gore, the X-ray cam | `ride` (the crash scenarios), `injuries`, `falls`, `damage`, `hud-body`, `gore`, `bones`, `xray`, `xray-body` | `crash` |
+| A crash, the body, injuries, gore, the X-ray cam | `ride` (the crash scenarios), `injuries`, `falls`, `damage`, `hud-body`, `gore`, `gore-cost`, `bones`, `xray`, `xray-body` | `crash` |
 | The world generator, the ski area, where runs meet, the bike park | `analyze`, `level`, `resort`, `junctions`, `bike-park`, `sim` | `mapgen-improvement` |
 | A region; a real face | `analyze`, `level`, `world`; `real-faces`, `real-hints`, `resort` | `add-region`, `add-real-face` |
 | A lift's top, the ride, getting on and off | `lift-tops`, `lift-ride`, `lift-flow`, `lift-path`, `lift-board`, `chair-ride` | `lift-areas` |

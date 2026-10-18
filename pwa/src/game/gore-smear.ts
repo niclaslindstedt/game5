@@ -106,12 +106,13 @@ export function smearGeometry(
   const clot = c("clot");
   const tint = c(TINT[what]);
   const p = new THREE.Vector3();
+  const out = new THREE.Color();
   const vertex = (u: number, v: number, w: number, k: number) => {
     wrap(u, v, w, r, p);
     pos.push(p.x, p.y, p.z);
     const t = lumpy(u * 22, v * 22 + seed, 3.1);
-    const base = blood.clone().lerp(clot, 0.2 + 0.6 * noise(u * 90, v * 90, seed));
-    const out = k > 0.4 && t > 0.5 ? base.lerp(tint, Math.min(1, (t - 0.5) * 2.2 * k)) : base;
+    out.copy(blood).lerp(clot, 0.2 + 0.6 * noise(u * 90, v * 90, seed));
+    if (k > 0.4 && t > 0.5) out.lerp(tint, Math.min(1, (t - 0.5) * 2.2 * k));
     col.push(out.r, out.g, out.b);
   };
   // THE BLOT: rings out to its ragged rim, thick and lumpy in its middle.
@@ -289,10 +290,11 @@ export function createSmears(
         splat(b.x, b.z, b.r, 1, rng.range(0, 6.28), 0.012 + LOOSE * (1 - level.packedAt(b.x, b.z)));
         return false;
       });
-      // A new run's list starts again from none.
+      // A new run's list starts again from none. One paste is laid a frame:
+      // a hit at speed leaves several at once, each a few milliseconds to build.
       if (smears.length < seen) seen = 0;
-      for (; seen < smears.length; seen++) {
-        const s = smears[seen];
+      if (seen < smears.length) {
+        const s = smears[seen++];
         const own = seed ^ Math.round(s.x * 97 + s.z * 31 + s.t * 1000);
         const geo = smearGeometry(s.what, s.r, (own % 997) / 9.7, createRng(own >>> 0));
         const mesh = new THREE.Mesh(geo, flesh);

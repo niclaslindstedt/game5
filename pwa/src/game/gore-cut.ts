@@ -11,10 +11,28 @@
 // helmet. Where the two skins meet, the cut, a stump is laid over the hole
 // (`gore-shapes.ts`).
 
-import { GORE_PIECES, type GorePiece } from "@engine";
+import { GORE, GORE_PIECES, type GorePiece } from "@engine";
 
 import type { BoneFrame, SkierBone } from "./skier-rig.ts";
 import type { V3 } from "./skier-pose.ts";
+
+/** Each piece's measures: its stump's radius and the bone out of it, m,
+ * and which of the engine's flows it bleeds as. */
+export const PIECE_LOOK: Record<
+  GorePiece,
+  { r: number; bone: number; flow: keyof typeof GORE.blood.flow }
+> = {
+  head: { r: 0.075, bone: 0.035, flow: "head" },
+  armL: { r: 0.08, bone: 0.05, flow: "arm" },
+  armR: { r: 0.08, bone: 0.05, flow: "arm" },
+  forearmL: { r: 0.065, bone: 0.04, flow: "forearm" },
+  forearmR: { r: 0.065, bone: 0.04, flow: "forearm" },
+  legL: { r: 0.11, bone: 0.07, flow: "leg" },
+  legR: { r: 0.11, bone: 0.07, flow: "leg" },
+  shinL: { r: 0.08, bone: 0.055, flow: "shin" },
+  shinR: { r: 0.08, bone: 0.055, flow: "shin" },
+  lower: { r: 0.17, bone: 0.045, flow: "waist" },
+};
 
 /** Every bone a piece takes with it. */
 export const PIECE_BONES: Record<GorePiece, readonly SkierBone[]> = {

@@ -244,8 +244,18 @@ export function ribGeometry(length: number, seed: number): THREE.BufferGeometry 
 }
 
 /** The organs: what they are called and how big each is, m. */
-export type OrganKind =
-  "heart" | "lung" | "liver" | "kidney" | "brain" | "skull" | "gobbet" | "eye" | "spleen";
+export const ORGAN_KINDS = [
+  "heart",
+  "lung",
+  "liver",
+  "kidney",
+  "brain",
+  "skull",
+  "gobbet",
+  "eye",
+  "spleen",
+] as const;
+export type OrganKind = (typeof ORGAN_KINDS)[number];
 
 /** AN ORGAN of its kind, `seed` its own lumps. Each about its real size: a
  * heart a fist (12 × 8 × 6 cm), a lung's lobe a hand long, the liver a

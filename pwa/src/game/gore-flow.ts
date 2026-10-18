@@ -9,7 +9,7 @@
 // a second leaves him as drops, never as a stream.
 
 import * as THREE from "three";
-import { woundFlow, type Bleed, type BodyPart } from "@engine";
+import { TUNING, woundFlow, type Bleed, type BodyPart, type GameState } from "@engine";
 
 import { cheekAt, gapAt, lowestGap, noseAt, partAt, soakPath } from "./gore-leaks.ts";
 import type { BoneFrame, SkierBone } from "./skier-rig.ts";
@@ -149,4 +149,19 @@ export function faceRuns(bind: Frames, cheek: Cheek): { at: V3; r: number; blood
     ...soakPath(noseAt(bind), gapAt("face", bind), 1, 0.05),
     ...soakPath(noseAt(bind), cheekAt(bind, cheek.side), cheek.lean, 0.045),
   ].map((p) => ({ ...p, blood: ON_SKIN }));
+}
+
+/** The body's velocity, m/s: the mean of his points' over the step. */
+export function bodyVelocity(state: GameState, out: THREE.Vector3): THREE.Vector3 {
+  const b = state.skier.thrown;
+  out.set(state.skier.vx, state.skier.vy, state.skier.vz);
+  if (!b) return out;
+  out.set(0, 0, 0);
+  const n = b.points.length / 3;
+  for (let i = 0; i < n; i++) {
+    out.x += b.points[3 * i] - b.last[3 * i];
+    out.y += b.points[3 * i + 1] - b.last[3 * i + 1];
+    out.z += b.points[3 * i + 2] - b.last[3 * i + 2];
+  }
+  return out.multiplyScalar(1 / (n * TUNING.dt));
 }

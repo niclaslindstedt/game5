@@ -126,6 +126,7 @@
     "grimbear": "node scripts/grimbear-preview.mjs",
     "rescue": "node scripts/rescue-preview.mjs",
     "gore": "node scripts/gore-preview.mjs",
+    "gore-cost": "node scripts/gore-cost.mjs",
     "bones": "node scripts/bones-preview.mjs",
     "replay-cam": "node scripts/replaycam-preview.mjs",
     "cinema": "node scripts/cinema-preview.mjs",

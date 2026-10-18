@@ -133,6 +133,21 @@ for (const kind of kinds) {
     const back = k.ramp + 30;
     const px = k.x - Math.sin(k.heading) * back;
     const pz = k.z - Math.cos(k.heading) * back;
+    // ...and from beside it, on the run's side, looking across at the gap.
+    const run = level.resort.runs.find((r) => r.id === k.run);
+    const mid = run.points.reduce((b, p) =>
+      Math.hypot(p.x - k.x, p.z - k.z) < Math.hypot(b.x - k.x, b.z - k.z) ? p : b,
+    );
+    const rx = Math.cos(k.heading);
+    const rz = -Math.sin(k.heading);
+    const toRun = Math.sign((mid.x - k.x) * rx + (mid.z - k.z) * rz) || 1;
+    const along = (E.TRICK_RAMPS.kinds[kind].gap || 4) / 2;
+    const sx = k.x + rx * toRun * 24 + Math.sin(k.heading) * along;
+    const sz = k.z + rz * toRun * 24 + Math.cos(k.heading) * along;
+    const sh = k.heading + (toRun > 0 ? -Math.PI / 2 : Math.PI / 2);
+    console.log(
+      `${"".padEnd(8)} beside it: --pose ${sx.toFixed(1)},${sz.toFixed(1)},${sh.toFixed(3)},0`,
+    );
     console.log(
       `${kind.padEnd(8)} ${k.id} on run ${k.run}: lip at ${k.x.toFixed(0)}, ${k.z.toFixed(0)} — look from --pose ${px.toFixed(1)},${pz.toFixed(1)},${k.heading.toFixed(3)},0`,
     );

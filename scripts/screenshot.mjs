@@ -71,7 +71,6 @@
 //   ?probe=0         always sent: the first-visit probe must not move the
 //                    picture under the shutter.
 //   ?update=1        the new-build button, as if a build were waiting.
-//   ?ramps=1         a free ride with TRICK RAMPS down every piste (--ramps).
 //   ?pose=x,z,h,v    the player's skis stood there once the pre-roll is
 //                    ridden (--pose: plan metres, heading rad, speed m/s —
 //                    the REPRO line's, or the cloud lab's meadow).
@@ -392,6 +391,7 @@ const SURFACES = {
     wait: ".hud-seed",
     settle: 1500,
   },
+  ramps: { params: { start: "free", ramps: "1", t: "20", shot: "1" }, wait: ".hud-seed" },
   // THE FREE RIDE'S ARRIVAL BY LIFT (`lift-ride.ts`): seated on the chair
   // for its last few seconds (`lift.arrive`), at the top station, and led
   // off the pad.
@@ -692,10 +692,6 @@ const args = parseArgs(
     },
     run2: { kind: "flag", help: "a slalom's second run, the first skied by the bot (?run=2)" },
     "no-poles": { kind: "flag", help: "the player skis without poles, the hard mode (?poles=0)" },
-    ramps: {
-      kind: "flag",
-      help: "with a free-ride surface, trick ramps down every piste on --seed's map (?ramps=1)",
-    },
     viewport: {
       kind: "string",
       default: "all",
@@ -816,7 +812,7 @@ async function capture(name, params, viewportName, surface) {
       if (until) await page.waitForSelector(until, { timeout: args.timeout * 1000 });
       // Thumbs held on the glass for the pads under them (`hold-thumbs.mjs`).
       if (surface.thumbs) await holdThumbs(page, surface.thumbs);
-      await page.waitForTimeout(surface.settle);
+      await page.waitForTimeout(surface.settle ?? 1500);
     } else {
       await page.waitForFunction("window.__SH_READY__ === true", null, {
         timeout: args.timeout * 1000,
@@ -899,11 +895,6 @@ if (args.surface) {
     if (args.update) params.update = "1";
     if (args.camera !== undefined) params.camera = String(args.camera);
     if (args["no-poles"]) params.poles = "0";
-    // TRICK RAMPS down every piste of the free ride, on the seed asked.
-    if (args.ramps && params.start === "free") {
-      params.ramps = "1";
-      params.seed = String(args.seed);
-    }
     // A surface that rides a run (`free`) is held at `--t` when given, under
     // `--hour`, and stood at `--pose` — a spot on the map, which a free
     // ride's chip names (`X … · Z …`).
@@ -922,7 +913,7 @@ if (args.surface) {
             `${args.face !== undefined ? `-${args.face}` : ""}` +
             `${args.grade !== undefined ? `-${args.grade}` : ""}${args.update ? "-update" : ""}` +
             `${args.t !== undefined && params.t !== undefined ? `-t${args.t}` : ""}` +
-            `${args["no-poles"] ? "-nopoles" : ""}${params.ramps ? "-ramps" : ""}` +
+            `${args["no-poles"] ? "-nopoles" : ""}` +
             `${params.weather !== undefined ? `-${args.weather}` : ""}` +
             `${params.hour !== undefined ? `-h${args.hour}` : ""}${params.pose !== undefined ? "-posed" : ""}` +
             `${args.camera !== undefined ? `-${args.camera}` : ""}` +

@@ -37,6 +37,9 @@ export type Wildlife = {
   retrack: () => void;
   /** A new run on the same map. */
   reset: () => void;
+  /** Build what comes out of an animal run down now, with the world, so
+   * its programs are compiled behind the loading card. */
+  armGore: () => void;
   /** The FOREST row moved (`FOREST_LOOK[row].wild`). */
   setLook: (look: WildLook) => void;
   birds: Birds;
@@ -54,27 +57,35 @@ export function createWildlife(
   const beasts = createBeasts(level, haze, look, snow);
   const grimbear = createGrimbearView(level, haze);
   const group = new THREE.Group();
+  group.name = "wildlife";
   group.add(birds.group, beasts.group, grimbear.group);
-  // What comes out of an animal run down (`beast-gore.ts`): built on the
-  // first run with its injuries on that carries the animals as bodies.
-  let gore: BeastGore | null = null;
+  // What comes out of an animal run down (`beast-gore.ts`): built with the
+  // world when the run it is built for carries the animals as bodies with
+  // its injuries on (`armGore`), so its programs are compiled behind the
+  // loading card — or else on the first such run.
+  let beastGore: BeastGore | null = null;
+  const addGore = (): BeastGore => {
+    const made = createBeastGore(level, (m, name) => hazeMaterial(m, haze, name));
+    group.add(made.group);
+    return made;
+  };
   return {
     group,
     update(state, eyeX, eyeZ, stamps, window) {
       birds.update(state, eyeX, eyeZ);
       beasts.update(state, eyeX, eyeZ, stamps, window);
       grimbear.update(state);
-      if (!gore && state.wild && state.gore) {
-        gore = createBeastGore(level, (m, name) => hazeMaterial(m, haze, name));
-        group.add(gore.group);
-      }
-      gore?.update(state);
+      if (!beastGore && state.wild && state.gore) beastGore = addGore();
+      beastGore?.update(state);
+    },
+    armGore() {
+      beastGore ??= addGore();
     },
     retrack: () => beasts.retrack(),
     reset() {
       birds.reset();
       beasts.reset();
-      gore?.clear();
+      beastGore?.clear();
     },
     setLook(look) {
       birds.setLook(look);
@@ -86,7 +97,7 @@ export function createWildlife(
       birds.dispose();
       beasts.dispose();
       grimbear.dispose();
-      gore?.dispose();
+      beastGore?.dispose();
     },
   };
 }

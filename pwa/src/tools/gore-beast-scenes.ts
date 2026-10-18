@@ -61,7 +61,7 @@ export function labBeasts(level: Level): void {
 }
 
 /** Its fright held spent, every step: it stands its ground. */
-const held = (s: GameState): void => {
+export const held = (s: GameState): void => {
   const wild = s.wild;
   if (!wild) return;
   const spent: Spook = { at: s.t - 20, dx: 0, dz: 0, ox: 0, oz: 0 };
@@ -115,7 +115,6 @@ function onCarcass(g: number, yaw: number, dist: number, up: number, fov = 45): 
 function runInto(st: Stage, g: number, speed: number, safe = false): void {
   const s = st.fresh(safe ? { safe: true } : false);
   held(s);
-  const wild = s.wild!;
   // The plan's own step fills the frights: one held step first.
   st.run(s, 1 / 60, hold);
   const group = groupOf(s, g);
@@ -124,14 +123,8 @@ function runInto(st: Stage, g: number, speed: number, safe = false): void {
     st.shoot(s, "not laid: draw it with --sheet=beast", "chase");
     return;
   }
-  const spec = beastById(group.species);
-  const lead = 0.7;
-  const p = beastPlace(group, spec, 0, s.t + lead, wild.spooks[g]);
-  // Into its left flank, square across it.
-  const a = p.heading + Math.PI / 2;
-  const back = speed * lead;
-  placeRun(s, { x: p.x - Math.sin(a) * back, z: p.z - Math.cos(a) * back, heading: a, speed });
-  const side = a + Math.PI / 2;
+  const p = standInto(s, group, g, speed);
+  const side = p.heading + Math.PI;
   st.shoot(s, "coming", planted(st.level, p, side, 11, 2.2, 50));
   st.until(s, (q) => q.events.some((e) => e.kind === "beast"), 2, hold);
   const met = s.wild!.struck.find((h) => h.group === g);
@@ -150,10 +143,29 @@ function runInto(st: Stage, g: number, speed: number, safe = false): void {
   st.shoot(s, "+3s above", onCarcass(g, side + 0.2, 1.2, 5.5, 55));
 }
 
+/** STOOD TO MEET IT: the rider of `s` placed square across the animal of
+ * `group` (the plan's `g`) at `speed` m/s, a moment short of its left
+ * flank. Where the animal will stand then, and the way it faces. */
+export function standInto(
+  s: GameState,
+  group: BeastGroup,
+  g: number,
+  speed: number,
+): { x: number; z: number; heading: number } {
+  const spec = beastById(group.species);
+  const lead = 0.7;
+  const p = beastPlace(group, spec, 0, s.t + lead, s.wild!.spooks[g]);
+  // Into its left flank, square across it.
+  const a = p.heading + Math.PI / 2;
+  const back = speed * lead;
+  placeRun(s, { x: p.x - Math.sin(a) * back, z: p.z - Math.cos(a) * back, heading: a, speed });
+  return { x: p.x, z: p.z, heading: a - Math.PI / 2 };
+}
+
 /** The plan the sheet laid, and the map it laid it on. */
 let laidOn: { level: Level; groups: BeastGroup[] } | null = null;
 
-function groupOf(s: GameState, g: number): BeastGroup | null {
+export function groupOf(s: GameState, g: number): BeastGroup | null {
   return laidOn && laidOn.level === s.level ? laidOn.groups[g] : null;
 }
 

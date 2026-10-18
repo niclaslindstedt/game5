@@ -55,7 +55,7 @@ const args = parseArgs(
     scene: {
       kind: "string",
       default: "",
-      help: "which hits, comma-separated (trunk, mangled, decapitation, crush); every one when left out",
+      help: "which hits, comma-separated (trunk, mangled, decapitation, crush, moose, hare); every one when left out",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     region: {
@@ -140,7 +140,9 @@ async function measure(scene) {
   });
   page.setDefaultTimeout(600_000);
   const t0 = Date.now();
-  await page.goto(`${server.url}gore-cost-preview.html?${query}`);
+  // An animal's scene lays the beast sheet's animals before the world is built.
+  const laid = BEAST.includes(scene) ? "&beasts=1" : "";
+  await page.goto(`${server.url}gore-cost-preview.html?${query}${laid}`);
   await page.waitForFunction("window.__goreCost !== undefined");
   await page.evaluate("window.__goreCost.ready");
   const t1 = Date.now();
@@ -158,7 +160,9 @@ async function measure(scene) {
   return out;
 }
 
-const ALL = ["trunk", "mangled", "decapitation", "crush"];
+/** The hits on an animal (`beast-gore.ts`): a moose at 110 km/h, a hare burst at 60. */
+const BEAST = ["moose", "hare"];
+const ALL = ["trunk", "mangled", "decapitation", "crush", ...BEAST];
 const scenes = list(args.scene).length ? list(args.scene) : ALL;
 /** The windows from the hit the rows are summed over, s. */
 const WINDOWS = [

@@ -32,10 +32,12 @@ import {
 } from "@engine";
 import * as THREE from "three";
 
+import { beastGoreMeter } from "../game/beast-gore.ts";
 import { goreMeter } from "../game/gore-view.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { dying } from "../game/xray-run.ts";
+import { groupOf, held as holdGround, labBeasts, standInto } from "./gore-beast-scenes.ts";
 import { intoTree, ontoSnow, skiAtTree, type Stage } from "./gore-scenes.ts";
 
 /** One frame's measures. `t` is seconds from the hit (negative before it). */
@@ -102,6 +104,8 @@ const height = Number(params.get("h") ?? 720);
 const dpr = Number(params.get("dpr") ?? 1);
 const seconds = Number(params.get("seconds") ?? 6);
 const twins = Number(params.get("twins") ?? 2);
+/** An animal's scene: the beast sheet's animals laid on the map. */
+const beasts = params.get("beasts") === "1";
 
 // THE CARD'S LEDGER: every program linked and every byte uploaded, counted
 // at the context's own calls (patched before the renderer makes one).
@@ -249,6 +253,9 @@ function fresh(): GameState {
   return createGame({ level, seed, region, mode: "free", gore: true, crowd: 0, quiet: true });
 }
 const stage = { level, fresh } as unknown as Stage;
+// Laid on the run's own map (a free ride's day over the generated one)
+// before the renderer builds the wildlife, which sizes its meshes off the plan.
+if (beasts) labBeasts(fresh().level);
 
 /** THE HITS, each staged a beat before the moment he meets it. */
 const SCENES: Record<string, () => GameState> = {
@@ -262,7 +269,32 @@ const SCENES: Record<string, () => GameState> = {
   decapitation: () => intoTree(stage, "head", 25).s,
   /** Thrown head first into the snow at 90 km/h: the skull crushed. */
   crush: () => ontoSnow(stage, "head", 25).s,
+  /** Skied square into a moose's flank at 110 km/h: both crushed. */
+  moose: () => intoBeast(1, 110 / 3.6),
+  /** A hare met at 60 km/h: burst. */
+  hare: () => intoBeast(4, 60 / 3.6),
 };
+
+/** The scenes an animal is met in: its fright held spent, every step. */
+const BEAST_SCENES = new Set(["moose", "hare"]);
+
+/** The rider stood to meet the beast sheet's animal of group `g`. */
+function intoBeast(g: number, speed: number): GameState {
+  const s = fresh();
+  holdGround(s);
+  step(s, NEUTRAL_INPUT); // the plan's own step fills the frights
+  holdGround(s);
+  const group = groupOf(s, g);
+  if (!group) throw new Error("the animals are laid only with ?beasts=1");
+  standInto(s, group, g, speed);
+  return s;
+}
+
+/** The groups a scene's gore is drawn in: the rider's, and an animal's. */
+const goreGroups = (scene: string): THREE.Object3D[] =>
+  (BEAST_SCENES.has(scene) ? ["gore", "beast-gore"] : ["gore"])
+    .map((n) => renderer.group(n))
+    .filter((o): o is THREE.Object3D => !!o);
 
 const ready = (async () => {
   const first = fresh();
@@ -275,25 +307,26 @@ const ready = (async () => {
 })();
 
 /** What the gore group hands the card: its meshes drawn and their triangles. */
-function goreLoad(root: THREE.Object3D | undefined) {
+function goreLoad(roots: readonly THREE.Object3D[]) {
   const out = { meshes: 0, tris: 0, drops: 0, splats: 0, pools: 0, pieces: 0, blood: 0 };
-  root?.traverseVisible((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    const g = m.geometry;
-    const count = g.index ? g.index.count : (g.getAttribute("position")?.count ?? 0);
-    const range = Math.min(count, g.drawRange.count) / 3;
-    const n = (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1;
-    if (n === 0 || range === 0) return;
-    out.meshes++;
-    out.tris += range * n;
-    if (m.name === "blood-drops") out.drops += n;
-    else if (m.name === "blood-splats") out.splats += n;
-    else if (m.name === "blood-pools") out.pools += n;
-    // A piece torn off is a skin of its own; the blood is instanced or the streams.
-    if ((m as THREE.SkinnedMesh).isSkinnedMesh) out.pieces += range * n;
-    else if (m.name.startsWith("blood") || o.parent?.name === "blood") out.blood += range * n;
-  });
+  for (const root of roots)
+    root.traverseVisible((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const g = m.geometry;
+      const count = g.index ? g.index.count : (g.getAttribute("position")?.count ?? 0);
+      const range = Math.min(count, g.drawRange.count) / 3;
+      const n = (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1;
+      if (n === 0 || range === 0) return;
+      out.meshes++;
+      out.tris += range * n;
+      if (m.name === "blood-drops") out.drops += n;
+      else if (m.name === "blood-splats") out.splats += n;
+      else if (m.name === "blood-pools") out.pools += n;
+      // A piece torn off is a skin of its own; the blood is instanced or the streams.
+      if ((m as THREE.SkinnedMesh).isSkinnedMesh) out.pieces += range * n;
+      else if (m.name.startsWith("blood") || o.parent?.name === "blood") out.blood += range * n;
+    });
   return out;
 }
 
@@ -333,9 +366,14 @@ async function run(scene: string): Promise<{
   let known = 0;
   const lead = Math.round(1 / FRAME);
   const total = 3 * lead + Math.round(seconds / FRAME);
+  const beast = BEAST_SCENES.has(scene);
   for (let k = 0; k < total; k++) {
-    for (let i = 0; i < STEPS; i++) step(state, NEUTRAL_INPUT);
-    if (hit < 0 && (state.skier.thrown || (state.gore?.mortal ?? -1) >= 0)) {
+    for (let i = 0; i < STEPS; i++) {
+      if (beast) holdGround(state);
+      step(state, NEUTRAL_INPUT);
+    }
+    const met = (state.wild?.struck.length ?? 0) > 0;
+    if (hit < 0 && (met || state.skier.thrown || (state.gore?.mortal ?? -1) >= 0)) {
       hit = state.t;
       named = gl.named.length;
       known = programs().length;
@@ -356,7 +394,7 @@ async function run(scene: string): Promise<{
     const row: CostRow = {
       t: state.t,
       cpu: drawn - at,
-      gore: goreMeter.updateMs,
+      gore: goreMeter.updateMs + (beast ? beastGoreMeter.updateMs : 0),
       wait: waited - drawn,
       calls: cost.calls,
       tris: cost.triangles,
@@ -367,7 +405,7 @@ async function run(scene: string): Promise<{
       shownUp: 0,
       hiddenUp: 0,
       ...(() => {
-        const g = goreLoad(renderer.group("gore"));
+        const g = goreLoad(goreGroups(scene));
         return {
           drops: g.drops,
           splats: g.splats,
@@ -385,8 +423,8 @@ async function run(scene: string): Promise<{
     };
     // THE TWIN, the best of `twins` each way, so a hiccup of the machine's
     // is not billed to the gore.
-    const group = renderer.group("gore");
-    if (group && twins > 0) {
+    const groups = goreGroups(scene);
+    if (groups.length && twins > 0) {
       let shown = Infinity;
       let hidden = Infinity;
       for (let r = 0; r < twins; r++) {
@@ -394,9 +432,9 @@ async function run(scene: string): Promise<{
         shown = Math.min(shown, a.ms);
         row.shownCalls = a.calls;
         row.shownUp = a.up;
-        group.visible = false;
+        for (const g of groups) g.visible = false;
         const b = still(state);
-        group.visible = true;
+        for (const g of groups) g.visible = true;
         hidden = Math.min(hidden, b.ms);
         row.hiddenCalls = b.calls;
         row.hiddenUp = b.up;
@@ -422,20 +460,21 @@ async function run(scene: string): Promise<{
   // What the gore group holds at the end, by kind: its meshes drawn, a
   // kind's count and the triangles it hands the card.
   const kinds = new Map<string, { n: number; tris: number }>();
-  renderer.group("gore")?.traverseVisible((o) => {
-    const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    const kind = `${o.parent?.name || "-"}/${mesh.name || mesh.type}`;
-    const g = mesh.geometry;
-    const count = g.index ? g.index.count : (g.getAttribute("position")?.count ?? 0);
-    const inst = (mesh as THREE.InstancedMesh).isInstancedMesh
-      ? (mesh as THREE.InstancedMesh).count
-      : 1;
-    const k = kinds.get(kind) ?? { n: 0, tris: 0 };
-    k.n++;
-    k.tris += (Math.min(count, g.drawRange.count) / 3) * inst;
-    kinds.set(kind, k);
-  });
+  for (const root of goreGroups(scene))
+    root.traverseVisible((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const kind = `${o.parent?.name || "-"}/${mesh.name || mesh.type}`;
+      const g = mesh.geometry;
+      const count = g.index ? g.index.count : (g.getAttribute("position")?.count ?? 0);
+      const inst = (mesh as THREE.InstancedMesh).isInstancedMesh
+        ? (mesh as THREE.InstancedMesh).count
+        : 1;
+      const k = kinds.get(kind) ?? { n: 0, tris: 0 };
+      k.n++;
+      k.tris += (Math.min(count, g.drawRange.count) / 3) * inst;
+      kinds.set(kind, k);
+    });
   const held = [...kinds].map(([k, v]) => `${k} ×${v.n} (${Math.round(v.tris)} tris)`);
   // three's own record of the programs made after the hit: its name and
   // the end of its key, where a material's own cache key sits.

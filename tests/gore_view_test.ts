@@ -18,6 +18,7 @@ import {
   pieceCollapse,
 } from "../pwa/src/game/gore-cut.ts";
 import {
+  lump,
   rope,
   stepRope,
   stepStick,
@@ -25,7 +26,9 @@ import {
   streamPath,
   type GibGround,
 } from "../pwa/src/game/gore-gibs.ts";
+import * as THREE from "three";
 import { tillerSpray, type TillerBlood } from "../pwa/src/game/gore-tiller.ts";
+import { createLumps } from "../pwa/src/game/gore-lumps.ts";
 import { GAPS, gapAt, lowestGap, partAt, soakPath } from "../pwa/src/game/gore-leaks.ts";
 import { bindPose } from "../pwa/src/game/dress-loft.ts";
 import { DEATH, HUD_FADE, hudFade, timelineOf, wreckOf } from "../pwa/src/game/hud-wreck.ts";
@@ -366,5 +369,28 @@ describe("under a piste machine, as drawn (`gore-tiller.ts`)", () => {
       () => {},
     );
     expect(out.drops).toBe(0);
+  });
+});
+
+describe("the lumps thrown, instanced and baked (`gore-lumps.ts`)", () => {
+  const shape = new THREE.BoxGeometry(1, 1, 1);
+  const at = { x: 0, y: 0.5, z: 0 };
+  const still = { x: 0, y: 0, z: 0 };
+
+  it("draws a lump at the size it was thrown at, and bakes it there once still", () => {
+    const lumps = createLumps(new THREE.MeshBasicMaterial());
+    lumps.add(shape, lump(at, still, 0.5, { x: 0, y: 1, z: 0 }, 0, 1 / 60), 2.5);
+    const block = lumps.group.children[0] as THREE.InstancedMesh;
+    const m = new THREE.Matrix4();
+    block.getMatrixAt(0, m);
+    expect(new THREE.Vector3().setFromMatrixScale(m).x).toBeCloseTo(2.5, 5);
+    // Lain still past the settle and the bake's pace: one mesh, its size kept.
+    for (let i = 0; i < 120; i++) lumps.update(FLAT, 1 / 60);
+    const baked = lumps.group.children.find((o) => !(o as THREE.InstancedMesh).isInstancedMesh);
+    expect(baked).toBeDefined();
+    const geo = (baked as THREE.Mesh).geometry;
+    geo.computeBoundingBox();
+    expect(geo.boundingBox!.max.x - geo.boundingBox!.min.x).toBeCloseTo(2.5, 3);
+    lumps.dispose();
   });
 });

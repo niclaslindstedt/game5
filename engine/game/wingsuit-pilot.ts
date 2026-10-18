@@ -13,6 +13,7 @@
 // Pure over the state: nothing here moves anything.
 
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { nearestTrackPoint } from "../mapgen/query.ts";
 import { WINGSUIT } from "./defs/wingsuit.ts";
 import { NEUTRAL_INPUT, type GameState, type SkierInput } from "./state.ts";
 
@@ -57,8 +58,16 @@ export function wingsuitPilot(state: GameState): SkierInput | null {
   if (ch.mode === "freefall" && (over <= B.open || (least < 0 && ch.agl < B.keep))) {
     return { ...NEUTRAL_INPUT, machine: true };
   }
+  // Down the fall line — and, the last `home` m over the floor, for the
+  // piste the canopy will be flown to, so the pull is made where its glide
+  // reaches open snow rather than over the woods short of it.
   const down = fallLine(state, c.x + c.vx * B.ahead, c.z + c.vz * B.ahead, ch.heading);
-  const gap = angleDiff(ch.heading, down);
+  const spot = over <= B.home ? nearestTrackPoint(level, c.x, c.z) : null;
+  const way =
+    spot && least >= B.keep && hypot(spot.x - c.x, spot.z - c.z) > B.near
+      ? Math.atan2(spot.x - c.x, spot.z - c.z)
+      : down;
+  const gap = angleDiff(ch.heading, way);
   // Down the fall line, gently; harder where the snow ahead closes on him.
   const urgent = least < B.keep;
   const steer = clamp((urgent ? 2 : 0.6) * gap, -1, 1);

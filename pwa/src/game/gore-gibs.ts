@@ -25,15 +25,35 @@
 //     streamed out behind one thrown through the air.
 //
 // The snow is the map's (`groundAt`, `normalAt`) under the drawn cover;
-// every one of them slides on it with a snow's friction and stops.
+// every one of them slides on it with a snow's friction and stops. What
+// stands in the snow (`solidsOf`: the trunks, the posts, a tower's pad) is
+// as solid to a piece as to the body it came off: nothing flies through.
+
+import { solidsNear, solidsOf, type Level, type Upright } from "@engine";
 
 import type { V3 } from "./skier-pose.ts";
 
-/** The snow a gib lands on: the height of the DRAWN surface and its normal. */
+/** The snow a gib lands on: the height of the DRAWN surface and its normal,
+ * and what stands in it within `r` m of (x, z), by index into `solids`. */
 export type GibGround = {
   heightAt(x: number, z: number): number;
   normalAt(x: number, z: number, out: V3): V3;
+  solids?: readonly Upright[];
+  near?(x: number, z: number, r: number, out: number[]): number[];
 };
+
+/** The ground of `level`: its snow and everything standing in it. */
+export function gibGround(level: Level): GibGround {
+  return {
+    heightAt: (x, z) => level.groundAt(x, z),
+    normalAt: (x, z, out) => {
+      level.normalAt(x, z, out);
+      return out;
+    },
+    solids: solidsOf(level),
+    near: (x, z, r, out) => solidsNear(level, x, z, r, out),
+  };
+}
 
 const G = 9.81;
 /** The air's drag on a tumbling body part, 1/s — light, it is a heavy lump. */
@@ -130,6 +150,48 @@ function onSnow(p: V3, l: V3, r: number, ground: GibGround, dt: number): boolean
   return true;
 }
 
+const nearby: number[] = [];
+
+/** Pushes `p` (radius `r`) out of any upright it is inside, its way into the
+ * upright's face turned back off it at `BOUNCE` and its slide along the face
+ * dragged as along the snow. */
+function offSolids(p: V3, l: V3, r: number, ground: GibGround, dt: number): void {
+  const solids = ground.solids;
+  if (!solids || !ground.near) return;
+  for (const k of ground.near(p.x, p.z, r + 1.5, nearby)) {
+    const u = solids[k];
+    if (p.y < u.y - r || p.y > u.y + u.height + r) continue;
+    const dx = p.x - u.x;
+    const dz = p.z - u.z;
+    const d = Math.hypot(dx, dz);
+    const reach = u.radius + r;
+    if (d >= reach) continue;
+    // Out the way it came in when it is at the axis.
+    const nx = d > 1e-4 ? dx / d : l.x - u.x;
+    const nz = d > 1e-4 ? dz / d : l.z - u.z;
+    const nn = Math.hypot(nx, nz) || 1;
+    const ux = nx / nn;
+    const uz = nz / nn;
+    let vx = (p.x - l.x) / dt;
+    const vy = (p.y - l.y) / dt;
+    let vz = (p.z - l.z) / dt;
+    p.x = u.x + ux * reach;
+    p.z = u.z + uz * reach;
+    const into = vx * ux + vz * uz;
+    if (into < 0) {
+      vx -= (1 + BOUNCE) * into * ux;
+      vz -= (1 + BOUNCE) * into * uz;
+      const keep = Math.max(0, 1 - SLIDE * dt);
+      const along = vx * ux + vz * uz;
+      vx = along * ux + (vx - along * ux) * keep;
+      vz = along * uz + (vz - along * uz) * keep;
+    }
+    l.x = p.x - vx * dt;
+    l.y = p.y - vy * dt;
+    l.z = p.z - vz * dt;
+  }
+}
+
 function verlet(p: V3, l: V3, dt: number): void {
   const k = 1 - AIR * dt;
   const vx = (p.x - l.x) * k;
@@ -167,6 +229,8 @@ export function stepStick(s: Stick, ground: GibGround, dt: number): void {
   let down = false;
   for (let k = 0; k < 3; k++) {
     hold(s.a, s.b, s.length, 1, 1);
+    offSolids(s.a, s.la, s.ra, ground, dt);
+    offSolids(s.b, s.lb, s.rb, ground, dt);
     down = onSnow(s.a, s.la, s.ra, ground, dt) || down;
     down = onSnow(s.b, s.lb, s.rb, ground, dt) || down;
   }
@@ -206,6 +270,7 @@ export function lump(p: V3, v: V3, r: number, axis: V3, spin: number, dt: number
 export function stepLump(o: Lump, ground: GibGround, dt: number): void {
   if (dt <= 0) return;
   verlet(o.p, o.l, dt);
+  offSolids(o.p, o.l, o.r, ground, dt);
   o.down = onSnow(o.p, o.l, o.r, ground, dt);
   if (o.down) {
     // Rolled by the snow at the speed it slides, about the axis across it.
@@ -354,7 +419,10 @@ export function stepRope(o: Rope, ground: GibGround, dt: number): Rope | null {
     for (let i = 0; i + 1 < o.p.length; i++) {
       hold(o.p[i], o.p[i + 1], o.link, i === 0 && o.held ? 0 : 1, 1);
     }
-    for (let i = 0; i < o.p.length; i++) onSnow(o.p[i], o.l[i], o.r, ground, dt);
+    for (let i = 0; i < o.p.length; i++) {
+      offSolids(o.p[i], o.l[i], o.r, ground, dt);
+      onSnow(o.p[i], o.l[i], o.r, ground, dt);
+    }
   }
   return torn;
 }

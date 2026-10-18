@@ -201,6 +201,7 @@ export function middleSpray(
   way: { x: number; z: number },
   t: number,
   rng: Rng,
+  solid?: { x: number; z: number; r: number },
 ): { x: number; z: number; r: number; t: number }[] {
   const s = Math.hypot(way.x, way.z) || 1;
   const ux = way.x / s;
@@ -221,7 +222,14 @@ export function middleSpray(
   const reach = Math.min(16, s * 0.5);
   for (let k = 0; k < 140; k++) {
     const d = reach * rng.next() ** 0.7;
-    const side = (rng.next() - 0.5) * (0.4 + d * 0.25);
+    let side = (rng.next() - 0.5) * (0.4 + d * 0.25);
+    // Past a solid's side, never through it: its lee is clear of the spray.
+    if (solid) {
+      const off = (at.x - solid.x) * uz - (at.z - solid.z) * ux;
+      const lee = solid.r + 0.1;
+      if (Math.abs(side + off) < lee)
+        side = Math.sign(side + off || 1) * (lee + Math.abs(side + off)) - off;
+    }
     out.push({
       x: at.x + ux * d + uz * side,
       z: at.z + uz * d - ux * side,
@@ -238,7 +246,12 @@ export type Smears = {
    * the run clock `t`. */
   update(smears: readonly Smear[], t: number): void;
   /** The middle crushed: its blood flung on along `way` from `at`. */
-  fling(at: { x: number; z: number }, way: { x: number; z: number }, t: number): void;
+  fling(
+    at: { x: number; z: number },
+    way: { x: number; z: number },
+    t: number,
+    solid?: { x: number; z: number; r: number } | null,
+  ): void;
   /** The pastes laid so far, handed over (a body left lying keeps them). */
   take(): THREE.Mesh[];
   clear(): void;
@@ -267,8 +280,8 @@ export function createSmears(
   const basis = new THREE.Matrix4();
   return {
     group,
-    fling(at, way, t) {
-      due.push(...middleSpray(at, way, t, rng));
+    fling(at, way, t, solid) {
+      due.push(...middleSpray(at, way, t, rng, solid ?? undefined));
     },
     update(smears, t) {
       due = due.filter((b) => {

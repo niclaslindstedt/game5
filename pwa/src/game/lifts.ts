@@ -45,10 +45,11 @@
 
 import * as THREE from "three";
 import { smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
-import { TUNING, type Level, type LiftRide } from "@engine";
+import { TUNING, type Level, type LiftRide, type Thrown } from "@engine";
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createMapBoards } from "./map-board.ts";
+import { createPadGive, type PadSpot } from "./pad-give.ts";
 import {
   COLUMN_TAPER,
   DRAG_ARM,
@@ -170,7 +171,8 @@ export type Lifts = {
    * every chair is. `others` are the keen skiers on lifts, `crowd` the
    * ski area's amateurs (`GameState.crowd`), whose T-bars are held;
    * `board` when the player rides a snowboard, towed side-on with his bar
-   * between his legs behind his front thigh (`board-lift.ts`'s `BOARD_TOW`). */
+   * between his legs behind his front thigh (`board-lift.ts`'s `BOARD_TOW`);
+   * `body` his body thrown, which a tower's pad gives under (`pad-give.ts`). */
   update(
     t: number,
     rider?: LiftRide | null,
@@ -179,6 +181,7 @@ export type Lifts = {
     others?: readonly SeatedRider[],
     crowd?: readonly { mode: string; lift: number; carrier: number }[],
     board?: boolean,
+    body?: Thrown | null,
   ): void;
   /** The SPRAY row's share (`SPRAY_SHARE`): the tunnels' blown snow. */
   setBudget(share: number): void;
@@ -314,7 +317,7 @@ export function createLifts(
     shadow = true,
   ) => {
     geos.push(geo);
-    if (count === 0) return;
+    if (count === 0) return null;
     const mesh = new THREE.InstancedMesh(geo, mat, count);
     let i = 0;
     fill((x, y, z, yaw, s, colour) => {
@@ -331,6 +334,7 @@ export function createLifts(
     mesh.computeBoundingSphere();
     meshes.push(mesh);
     group.add(mesh);
+    return mesh;
   };
 
   // THE COLUMNS: one round tapered steel tube for every tower and every
@@ -372,15 +376,25 @@ export function createLifts(
     },
   ]);
   const vinyl = std({ vertexColors: true, roughness: 0.6, metalness: 0 }, "lift");
-  instanced(padGeo, vinyl, pads, (set) => {
-    for (const p of plans) {
-      const r = p.look.column * Math.SQRT2 + TOWER_PAD.thick;
-      for (const s of p.supports) {
-        if (!s.pad) continue;
-        set(s.x, s.ground - SINK, s.z, p.heading, size.set(r, TOWER_PAD.height + SINK, r));
-      }
-    }
+  const spots: PadSpot[] = [];
+  for (const p of plans) {
+    const r = p.look.column * Math.SQRT2 + TOWER_PAD.thick;
+    for (const s of p.supports)
+      if (s.pad)
+        spots.push({
+          x: s.x,
+          y: s.ground - SINK,
+          z: s.z,
+          yaw: p.heading,
+          r,
+          h: TOWER_PAD.height + SINK,
+        });
+  }
+  const padMesh = instanced(padGeo, vinyl, pads, (set) => {
+    for (const s of spots) set(s.x, s.y, s.z, s.yaw, size.set(s.r, s.h, s.r));
   });
+  // ...and each gives where a body meets it (`pad-give.ts`).
+  const give = padMesh ? createPadGive(padMesh, spots) : null;
 
   // THE LADDERS up every tower's downhill face, on stand-offs, leant in
   // with the column's taper to its head; the snow hides their feet. Near
@@ -824,7 +838,8 @@ export function createLifts(
 
   const inCabin: { index: number; u: number }[] = [];
   const holds = new Map<number, Hold>();
-  done.update = (t, rider, drawn, eye, others = [], crowd = [], board = false) => {
+  done.update = (t, rider, drawn, eye, others = [], crowd = [], board = false, body) => {
+    give?.update(t, body);
     tunnels.update(t);
     if (eye) {
       houses.update(eye);

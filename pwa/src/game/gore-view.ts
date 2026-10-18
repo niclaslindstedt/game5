@@ -71,7 +71,7 @@ import {
   stepRope,
   stepStick,
   stick,
-  type GibGround,
+  gibGround,
   type Lump,
   type Rope,
   type Stick,
@@ -270,13 +270,7 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
   const smears = createSmears(level, flesh, level.seed ^ 0x5ea5, (...a) => blood.splat(...a));
   group.add(smears.group);
 
-  const ground: GibGround = {
-    heightAt: (x, z) => level.groundAt(x, z),
-    normalAt: (x, z, out) => {
-      level.normalAt(x, z, out);
-      return out;
-    },
-  };
+  const ground = gibGround(level);
 
   // What has been drawn of the engine's wounds so far.
   let rng: Rng = createRng(level.seed ^ 0x5eed90e);
@@ -662,9 +656,16 @@ export function createGoreView(level: Level, wrap: Wrap, variants?: () => number
         const at = world(f.chest.head, M);
         const u = Math.hypot(g.way.x, g.way.y, g.way.z);
         const way = new THREE.Vector3(g.way.x, g.way.y, g.way.z).normalize();
-        blood.emit(at, way, u * 0.45, 500, 0.9, carry, () => rng.next());
+        // Round a wide solid (a tower's pad), never through it: out past both its sides.
+        const o = [...g.smears].reverse().find((m) => m.r > 0);
+        const ahead = (from: THREE.Vector3, n: number) =>
+          blood.emit(from, way, u * 0.45, n, 0.9, carry, () => rng.next());
+        if (o && o.r > 0.25)
+          for (const k of [1, -1])
+            ahead(at.clone().add(v1.set(way.z * k, 0, -way.x * k).setLength(o.r + 0.15)), 250);
+        else ahead(at, 500);
         blood.emit(at, way.clone().negate(), 3.5, 300, 1.3, carry, () => rng.next());
-        smears.fling(at, g.way, state.t);
+        smears.fling(at, g.way, state.t, o && { x: o.cx, z: o.cz, r: o.r });
       }
       // THE SKULL CRUSHED.
       if (g.crushed >= 0 && !crushed) {

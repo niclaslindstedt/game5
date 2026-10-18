@@ -26,12 +26,14 @@ export const WHERE_STRINGS = {
   whereSlopes: (n: number): string => (n === 1 ? "ONE SLOPE" : `${n} SLOPES`),
   /** The reading's three figures, each a caption over its value: the drop
    * from the highest piste to the lowest, the steepest hundred metres of
-   * any piste and the pistes' mean pitch, as a gradient in per cent. */
+   * any piste and the pistes' mean pitch, as an angle in degrees (the
+   * figures are gradients, rise over run). */
   whereDrop: "DROP",
   whereSteepest: "STEEPEST",
   whereMean: "AVERAGE",
   whereMetres: (m: number): string => `${Math.round(m)} M`,
-  wherePitch: (g: number | null): string => (g === null ? "—" : `${Math.round(g * 100)}%`),
+  wherePitch: (g: number | null): string =>
+    g === null ? "—" : `${Math.round((Math.atan(g) * 180) / Math.PI)}°`,
   /** A figure still being read off the mountain. */
   whereReading: "…",
 } as const;

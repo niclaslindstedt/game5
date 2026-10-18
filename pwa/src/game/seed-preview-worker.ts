@@ -187,6 +187,15 @@ async function encode(
   return { px, rgba };
 }
 
+/** The fall-line gradient of the map's snow at a point, off its normal. */
+const slopeOf = (level: Level) => {
+  const n = { x: 0, y: 1, z: 0 };
+  return (x: number, z: number): number => {
+    level.normalAt(x, z, n);
+    return Math.hypot(n.x, n.z) / Math.max(1e-6, n.y);
+  };
+};
+
 const placeOf = ({ x, y, z }: { x: number; y: number; z: number }) => ({ x, y, z });
 /** The summit the paramotor's ride is stood up on (`paraStartOf`). */
 const summitOf = (level: Level) => {
@@ -247,7 +256,7 @@ self.onmessage = async (e: MessageEvent<PreviewRequest>) => {
         panorama,
         length: level.track.length,
         vertical: level.mountain?.vertical ?? 0,
-        figures: profileStats(freeRuns(level).map((r) => profileOf(r.points))),
+        figures: profileStats(freeRuns(level).map((r) => profileOf(r.points, slopeOf(level)))),
         colour: gradeOf(level),
         dealt: dealtDay(level),
         board: boardKey(level),

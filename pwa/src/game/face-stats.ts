@@ -10,9 +10,11 @@ import { faceHeight, loadRealFace, realFace, realHints } from "@engine";
 
 /** One face's or one area's figures: the drop from its highest piste to its
  * lowest, m; the steepest hundred metres of any piste and the pistes' mean
- * pitch, both as a gradient (rise over run); the lines read (the weight of
- * its mean in an area's). A face
- * with no real pistes reads its relief as its drop and no pitch. */
+ * pitch, both as a gradient (rise over run) of the snow UNDER the piste,
+ * down its fall line — how a ski area grades a slope, never the line a
+ * piste takes across it, which traverses a steep face at a gentle angle;
+ * the lines read (the weight of its mean in an area's). A face with no
+ * real pistes reads its relief as its drop and no pitch. */
 export type FaceStats = {
   readonly drop: number;
   readonly steepest: number | null;
@@ -24,46 +26,57 @@ export type FaceStats = {
 /** A set of runs' figures, as `profileStats` reads them. */
 export type RunFigures = Omit<FaceStats, "faces">;
 
+/** One run read every STEP m along its bends: the snow's height there and
+ * its fall-line gradient. */
+export type Profile = { readonly heights: readonly number[]; readonly pitches: readonly number[] };
+
 /** The pistes are read every `step` m along their bends, and the steepest
  * pitch over `reach` m of run — the grades' own steepest hundred metres. */
 const STEP = 10;
 const REACH = 100;
 
-/** The figures of a set of runs, each a profile of heights every STEP m
- * down it: the drop from the highest to the lowest, the steepest REACH m of
- * any and the mean pitch of all. Null where no profile has two heights. */
-export function profileStats(profiles: readonly (readonly number[])[]): RunFigures | null {
+/** The figures of a set of runs, each a profile read every STEP m down it:
+ * the drop from the highest to the lowest, the steepest REACH m of any
+ * (the mean fall line over that stretch) and the mean pitch of all. Null
+ * where no profile has two points. */
+export function profileStats(profiles: readonly Profile[]): RunFigures | null {
   let top = -Infinity;
   let bottom = Infinity;
   let steepest = 0;
-  let rise = 0;
-  let run = 0;
+  let sum = 0;
+  let count = 0;
   let pistes = 0;
-  for (const hs of profiles) {
-    if (hs.length < 2) continue;
+  for (const { heights, pitches } of profiles) {
+    if (heights.length < 2) continue;
     pistes++;
-    for (const h of hs) {
+    for (const h of heights) {
       top = Math.max(top, h);
       bottom = Math.min(bottom, h);
     }
-    for (let k = 1; k < hs.length; k++) rise += Math.abs(hs[k] - hs[k - 1]);
-    run += STEP * (hs.length - 1);
-    const span = Math.min(REACH / STEP, hs.length - 1);
-    for (let k = span; k < hs.length; k++) {
-      steepest = Math.max(steepest, Math.abs(hs[k] - hs[k - span]) / (span * STEP));
+    const span = Math.min(REACH / STEP, pitches.length);
+    let window = 0;
+    for (let k = 0; k < pitches.length; k++) {
+      window += pitches[k];
+      if (k >= span) window -= pitches[k - span];
+      if (k >= span - 1) steepest = Math.max(steepest, window / span);
+      sum += pitches[k];
+      count++;
     }
   }
-  if (run === 0) return null;
-  return { drop: top - bottom, steepest, mean: rise / run, pistes };
+  if (count === 0) return null;
+  return { drop: top - bottom, steepest, mean: sum / count, pistes };
 }
 
-/** A line of points resampled every STEP m of its run, as `height` reads
- * it — or as the points' own heights where they carry them. */
+/** A line of points resampled every STEP m of its run: the height as
+ * `height` reads it (the points' own heights where they carry them) and
+ * the fall-line gradient as `pitch` reads it. */
 export function profileOf(
   points: readonly { x: number; z: number; y?: number }[],
+  pitch: (x: number, z: number) => number,
   height: (x: number, z: number, y: number) => number = (_x, _z, y) => y,
-): number[] {
-  const hs: number[] = [];
+): Profile {
+  const heights: number[] = [];
+  const pitches: number[] = [];
   for (let i = 0; i + 1 < points.length; i++) {
     const a = points[i];
     const b = points[i + 1];
@@ -71,12 +84,22 @@ export function profileOf(
     const n = Math.max(1, Math.round(len / STEP));
     for (let k = i === 0 ? 0 : 1; k <= n; k++) {
       const t = k / n;
+      const x = a.x + (b.x - a.x) * t;
+      const z = a.z + (b.z - a.z) * t;
       const ay = a.y ?? 0;
       const by = b.y ?? 0;
-      hs.push(height(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t, ay + (by - ay) * t));
+      heights.push(height(x, z, ay + (by - ay) * t));
+      pitches.push(pitch(x, z));
     }
   }
-  return hs;
+  return { heights, pitches };
+}
+
+/** The fall-line gradient of a height field at a point, off its heights
+ * `d` m to either side. */
+export function pitchOf(height: (x: number, z: number) => number, d: number) {
+  return (x: number, z: number): number =>
+    Math.hypot(height(x + d, z) - height(x - d, z), height(x, z + d) - height(x, z - d)) / (2 * d);
 }
 
 /** A loaded face's figures; null for an id no face has. Its `pistes` are
@@ -87,9 +110,8 @@ export function faceStats(id: string): FaceStats | null {
   const face = realFace(id);
   if (!face) return null;
   const pistes = realHints(id)?.pistes ?? [];
-  const read = profileStats(
-    pistes.map((p) => profileOf(p.points, (x, z) => faceHeight(face, x, z))),
-  );
+  const at = (x: number, z: number): number => faceHeight(face, x, z);
+  const read = profileStats(pistes.map((p) => profileOf(p.points, pitchOf(at, STEP), at)));
   if (read === null) {
     let lo = Infinity;
     let hi = -Infinity;

@@ -23,11 +23,10 @@
 // allowed to live out of sight of the loop, because it is only ever seen in
 // the air over it.
 
-import { TAU, createRng, regionOf, windFromOf, type Level, type Rng } from "@engine";
+import { TAU, createRng, regionOf, windFromOf, type Level, type Rng, groupCount } from "@engine";
 
 import { BIRDS, type Band, type BirdId, type BirdSpec } from "./bird-defs.ts";
 import { CROSSING_INTERVAL, walkLoop, type BirdPlan, type Flock, type Roost } from "./bird-plan.ts";
-import { groupCount } from "./rarity.ts";
 import { wildGround, type WildGround } from "./wild-ground.ts";
 
 /** The salt on the map's seed the birds are dealt off — nothing in the

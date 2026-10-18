@@ -72,6 +72,7 @@ const CAUSE_NAMES: Record<CrashCause, string> = {
   plane: "PLANE CRASHES",
   wingsuit: "WINGSUIT IMPACTS",
   bike: "BIKE CRASHES",
+  beast: "ANIMALS",
   fire: "FIRES",
   blast: "SLED EXPLOSIONS",
 };

@@ -3,13 +3,16 @@
 // ground of the mountain: its size, how it moves, how many go together, where
 // it lives, how close an engine can come before it goes, and what its feet
 // leave in the snow. The birds' split, on the ground: this says what an
-// animal is, `beast-plan.ts` places every group and says where each animal
-// is at a moment, `beast-tracks.ts` lays its prints, `beast-shapes.ts`
+// animal is, `../beast-plan.ts` places every group and says where each
+// animal is at a moment, `../beast-hit.ts` is what happens when a skier runs
+// into one; in the app `beast-tracks.ts` lays its prints, `beast-shapes.ts`
 // builds it and `beasts.ts` draws it.
 //
-// Presentation only. Nothing here is a solid — a skier that runs through a
-// hare has run through nothing, which is why no animal is ever placed on
-// the loop — and nothing here draws from the engine's stream.
+// AN ANIMAL IS A BODY ON A FREE RIDE: met by the rider it stops him by its
+// MASS and is knocked down, killed or crushed by the speed it was met at
+// (`BEAST_HIT`). On every other run it is scenery. Nothing here draws from
+// the engine's stream — the plan is dealt off the map's seed on a generator
+// of its own, so no digest sees an animal that nobody runs into.
 //
 // WHY THESE, and why in this order: it is the rarity ladder
 // (`rarity.ts`) read top to bottom. The MOUNTAIN HARE, white for the winter,
@@ -42,10 +45,9 @@
 //
 // The look (the coat, the ears, the antlers) belongs to `beast-shapes.ts`.
 
-import type { RegionId } from "@engine";
-
-import type { Band } from "./bird-defs.ts";
-import { rarityOf, type Rarity } from "./rarity.ts";
+import type { RegionId } from "../../mapgen/regions.ts";
+import type { Band } from "../../mapgen/rules.ts";
+import { rarityOf, type Rarity } from "../rarity.ts";
 
 export type BeastId =
   | "hare"
@@ -121,6 +123,13 @@ export type BeastSpec = {
    * snowshoes, the moose goes in to the knee. */
   readonly sink: number;
   readonly prints: Prints;
+  /** What a grown one weighs in its winter coat, kg — a mixed group's
+   * middle: what a skier who runs into it is stopped by (`beast-hit.ts`). */
+  readonly mass: number;
+  /** The share of its frights it BOLTS ACROSS the line of whoever put it
+   * up rather than straight away from him, 0..1 — a hare's jink, a deer's
+   * dash over the road in front of the car; a wolf never. */
+  readonly bolts: number;
   /** GROUPS PER KILOMETRE of loop — how common it is (`rarityOf`). */
   readonly perKm: number;
 };
@@ -147,6 +156,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 45,
     sink: 0.02,
     prints: { size: 0.08, depth: 0.06, gauge: 0.1, pattern: "bound" },
+    mass: 3.0,
+    bolts: 0.45,
     perKm: 1.3,
   },
   {
@@ -170,6 +181,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 20,
     sink: 0.01,
     prints: { size: 0.035, depth: 0.03, gauge: 0.04, pattern: "bound" },
+    mass: 0.3,
+    bolts: 0.3,
     perKm: 0.9,
   },
   {
@@ -193,6 +206,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 60,
     sink: 0.05,
     prints: { size: 0.06, depth: 0.08, gauge: 0.02, pattern: "line" },
+    mass: 6,
+    bolts: 0.15,
     perKm: 0.55,
   },
   {
@@ -216,6 +231,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 55,
     sink: 0.04,
     prints: { size: 0.05, depth: 0.06, gauge: 0.02, pattern: "line" },
+    mass: 3.5,
+    bolts: 0.15,
     perKm: 0.6,
   },
   {
@@ -239,6 +256,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 80,
     sink: 0.15,
     prints: { size: 0.05, depth: 0.14, gauge: 0.09, pattern: "pairs" },
+    mass: 23,
+    bolts: 0.35,
     perKm: 0.35,
   },
   {
@@ -262,6 +281,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 90,
     sink: 0.12,
     prints: { size: 0.11, depth: 0.16, gauge: 0.12, pattern: "pairs" },
+    mass: 100,
+    bolts: 0.3,
     perKm: 0.28,
   },
   {
@@ -285,6 +306,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 70,
     sink: 0.1,
     prints: { size: 0.06, depth: 0.1, gauge: 0.09, pattern: "pairs" },
+    mass: 35,
+    bolts: 0.25,
     perKm: 0.4,
   },
   {
@@ -308,6 +331,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 70,
     sink: 0.1,
     prints: { size: 0.06, depth: 0.1, gauge: 0.09, pattern: "pairs" },
+    mass: 70,
+    bolts: 0.15,
     perKm: 0.3,
   },
   {
@@ -331,6 +356,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 90,
     sink: 0.12,
     prints: { size: 0.11, depth: 0.16, gauge: 0.12, pattern: "pairs" },
+    mass: 300,
+    bolts: 0.3,
     perKm: 0.35,
   },
   {
@@ -354,6 +381,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 60,
     sink: 0.05,
     prints: { size: 0.06, depth: 0.08, gauge: 0.02, pattern: "line" },
+    mass: 13,
+    bolts: 0.1,
     perKm: 0.4,
   },
   {
@@ -377,6 +406,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 80,
     sink: 0.15,
     prints: { size: 0.05, depth: 0.14, gauge: 0.09, pattern: "pairs" },
+    mass: 45,
+    bolts: 0.35,
     perKm: 0.35,
   },
   {
@@ -400,6 +431,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 50,
     sink: 0.25,
     prints: { size: 0.14, depth: 0.25, gauge: 0.18, pattern: "pairs" },
+    mass: 400,
+    bolts: 0.15,
     perKm: 0.1,
   },
   {
@@ -423,6 +456,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 80,
     sink: 0.05,
     prints: { size: 0.09, depth: 0.07, gauge: 0.03, pattern: "line" },
+    mass: 20,
+    bolts: 0.05,
     perKm: 0.05,
   },
   {
@@ -446,6 +481,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 70,
     sink: 0.04,
     prints: { size: 0.1, depth: 0.06, gauge: 0.12, pattern: "bound" },
+    mass: 14,
+    bolts: 0.1,
     perKm: 0.04,
   },
   {
@@ -470,6 +507,8 @@ export const BEASTS: readonly BeastSpec[] = [
     flee: 110,
     sink: 0.08,
     prints: { size: 0.11, depth: 0.1, gauge: 0.03, pattern: "line" },
+    mass: 40,
+    bolts: 0.05,
     perKm: 0.03,
   },
 ];
@@ -488,3 +527,57 @@ export function beastById(id: BeastId): BeastSpec {
 export function beastRarity(spec: BeastSpec): Rarity {
   return rarityOf(spec.perKm);
 }
+
+/** RUN INTO AN ANIMAL (`beast-hit.ts`) — the numbers, with their units. */
+export const BEAST_HIT = {
+  /** The rider's body as the animals meet it: a vertical capsule this
+   * wide round his middle, m, and this tall off his boots, m. */
+  riderRadius: 0.3,
+  riderHeight: 1.75,
+  /** An animal's body round its spine, as a share of its shoulder height
+   * (a deer's barrel is some two-fifths of its height through), and the
+   * least, m. */
+  girth: 0.22,
+  girthLeast: 0.06,
+  /** The bounce between two bodies of flesh, 0..1: next to none. */
+  restitution: 0.1,
+  /** How hard the two must close before anything comes of it, m/s — a
+   * slower touch only puts the group up. */
+  touch: 1.5,
+  /** The SPEED IT IS MET AT that KILLS it, and that CRUSHES it (the body
+   * burst — `crushOf` 1), m/s, for an animal of `refMass`: a heavier one
+   * takes more, as the fifth root of its mass (a moose's ribs are no
+   * sparrow's). On a run without injuries nothing is killed: it is
+   * KNOCKED DOWN past `knock` and up again after `downFor` s. */
+  kill: 6,
+  crush: 14,
+  refMass: 30,
+  knock: 3,
+  downFor: 2.5,
+  /** How long a knocked-down animal takes to run back to its group, s,
+   * and how long one only brushed is kept from being met again, s. */
+  rejoin: 3,
+  brush: 1,
+  /** The rider is THROWN (the `beast` crash cause) when the hit takes
+   * this much off his speed, m/s — a roe deer at a cruise does; a hare
+   * at any speed does not. */
+  throws: 2.2,
+  /** What an animal's body gives a part of him driven into it, m, by the
+   * speed the blow took off him: met slowly its hide, muscle and ribs give
+   * as a body does (`soft`); met hard they are crushed through with him in
+   * a hand's breadth, as hard as a trunk's bark (`hard`, by `at` m/s, in a
+   * straight line between) — so he walks away from a moose shouldered at
+   * a jog, and one taken at some 75 km/h of what it took off him tears off
+   * a leg met at its barrel's height and, a little faster, opens his trunk
+   * and takes his head (`GORE`'s ladders, read by `gore.ts`): both crushed
+   * at once. */
+  give: { soft: 0.2, hard: 0.015, at: 22 },
+  /** A body flung along the snow slows at this, 1/s (exponentially: the
+   * powder piles up ahead of it), and lifts off it by this share of the
+   * speed it was flung at. */
+  slide: 1.6,
+  lift: 0.25,
+  /** How far round the rider the groups are checked, m, past their own
+   * round and flight. */
+  reach: 30,
+} as const;

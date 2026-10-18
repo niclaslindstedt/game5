@@ -30,8 +30,7 @@
 // reindeer punches through it (`printGive`); wet snow keeps a crisp print
 // with a rim; the groomer a dent.
 
-import { beastById, type BeastSpec } from "./beast-defs.ts";
-import { memberSlot, roundAt, type BeastGroup } from "./beast-plan.ts";
+import { beastById, type BeastSpec, memberSlot, roundAt, type BeastGroup } from "@engine";
 import { printGive, type SnowProps } from "./snowpack.ts";
 import { TRAIL, type SnowSampler, type Stamp } from "./trail-stamp.ts";
 

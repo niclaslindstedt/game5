@@ -151,7 +151,7 @@ a half-float target; the alpine pays neither).
 - [ ] 16/16 through `make analyze REGION=<id>`; `make level` looked at
 - [ ] a new surface felt through an optional `Level` field, alpine arithmetic unchanged
 - [ ] `region-look.ts`, `colour-grade.ts`, `STRINGS.regionNames` rows
-- [ ] the wildlife rows name the new region (`regions` on every row of `bird-defs.ts` and `beast-defs.ts` that lives there — species, never places; no tree bird above the tree line); `tests/birds_test.ts` deals a few species in it; `make birds`
+- [ ] the wildlife rows name the new region (`regions` on every row of `bird-defs.ts` and `engine/game/defs/beasts.ts` that lives there — species, never places; no tree bird above the tree line); `tests/birds_test.ts` deals a few species in it; `make birds`
 - [ ] `tests/region_test.ts` green; generator-version, determinism and sim digests unmoved
 - [ ] `make world` / `make screenshots` looked at; `make profile` beside the alpine
 - [ ] `make sim REGION=<id>` — every seed finishes; alpine table unchanged

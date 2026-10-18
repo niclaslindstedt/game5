@@ -14,9 +14,9 @@ import {
   type CrowdBody,
   type Level,
   type RunRules,
+  beastPlanFor,
 } from "@engine";
 
-import { beastPlanFor } from "./beast-plan.ts";
 import { createCabins } from "./cabins-view.ts";
 import type { HazeUniforms } from "./haze.ts";
 import type { LiftParts } from "./lifts.ts";

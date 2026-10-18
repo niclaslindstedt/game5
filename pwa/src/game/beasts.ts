@@ -22,19 +22,26 @@
 // NOTHING IS ALLOCATED PER FRAME but the prints themselves.
 
 import * as THREE from "three";
-import type { GameState, Level } from "@engine";
-
-import { BEASTS, beastById, type BeastId } from "./beast-defs.ts";
 import {
+  BEASTS,
+  BEAST_HIT,
   CALM,
+  beastById,
   beastCount,
   beastPlanFor,
-  beastPose,
-  freshBeastPose,
+  fromEuler,
   spookAt,
+  struckAt,
+  struckOf,
+  type BeastId,
   type BeastPlan,
+  type GameState,
+  type Level,
   type Spook,
-} from "./beast-plan.ts";
+  type StruckBeast,
+} from "@engine";
+
+import { beastPose, freshBeastPose, type BeastPose } from "./beast-plan.ts";
 import {
   BEAST_STYLES,
   beastDepthMaterial,
@@ -190,6 +197,37 @@ export function createBeasts(
   const size = new THREE.Vector3();
   const tint = new THREE.Color();
 
+  const lying = { x: 0, z: 0, lift: 0, down: false };
+  /** AN ANIMAL MET (`beast-hit.ts`), over its live `pose`: flung along the
+   * snow and down on its side where it came to rest — and, knocked down
+   * on a run without injuries, up again and back to its group. */
+  const layStruck = (hit: StruckBeast, t: number, out: BeastPose): void => {
+    struckAt(hit, t, lying);
+    const y = ground.snowY(lying.x, lying.z) + lying.lift;
+    if (lying.down) {
+      out.x = lying.x;
+      out.z = lying.z;
+      out.y = y;
+      out.heading = hit.heading;
+      out.pitch = 0;
+      out.stride = 0;
+      out.graze = 0;
+      const q = fromEuler(hit.heading, 0, Math.PI / 2);
+      out.q.x = q.x;
+      out.q.y = q.y;
+      out.q.z = q.z;
+      out.q.w = q.w;
+      return;
+    }
+    // Up and running back to where its group has got to.
+    const u = (t - hit.t - BEAST_HIT.downFor) / BEAST_HIT.rejoin;
+    const k = u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
+    out.x = lying.x + (out.x - lying.x) * k;
+    out.z = lying.z + (out.z - lying.z) * k;
+    out.y = y + (out.y - y) * k;
+    out.stride = 1;
+  };
+
   const inWindow = (s: Stamp, w: TrailWindow): boolean =>
     s.bx > w.x - 2 && s.bz > w.z - 2 && s.bx < w.x + w.span + 2 && s.bz < w.z + w.span + 2;
 
@@ -218,7 +256,11 @@ export function createBeasts(
     const t = state.t;
     plan.groups.forEach((g, k) => {
       const was = spooks[k];
-      const spook = spookAt(g, state, was, ground);
+      // On a free ride the engine keeps the fright (`GameState.wild`), so
+      // the animals the rider meets are where the drawing has them.
+      const wild =
+        state.wild && state.wild.spooks.length === plan.groups.length ? state.wild : null;
+      const spook = wild ? wild.spooks[k] : spookAt(g, state, was, ground);
       spooks[k] = spook;
       const roster = rosters.get(g.species);
       if (!roster) return;
@@ -260,6 +302,8 @@ export function createBeasts(
           }
         }
         if (far > REACH) continue;
+        const hit = wild ? struckOf(wild, k, i) : undefined;
+        if (hit?.knocked) layStruck(hit, t, pose);
         beastIndividual(g.species, g.scatter, i, g.count, who);
         const lod = Math.hypot(pose.x - eyeX, pose.z - eyeZ) < near ? 0 : 1;
         const slot = roster.slots[drawnForm(who.form, roster.forms) * 2 + lod];

@@ -5,7 +5,7 @@
 // what a bird is; `bird-roost.ts` places every flock, `bird-plan.ts` says
 // where each bird is at a moment, `bird-shapes.ts` builds it and `birds.ts`
 // draws it. The ground's animals are the same split next door
-// (`beast-defs.ts`).
+// (the engine's `defs/beasts.ts`).
 //
 // Renderer-side, and nothing here is a solid. A skier rides under a raven
 // and through a covey of ptarmigan that bursts off the snow ahead of it, and
@@ -49,10 +49,8 @@
 //
 // The look (the paint, the wingtips, the bill) belongs to `bird-shapes.ts`.
 
+import { type Rarity, rarityOf } from "@engine";
 import type { RegionId } from "@engine";
-
-import type { Rarity } from "./rarity.ts";
-import { rarityOf } from "./rarity.ts";
 
 /** Every bird in the roster. */
 export type BirdId =

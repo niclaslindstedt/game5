@@ -41,8 +41,7 @@ export async function wildFamily(ctx) {
     birdRoost,
     birdDefs,
     birdShapes,
-    beastPlan,
-    beastDefs,
+    beastPose,
     beastShapes,
     traits,
     wild,
@@ -54,11 +53,14 @@ export async function wildFamily(ctx) {
     R("bird-defs"),
     R("bird-shapes"),
     R("beast-plan"),
-    R("beast-defs"),
     R("beast-shapes"),
     R("wild-traits"),
     R("wild-ground"),
   ]);
+  // The plan and the roster are the engine's; the pose on the drawn snow
+  // the app's.
+  const beastPlan = { ...E, ...beastPose };
+  const beastDefs = E;
   const level = freeLevel(ctx);
   const frame = 1 / ctx.hz;
   const scenes = [];

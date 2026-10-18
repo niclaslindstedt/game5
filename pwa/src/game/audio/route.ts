@@ -297,7 +297,7 @@ export function soundForEvent(
         id:
           event.cause === "stake"
             ? "wipeout_catch"
-            : event.cause === "chair" || event.cause === "maul"
+            : event.cause === "chair" || event.cause === "maul" || event.cause === "beast"
               ? "wipeout_skier"
               : event.cause === "net" || event.cause === "balloon" || event.cause === "fire"
                 ? "wipeout_roll"
@@ -333,6 +333,16 @@ export function soundForEvent(
       return {
         id: "bump",
         shape: { gain: 0.55 + 0.7 * hard, pitch: 1.1 - 0.25 * hard, stretch: 0.9 + 0.4 * hard },
+      };
+    }
+
+    // AN ANIMAL RUN INTO (`beast-hit.ts`): a body against a body, the
+    // thump deeper the more of him it stopped.
+    case "beast": {
+      const hard = ramp(event.taken, 0.5, 12);
+      return {
+        id: "bump",
+        shape: { gain: 0.6 + 0.8 * hard, pitch: 1.05 - 0.4 * hard, stretch: 0.9 + 0.6 * hard },
       };
     }
 

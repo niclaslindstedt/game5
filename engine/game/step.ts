@@ -89,6 +89,7 @@ import { dealEnthusiasts, nightOver, stepEnthusiasts } from "./enthusiasts.ts";
 import { ENTHUSIASTS } from "./defs/enthusiasts.ts";
 import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
+import { freshWild, stepWild } from "./beast-hit.ts";
 import { freshAvalanche, stepAvalanche } from "./avalanche.ts";
 import { freshMishaps, type MishapAsk } from "./mishaps.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
@@ -747,6 +748,9 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // SAFE FOR WORK the woods are empty: no grimbear, whatever is asked.
   if (free && options.grimbear && !options.sfw)
     state.grimbear = freshGrimbear(seed, options.grimbear);
+  // THE WILDLIFE AS BODIES (`beast-hit.ts`): a free ride's animals put up
+  // by the player and met by him — safe for work too, where nothing dies.
+  if (free) state.wild = freshWild();
   // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.
   if (rules.avalanche) state.avalanche = freshAvalanche(state);
   if (free && options.mishaps) state.mishaps = freshMishaps(seed, options.mishaps);
@@ -822,6 +826,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   }
   // THE GRIMBEAR (`grimbear.ts`), on a free ride he was dealt to.
   if (state.grimbear) stepGrimbear(state, events);
+  // THE WILDLIFE (`beast-hit.ts`): the groups he puts up.
+  if (state.wild) stepWild(state);
   // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.
   if (state.avalanche) stepAvalanche(state, events, input);
   // THE BODY (`body.ts`): what a shoulder into a rival or an amateur did.

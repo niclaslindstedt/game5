@@ -60,6 +60,7 @@ import { intoTown, stepTown, townBrake } from "./town.ts";
 import { groomerStrike, stepGroomers } from "./groomer.ts";
 import { meetStrip } from "./airstrip-solids.ts";
 import { meetRescue } from "./rescue-call.ts";
+import { beastStrike } from "./beast-hit.ts";
 import { trafficStrike } from "./traffic-contact.ts";
 import { fireStrike, stepBurn } from "./fire-burn.ts";
 import { stepGatePoles } from "./gate-poles.ts";
@@ -312,12 +313,16 @@ export function stepRun(
     const struck = swept ? null : groomerStrike(run, events);
     // ...or a car, the ski bus or a bicycle in the village (`traffic-contact.ts`).
     const hit = swept || struck ? null : trafficStrike(run, events);
+    // ...or an animal he ran into on a free ride (`beast-hit.ts`).
+    const beast = swept || struck || hit || !player ? null : beastStrike(run, events);
     // ...or a fire he rode into (`fire-burn.ts`), alight — or held off it.
-    const burnt = swept || struck || hit ? null : fireStrike(run, events);
-    const cause = swept || struck || hit || burnt ? null : wipeoutCause(run, events, speed0);
+    const burnt = swept || struck || hit || beast ? null : fireStrike(run, events);
+    const cause =
+      swept || struck || hit || beast || burnt ? null : wipeoutCause(run, events, speed0);
     if (swept) throwRider(run, "chair", { x: c.vx + swept.x, y: c.vy, z: c.vz + swept.z }, events);
     else if (struck) throwRider(run, "groomer", struck, events);
     else if (hit) throwRider(run, "car", hit.v, events);
+    else if (beast) throwRider(run, "beast", beast, events);
     else if (burnt) throwRider(run, "fire", burnt, events);
     else if (cause) throwRider(run, cause, v0, events);
     else noteSave(run, events);

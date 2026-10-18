@@ -200,6 +200,9 @@ export const CRASH = {
     // skis taken out from under him, pitched over backward off the rope
     // and dropped to the snow on a side.
     cable: { pitch: -0.8, side: 0.6, up: 0.4 },
+    // An animal run into (`beast-hit.ts`): its body stops his middle and
+    // his legs go on — over it head first, up and off to a side.
+    beast: { pitch: 0.9, side: 0.4, up: 1.4 },
     // Come down astride a lift's rope (`cable.ts`): stopped on it by the
     // crotch and tipped over it, off onto a side and down to the snow.
     straddle: { pitch: 0.15, side: 1, up: 0 },

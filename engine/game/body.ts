@@ -79,6 +79,7 @@ import { WRECK, fireFlux, fireballAt } from "./defs/heli-wreck.ts";
 import { FIRE_BURN } from "./defs/fires.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { astride, bikeBlows, type BodyHands } from "./body-steel.ts";
+import { beastBlow } from "./body-beast.ts";
 import { CROWD_SIZE } from "./defs/crowd.ts";
 import { GROOMER } from "./defs/groomer.ts";
 import { MISHAPS } from "./defs/mishaps.ts";
@@ -754,6 +755,12 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
   const c = state.skier;
   if (c.body.impact) c.body.impact.t += dt;
   clear();
+  // AN ANIMAL RUN INTO (`body-beast.ts`), whether it threw him or not.
+  for (const e of events) {
+    if (e.kind !== "beast") continue;
+    beastBlow(HANDS, e);
+    cap = I.perBlow * 2;
+  }
   if (off) {
     ragdollBlows(state, off);
     bikeBlows(HANDS, state, off);

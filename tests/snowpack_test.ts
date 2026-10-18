@@ -4,9 +4,15 @@
 // an animal's print (`trail-stamp.ts`, `beast-tracks.ts`).
 
 import { describe, expect, it } from "vitest";
-import { createHeightfield, fillField, sampleField, type Level, type SnowContact } from "@engine";
+import {
+  createHeightfield,
+  fillField,
+  sampleField,
+  type Level,
+  type SnowContact,
+  beastById,
+} from "@engine";
 
-import { beastById } from "../pwa/src/game/beast-defs.ts";
 import { footfall } from "../pwa/src/game/beast-tracks.ts";
 import {
   SNOW,

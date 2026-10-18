@@ -27,13 +27,15 @@ import {
   planLift,
   ropeAt,
   showcaseSkis,
+  beastById,
+  beastPlanFor,
+  roundAt,
 } from "@engine";
 import type { CameraRung } from "../game/renderer-api.ts";
 import type { Hideable } from "../game/benchmark-report.ts";
 import { abFrames } from "./ab-frames.ts";
 
-import { beastById } from "../game/beast-defs.ts";
-import { beastPlanFor, beastPose, freshBeastPose, roundAt } from "../game/beast-plan.ts";
+import { beastPose, freshBeastPose } from "../game/beast-plan.ts";
 import { birdPlanFor, birdPose, flightShare, freshBirdPose } from "../game/bird-plan.ts";
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";

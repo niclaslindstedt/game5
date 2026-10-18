@@ -136,7 +136,13 @@ export const GORE = {
    * open bursts all of them at once: `burst` litres leave him in the first
    * moments at up to `pour` L/s, on top of what the opened wounds go on
    * bleeding and draining after — some three to four litres on the snow
-   * and the solid all told. */
+   * and the solid all told.
+   *
+   * A PAD round a lift's tower gives: a foam wrap `TOWER_PAD.thick` deep,
+   * crushed flat at about `pad` g, takes the first √(2·g·thick) — some
+   * 11 m/s — off a blow and no more. Built for a skier lost at a cruising
+   * pace, it is nothing to one at 100 km/h: what is left of his closing
+   * speed past the foam is held to the same numbers as bare steel. */
   smash: {
     speed: 27.8,
     window: 0.3,
@@ -148,6 +154,7 @@ export const GORE = {
     up: 1.5,
     burst: 2.2,
     pour: 5,
+    pad: 30,
   },
   /** THE BLOOD: the body's volume, L, the share whose loss kills, and the
    * flow out of each wound at the full pressure, L/s (shortened, above). */

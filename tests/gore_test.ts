@@ -127,8 +127,20 @@ describe("mortal wounds", () => {
     expect(g.blood).toBeLessThanOrEqual(GORE.blood.volume);
   });
 
+  it("crush a body on a lamp's thin column and through a lift tower's pad past 100 km/h", () => {
+    const lamp: Staging = {
+      stage: { how: "ski", stuff: "steel", speed: 30, offset: 0, radius: 0.09 },
+      ground: "groomed",
+    };
+    for (const s of [lamp, SKI_AT("padded", 33)]) {
+      const g = ride(s, 1.5).state.gore!;
+      expect(g.pulped).not.toBe(0);
+      expect(g.smears.length).toBeGreaterThan(0);
+    }
+  });
+
   it("leave a hit under 100 km/h to the dose's wounds, and a padded tower to give", () => {
-    for (const s of [SKI_AT("trunk", 25), SKI_AT("padded", 33)]) {
+    for (const s of [SKI_AT("trunk", 25), SKI_AT("padded", 26)]) {
       const g = ride(s, 1.5).state.gore!;
       expect(g.pulped).toBe(0);
       expect(g.smears).toHaveLength(0);

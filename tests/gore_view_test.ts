@@ -114,6 +114,34 @@ describe("what flies off a body", () => {
     expect(Math.hypot(s.a.x - s.b.x, s.a.y - s.b.y, s.a.z - s.b.z)).toBeCloseTo(0.6, 1);
   });
 
+  it("a limb flung at a padded tower stops at its face and never goes through", () => {
+    const dt = 1 / 60;
+    const tower = { x: 3, z: 0, y: 0, height: 2.6, radius: 0.5, stuff: "padded" as const };
+    const ground: GibGround = {
+      ...FLAT,
+      solids: [tower],
+      near: (_x, _z, _r, out) => ((out.length = 0), out.push(0), out),
+    };
+    const s = stick(
+      { x: 0, y: 1, z: 0 },
+      { x: -0.6, y: 1, z: 0 },
+      { x: 25, y: 1, z: 0 },
+      { x: 0, y: 0, z: 0 },
+      0.08,
+      0.05,
+      0,
+      dt,
+    );
+    for (let i = 0; i < 60 * 3; i++) {
+      stepStick(s, ground, dt);
+      for (const p of [s.a, s.b]) {
+        if (p.y > tower.height) continue;
+        expect(Math.hypot(p.x - tower.x, p.z - tower.z)).toBeGreaterThan(tower.radius);
+      }
+    }
+    expect(Math.max(s.a.x, s.b.x)).toBeLessThan(tower.x);
+  });
+
   it("a bowel held at the wound stays at it and keeps its links", () => {
     const dt = 1 / 60;
     const at = { x: 0, y: 0.6, z: 0 };

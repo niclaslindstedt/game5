@@ -7,11 +7,13 @@
 // It reads what the ragdoll has already measured: every point's closing
 // speed into a solid this step (`Thrown.struck`) and into the ground
 // (`Thrown.impacts`), the ground counted as stone only where the crag's
-// rock is bare. A padded tower gives and is never a smash; nor is snow.
+// rock is bare. A padded tower gives only its foam's worth (`GORE.smash.pad`)
+// and is steel past it; snow is never a smash.
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { GORE } from "./defs/gore.ts";
 import { TUNING } from "./defs/tuning.ts";
+import { TOWER_PAD } from "./lift-line.ts";
 import { RAGDOLL, RADIUS } from "./ragdoll-points.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import type { GoreState } from "./gore-state.ts";
@@ -19,6 +21,8 @@ import type { GameState, Thrown } from "./state.ts";
 
 const R = RAGDOLL;
 const dt = TUNING.dt;
+/** What a tower's pad takes off a blow, m/s. */
+const PAD = Math.sqrt(2 * GORE.smash.pad * 9.81 * TOWER_PAD.thick);
 
 /** One point crushed: which (`RAGDOLL`), the solid's face there, and the
  * upright it met — its axis and radius, m (`r` 0: a flat face). */
@@ -114,7 +118,9 @@ export function smashedPoints(state: GameState, g: GoreState, b: Thrown): Smashe
         soft = false;
         r = 0;
       }
-      if (!soft) out.push({ point: i, nx: ux, ny: 0, nz: uz, cx, cz, r });
+      // Through a pad, only what is left of the blow past its foam.
+      const closing = soft ? Math.sqrt(Math.max(0, b.struck[i] ** 2 - PAD ** 2)) : b.struck[i];
+      if (closing > hit) out.push({ point: i, nx: ux, ny: 0, nz: uz, cx, cz, r });
       continue;
     }
     if (b.impacts[i] > hit && level.bareRockAt && level.bareRockAt(x, z) >= S.rock) {

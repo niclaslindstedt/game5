@@ -8,7 +8,9 @@
 //
 //   trunk    ski-trunk (skied square into a trunk at 108 km/h: smashed on it, the
 //            smear it left on the bark close, frame by
-//            frame), decapitation (flown head first into one: the head off)
+//            frame), ski-tower and ski-lamp (the same at a lift tower's pad
+//            and a lamp's column), decapitation (flown head first into one:
+//            the head off)
 //   snow     mangled (thrown on his side at 100 km/h: the limbs off, the
 //            trunk burst), crush (head first: the skull), fracture (onto
 //            his feet: the long bones out through the skin)
@@ -69,7 +71,7 @@ const args = parseArgs(
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (ski-trunk, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, groomer, heli, heli-fly, spray, snow, closeup, open-arms, open-arms-hard, open-arms-ski, open-legs, cable-chest, cable-shins, cable-drop, wreck)",
+      help: "only these views, comma-separated (ski-trunk, ski-tower, ski-lamp, decapitation, mangled, crush, fracture, spike-tree, spike-post, maul, groomer, heli, heli-fly, spray, snow, closeup, open-arms, open-arms-hard, open-arms-ski, open-legs, cable-chest, cable-shins, cable-drop, wreck)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     region: {

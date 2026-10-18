@@ -503,7 +503,7 @@ export function createWorldRenderer(
         // A snowing sky has been filling last night's prints for hours.
         soften: () => (pack ? Math.min(0.75, (pack.laid / NEW_COVER) * 0.6) : 0),
       });
-      wildlife.group.name = "wildlife";
+      if (state.wild && state.gore) wildlife.armGore(); // compiled behind the card
       scene.add(wildlife.group);
       if (!(await prime(mine, ahead.peoplePrimes(lv, state.rules, !!state.summer)))) return;
       crowd = createPeopleView(lv, env.haze, state.rules, env.cull, !!state.summer);

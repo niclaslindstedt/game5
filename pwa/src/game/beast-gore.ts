@@ -11,6 +11,13 @@
 // met hard has nothing left whole: it is all thrown, and the snow it went
 // over painted in a fan.
 //
+// WHAT IT COSTS A FRAME (`make gore-cost ARGS=--scene=moose,hare`): it is
+// built with the world, behind the loading card, with a PRIMER standing in
+// it (`gore-lumps.ts`'s), so the blow links no program; every piece thrown
+// is an instance of its shape's mesh and is baked with the rest once it
+// lies still (`createLumps`), never a mesh of its own; a gut is laid again
+// only while it moves.
+//
 // Presentation only. It reads the engine's struck animals and writes
 // nothing; what is thrown is dealt off each wreck's own seed and stepped
 // on the run's own clock, so a replay throws it again the same. The blood
@@ -40,8 +47,9 @@ import {
   type Wreck,
 } from "./beast-wreck.ts";
 import { createBlood, type Blood } from "./gore-blood.ts";
-import { gibGround, lump, rope, stepLump, stepRope, type Lump, type Rope } from "./gore-gibs.ts";
+import { gibGround, lump, rope, stepRope, type Rope } from "./gore-gibs.ts";
 import { spreadAt } from "./gore-leaks.ts";
+import { createLumps, gorePrimer } from "./gore-lumps.ts";
 import {
   layTube,
   organGeometry,
@@ -62,15 +70,17 @@ export type BeastGore = {
   dispose: () => void;
 };
 
-/** The most pieces flying or lying at once; the oldest goes first. */
-const MOST = 220;
 /** How long a carcass bleeds a stream out of its wound, s. */
 const STREAM_FOR = 8;
 /** The organs a body opened throws. */
 const ORGANS: readonly OrganKind[] = ["gobbet", "liver", "lung", "heart", "kidney", "spleen"];
 
-type Gib = { mesh: THREE.Mesh; lump: Lump };
-type Gut = { mesh: THREE.Mesh; rope: Rope };
+/** A gut, and where its points were last laid (x, y, z each): it is laid
+ * again only when one has moved a millimetre. */
+type Gut = { mesh: THREE.Mesh; rope: Rope; laid: Float32Array };
+
+/** How far a gut's point moves, m, before the tube is laid again. */
+const STILL = 1e-3;
 
 /** One animal killed, as drawn: its wreck, where its last smear was laid,
  * how long after the blow the blood was last run, its guts. */
@@ -104,6 +114,32 @@ function repaint(g: THREE.BufferGeometry, hex: number, seed: number): THREE.Buff
   }
   return out;
 }
+
+/** Whether any point of `gut` has moved `STILL` since it was last laid;
+ * where each is now kept as laid when one has. */
+function moved(gut: Gut): boolean {
+  const p = gut.rope.p;
+  const d = gut.laid;
+  let far = 0;
+  for (let i = 0; i < p.length && far < STILL; i++) {
+    far = Math.max(
+      far,
+      Math.abs(p[i].x - d[3 * i]) +
+        Math.abs(p[i].y - d[3 * i + 1]) +
+        Math.abs(p[i].z - d[3 * i + 2]),
+    );
+  }
+  if (far < STILL) return false;
+  for (let i = 0; i < p.length; i++) {
+    d[3 * i] = p[i].x;
+    d[3 * i + 1] = p[i].y;
+    d[3 * i + 2] = p[i].z;
+  }
+  return true;
+}
+
+/** What the last `update` cost, ms — read by the gore cost lab. */
+export const beastGoreMeter = { updateMs: 0 };
 
 export function createBeastGore(level: Level, wrap: Wrap): BeastGore {
   const group = new THREE.Group();
@@ -140,6 +176,12 @@ export function createBeastGore(level: Level, wrap: Wrap): BeastGore {
   };
   gobbet.dispose();
 
+  const lumps = createLumps(flesh);
+  group.add(lumps.group);
+  // Every kind of draw the blow adds, compiled with the world.
+  const primer = gorePrimer(flesh, new THREE.Group());
+  group.add(primer.group);
+
   const ground = gibGround(level);
   const drawn = wildGround(level);
   const bloodGround = {
@@ -147,23 +189,10 @@ export function createBeastGore(level: Level, wrap: Wrap): BeastGore {
     normalAt: (x: number, z: number, out: { x: number; y: number; z: number }) =>
       ground.normalAt(x, z, out),
   };
-  const gibs: Gib[] = [];
   const carcasses = new Map<string, Carcass>();
   let last: GameState | null = null;
   let lastT = 0;
   const lying = { x: 0, z: 0, lift: 0, down: false };
-
-  const meshOf = (g: THREE.BufferGeometry, scale: number): THREE.Mesh => {
-    const m = new THREE.Mesh(g, flesh);
-    m.castShadow = true;
-    m.frustumCulled = false;
-    m.scale.setScalar(scale);
-    group.add(m);
-    return m;
-  };
-  const drop = (m: THREE.Mesh): void => {
-    group.remove(m);
-  };
 
   /** Throw `count` pieces of `geos` out of `at`, along `dir` (a unit) at
    * `speed` m/s and spread round it, each `scale` times its shape. */
@@ -178,7 +207,8 @@ export function createBeastGore(level: Level, wrap: Wrap): BeastGore {
     r: number,
   ): void => {
     for (let i = 0; i < count; i++) {
-      const mesh = meshOf(rng.pick(geos), scale * rng.range(0.7, 1.3));
+      const geo = rng.pick(geos);
+      const size = scale * rng.range(0.7, 1.3);
       v1.set(
         dir.x + rng.range(-0.8, 0.8),
         dir.y + rng.range(0, 1.1),
@@ -186,19 +216,16 @@ export function createBeastGore(level: Level, wrap: Wrap): BeastGore {
       ).normalize();
       const u = speed * rng.range(0.35, 1.25);
       v3.set(rng.range(-1, 1), rng.range(-1, 1), rng.range(-1, 1)).normalize();
-      gibs.push({
-        mesh,
-        lump: lump(
-          { x: at.x, y: at.y, z: at.z },
-          { x: v1.x * u, y: v1.y * u, z: v1.z * u },
-          r * scale,
-          { x: v3.x, y: v3.y, z: v3.z },
-          rng.range(5, 18),
-          1 / 60,
-        ),
-      });
+      const thrown = lump(
+        { x: at.x, y: at.y, z: at.z },
+        { x: v1.x * u, y: v1.y * u, z: v1.z * u },
+        r * scale,
+        { x: v3.x, y: v3.y, z: v3.z },
+        rng.range(5, 18),
+        1 / 60,
+      );
+      lumps.add(geo, thrown, size);
     }
-    while (gibs.length > MOST) drop(gibs.shift()!.mesh);
   };
 
   /** THE BLOW: everything that comes out of `hit` at once. */
@@ -282,14 +309,14 @@ export function createBeastGore(level: Level, wrap: Wrap): BeastGore {
       guts.push({
         mesh: g,
         rope: rope(at, carry, v1, count, 0.1 * k, 0.026 * k, 1 / 60),
+        laid: new Float32Array(count * 3).fill(Infinity),
       });
     }
     return guts;
   };
 
   const clear = (): void => {
-    for (const g of gibs) drop(g.mesh);
-    gibs.length = 0;
+    lumps.clear();
     for (const c of carcasses.values()) {
       for (const gut of c.guts) {
         group.remove(gut.mesh);
@@ -301,6 +328,13 @@ export function createBeastGore(level: Level, wrap: Wrap): BeastGore {
   };
 
   const update = (state: GameState): void => {
+    const at = performance.now();
+    advance(state);
+    beastGoreMeter.updateMs = performance.now() - at;
+  };
+
+  const advance = (state: GameState): void => {
+    primer.group.visible = false;
     if (state !== last || state.t < lastT) {
       if (last) clear();
       last = state;
@@ -365,15 +399,10 @@ export function createBeastGore(level: Level, wrap: Wrap): BeastGore {
       for (const gut of c.guts) {
         gut.rope.held = { x: wound.x, y: wound.y - half * 0.5, z: wound.z };
         stepRope(gut.rope, ground, dt);
-        layTube(gut.mesh.geometry, gut.rope.p, gut.rope.r);
+        if (moved(gut)) layTube(gut.mesh.geometry, gut.rope.p, gut.rope.r);
       }
     }
-    for (const o of gibs) {
-      stepLump(o.lump, ground, dt);
-      o.mesh.position.set(o.lump.p.x, o.lump.p.y, o.lump.p.z);
-      v1.set(o.lump.axis.x, o.lump.axis.y, o.lump.axis.z);
-      o.mesh.quaternion.setFromAxisAngle(v1, o.lump.turn);
-    }
+    lumps.update(ground, dt);
     blood.update(dt, bloodGround);
   };
 
@@ -383,8 +412,9 @@ export function createBeastGore(level: Level, wrap: Wrap): BeastGore {
     clear,
     dispose() {
       clear();
+      lumps.dispose();
+      primer.dispose();
       for (const g of geometries) g.dispose();
-      for (const c of carcasses.values()) for (const gut of c.guts) gut.mesh.geometry.dispose();
       flesh.dispose();
       blood.dispose();
     },

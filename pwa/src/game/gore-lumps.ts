@@ -29,8 +29,9 @@ const BAKE_EVERY = 0.5;
 
 export type Lumps = {
   group: THREE.Group;
-  /** Throw a lump of shape `geo` (shared, never disposed here) on its flight. */
-  add(geo: THREE.BufferGeometry, lump: Lump): void;
+  /** Throw a lump of shape `geo` (shared, never disposed here) on its
+   * flight, drawn `scale` times its shape. */
+  add(geo: THREE.BufferGeometry, lump: Lump, scale?: number): void;
   /** Every lump flown `dt` s on and placed where it is. */
   update(ground: GibGround, dt: number): void;
   /** How many have been thrown. */
@@ -40,9 +41,15 @@ export type Lumps = {
   dispose(): void;
 };
 
-/** A block's mesh, its lumps, where each was last drawn (x, y, z, turn)
- * and how long each has lain still, s. */
-type Block = { mesh: THREE.InstancedMesh; lumps: Lump[]; drawn: Float32Array; rest: number[] };
+/** A block's mesh, its lumps, each one's size, where each was last drawn
+ * (x, y, z, turn) and how long each has lain still, s. */
+type Block = {
+  mesh: THREE.InstancedMesh;
+  lumps: Lump[];
+  size: number[];
+  drawn: Float32Array;
+  rest: number[];
+};
 
 const m = new THREE.Matrix4();
 const p = new THREE.Vector3();
@@ -118,7 +125,7 @@ export function createLumps(material: THREE.Material): Lumps {
     // Strewn round the body and beyond it; a block is never off the screen for long.
     mesh.frustumCulled = false;
     group.add(mesh);
-    const block = { mesh, lumps: [], drawn: new Float32Array(BLOCK * 4), rest: [] };
+    const block = { mesh, lumps: [], size: [], drawn: new Float32Array(BLOCK * 4), rest: [] };
     list.push(block);
     return block;
   };
@@ -132,7 +139,7 @@ export function createLumps(material: THREE.Material): Lumps {
     d[4 * i + 3] = o.turn;
     p.set(o.p.x, o.p.y, o.p.z);
     q.setFromAxisAngle(axis.set(o.axis.x, o.axis.y, o.axis.z), o.turn);
-    m.compose(p, q, s);
+    m.compose(p, q, s.setScalar(block.size[i]));
     block.mesh.setMatrixAt(i, m);
   };
 
@@ -155,6 +162,7 @@ export function createLumps(material: THREE.Material): Lumps {
         });
         if (keep.length === block.lumps.length) continue;
         block.lumps = keep.map((i) => block.lumps[i]);
+        block.size = keep.map((i) => block.size[i]);
         block.rest = keep.map((i) => block.rest[i]);
         block.lumps.forEach((_, i) => place(block, i));
         block.mesh.count = block.lumps.length;
@@ -179,9 +187,10 @@ export function createLumps(material: THREE.Material): Lumps {
 
   return {
     group,
-    add(geo, lump) {
+    add(geo, lump, scale = 1) {
       const block = blockFor(geo);
       block.lumps.push(lump);
+      block.size.push(scale);
       block.rest.push(0);
       block.mesh.count = block.lumps.length;
       place(block, block.lumps.length - 1);

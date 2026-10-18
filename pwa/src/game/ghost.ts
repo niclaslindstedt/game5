@@ -178,10 +178,10 @@ const FLAG_JUMP = 8;
  * into the three bits over them: 0 none. A tape older than the flick has
  * them clear, and reads back as it was. */
 const POP_SHIFT = 4;
-const POP_LEVELS = 7;
+export const POP_LEVELS = 7;
 
 /** A pop on the tape's grid: one of `POP_LEVELS` shares, never 0. */
-function popLevel(pop: number | undefined): number {
+export function popLevel(pop: number | undefined): number {
   return pop !== undefined && pop > 0
     ? Math.min(POP_LEVELS, Math.max(1, Math.round(pop * POP_LEVELS)))
     : 0;

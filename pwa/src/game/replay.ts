@@ -50,6 +50,7 @@ import {
   type GameMode,
   type GameState,
   type PairId,
+  type PlaneControls,
   type SkierInput,
 } from "@engine";
 import {
@@ -59,6 +60,7 @@ import {
 } from "@niclaslindstedt/oss-game-framework/racing/tape";
 
 import { trainingOf } from "./downhill-run.ts";
+import { POP_LEVELS, popLevel } from "./ghost.ts";
 import { createKeyframes, standUp, type Keyframes } from "./replay-keep.ts";
 import { heatOf } from "./slalom-heat.ts";
 import {
@@ -177,9 +179,15 @@ export type ReplayBill = {
 
 /* ── THE TAPE ─────────────────────────────────────────────────────────────
    The ghost's axes (`ghost.ts`) and the ones a free ride adds: the
-   helicopter's four controls and the machine press. Kept in memory as the
-   framework's bytes (`racing/tape`'s `axisToByte`), one row a step, never
-   stored, so it owes no format of its own. */
+   helicopter's four controls, the machine press, a touch flick's pop, the
+   transceiver and the rescue key. Kept in memory as the framework's bytes
+   (`racing/tape`'s `axisToByte`), one row a step, never stored, so it owes
+   no format of its own. EVERY FIELD OF `SkierInput` IS ON IT: a field left
+   off is a recording that parts from its run the first step it mattered —
+   a flick's pop dropped is a jump that never clears the rope, and the
+   wound it dealt is never dealt again. The jump plane's controls are not
+   snapped to any grid where they are made, so they are kept as they came,
+   in a row of numbers of their own, filled only while one is flown. */
 
 const AXES = [
   ["steer", "signed"],
@@ -191,6 +199,7 @@ const AXES = [
   ["pitch", "signed"],
   ["roll", "signed"],
   ["pedal", "signed"],
+  ["more", "flags"],
 ] as const satisfies readonly (readonly [string, AxisKind])[];
 
 const ROW = AXES.length;
@@ -200,6 +209,17 @@ const CARVE = 4;
 const JUMP = 8;
 const MACHINE = 16;
 const HELI = 32;
+// ...and the second flags byte, `more`.
+const BEACON = 1;
+const DIG = 2;
+const PLANE = 4;
+const PLANE_BRAKE = 8;
+const PLANE_TRIM = 128;
+const POP_SHIFT = 4;
+
+/** The jump plane's controls, in the order a plane row keeps them. */
+const PLANE_AXES = ["throttle", "pitch", "roll", "yaw", "flaps", "brake", "trim"] as const;
+const PLANE_ROW = PLANE_AXES.length;
 
 type Tape = {
   record: (input: SkierInput) => void;
@@ -210,9 +230,12 @@ type Tape = {
 
 function createTape(): Tape {
   let bytes = new Uint8Array(ROW * HZ * 60);
+  /** The plane's controls by step, grown to the last step one was flown on. */
+  let planes = new Float64Array(0);
   let steps = 0;
   const input: SkierInput = { ...NEUTRAL_INPUT };
   const heli = { collective: 0, pitch: 0, roll: 0, pedal: 0 };
+  const plane: PlaneControls = { throttle: 0, pitch: 0, roll: 0, yaw: 0, flaps: 0 };
   const values = new Array<number>(ROW).fill(0);
   return {
     steps: () => steps,
@@ -238,6 +261,23 @@ function createTape(): Tape {
       values[6] = h?.pitch ?? 0;
       values[7] = h?.roll ?? 0;
       values[8] = h?.pedal ?? 0;
+      const p = c.plane;
+      values[9] =
+        (c.beacon ? BEACON : 0) |
+        (c.dig ? DIG : 0) |
+        (p ? PLANE : 0) |
+        (p?.brake !== undefined ? PLANE_BRAKE : 0) |
+        (p?.trim !== undefined ? PLANE_TRIM : 0) |
+        (popLevel(c.pop) << POP_SHIFT);
+      if (p) {
+        if ((steps + 1) * PLANE_ROW > planes.length) {
+          const grown = new Float64Array(Math.max(PLANE_ROW * HZ * 60, planes.length * 2));
+          grown.set(planes);
+          planes = grown;
+        }
+        const at = steps * PLANE_ROW;
+        PLANE_AXES.forEach((k, a) => (planes[at + a] = p[k] ?? 0));
+      }
       const base = steps * ROW;
       for (let a = 0; a < ROW; a++) bytes[base + a] = axisToByte(values[a], AXES[a][1]);
       steps++;
@@ -245,6 +285,7 @@ function createTape(): Tape {
     at: (i) => {
       if (i < 0 || i >= steps) {
         input.trick = input.carve = input.jump = input.machine = input.heli = undefined;
+        input.pop = input.plane = input.beacon = input.dig = undefined;
         return Object.assign(input, NEUTRAL_INPUT);
       }
       const base = i * ROW;
@@ -267,6 +308,24 @@ function createTape(): Tape {
         heli.pedal = read(8);
         input.heli = heli;
       } else input.heli = undefined;
+      const more = bytes[base + 9];
+      input.beacon = (more & BEACON) !== 0 ? true : undefined;
+      input.dig = (more & DIG) !== 0 ? true : undefined;
+      const pop = (more >> POP_SHIFT) & POP_LEVELS;
+      input.pop = pop > 0 ? pop / POP_LEVELS : undefined;
+      if ((more & PLANE) !== 0) {
+        const at = i * PLANE_ROW;
+        plane.throttle = planes[at];
+        plane.pitch = planes[at + 1];
+        plane.roll = planes[at + 2];
+        plane.yaw = planes[at + 3];
+        plane.flaps = planes[at + 4];
+        plane.brake = (more & PLANE_BRAKE) !== 0 ? planes[at + 5] : undefined;
+        plane.trim = (more & PLANE_TRIM) !== 0 ? planes[at + 6] : undefined;
+        if (plane.brake === undefined) delete plane.brake;
+        if (plane.trim === undefined) delete plane.trim;
+        input.plane = plane;
+      } else input.plane = undefined;
       return input;
     },
   };

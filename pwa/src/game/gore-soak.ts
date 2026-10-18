@@ -27,6 +27,13 @@ export function cleanColours(g: THREE.BufferGeometry): Float32Array {
   return orig;
 }
 
+/** A cloth given back its own colours, whatever stained it. */
+export function wash(g: THREE.BufferGeometry): void {
+  const col = g.getAttribute("color") as THREE.BufferAttribute;
+  (col.array as Float32Array).set(cleanColours(g));
+  col.needsUpdate = true;
+}
+
 export type Soak = {
   /** Soak cloth `g` red round the wounds `at` (the bind pose's frame), each
    * reaching `r`, as wet as `wet` (0 … 1); `force` keeps its colours even
@@ -81,12 +88,7 @@ export function createSoak(): Soak {
   }
 
   const clear = () => {
-    for (const g of soaked) {
-      const orig = cleanColours(g);
-      const col = g.getAttribute("color") as THREE.BufferAttribute;
-      (col.array as Float32Array).set(orig);
-      col.needsUpdate = true;
-    }
+    for (const g of soaked) wash(g);
     soaked.clear();
   };
 

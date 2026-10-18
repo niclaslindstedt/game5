@@ -9,25 +9,27 @@
 // a second time when the replay was left.
 //
 // So the run and its replays each have a view of their own: the run's is
-// held still and out of sight while a replay is watched (its dead of earlier
-// runs left lying in view), the replay's draws every copy from where it
-// stands, and the run comes back as it was left. Nothing is ever left lying
-// on the way into a replay, out of one, or across a seek inside one.
+// HELD ASIDE while a replay is watched (`GoreView.hold`) — out of sight, and
+// off the skin the replay's body wears too (the stumps, the opened trunk,
+// the bone out through it, the blood soaked into his clothes) — but for the
+// dead of OTHER runs, left lying in view. The death the replay is of is not
+// among them, though the rider stood up after it left it lying: the replay
+// draws that death again, and he would fly into his own body and its pieces
+// lying there ahead of him. The replay's view draws every copy from where
+// it stands, and the run comes back as it was left. Nothing is ever left
+// lying on the way into a replay, out of one, or across a seek inside one.
 
 import * as THREE from "three";
 import type { GameState } from "@engine";
 
 import { createGoreView, type GoreModel, type GoreView } from "./gore-view.ts";
-import { isStoodUp } from "./replay-keep.ts";
+import { isStoodUp, replayOf } from "./replay-keep.ts";
 
 /** The pair, as the renderer holds it: a view whose `leave` is told the
- * state coming next. */
-export type GoreViews = Omit<GoreView, "leave"> & {
+ * state coming next, and which holds its own views aside itself. */
+export type GoreViews = Omit<GoreView, "leave" | "hold"> & {
   leave(model: GoreModel, next: GameState): void;
 };
-
-/** The group a gore view keeps its dead left lying in (`gore-view.ts`). */
-const REMAINS = "gore-remains";
 
 /** Both views, over `createGoreView`'s own arguments; the replay's is built
  * on the first replay watched. */
@@ -42,11 +44,8 @@ export function pairViews(make: () => GoreView): GoreViews {
   const run = make();
   group.add(run.group);
   let replay: GoreView | null = null;
-  let watching = false;
-  /** The run's view held out of sight but for its dead, or shown again. */
-  const hold = (on: boolean): void => {
-    for (const o of run.group.children) o.visible = !on || o.name === REMAINS;
-  };
+  /** The run the replay being watched is of; null while none is. */
+  let watching: GameState | null = null;
   const active = (): GoreView => (watching && replay ? replay : run);
 
   return {
@@ -56,17 +55,18 @@ export function pairViews(make: () => GoreView): GoreViews {
       if (!watching && !isStoodUp(next)) run.leave(model);
     },
     update(state, model, simDt, dt, veil) {
-      const copy = isStoodUp(state);
-      if (copy && !watching) {
-        if (!replay) group.add((replay = make()).group);
-        replay.group.visible = true;
-        hold(true);
-        watching = true;
-      } else if (!copy && watching) {
+      const of = replayOf(state);
+      if (of !== watching && watching) {
         replay?.clear(model);
         if (replay) replay.group.visible = false;
-        hold(false);
-        watching = false;
+        run.hold(false, model);
+        watching = null;
+      }
+      if (of && !watching) {
+        if (!replay) group.add((replay = make()).group);
+        replay.group.visible = true;
+        run.hold(true, model, of);
+        watching = of;
       }
       active().update(state, model, simDt, dt, veil);
     },

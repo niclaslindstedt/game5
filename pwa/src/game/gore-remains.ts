@@ -14,6 +14,7 @@
 // left out, as the picture left it out.
 
 import * as THREE from "three";
+import type { GameState } from "@engine";
 
 import type { Blood } from "./gore-blood.ts";
 import type { Lumps } from "./gore-lumps.ts";
@@ -25,8 +26,10 @@ type Wrap = <M extends THREE.Material>(m: M, name: string) => M;
 export const REMAINS = 4;
 
 /** ONE BODY LEFT LYING: the statue of him, what was torn out of him, and
- * the blood he left — all owned here now. */
+ * the blood he left — all owned here now — and the run he died on, which a
+ * replay of it draws again and so must not find lying ahead of it. */
 export type Remains = {
+  run: GameState;
   body: THREE.Group;
   pieces: Dressed[];
   loose: THREE.Mesh[];
@@ -34,6 +37,12 @@ export type Remains = {
   guts: THREE.Mesh[];
   blood: Blood;
 };
+
+/** A body left lying shown, or put out of sight — all of it. */
+export function showRemains(r: Remains, shown: boolean): void {
+  for (const o of [r.body, r.blood.group, r.lumps.group, ...r.loose, ...r.guts]) o.visible = shown;
+  for (const d of r.pieces) d.group.visible = shown;
+}
 
 const p = new THREE.Vector3();
 const n = new THREE.Vector3();

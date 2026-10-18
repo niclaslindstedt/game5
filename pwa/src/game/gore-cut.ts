@@ -94,6 +94,23 @@ export function cutOf(piece: GorePiece, frames: Record<SkierBone, BoneFrame>): {
   return { at: first.head, out: first.y };
 }
 
+/** WHERE THE TRUNK IS OPENED: its front at the chest (bit 0 of
+ * `GORE_OPEN`) or the belly (bit 1), in the pose's own frames, and its way
+ * out. */
+export function openAt(bit: number, f: Record<SkierBone, BoneFrame>): { at: V3; out: V3 } {
+  const b = bit === 0 ? f.chest : f.pelvis;
+  const k = bit === 0 ? 0.55 : 0.9;
+  const d = bit === 0 ? 0.11 : 0.1;
+  return {
+    at: {
+      x: b.head.x + b.y.x * b.length * k + b.z.x * d,
+      y: b.head.y + b.y.y * b.length * k + b.z.y * d,
+      z: b.head.z + b.y.z * b.length * k + b.z.z * d,
+    },
+    out: b.z,
+  };
+}
+
 /** The pieces gone, a bit each in `GORE_PIECES`' order, as the CUTS the
  * body is drawn with: the outermost cut that holds each lost bone. */
 export function cutsOf(lost: number): GorePiece[] {

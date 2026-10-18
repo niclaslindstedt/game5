@@ -265,13 +265,14 @@ const BANDS = [
   },
   {
     id: "through",
-    say: "a limb through the trunk, the knees through each other or an arm through a thigh",
+    say: "a limb through the trunk, the knees through each other, an arm through a thigh or a pole through the trunk or a thigh",
     when: (f) => !f.skier.thrown,
     bad: (m) =>
       m.clear.trunk < -0.02 ||
       m.clear.knees < -0.02 ||
       m.clear.thighs < -0.03 ||
-      m.clear.armLeg < -0.03,
+      m.clear.armLeg < -0.03 ||
+      m.clear.poles < -0.02,
   },
   {
     id: "snap",

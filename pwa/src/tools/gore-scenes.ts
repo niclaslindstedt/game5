@@ -285,8 +285,18 @@ export function skiAtTree(
   speed: number,
   back = 7,
 ): { s: GameState; tree: P3; side: number } {
+  return skiAt(st, loneTree(st.level, 0, true), speed, back);
+}
+
+/** On his skis at `speed` m/s straight at the upright `t`, from `back` m
+ * up the fall line above it. */
+export function skiAt(
+  st: Stage,
+  t: P3,
+  speed: number,
+  back = 7,
+): { s: GameState; tree: P3; side: number } {
   const s = st.fresh();
-  const t = loneTree(st.level, 0, true);
   // Coming at it down the fall line: from uphill.
   const n = { x: 0, y: 1, z: 0 };
   st.level.normalAt(t.x, t.z, n);
@@ -364,6 +374,29 @@ export function ontoTop(
   return s;
 }
 
+/** A body skied into an upright at speed, seen coming, struck, chased, the
+ * smear on the solid's face and the way past it his limbs were flung. */
+function smashed(
+  st: Stage,
+  { s, tree, side }: { s: GameState; tree: P3; side: number },
+  radius = 0.3,
+): void {
+  // A wide solid's face is looked at from further off.
+  const off = Math.max(0, radius - 0.3) * 3;
+  st.shoot(s, "coming", around(st.level, tree, side, 9, 1.8, 50));
+  const lens = onBody(side, 6, 1.8, 50);
+  st.until(s, (q) => !!q.skier.thrown, 2, still);
+  strobe(st, s, [0.02, 0.08, 0.2, 0.45, 1, 2.5, 5], lens);
+  st.shoot(s, "chase", "chase");
+  // What the smash left on the trunk's face, from up the way he came.
+  st.shoot(s, "smear", around(st.level, tree, side + Math.PI / 2, 2.4 + off, 1.3, 45, 1.1));
+  st.shoot(s, "smear-side", around(st.level, tree, side + Math.PI / 4, 2.2 + off, 0.9, 45, 0.9));
+  // ...and down past it, where his limbs and his blood were flung.
+  const h = side - Math.PI / 2;
+  const past = { x: tree.x + Math.sin(h) * 10, y: tree.y, z: tree.z + Math.cos(h) * 10 };
+  st.shoot(s, "beyond", around(st.level, past, side, 15, 7, 60, 0));
+}
+
 const seconds = (s: GameState) => s.t;
 
 /** The piste's point `ds` m along it from the one nearest `at`. */
@@ -402,19 +435,22 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
    * what met it crushed (`GORE.smash`) and smeared on its face, his middle
    * crushed and his limbs flung on past it. */
   "ski-trunk"(st) {
-    const { s, tree, side } = skiAtTree(st, 30);
-    st.shoot(s, "coming", around(st.level, tree, side, 9, 1.8, 50));
-    const lens = onBody(side, 6, 1.8, 50);
-    st.until(s, (q) => !!q.skier.thrown, 2, still);
-    strobe(st, s, [0.02, 0.08, 0.2, 0.45, 1, 2.5, 5], lens);
-    st.shoot(s, "chase", "chase");
-    // What the smash left on the trunk's face, from up the way he came.
-    st.shoot(s, "smear", around(st.level, tree, side + Math.PI / 2, 2.4, 1.3, 45, 1.1));
-    st.shoot(s, "smear-side", around(st.level, tree, side + Math.PI / 4, 2.2, 0.9, 45, 0.9));
-    // ...and down past it, where his limbs and his blood were flung.
-    const h = side - Math.PI / 2;
-    const past = { x: tree.x + Math.sin(h) * 10, y: tree.y, z: tree.z + Math.cos(h) * 10 };
-    st.shoot(s, "beyond", around(st.level, past, side, 15, 7, 60, 0));
+    smashed(st, skiAtTree(st, 30));
+  },
+  /** Skied at a lift tower's pad at 108 km/h: the foam takes its 11 m/s
+   * and the rest is steel — crushed on it as on a trunk. */
+  "ski-tower"(st) {
+    const tower = solidsOf(st.level).find((u) => u.stuff === "padded");
+    if (tower) smashed(st, skiAt(st, { x: tower.x, y: tower.y, z: tower.z }, 30), tower.radius);
+    else st.shoot(st.fresh(), "no-tower-on-this-map", "chase");
+  },
+  /** Skied at a lamp's column at 108 km/h. */
+  "ski-lamp"(st) {
+    const lamp = solidsOf(st.level).find(
+      (u) => u.stuff === "steel" && u.radius <= 0.16 && u.height > 3 && u.height < 20,
+    );
+    if (lamp) smashed(st, skiAt(st, { x: lamp.x, y: lamp.y, z: lamp.z }, 30, 3), lamp.radius);
+    else st.shoot(st.fresh(), "no-lamp-on-this-map", "chase");
   },
   /** Flown head first into a trunk at 90 km/h: the head torn off. */
   decapitation(st) {
@@ -833,7 +869,7 @@ export const VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
 export const HUD_GROUPS = new Set(["hud"]);
 
 export const GROUPS: Record<string, readonly string[]> = {
-  trunk: ["ski-trunk", "decapitation"],
+  trunk: ["ski-trunk", "ski-tower", "ski-lamp", "decapitation"],
   snow: ["mangled", "crush", "fracture"],
   spike: ["spike-tree", "spike-post"],
   maul: ["maul"],

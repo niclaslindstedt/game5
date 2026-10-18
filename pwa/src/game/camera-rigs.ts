@@ -65,6 +65,7 @@
 import { rotate, type Quat } from "@engine";
 import type { RideLook } from "./camera-lift.ts";
 import { easedBank } from "./camera-pace.ts";
+import { boltedUp, rollFor, yawBy } from "./camera-roll.ts";
 
 import {
   createFallMemory,
@@ -159,7 +160,7 @@ export type BoltedRig = {
   down?: number;
   fov: number;
   fovPerSpeed: number;
-  /** Share of the skier's roll the horizon keeps, 0..1. */
+  /** Share of his head's roll the horizon keeps, 0..1 (`camera-roll.ts`). */
   rollShare: number;
   /** Share of `PACE.tremor` the lens takes. */
   tremor: number;
@@ -576,13 +577,11 @@ export function frameRig(
       : 0;
     const dip = rig.look * Math.tan((worn ? worn.down : (rig.down ?? 0)) + spot);
     const fwd = rotate(pose.q, { x: shake.x * swing, y: shake.y * swing - dip, z: rig.look });
+    // His head's own up, turned with the look: the horizon tips as it does.
+    const up = rotate(pose.q, boltedUp(rig.look, dip));
     if (rig.turn) {
-      const a = pose.roll * rig.turn;
-      const c = Math.cos(a);
-      const s = Math.sin(a);
-      const x = fwd.x * c + fwd.z * s;
-      fwd.z = fwd.z * c - fwd.x * s;
-      fwd.x = x;
+      yawBy(fwd, pose.roll * rig.turn);
+      yawBy(up, pose.roll * rig.turn);
     }
     const target = { x: eye.x + fwd.x, y: eye.y + fwd.y, z: eye.z + fwd.z };
     st.fresh = false;
@@ -590,7 +589,7 @@ export function frameRig(
       eye,
       target,
       fov: rig.fov + rig.fovPerSpeed * pose.speed,
-      roll: pose.roll * rig.rollShare + shake.r * PACE.tremor.roll,
+      roll: rollFor(fwd, up) * rig.rollShare + shake.r * PACE.tremor.roll,
     };
   }
   if (rig.kind === "orbit") {

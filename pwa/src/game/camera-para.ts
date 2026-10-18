@@ -64,9 +64,9 @@ export const PARA_RIGS: Record<Rung, Rig> = {
     eye: { x: 0, y: 0.8, z: 0.45 },
     down: 1.15,
     fov: 84,
-    rollShare: 0.8,
+    rollShare: 1,
   }),
-  helmet: bolted(RIGS.helmet, { eye: EYES, down: 0.78, fov: 88, rollShare: 0.8, turn: 0.5 }),
+  helmet: bolted(RIGS.helmet, { eye: EYES, down: 0.78, fov: 88, rollShare: 1, turn: 0.5 }),
   // The summit pad's close, level look (`SUMMIT_LOOK`) is a skier's: under
   // a wing it would put the lens inside the canopy, so the chase leaves it.
   chase: boom(RIGS.chase, {

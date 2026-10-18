@@ -228,6 +228,27 @@ describe("the paramotor's flight (para.ts)", () => {
     expect(Math.hypot(s.skier.x - start.x, s.skier.z - start.z)).toBeLessThan(1);
   });
 
+  it("scores no air and no landing for a flight under the wing, nor for the fall out of it", () => {
+    const s = rig();
+    const events = fly(s, 20, ask({ tuck: 1 }));
+    expect(s.para!.flying).toBe(true);
+    // Glided down onto the snow again.
+    fly(s, 120, (g) => (g.para!.flying || g.skier.airborne ? ask() : ask({ brake: 1 })), events);
+    expect(s.para!.flying).toBe(false);
+    expect(s.skier.airborne).toBe(false);
+    // ...and, on another ride, out of the rig high into the fall.
+    const d = rig();
+    fly(d, 30, ask({ tuck: 1 }), events);
+    fly(d, 1 / 120, ask({ machine: true }), events);
+    fly(d, 3, ask(), events);
+    expect(d.chute?.mode).toBe("exit");
+    expect(events.some((e) => e.kind === "trick" || e.kind === "combo")).toBe(false);
+    for (const g of [s, d]) {
+      expect(g.tricks.base).toBe(0);
+      expect(g.tricks.score).toBe(0);
+    }
+  });
+
   it("keeps the helicopter and the snowmobile off while the rig is on him", () => {
     const s = rig();
     expect(heliWithin(s)).toBe(false);

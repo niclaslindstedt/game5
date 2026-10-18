@@ -87,6 +87,9 @@
 // — the names live in `pwa/src/game/strings.ts`. Nothing here draws, and
 // nothing here is random: a run replays to the same score.
 
+import { balloonAboard } from "./balloon.ts";
+import { chuteActive } from "./chute.ts";
+import { paraRigged } from "./para.ts";
 import { pipeHit } from "./pipe-air.ts";
 import { spinTag, takeOff } from "./board-tricks.ts";
 import type { SpinTag } from "./board-state.ts";
@@ -378,6 +381,16 @@ export function stepTricks(state: GameState, events: GameEvent[]): void {
   }
   if (c.thrown !== null) return;
   if (!finished && (state.phase !== "racing" || state.progress.finished)) return;
+
+  // CARRIED THROUGH THE AIR — hung under the paramotor's wing, in the
+  // skydive or the wingsuit, stood in the balloon's basket: off the snow,
+  // but no jump of his, so no air, no landing and no combo held open by it.
+  // A combo he skied in with is paid as the window would have paid it.
+  if (paraRigged(state) || chuteActive(state) || balloonAboard(state)) {
+    if (k.inAir) endFlight(k);
+    if (k.base > 0) bank(state, events, false);
+    return;
+  }
 
   // ON A LIFT'S ROPE (`cable.ts`, rule 8): come down onto it out of a
   // flight, the flight's turns are landed there; the grind is an element

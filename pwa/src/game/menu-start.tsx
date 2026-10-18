@@ -261,6 +261,14 @@ export function StartPage({
                   onPick={(id) => setRide({ avalanche: id === "on" })}
                 />
               )}
+              {!summer && (
+                <StepRow
+                  label={STRINGS.startRamps}
+                  stops={AVALANCHE_ROW}
+                  value={ride.ramps ? "on" : "off"}
+                  onPick={(id) => setRide({ ramps: id === "on" })}
+                />
+              )}
             </div>
           ) : (
             <div class="knob-rows start-rows">

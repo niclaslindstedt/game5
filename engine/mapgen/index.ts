@@ -164,6 +164,14 @@ export {
 } from "./versions.ts";
 export { levelDigest } from "./digest.ts";
 export { PARK_VERSION } from "./trick-field.ts";
+// THE FREE RIDE'S TRICK RAMPS, down every piste of its ski area.
+export {
+  TRICK_RAMPS,
+  rampAltitude,
+  rampGeometry,
+  setTrickRamps,
+  type RampSpec,
+} from "./trick-ramps.ts";
 // THE RESORT (R25–R30): its rule book, and the scoreboard that holds a
 // whole ski area to it — R29's access report among it.
 export { RESORT_RULES, type ResortRules } from "./resort-rules.ts";

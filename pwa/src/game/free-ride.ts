@@ -174,6 +174,9 @@ export type FreeRide = {
   /** THE AVALANCHES row: whether the loaded slopes off the runs may slide
    * (`avalanche.ts`). On unless the player turns them off. */
   avalanche: boolean;
+  /** THE TRICK RAMPS row: ramps down every piste (`trick-ramps.ts`). Off
+   * unless the player turns them on. */
+  ramps: boolean;
   /** Whether the WHERE steps have been opened on this ride: the first time
    * they are, the ride is stood on GENERATED (`firstWhere`). Stored under a
    * name of its own so a ride an older build stood on a real range is
@@ -195,6 +198,7 @@ export function freshRide(): FreeRide {
     grade: null,
     run: null,
     avalanche: true,
+    ramps: false,
     where: false,
   };
 }
@@ -230,6 +234,7 @@ export function mergeRide(blob: unknown): FreeRide {
   if (isNumber(b.temp) && (TEMP_STOPS as readonly number[]).includes(b.temp)) out.temp = b.temp;
   if (isRegionId(b.region)) out.region = b.region;
   if (typeof b.avalanche === "boolean") out.avalanche = b.avalanche;
+  if (typeof b.ramps === "boolean") out.ramps = b.ramps;
   if (typeof b.where === "boolean") out.where = b.where;
   // A face is kept only in its own country: a face stored under another
   // region (or one this build has not baked) is the dealt massif.
@@ -765,6 +770,9 @@ export function freeGameOptions(
     // THE AVALANCHES: the loaded slopes off the groomed runs may slide,
     // unless the start card's row turned them off — and never in summer.
     avalanche: ride.avalanche && !summer,
+    // THE TRICK RAMPS down every piste, where the card's row turned them
+    // on — never in summer.
+    trickRamps: ride.ramps && !summer,
     // THE WEATHER OVER THE RIDE (`front.ts`): the sky it starts under — the
     // map's, or the one the card picked — turns into others over the sky's
     // clock, and the fall and the wind follow it. Never in summer.

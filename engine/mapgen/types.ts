@@ -298,6 +298,10 @@ export interface Level {
    * `normalAt` answer off the trails inside their footprints. Absent on
    * every map the generator builds and every winter run. */
   bikePark?: BikePark;
+  /** THE TRICK RAMPS laid down every piste of a free ride's ski area
+   * (`setTrickRamps`): the map they were laid over and how many stand.
+   * Absent on every map the generator builds. */
+  trickRamps?: { base: Level; count: number };
   /** A SLALOM set on the map (R31, `setSlalom`): its gates are this map's
    * `checkpoints`, its start hut the `spawn`. Absent on every map the
    * generator builds — a slalom is set over one. */
@@ -747,10 +751,15 @@ export interface Kicker {
    * (R4, R9). `landing` is then the whole length from the lip to the end of
    * the run-out. */
   shape?: KickerShape;
+  /** One of the free ride's TRICK RAMPS (`setTrickRamps`), and which. */
+  rampKind?: RampKind;
 }
 
 /** The park's three sizes of kicker (R20). */
 export type TrickSize = "low" | "medium" | "high";
+
+/** The free ride's five trick ramps, gentlest first (`trick-ramps.ts`). */
+export type RampKind = "roller" | "table" | "big" | "gap" | "booter";
 
 /** A built landing past a kicker's lip (`kickerProfile`), m: the flat
  * `deck` at the lip's height, the landing slope's length `fall`, and how

@@ -391,6 +391,7 @@ const SURFACES = {
     wait: ".hud-seed",
     settle: 1500,
   },
+  ramps: { params: { start: "free", ramps: "1", t: "20", shot: "1" }, wait: ".hud-seed" },
   // THE FREE RIDE'S ARRIVAL BY LIFT (`lift-ride.ts`): seated on the chair
   // for its last few seconds (`lift.arrive`), at the top station, and led
   // off the pad.
@@ -811,7 +812,7 @@ async function capture(name, params, viewportName, surface) {
       if (until) await page.waitForSelector(until, { timeout: args.timeout * 1000 });
       // Thumbs held on the glass for the pads under them (`hold-thumbs.mjs`).
       if (surface.thumbs) await holdThumbs(page, surface.thumbs);
-      await page.waitForTimeout(surface.settle);
+      await page.waitForTimeout(surface.settle ?? 1500);
     } else {
       await page.waitForFunction("window.__SH_READY__ === true", null, {
         timeout: args.timeout * 1000,

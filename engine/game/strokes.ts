@@ -62,6 +62,7 @@ import { flightGravity } from "./limits.ts";
 import { SKIS, inertiaOf } from "./defs/skis.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { boardGrabOf } from "./board-tricks.ts";
+import { revertRate, revertShare } from "./switch.ts";
 import type { GameState, SkierInput, SkierState, TrickPose } from "./state.ts";
 
 const T = TUNING.tricks;
@@ -243,6 +244,38 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
     }
   } else k.flipHeld = false;
 
+  // THE HOP WOUND ON: a hop into switch (`switch.ts`) is the 180 of an
+  // edge pressed with the pop and let go; still held its way as the window
+  // opens, with the air ahead to bring a spin round to the whole turn (as
+  // near it as the spot reaches), the edge is a spin being thrown — on a
+  // hop too short for that, the 180 is the trick. The hop hands the spin the turn
+  // it has made — counted as the spin's (`tricks.ts` sums the body's rate,
+  // which the hop's swing never moved) — and the rate it is making it at,
+  // no more than the spin's own cruise, since the hop swings quicker than
+  // any spin.
+  const hop = c.revert;
+  if (
+    hop?.to === "switch" &&
+    open &&
+    !busy &&
+    willed &&
+    k.spinGoal === 0 &&
+    spin === Math.sign(hop.turn)
+  ) {
+    const cruise = T.spinRate * driveOf(input.steer);
+    const made = hop.turn * revertShare(hop.u);
+    if (Math.abs(made) + cruise * T.spinIn * ahead >= 2 * Math.PI - T.spinCatch) {
+      k.spinSpeed = clamp(revertRate(hop), -cruise, cruise);
+      k.spinForm = 1;
+      k.spinDone = made;
+      k.spinGoal = spin * 1e-3;
+      k.spinCrossed = spin;
+      k.spinHeld = true;
+      k.yaw += made;
+      c.revert = null;
+    }
+  }
+
   // THE SPIN: the edge thrown TIGHT across its gate in the take-off's
   // window of a flight he meant — a spin is set off the snow, never
   // started or wound up later in the air.
@@ -266,7 +299,7 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
     const most = state.rules.spinMost ?? T.spinMost;
     const reach = Math.abs(k.spinSpeed) * Math.min(ahead, AIR_MOST) + Math.abs(k.spinDone);
     const accel = T.spinSet * Math.sqrt(ref.y / I.y);
-    const drive = 0.5 + 0.5 * clamp((Math.abs(input.steer) - T.spinGate) / (1 - T.spinGate), 0, 1);
+    const drive = driveOf(input.steer);
     if (reach < most || Math.sign(k.spinSpeed) !== k.spinCrossed) {
       k.spinSpeed = approach(k.spinSpeed, k.spinCrossed * T.spinRate * drive, accel * drive * dt);
     }
@@ -274,6 +307,11 @@ export function stepStrokes(state: GameState, input: SkierInput): void {
 
   if (k.flipGoal !== 0) turnFlip(state, input, down, busy, open);
   if (k.spinGoal !== 0) turnSpin(state, input, down, busy, open);
+}
+
+/** How hard the edge winds a spin, 0.5 at its gate to 1 at its end. */
+function driveOf(steer: number): number {
+  return 0.5 + 0.5 * clamp((Math.abs(steer) - T.spinGate) / (1 - T.spinGate), 0, 1);
 }
 
 /** One step of a loop under way: its shape off the lean, the body's rate

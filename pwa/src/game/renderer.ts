@@ -58,7 +58,8 @@ import { createHurtLens } from "./xray-scene.ts";
 import { wrecked } from "./impact-forecast.ts";
 import { frameStart, startMoment } from "./camera-start.ts";
 import { createGates, type Gates } from "./gates.ts";
-import { createGoreView, type GoreModel, type GoreView } from "./gore-view.ts";
+import type { GoreModel } from "./gore-view.ts";
+import { createGoreViews, type GoreViews } from "./gore-replay.ts";
 import { createLifts, type Lifts, type SeatedRider } from "./lifts.ts";
 import { createThrownLens, subjectPose } from "./camera-subject.ts";
 import { summitShare } from "./camera-summit.ts";
@@ -216,8 +217,7 @@ export function createWorldRenderer(
   let skiClear: SkiClear = createSkiClear(skiClearUniforms()); // the snow round him as a volume (`deform-snow.ts`)
   let spray: Spray | null = null;
   let cloud: SnowCloud | null = null;
-  /** His body torn apart (`gore-view.ts`), built on the first run that deals it. */
-  let gore: GoreView | null = null;
+  let gore: GoreViews | null = null; // a run's and its replay's apart (`gore-replay.ts`)
   /** WHAT SNOW LIES WHERE (`snowpack.ts`), a lab's forced kind, and its samples. */
   let pack: Snowpack | null = null;
   let packSun = 0;
@@ -448,7 +448,7 @@ export function createWorldRenderer(
   }
 
   const addGore = (lv: Level, model: GoreModel): void => {
-    gore = createGoreView(lv, wrap, () => FOREST_LOOK[video.forest].variants, model);
+    gore = createGoreViews(lv, wrap, () => FOREST_LOOK[video.forest].variants, model);
     scene.add(gore.group);
   };
   const api: WorldRendererExt = {
@@ -562,7 +562,7 @@ export function createWorldRenderer(
         riders.push(riderFor(riders.length, runs[riders.length].skier.spec));
       }
       // THE DEAD LEFT LYING (a new run after a death), off the body as last drawn.
-      if (state !== lastState) gore?.leave(riders[0].model);
+      if (state !== lastState) gore?.leave(riders[0].model, state);
       // A slot drawn on another pair than its run's (the skis picked anew) is rebuilt.
       for (let i = 0; i < runs.length; i++) {
         const spec = runs[i].skier.spec;

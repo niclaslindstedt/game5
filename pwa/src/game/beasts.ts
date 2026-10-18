@@ -55,6 +55,7 @@ import type { WildLook } from "./settings-video.ts";
 import { BEAST_FORMS, beastIndividual, drawnForm, freshIndividual } from "./wild-traits.ts";
 import type { SnowSampler, Stamp } from "./trail-stamp.ts";
 import { wildGround } from "./wild-ground.ts";
+import { wreckOf } from "./beast-wreck.ts";
 
 /** How far from the lens an animal is drawn, m: a reindeer is a mark on a
  * far hillside at half a kilometre, and a hare past two hundred metres is a
@@ -63,12 +64,22 @@ const REACH = 520;
 /** The most new prints kept to be laid again when the window moves. */
 const MOST_FRESH = 6000;
 
+/** How broken a body killed by the least blow that kills is drawn
+ * (`beast-crush.ts`), 0..1: dead is never whole. */
+const WRECK_SHOWN = 0.3;
+
 /** The cuts, in the order a roster's slots are laid. */
 const LODS: readonly BeastLod[] = ["near", "far"];
 
 /** One mesh of a species: a form at a cut, and its instances' motion
  * (gait, stride, graze, rack). */
-type Slot = { mesh: THREE.InstancedMesh; motion: THREE.InstancedBufferAttribute; n: number };
+type Slot = {
+  mesh: THREE.InstancedMesh;
+  motion: THREE.InstancedBufferAttribute;
+  /** How broken each is (`beast-crush.ts`): crush, along, side, seed. */
+  broken: THREE.InstancedBufferAttribute;
+  n: number;
+};
 
 /** A species' meshes, form by form and cut by cut (`form * 2 + lod`), and
  * how many of its forms are drawn. */
@@ -144,6 +155,9 @@ export function createBeasts(
           const motion = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
           motion.setUsage(THREE.DynamicDrawUsage);
           geometry.setAttribute("aMotion", motion);
+          const broken = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
+          broken.setUsage(THREE.DynamicDrawUsage);
+          geometry.setAttribute("aBroken", broken);
           const mesh = new THREE.InstancedMesh(
             geometry,
             beastMaterial(spec, pivot, haze),
@@ -163,7 +177,7 @@ export function createBeasts(
           mesh.visible = false;
           mesh.frustumCulled = false;
           group.add(mesh);
-          slots.push({ mesh, motion, n: 0 });
+          slots.push({ mesh, motion, broken, n: 0 });
         }
       }
       rosters.set(spec.id, { slots, forms: drawn });
@@ -201,18 +215,21 @@ export function createBeasts(
   /** AN ANIMAL MET (`beast-hit.ts`), over its live `pose`: flung along the
    * snow and down on its side where it came to rest — and, knocked down
    * on a run without injuries, up again and back to its group. */
-  const layStruck = (hit: StruckBeast, t: number, out: BeastPose): void => {
+  const layStruck = (hit: StruckBeast, t: number, out: BeastPose, side: number): void => {
     struckAt(hit, t, lying);
     const y = ground.snowY(lying.x, lying.z) + lying.lift;
     if (lying.down) {
+      // On its side, its barrel's half-width up off the snow — a dead one
+      // with the side it was met on up, the wound to the sky.
+      const style = BEAST_STYLES[hit.species];
       out.x = lying.x;
       out.z = lying.z;
-      out.y = y;
+      out.y = y + (style.width * beastById(hit.species).height) / 2;
       out.heading = hit.heading;
       out.pitch = 0;
       out.stride = 0;
       out.graze = 0;
-      const q = fromEuler(hit.heading, 0, Math.PI / 2);
+      const q = fromEuler(hit.heading, 0, (-side * Math.PI) / 2);
       out.q.x = q.x;
       out.q.y = q.y;
       out.q.z = q.z;
@@ -303,7 +320,10 @@ export function createBeasts(
         }
         if (far > REACH) continue;
         const hit = wild ? struckOf(wild, k, i) : undefined;
-        if (hit?.knocked) layStruck(hit, t, pose);
+        const wreck = hit?.killed ? wreckOf(hit, spec) : null;
+        // Burst: nothing of it left whole to draw (`beast-gore.ts` throws it).
+        if (wreck?.burst) continue;
+        if (hit?.knocked) layStruck(hit, t, pose, wreck?.side ?? -1);
         beastIndividual(g.species, g.scatter, i, g.count, who);
         const lod = Math.hypot(pose.x - eyeX, pose.z - eyeZ) < near ? 0 : 1;
         const slot = roster.slots[drawnForm(who.form, roster.forms) * 2 + lod];
@@ -314,6 +334,11 @@ export function createBeasts(
         slot.mesh.setMatrixAt(slot.n, m);
         slot.mesh.setColorAt(slot.n, tint.setRGB(who.shade[0], who.shade[1], who.shade[2]));
         slot.motion.setXYZW(slot.n, pose.gait, pose.stride, pose.graze, who.rack);
+        if (wreck && hit) {
+          // Killed is broken, however lightly; crushed, the more.
+          const c = WRECK_SHOWN + (1 - WRECK_SHOWN) * hit.crush;
+          slot.broken.setXYZW(slot.n, c, wreck.along / who.scale, wreck.side, wreck.seed);
+        } else slot.broken.setXYZW(slot.n, 0, 0, 0, 0);
         slot.n++;
       }
     });
@@ -325,6 +350,7 @@ export function createBeasts(
         slot.mesh.instanceMatrix.needsUpdate = true;
         if (slot.mesh.instanceColor) slot.mesh.instanceColor.needsUpdate = true;
         slot.motion.needsUpdate = true;
+        slot.broken.needsUpdate = true;
       }
     }
   };

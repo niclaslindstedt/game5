@@ -26,6 +26,7 @@ import { RESCUE_BANK } from "./rescue-bank.ts";
 import { BIRD_BANK } from "./bird-bank.ts";
 import { CONTACT_BANK } from "./contact-bank.ts";
 import { GORE_BANK } from "./gore-bank.ts";
+import { WILD_BANK } from "./wild-bank.ts";
 import { HELI_BANK } from "./heli-bank.ts";
 import { PLANE_BANK } from "./plane-bank.ts";
 import { CHUTE_BANK } from "./chute-bank.ts";
@@ -773,6 +774,9 @@ export const RUN_BANK: SoundBank = {
   // beep, the probe's stroke and its strike, the shovel's bite.
   ...RESCUE_BANK,
   ...GORE_BANK,
+  // AN ANIMAL RUN INTO (`wild-bank.ts`): knocked down with its cry, or run
+  // clean through.
+  ...WILD_BANK,
   // A SKIER SET ALIGHT (`fire-bank.ts`): his clothes catching, and the burn
   // out.
   ...FIRE_BANK,

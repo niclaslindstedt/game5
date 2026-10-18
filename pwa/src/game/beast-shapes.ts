@@ -41,6 +41,7 @@
 import { type BeastId, type BeastSpec, type Gait } from "@engine";
 import * as THREE from "three";
 
+import { crushGraft } from "./beast-crush.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { Shape, type V3 } from "./tree-mesh.ts";
 import { TINE_AT, type BeastForm } from "./wild-traits.ts";
@@ -845,7 +846,9 @@ export function beastMaterial(
   haze: HazeUniforms,
 ): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
-  return hazeMaterial(material, haze, "beast", gaitGraft(spec, pivot));
+  const gait = gaitGraft(spec, pivot);
+  const crush = crushGraft(spec, BEAST_STYLES[spec.id], true);
+  return hazeMaterial(material, haze, "beast", (shader) => (gait(shader), crush(shader)));
 }
 
 /** The shadow's material: the same graft over three's depth pass, so the
@@ -859,7 +862,8 @@ export function beastDepthMaterial(
     side: THREE.DoubleSide,
   });
   const graft = gaitGraft(spec, pivot);
-  material.onBeforeCompile = (shader) => graft(shader);
+  const crush = crushGraft(spec, BEAST_STYLES[spec.id], false);
+  material.onBeforeCompile = (shader) => (graft(shader), crush(shader));
   material.customProgramCacheKey = (): string => "beast-depth";
   return material;
 }

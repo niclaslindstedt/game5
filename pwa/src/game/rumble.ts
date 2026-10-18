@@ -171,6 +171,14 @@ export function rumbleForEvent(event: GameEvent): Rumble | null {
       }
       return null;
 
+    // AN ANIMAL RUN INTO (`beast-hit.ts`): as hard as what it took off
+    // him — a hare a twitch, a moose the whole blow, and one run clean
+    // through a beat longer. Thrown, the wipeout beside it plays.
+    case "beast": {
+      const hard = ramp(event.taken, 0.5, HIT_FULL);
+      return { ms: (event.killed ? 120 : 70) + 140 * hard, strength: 0.4 + 0.55 * hard };
+    }
+
     // THE GRIMBEAR'S PAW glancing off him on a miss: a short shove, the
     // skier still on his feet.
     case "grimbear":

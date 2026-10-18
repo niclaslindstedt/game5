@@ -553,6 +553,7 @@ export function createTerrain(
     uGridHalf: { value: options.n / 2 },
     uReliefHalf: { value: options.n / 2 },
     uDeformMesh: { value: 0 },
+    uFocalPx: { value: 0 },
     uBaseSpacing: { value: options.spacing },
     uSnowSkip: SNOW_SKIP,
     ...options.summer?.uniforms,
@@ -673,7 +674,7 @@ export function createTerrain(
   }
 
   type Own = Record<"uLevelCentre" | "uSpacing" | "uHole", THREE.IUniform> &
-    Partial<Record<"uGridHalf" | "uDeformMesh", THREE.IUniform>>;
+    Partial<Record<"uGridHalf" | "uDeformMesh" | "uFocalPx", THREE.IUniform>>;
   /** A level's ground, keeping the snow out of the rooms (`cut`) or not. */
   function groundMaterial(cut: boolean, own: Own): THREE.MeshStandardMaterial {
     const material = new THREE.MeshStandardMaterial({
@@ -730,12 +731,15 @@ export function createTerrain(
   function deformPatch(look: DeformLook) {
     const span = Math.round((2 * look.half) / look.cell);
     const centre = new THREE.Vector2();
+    const focal = { value: 0 };
+    const bufferSize = new THREE.Vector2();
     const own: Own = {
       uLevelCentre: { value: centre },
       uSpacing: { value: look.cell },
       uHole: { value: new THREE.Vector4(0, 0, 0, 0) },
       uGridHalf: { value: span / 2 },
       uDeformMesh: { value: 1 },
+      uFocalPx: focal,
     };
     const plain = groundMaterial(false, own);
     const cutting = groundMaterial(true, own);
@@ -748,6 +752,13 @@ export function createTerrain(
     mesh.matrixAutoUpdate = false;
     mesh.visible = false;
     mesh.name = "terrain-deform";
+    // The lens's focal length in the pixels of whatever it is drawn into,
+    // for the mesh's fold with distance (\`SNOW_VERTEX_PLACE\`).
+    mesh.onBeforeRender = (renderer, _scene, camera) => {
+      const target = renderer.getRenderTarget();
+      const high = target ? target.height : renderer.getDrawingBufferSize(bufferSize).y;
+      focal.value = 0.5 * high * camera.projectionMatrix.elements[5];
+    };
     group.add(mesh);
     return { mesh, centre, plain, cutting, look };
   }

@@ -64,7 +64,7 @@ const args = parseArgs(
     },
     views: {
       kind: "string",
-      help: "the scenes priced, comma-separated (race, vista, sunset, night, snow — bench-scenes.ts); --sweep runs all five unless told, --costs the race and the vista",
+      help: "the scenes priced, comma-separated (race, vista, sunset, night, snow — bench-scenes.ts); --sweep runs all five unless told, --costs the race and the vista, a plain run the one scene named",
     },
     rows: {
       kind: "string",
@@ -349,7 +349,7 @@ const text = args.sweep
   ? await sweepList()
   : args.costs
     ? await priceList()
-    : await run(args.hide ?? "");
+    : await run(args.hide ?? "", args.picture, args.views ? { view: args.views } : {});
 await browser.close();
 site.close();
 if (text === null) process.exit(1);

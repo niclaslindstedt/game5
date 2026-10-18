@@ -90,6 +90,10 @@ const args = parseArgs(
       help: "the ways the cost is read with (cpu, gpu)",
     },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
+    gpu: {
+      kind: "flag",
+      help: "draw on the host's GPU rather than SwiftShader (a sheet in a minute)",
+    },
     timeout: { kind: "number", default: 2400, help: "how long the sheet may take, s" },
   },
   "usage: node scripts/snow-eval.mjs [--scenes=a,b] [--out=dir] [--no-perf] [--skip-build]",
@@ -120,7 +124,9 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: args.gpu
+    ? ["--enable-gpu", "--ignore-gpu-blocklist"]
+    : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 let crashed = null;

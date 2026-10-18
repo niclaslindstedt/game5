@@ -30,6 +30,9 @@ uniform sampler2D uGround;
 // filter is level 0's everywhere (\`uReliefHalf\`), so its rim meets it.
 uniform float uDeformMesh;
 uniform float uReliefHalf;
+// The lens's focal length in the target's pixels (\`deformPatch\`'s
+// \`onBeforeRender\`): how many pixels a metre spans a metre off.
+uniform float uFocalPx;
 varying vec3 vSnowWorld;
 varying vec3 vSnowNormal;
 ${TRAIL_GLSL}
@@ -55,6 +58,23 @@ float snowNoise(vec2 p) {
 // (far-ranges-plan.ts), so the clipmap's last ring meets them.
 ${FAR_RIM_GLSL}
 
+// Whether a tool has touched the deformable snow over a block of its cells
+// (\`SNOW_VERTEX_PLACE\`'s fold): n × n filtered taps from \`from\` cells past
+// \`p\`, \`step\` cells apart, each the mean of the texels round it — 1 when
+// any texel a tap reads has been touched.
+float deformTouched(vec2 p, float from, float step, int n) {
+  float most = 0.0;
+  for (int j = 0; j < 3; j++) {
+    if (j >= n) break;
+    for (int i = 0; i < 3; i++) {
+      if (i >= n) break;
+      vec2 at = p + (vec2(float(i), float(j)) * step + from) * uSpacing;
+      most = max(most, deformAt(at).y);
+    }
+  }
+  return clamp(most * 4.0, 0.0, 1.0);
+}
+
 float heightTexel(ivec2 c) {
   ivec2 top = ivec2(uHeightCount) - 1;
   return texelFetch(uHeight, clamp(c, ivec2(0), top), 0).r;
@@ -76,6 +96,10 @@ float groundHeight(vec2 p) {
 }
 `;
 
+/** How many of the target's pixels a cell of the deformable snow's mesh
+ * keeps under it before the mesh folds to a cell twice as wide. */
+export const DEFORM_FINE_PX = 8;
+
 /** Replaces `beginnormal_vertex`: place the vertex on the clipmap, morph it
  * toward the next level near this level's rim (so two levels meet with no
  * crack), and lift it onto the snow. */
@@ -85,6 +109,30 @@ vec2 snowLocal = (snowGrid - uGridHalf) * uSpacing;
 float snowEdge = max(abs(snowLocal.x), abs(snowLocal.y)) / (uGridHalf * uSpacing);
 float snowMorph = clamp((snowEdge - 0.72) / 0.2, 0.0, 1.0) * (1.0 - uDeformMesh);
 vec2 snowXZ = uLevelCentre + snowLocal - mod(snowGrid, 2.0) * uSpacing * snowMorph;
+// THE DEFORMABLE SNOW'S MESH THINNED WHERE IT HAS NOTHING TO SHOW. A cell
+// of the field's own size is a few pixels on screen, and a triangle that
+// small is shaded at several times the price of its pixels (a GPU shades in
+// quads of four, and the ground's pixel is the dearest there is). Only the
+// snow a tool has TOUCHED has relief finer than the trail map's: so where
+// none has, the odd vertices fold onto the even ones and the even onto
+// every fourth — a cell four times as wide, finer still than level 0 round
+// it — and where one has, the cells are kept until they are under
+// ${DEFORM_FINE_PX} pixels, then folded the same way, every collapsed
+// triangle of no area at all. The second fold is judged at the vertex it
+// folds onto, so the vertices that meet there meet exactly.
+float snowCellV = uSpacing;
+if (uDeformMesh > 0.5 && uFocalPx > 0.0) {
+  vec2 snowE = snowGrid - mod(snowGrid, 2.0);
+  vec2 snowQ = snowE - mod(snowE, 4.0);
+  vec2 xzE = uLevelCentre + (snowE - uGridHalf) * uSpacing;
+  vec2 xzQ = uLevelCentre + (snowQ - uGridHalf) * uSpacing;
+  float pxE = uSpacing * uFocalPx / max(distance(vec3(xzE.x, groundHeight(xzE), xzE.y), cameraPosition), 0.01);
+  float pxQ = uSpacing * uFocalPx / max(distance(vec3(xzQ.x, groundHeight(xzQ), xzQ.y), cameraPosition), 0.01);
+  float fold1 = max(1.0 - deformTouched(xzE, 0.5, 1.0, 2), clamp((${DEFORM_FINE_PX.toFixed(1)} - pxE) / ${(DEFORM_FINE_PX / 2).toFixed(1)}, 0.0, 1.0));
+  float fold2 = max(1.0 - deformTouched(xzQ, 0.5, 1.5, 3), clamp((${(DEFORM_FINE_PX / 2).toFixed(1)} - pxQ) / ${(DEFORM_FINE_PX / 4).toFixed(1)}, 0.0, 1.0));
+  snowXZ -= (mod(snowGrid, 2.0) * fold1 + mod(snowE, 4.0) * fold2) * uSpacing;
+  snowCellV = uSpacing * (1.0 + fold1 + 2.0 * fold2);
+}
 // The furrow, low-passed to what the mesh can carry here. Close in, a tent
 // filter over the fine map a vertex's spacing wide — enough for the skis's
 // band to sink the mesh without the ski lines aliasing into a sawtooth;
@@ -128,7 +176,7 @@ float snowY = groundHeight(snowXZ) + snowRelief + ${LOOSE.toFixed(3)} * (1.0 - s
   // THE AVALANCHE (\`avalanche-glsl.ts\`): its bed below, its debris above.
   + slideAt(snowXZ);
 // Never over the player's skis, nor the nearest rivals' (\`ski-clear.ts\`).
-snowY = skiClear(snowXZ, snowY, uSpacing);
+snowY = skiClear(snowXZ, snowY, snowCellV);
 // UNDER THE FINER LEVEL (\`uHole\`: its centre and half extent), the
 // vertices it covers by a whole cell of this one are SUNK, so every
 // triangle of this level the finer one draws over hinges down from where

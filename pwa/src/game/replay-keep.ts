@@ -303,10 +303,20 @@ export function keyframeOf(state: GameState, step: number): Keyframe {
   return { step, copy: copyOut(state) };
 }
 
+/** Every run stood up from a copy, so a drawing can tell a replay from a run. */
+const stood = new WeakSet<GameState>();
+
 /** A run stood up from a copy: a fresh state, free to be stepped, that the
  * copy itself survives. */
 export function standUp(frame: Keyframe): GameState {
-  return copyIn(frame.copy) as GameState;
+  const state = copyIn(frame.copy) as GameState;
+  stood.add(state);
+  return state;
+}
+
+/** Whether `state` is a replay's — stood up from a copy — rather than a run. */
+export function isStoodUp(state: GameState): boolean {
+  return stood.has(state);
 }
 
 /** The spacing a copy `age` seconds behind the newest is kept at, s — or

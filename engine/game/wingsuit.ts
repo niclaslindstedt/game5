@@ -32,7 +32,7 @@ import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-frame
 import { airDensity, airKelvin, airPressure, seaAltitude } from "./balloon-air.ts";
 import { clearOfSolids, onFoot } from "./buzz.ts";
 import { airPose, crownAt } from "./canopy.ts";
-import { airBoundsAt, type AirBounds } from "./collision.ts";
+import { airBounds, type AirBounds } from "./collision.ts";
 import { throwRider } from "./crash.ts";
 import { CHUTE } from "./defs/chute.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -199,10 +199,12 @@ export function flyWingsuit(state: GameState, ch: ChuteState, input: SkierInput)
   const w = ch.wing ?? (ch.wing = freshWing(W.trim.glide, 1));
   const M = flyerMass(state);
   const level = state.level;
-  // THE AIR: the map's, the edge's wind blowing him back in, its density.
+  // THE AIR: the map's, the edge's wind blowing him back in, its density —
+  // at any height: the suit is never taken off or landed in, and a flyer
+  // skimming the snow is the one most likely headed off the map.
   paraAirAt(level, state.t, c.x, c.y, c.z, air);
   ch.agl = Math.max(0, bodyUp(state));
-  airBoundsAt(level, c.x, c.z, ch.agl, TUNING.bounds.air.wingsuit, edge);
+  airBounds(level, c.x, c.z, TUNING.bounds.air.wingsuit, edge);
   air.x += edge.wx;
   air.z += edge.wz;
   const rho = densityAt(state, c.y);
@@ -231,7 +233,12 @@ export function flyWingsuit(state: GameState, ch: ChuteState, input: SkierInput)
   const flat = hypot(ax, az);
   let steer = free ? clamp(input.steer, -1, 1) : 0;
   const deep = clamp(edge.depth * 1.5, 0, 1);
-  steer += (clamp(1.5 * angleDiff(ch.heading, edge.heading), -1, 1) - steer) * deep;
+  // Headed straight out, the middle is dead astern and either way round is
+  // the way: the side the bank already leans to, so the turn is held rather
+  // than asked left and right on alternate steps.
+  const back = angleDiff(ch.heading, edge.heading);
+  const round = Math.abs(back) > 3 ? (w.bank < 0 ? -1 : 1) : clamp(1.5 * back, -1, 1);
+  steer += (round - steer) * deep;
   if (flat > 3) ch.heading = Math.atan2(ax, az);
   else ch.heading += steer * W.roll.flat * dt;
   // THE ROLL: the bank the edge asks, rolled to.

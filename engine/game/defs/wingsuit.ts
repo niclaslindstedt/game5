@@ -99,9 +99,9 @@ export const WINGSUIT = {
    * off one meets the snow 60–80 m down), the exit is a HOVER over the best
    * edge, the least height from `hoverLeast` to `hoverMost` m in
    * `hoverStep`s whose arc from rest clears the snow, raised `hoverRoom` m
-   * more so the suit is flown a while before the pull (a heli exit is set
-   * well above the least a jumper could clear, the pull 350 m over the
-   * snow). */
+   * more so the suit is flown a while before the pull — kept low, some
+   * 350 m over the snow, so the flight is down the face rather than over
+   * it, the face falling away under him giving the room the pull needs. */
   search: {
     top: 0.55,
     margin: 300,
@@ -116,7 +116,7 @@ export const WINGSUIT = {
     hoverLeast: 100,
     hoverMost: 800,
     hoverStep: 25,
-    hoverRoom: 500,
+    hoverRoom: 200,
   },
   /** THE SNOW MET IN FLIGHT: the body's half thickness lying on the wind,
    * m — his centre this near the snow under him (or where he will be next
@@ -142,8 +142,10 @@ export const WINGSUIT = {
    * terrain it keeps under it — the seconds ahead it looks and the clearance
    * it holds over what it will meet there, m, diving the fall line when it
    * has room and flaring when it has not — and the glide's best attack it
-   * flies hands off. */
-  bot: { open: 350, slow: 450, ahead: 4, keep: 40, close: 15 },
+   * flies hands off; and the height over the floor from which it flies for
+   * the piste the canopy will land on, m, until it is within `near` m of it
+   * (a canopy pulled at 350 m reaches some 700 m of open snow, no further). */
+  bot: { open: 350, slow: 450, ahead: 4, keep: 40, close: 15, home: 1000, near: 150 },
 } as const;
 
 /** The flyer's mass, kg: the skier's body and his clothes, the suit and the

@@ -47,13 +47,13 @@ The suit **pressurises** with the air through it. It is empty below 8 m/s and fu
 
 **The attack is its own short period.** The pitching moment pulls the attack toward its trim and the pitch rate is damped (0.20 m³ a radian, 16 kg·m²). It rings near 0.9 Hz and settles in about a second and a half. The path is turned by the lift and by gravity across it. Nothing else is written in: the **phugoid** (the speed's long swing) comes out of it at about 24 s.
 
-**The air** is the paramotor's (`para-air.ts`): the map's wind, the ridge lift and the lee. The density is the standard atmosphere's for the height. At the map's edge it is the airborne edge's band (`AIR_BOUNDS.wingsuit`, 600 m), blowing him back in and turning his hand to the middle, as every craft in the air.
+**The air** is the paramotor's (`para-air.ts`): the map's wind, the ridge lift and the lee. The density is the standard atmosphere's for the height. At the map's edge it is the airborne edge's band (`AIR_BOUNDS.wingsuit`, 600 m), blowing him back in and turning his hand to the middle, as every craft in the air — at any height (a suit is never taken off or landed in, so nothing fades it out near the snow), and flown dead straight at the edge he is turned round the way he already leans rather than held on the line between two turns.
 
 ## The exits
 
 **The cliff exit** (`wingsuitExitOf`, memoized per map) is searched over the top 55 % of the mountain's vertical, every 12 m, on the fall line and 0.35 rad either side. The 48 likeliest spots are kept: the drop over 30 m, plus three tenths of the drop over 100 m, plus a tenth of each metre the spot stands above the band's foot. Off each one the **start arc** is flown: the suit's own lift and drag on a point mass, from a running push of 4.5 m/s out and 0.8 m/s up. The highest spot whose arc clears the snow by 10 m is taken.
 
-A real exit point is a wall near sheer for its first hundred metres. A generated mountain has no such wall: its faces top out near 45°, and the arc off the best of them meets the snow 60–80 m down. So on every generated map the exit is a **HOVER**. He stands on the skid of a helicopter held still over the highest of those edges, at the least height (100–800 m, in 25 m steps) whose arc from rest clears the snow. Then the hover is raised 500 m above that (`hoverRoom`), so he has the suit to fly for a while before he pulls 350 m over the snow. He steps off at 1 m/s. On seed 38 the least that clears is 175 m, so he hovers at 675 m; on the others tried, 650–675 m. `WingsuitExit.hover` says which kind it is, and so does `GameState.wingsuit.hover`.
+A real exit point is a wall near sheer for its first hundred metres. A generated mountain has no such wall: its faces top out near 45°, and the arc off the best of them meets the snow 60–80 m down. So on every generated map the exit is a **HOVER**. He stands on the skid of a helicopter held still over the highest of those edges, at the least height (100–800 m, in 25 m steps) whose arc from rest clears the snow. Then the hover is raised 200 m above that (`hoverRoom`), kept low so the flight is down the face rather than high over it, the face falling away under him giving the room for the pull 350 m over the snow. He steps off at 1 m/s. On seed 38 the least that clears is 175 m, so he hovers at 375 m; on the others tried, 350–375 m. `WingsuitExit.hover` says which kind it is, and so does `GameState.wingsuit.hover`.
 
 **The exit's attack**: he leads with his body into the air coming up at him, at 0.55 rad of attack, just short of the stall, where the suit's lift is greatest. It is held there until the air reaches 15 m/s. The hands are his from a second after the jump. He is **flying** once his path's glide reaches 1 (as fast across as down), or after 14 s. On seed 38 that is 114 m and 5.8 s after the jump.
 
@@ -110,9 +110,10 @@ The start card's **START** row has a **WINGSUIT** stop after the plane: the ride
 
 - **The line**: it flies hands off down the fall line.
 - **The snow ahead**: it looks 2 and 4 s along its way. It turns down the fall line harder where the snow ahead comes within 40 m, and leans back and spreads (a flare) where it comes within 15 m.
+- **Home**: from 1,000 m over the valley floor it flies for the nearest point of the piste instead of the fall line (the snow ahead allowing), until it is within 150 m of it, so the canopy pulled at 350 m reaches open snow rather than the woods short of it.
 - **The pull**: it slows from 450 m over the valley floor and pulls at 350 m. It never pulls in the start arc. Flying, it also pulls when the snow ahead is closer than it can lift him off and he is within 40 m of it.
 
-On seed 38 it flies 3.7 km in the suit, pulls 337 m over the snow and lands on its boots 3.4 km from the exit.
+On seed 38 it flies 4.2 km in the suit, pulls 354 m over the snow and lands on its boots 3.9 km from the exit.
 
 ## The lab
 
@@ -131,8 +132,8 @@ On seed 38 it flies 3.7 km in the suit, pulls 337 m over the snow and lands on i
 | `phugoid` | 24 s | 10–30 |
 | `turn-rate` | 17.8 °/s | 15–35 |
 | `turn-sink` | 21.4 m/s | 12–25 |
-| `exit-drop` | 114 m | 60–120 |
-| `exit-time` | 5.8 s | 4–7 |
+| `exit-drop` | 120 m | 60–120 |
+| `exit-time` | 6.0 s | 4–7 |
 | `plane-time` | 1.5 s | 1–4 |
 | `plane-lost` | 3.9 m | <100 |
 | `pull-full` | 4.3 s | 3–5 |
@@ -142,7 +143,7 @@ On seed 38 it flies 3.7 km in the suit, pulls 337 m over the snow and lands on i
 | `canopy-sink` | 3.6 m/s | 3.5–5 |
 | `land` | 2.1 m/s | <3 |
 | `edge` | 256 m | >0 |
-| `flight` | 3.7 km | — |
+| `flight` | 4.2 km | — |
 
 Write the table with `ARGS=--json=FILE` before a change and compare against it with `--compare=FILE` after. `SEED=` flies another map. `tests/wingsuit_test.ts` holds the bands that matter.
 

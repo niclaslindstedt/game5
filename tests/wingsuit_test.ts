@@ -102,6 +102,26 @@ describe("the wingsuit in the air", () => {
     expect(s.chute!.wing!.bank).toBeGreaterThan(0.8);
   });
 
+  it("is turned back by the edge's wind, flown straight at it, high or low", () => {
+    for (const [agl, x] of [
+      [2500, SIZE - 1200],
+      [300, SIZE - 350],
+    ]) {
+      for (const lean of [0, -1]) {
+        const s = suit(agl, { x, z: SIZE / 2, heading: Math.PI / 2 });
+        let far = 0;
+        let turned = 1;
+        for (let i = 0; i < steps(60) && s.chute?.mode === "freefall"; i++) {
+          step(s, ask({ lean, tuck: -lean, steer: 0 }));
+          far = Math.max(far, s.skier.x);
+          turned = Math.min(turned, Math.sin(s.chute!.heading));
+        }
+        expect(far).toBeLessThan(SIZE);
+        expect(turned).toBeLessThan(0.5);
+      }
+    }
+  });
+
   it("flies with no skis on: nothing of the skis touches the snow", () => {
     const s = suit(800);
     run(s, 5, N);

@@ -5,6 +5,8 @@
 // 40 km/h is turned half round in the air off it, the way the edge is held,
 // and lands riding switch — and stays switch a while however slow he is.
 // A jump with the edge let go, or popped too fast, or on a race, is a jump.
+// And a hop with the edge still held as the take-off's window opens, and
+// the air to come round, is a spin: it turns on until he lands.
 
 import { describe, expect, it } from "vitest";
 
@@ -132,5 +134,58 @@ describe("the hop into switch, the edge pressed late", () => {
       if (state.skier.revert) turned = true;
     }
     expect(turned).toBe(false);
+  });
+});
+
+describe("the hop wound on into a spin", () => {
+  /** The jump loaded `load` s and popped, the edge held `steer` from the
+   * load until `until` s after the pop; ridden until the snow comes back.
+   * The turn made in the air (`tricks.yaw`, the hop's swing included), the
+   * body's yaw rate on the last step aloft, and the events. */
+  function wound(load: number, steer: number, until: number) {
+    const state = forward(6);
+    const events: GameEvent[] = [];
+    let popAt = -1;
+    let up = false;
+    let turned = 0;
+    let rate = 0;
+    for (let i = 0; i < Math.round((load + 4) * TUNING.physicsHz); i++) {
+      const t = i * TUNING.dt;
+      const held = popAt < 0 || t - popAt < until;
+      step(state, { ...NEUTRAL_INPUT, jump: t < load, steer: held ? steer : 0 });
+      events.push(...state.events);
+      if (popAt < 0 && events.some((e) => e.kind === "jump")) popAt = t;
+      const c = state.skier;
+      if (c.airborne) {
+        up = true;
+        turned = state.tricks.yaw;
+        rate = c.wy;
+      } else if (up) break;
+    }
+    const tricks = events.flatMap((e) => (e.kind === "trick" ? [e.trick] : []));
+    return { state, events, turned, rate, tricks };
+  }
+
+  it("held through the flight, keeps him turning the edge's way until he lands", () => {
+    for (const steer of [1, -1]) {
+      const out = wound(TUNING.jump.full, steer, Infinity);
+      // Past the whole turn, and still turning at the snow.
+      expect(out.turned * steer, `steer ${steer}`).toBeGreaterThan(2 * Math.PI);
+      expect(out.rate * steer, `steer ${steer}`).toBeGreaterThan(TUNING.tricks.spinRate);
+      expect(out.tricks, `steer ${steer}`).toContain("spin");
+    }
+  });
+
+  it("let go in time, the spot brings it round to a clean 360", () => {
+    const out = wound(TUNING.jump.full, -1, 0.6);
+    expect(out.events.filter((e) => e.kind === "wipeout")).toHaveLength(0);
+    expect(out.tricks).toContain("spin");
+    expect(out.state.skier.switched).toBe(false);
+  });
+
+  it("off a hop too short to come round, the edge held is still the 180", () => {
+    const out = wound(0.1, 1, Infinity);
+    expect(out.tricks).not.toContain("spin");
+    expect(out.state.skier.switched).toBe(true);
   });
 });

@@ -44,6 +44,8 @@
 //     — the freestyler's hop 180 on the flat. The edge may come a moment
 //     after the pop (`hop.late`), his skis already off the snow. The revert leaves him switch
 //     for `hop.hold` s after it, however slow he is (`SkierState.hopHeld`).
+//     The edge held on into the air, with the air for a 360, the hop is
+//     handed to a spin (`strokes.ts`) and he turns on until he lands.
 //
 // Decided ON THE SNOW, off the way he was making, with a margin either
 // side of a standstill (`TUNING.switch.from`) so a skier slid to a stop
@@ -80,6 +82,13 @@ export type Revert = { u: number; turn: number; time: number; to?: "switch" };
 export function revertShare(u: number): number {
   const t = clamp(u, 0, 1);
   return t * t * (3 - 2 * t);
+}
+
+/** How fast a revert is turning him at this moment, rad/s — the rate of
+ * `revertShare` through its `time`, signed as its turn. */
+export function revertRate(r: Revert): number {
+  const t = clamp(r.u, 0, 1);
+  return (r.turn * 6 * t * (1 - t)) / r.time;
 }
 
 /** THE SKIS LIGHT IN A REVERT: the share of their hold across the snow

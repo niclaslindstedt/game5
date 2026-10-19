@@ -25,6 +25,12 @@
 // positions written afresh each frame into a mesh of its own, kept in a
 // small pool. A fall is rare, so a few such meshes at a time cost nothing.
 //
+// RUN INTO AND HURT (the INJURIES on, `engine/game/person-hit.ts`), he
+// stays on his ragdoll: lying broken (`crowd-broken.ts` — a dead man's
+// trunk drawn flatter, `flatOf`), his clothes and his face bloodied by the
+// dress's fourth number (`bloodOf`, painted in `crowdMaterial`), and the
+// snow under him red (`crowd-gore.ts`).
+//
 // NOTHING IS SWITCHED IN A FRAME. The engine's amateur is rough on
 // purpose, so whatever it jumps — a pose gated on or off, his place moved
 // by a lift, his heading set by a queue — is eased out per instance
@@ -52,7 +58,9 @@ import { BOARD_POSES, boardDialsOf, boardSeatHeight, boardTargets } from "./crow
 import { outfitOf, type Outfit } from "./crowd-dress.ts";
 import { createCrowdEase, easeCrowd, targetReach, type CrowdEase } from "./crowd-ease.ts";
 import { createCrowdHandOff, type CrowdHandOff } from "./crowd-handoff.ts";
+import { bloodOf, flatOf, hurtOf, type Hurt } from "./crowd-broken.ts";
 import { fallenPose, standFrame } from "./crowd-fall.ts";
+import { createCrowdGore, type CrowdGore } from "./crowd-gore.ts";
 import {
   CROWD_LOOKS,
   CROWD_POSES,
@@ -71,7 +79,7 @@ import {
 } from "./crowd-shapes.ts";
 import { FIGURE, type ViewCull } from "./view-cull.ts";
 import { releaseShared, sharing } from "./geometry-share.ts";
-import type { HazeUniforms } from "./haze.ts";
+import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { shadeDepth } from "./terrain-shade.ts";
 
 /** Where the cuts hand over, m from the lens, and the furthest one is
@@ -113,6 +121,18 @@ export type CrowdView = {
   dispose: () => void;
 };
 
+/** The joints a lying body's lowest point is found among. */
+const FLOOR_KEYS = [
+  "pelvis",
+  "waist",
+  "neck",
+  "head",
+  "kneeL",
+  "kneeR",
+  "ankleL",
+  "ankleR",
+] as const;
+
 const TARGETS = CROWD_POSES.length;
 const BOARD_TARGETS = BOARD_POSES.length;
 const WIDTH = Math.max(TARGETS, BOARD_TARGETS);
@@ -143,6 +163,9 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   /** The pool of meshes an amateur down is drawn with, by body and cut,
    * and how many of each this frame takes. */
   const fallen = new Map<string, { meshes: Fallen[]; n: number }>();
+  /** What a person run into leaves on the snow, built with the first run
+   * that carries a crowd and its injuries. */
+  let gore: CrowdGore | null = null;
 
   const clear = (): void => {
     for (const slot of slots.values()) {
@@ -228,6 +251,8 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   };
 
   const m = new THREE.Matrix4();
+  const squash = new THREE.Matrix4();
+  const shift = new THREE.Matrix4();
   const pos = new THREE.Vector3();
   const quat = new THREE.Quaternion();
   const size = new THREE.Vector3();
@@ -261,6 +286,11 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
 
   const update: CrowdView["update"] = (state, eye, cull) => {
     const crowd = state.crowd;
+    if (crowd && state.gore && !gore) {
+      gore = createCrowdGore(level, (m, name) => hazeMaterial(m, haze, name));
+      group.add(gore.group);
+    }
+    gore?.update(state);
     if (!crowd) {
       for (const slot of slots.values()) slot.mesh.visible = false;
       for (const pool of fallen.values()) for (const f of pool.meshes) f.mesh.visible = false;
@@ -290,16 +320,31 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
     shown.clear();
     /** Amateur `a` drawn as joints (`p`, in the world) on a mesh of the
      * down pool. */
-    const drawJoints = (a: (typeof crowd.amateurs)[number], lod: CrowdLod, p: Posed): void => {
+    const drawJoints = (
+      a: (typeof crowd.amateurs)[number],
+      lod: CrowdLod,
+      p: Posed,
+      hurt?: Hurt,
+    ): void => {
       shown.set(a.id, p);
       const f = fallenMesh(a.body, lod, gearOf(a));
       const local = mapPosed(p, (q) => [q[0] - a.x, q[1] - a.y, q[2] - a.z]);
       poseCrowdFigure(a.body, lod, local, f.mesh.geometry, a.board !== null);
-      f.mesh.setMatrixAt(0, m.makeTranslation(a.x, a.y, a.z));
+      // A crushed body lies flatter: squashed toward the snow under its
+      // lowest joint.
+      const flat = hurt ? flatOf(hurt) : 1;
+      if (flat < 1) {
+        let floor = Infinity;
+        for (const k of FLOOR_KEYS) floor = Math.min(floor, local[k][1]);
+        m.makeTranslation(a.x, a.y + floor, a.z)
+          .multiply(squash.makeScale(1 + (1 - flat) * 0.25, flat, 1 + (1 - flat) * 0.25))
+          .multiply(shift.makeTranslation(0, -floor, 0));
+        f.mesh.setMatrixAt(0, m);
+      } else f.mesh.setMatrixAt(0, m.makeTranslation(a.x, a.y, a.z));
       f.mesh.instanceMatrix.needsUpdate = true;
       const o = outfits[a.id];
       f.dress.setXYZW(0, o[0], o[1], o[2], o[3]);
-      f.dress2.setXYZW(0, o[4], o[5], o[6], 0);
+      f.dress2.setXYZW(0, o[4], o[5], o[6], bloodOf(hurt));
       f.dress.needsUpdate = true;
       f.dress2.needsUpdate = true;
     };
@@ -359,10 +404,12 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       right.crossVectors(up, fwd).normalize();
       fwd.crossVectors(right, up).normalize();
       if (a.thrown) {
-        // DOWN: hung on his ragdoll, or getting up off it.
-        const pose = fallenPose(a, standFrame(a, normal), [0, 0, 0]);
+        // DOWN: hung on his ragdoll, or getting up off it — or run into
+        // and hurt, lying broken.
+        const hurt = hurtOf(state, a);
+        const pose = fallenPose(a, standFrame(a, normal), [0, 0, 0], hurt);
         if (!pose) continue;
-        drawJoints(a, lod, handOff.frame(a.id, state.t, { down: pose }) ?? pose);
+        drawJoints(a, lod, handOff.frame(a.id, state.t, { down: pose }) ?? pose, hurt);
         continue;
       }
       const gear = gearOf(a);
@@ -440,6 +487,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
     shownOf: (id) => shown.get(id) ?? null,
     dispose() {
       clear();
+      gore?.dispose();
       material.dispose();
     },
   };

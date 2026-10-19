@@ -22,6 +22,7 @@ import { CROWD, type Amateur } from "@engine";
 
 import { CROWD_LOOKS, fromPlayer, mapPosed, poseCrowd, type Posed, type V3 } from "./crowd-rig.ts";
 import { boardUnderFeet } from "./board-thrown.ts";
+import { breakPose, type Hurt } from "./crowd-broken.ts";
 import { boardPosed, CROWD_BOARD, poseBoard } from "./crowd-board.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { MOUNTS } from "./skier-pose.ts";
@@ -243,16 +244,20 @@ function blendPosed(a: Posed, b: Posed, t: number): Posed {
  * AN AMATEUR DOWN, as the figure is drawn: lying where his body lies — or,
  * getting up (`Amateur.rise`), gathered into a crouch on his skis where
  * the engine stood him (`stand`) and risen into his stance — in the world
- * frame less `anchor`. Null when he is on his skis.
+ * frame less `anchor`. Run into and HURT (`hurt`, the INJURIES on), he
+ * lies broken (`crowd-broken.ts`) and never rises. Null when he is on his
+ * skis.
  */
 export function fallenPose(
   a: Pick<Amateur, "body" | "thrown" | "rise" | "board">,
   stand: StandFrame,
   anchor: V3,
+  hurt?: Hurt,
 ): Posed | null {
   if (!a.thrown) return null;
   const board = a.board !== null;
   const lying = lyingPose(a.thrown.points, a.body, anchor, board);
+  if (hurt) return breakPose(lying, hurt);
   if (a.rise <= 0) return lying;
   const look = CROWD_LOOKS[a.body];
   const u = Math.min(1, a.rise / CROWD.fall.rise);

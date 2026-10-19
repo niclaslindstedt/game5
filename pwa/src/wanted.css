@@ -39,8 +39,9 @@
   stroke-linejoin: round;
 }
 
-/* SEARCHING: the lit stars blink between white and their outline, a
-   steady beat — the shutter stills it at its computed value. */
+/* SEARCHING: the lit stars blink between white and a pale grey-blue — still
+   plainly lit against the unlit outlines in either phase, so a still frame
+   (the shutter stills it at its computed value) never reads as no stars. */
 .hud-wanted[data-flash] .hud-wanted-lit {
   animation: hud-wanted-flash 0.9s steps(1, end) infinite;
 }
@@ -50,7 +51,7 @@
     fill: #ffffff;
   }
   50% {
-    fill: rgb(var(--hud-plate) / 35%);
+    fill: #8fa6bd;
   }
 }
 

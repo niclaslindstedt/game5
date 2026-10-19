@@ -327,7 +327,31 @@ export function planRescue(
   }
   const length = s[s.length - 1];
   const T = RESCUE.time;
-  // THE SCOOP, from the moment they set off toward him with the board.
+  const { scoop, rise } = scoopClock();
+  const carry = rise + T.rise;
+  const raise = carry + length / RESCUE.walk;
+  const inch = raise + T.raise;
+  const climb = inch + T.inch;
+  const slide = climb + T.climb;
+  const clear = slide + T.slide;
+  const lift = slide + T.slide * 0.55 + 2 * T.turn + T.clear + 1;
+  return {
+    spot: c,
+    site,
+    away,
+    out,
+    floor: door.y,
+    path: { pts, s, length },
+    end,
+    cabin,
+    at: { scoop, rise, carry, raise, inch, climb, slide, clear, lift, gone: lift + T.away },
+  };
+}
+
+/** THE SCOOP'S CLOCK, from the moment they set off toward him with the
+ * board: when each of its parts starts, and when the four rise with him
+ * (the carry's own parts follow on from there). */
+export function scoopClock(): { scoop: RescuePlan["at"]["scoop"]; rise: number } {
   const Q = RESCUE.scoop.time;
   let k0 = RESCUE.scoop.approach / RESCUE.scoop.pace;
   const step = (d: number): number => {
@@ -347,25 +371,7 @@ export function planRescue(
     step: step(Q.step),
     kneel: step(Q.kneel),
   };
-  const rise = k0;
-  const carry = rise + T.rise;
-  const raise = carry + length / RESCUE.walk;
-  const inch = raise + T.raise;
-  const climb = inch + T.inch;
-  const slide = climb + T.climb;
-  const clear = slide + T.slide;
-  const lift = slide + T.slide * 0.55 + 2 * T.turn + T.clear + 1;
-  return {
-    spot: c,
-    site,
-    away,
-    out,
-    floor: door.y,
-    path: { pts, s, length },
-    end,
-    cabin,
-    at: { scoop, rise, carry, raise, inch, climb, slide, clear, lift, gone: lift + T.away },
-  };
+  return { scoop, rise: k0 };
 }
 
 /** Where along the carry the stretcher's middle is at arc `d`, and its
@@ -388,7 +394,7 @@ function along(plan: RescuePlan, d: number): { x: number; z: number; heading: nu
 
 /** Where a bearer's hand grips the rail, his own frame, by how far up he
  * has risen (knelt 0, stood 1). */
-function handIn(rise: number): { x: number; z: number } {
+export function handIn(rise: number): { x: number; z: number } {
   const r = ease(rise);
   return { x: 0.3 + (0.27 - 0.3) * r, z: 0.12 + (0.02 - 0.12) * r };
 }

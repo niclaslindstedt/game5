@@ -56,12 +56,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (site, scoop, carry, load, lift, pass, night, plane, arrive, second, knock); every one when left out",
+      help: "which sheets, comma-separated (site, scoop, carry, load, lift, pass, night, plane, arrive, second, knock, steal); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (overview, scoop, carry, carry-front, load, lift, pass, night, arrive, arrive-chase, second, knock, solid)",
+      help: "only these views, comma-separated (overview, scoop, carry, carry-front, load, lift, pass, night, arrive, arrive-chase, second, knock, solid, steal)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     at: {

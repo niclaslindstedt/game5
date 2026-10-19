@@ -20,7 +20,9 @@ import {
   createGame,
   planeAloft,
   generateLevel,
+  heliDoor,
   placeRun,
+  stealWithin,
   step,
   TUNING,
   type GameState,
@@ -350,6 +352,64 @@ const VIEWS: Record<string, (s: GameState) => void> = {
     const lens = planted(site, h, 12, 4, 4, 55, 1);
     skiFor(s, 3.2, 0.2, () => lens, { ...NEUTRAL_INPUT, tuck: 1 });
   },
+  /** THE MACHINE STOLEN (`steal.ts`): skied up to its door while the crew
+   * walk round to him, taken with the machine press, flown off — from a
+   * lens off the site, from his own chase lens, the crew left standing —
+   * and the next run, another machine called for him. */
+  steal(s) {
+    T0 = 0;
+    const site = flight.site;
+    const tr = flight.trips[0];
+    poseAt(s, tr.begin + RESCUE.flight.gather + 3, 1);
+    const door = heliDoor(site);
+    const ax = door.x - site.x;
+    const az = door.z - site.z;
+    const d = Math.hypot(ax, az) || 1;
+    const h = Math.atan2(-ax, -az);
+    placeRun(s, { x: door.x + (ax / d) * 9, z: door.z + (az / d) * 9, heading: h, speed: 3 });
+    const wide = planted(site, site.heading + 2.2, 16, 14, 6, 55, 1.5);
+    skiFor(s, 2.4, 0.8, () => wide);
+    shoot(s, "at the door", "chase");
+    const near = stealWithin(s);
+    const hands = (collective: number, pitch = 0) => ({
+      ...NEUTRAL_INPUT,
+      heli: { collective, pitch, roll: 0, pedal: 0 },
+    });
+    step(s, { ...hands(0), machine: true });
+    view = "steal";
+    shoot(s, near ? "taken" : "not offered", wide);
+    skiFor(s, 1.5, 0.75, () => "chase", hands(0));
+    skiFor(s, 3, 1, () => wide, hands(0.85));
+    skiFor(s, 4, 2, () => "chase", hands(0.8, 0.25));
+    const crew = bearerAt(s.rescue?.[0]?.stolen ?? s.t, 0);
+    shoot(s, "left standing", planted(crew, crew.heading + Math.PI, 2, 9, 2.4, 50, 1.2));
+    shoot(s, "gone", planted(middle, across, 34, 12, 24, 50, 0));
+    // THE NEXT RUN: the run that stole it ended, another machine called.
+    const next = fresh();
+    const up = pts.find((p) => p.s >= fell.s - 60) ?? pts[0];
+    placeRun(next, { x: up.x, z: up.z, heading: up.heading });
+    // The book that handed this run its call (`nextRun`'s), kept on.
+    const book = createRescueBook();
+    const hurt = fresh();
+    placeRun(hurt, { x: fell.x, z: fell.z, heading: fell.heading });
+    hurt.gore!.injured = 0;
+    bookRun(book, hurt, fresh());
+    bookRun(book, s, next);
+    renderer.draw(next, 1, FRAME, false);
+    const again = next.rescue?.[0];
+    T0 = again?.start ?? 0;
+    for (const t of [
+      again ? again.down - again.start - 6 : 0,
+      again ? again.down - again.start + 8 : 0,
+    ]) {
+      poseAt(next, t, 1.5);
+      shoot(
+        next,
+        `next run: another machine, ${(next.t - T0).toFixed(0)} s into its call`,
+        planted(site, site.heading + 0.9, 30, 26, 9, 55, 3),
+      );
+    }
+  },
   overview(s) {
     const lens = planted(middle, across, 34, 12, 24, 50, 0);
     for (const [label, t] of [
@@ -588,6 +648,7 @@ const GROUPS: Record<string, readonly string[]> = {
   arrive: ["arrive", "arrive-chase"],
   second: ["second"],
   knock: ["knock", "solid"],
+  steal: ["steal"],
 };
 
 async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] }> {

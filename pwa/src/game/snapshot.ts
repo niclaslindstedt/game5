@@ -43,6 +43,7 @@ import {
   PARA,
   helipadOf,
   heliWithin,
+  stealWithin,
   mayGetUp,
   paraRigged,
   balloonAboard,
@@ -51,6 +52,7 @@ import {
   groomerWithin,
   trenched,
   type GameState,
+  type HeliLivery,
   type Level,
   type PisteGrade,
   type RegionId,
@@ -544,7 +546,13 @@ export type HudHeli =
       pitch: number;
       bank: number;
     }
-  | { kind: "waiting"; pad: number; near: boolean };
+  | {
+      kind: "waiting";
+      pad: number;
+      near: boolean;
+      /** Somebody else's, stood at its door (`stealWithin`): whose. */
+      livery?: HeliLivery;
+    };
 
 /** How near the waiting helicopter the HUD points him at it, m. */
 const HELI_CALL = 120;
@@ -572,6 +580,15 @@ export function heliOf(state: GameState): HudHeli | null {
     };
   }
   const c = state.skier;
+  // At the door of a machine that is not his (`steal.ts`): the press takes it.
+  const taken = stealWithin(state);
+  if (taken?.kind === "heli")
+    return {
+      kind: "waiting",
+      pad: Math.hypot(taken.door.x - c.x, taken.door.z - c.z),
+      near: true,
+      livery: taken.livery,
+    };
   const pad = Math.hypot(h.x - c.x, h.z - c.z);
   // Riding the snowmobile, the helicopter does not call him.
   return h.mode === "parked" && pad < HELI_CALL && c.thrown === null && !state.sled?.rider

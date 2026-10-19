@@ -50,7 +50,7 @@ import {
   sunDue,
   type ShadowBox,
 } from "./shadow-box.ts";
-import type { Dir, SkyLook } from "./sky.ts";
+import { skyLookAt, type Dir, type SkyLook } from "./sky.ts";
 import { createTerrainShade } from "./terrain-shade.ts";
 import { createViewCull, type ViewCull } from "./view-cull.ts";
 
@@ -118,8 +118,15 @@ export type Environment = {
   /** Link every program the sun's shadow pass can ask for, now, behind the
    * loading card: one pass of its map over `span` m round the scene with
    * every caster shown (`warmShadows`) — and draw every program the picture
-   * can ask for once through `camera` into the target bound (`warmPicture`). */
-  warm(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, span: number): void;
+   * can ask for once through `camera` into the target bound (`warmPicture`),
+   * the clouds first drawn as the `run`'s sky at its clock stands them. */
+  warm(
+    gl: THREE.WebGLRenderer,
+    scene: THREE.Scene,
+    camera: THREE.Camera,
+    span: number,
+    run: { level: Level; t: number },
+  ): void;
   dispose(): void;
 };
 
@@ -392,11 +399,19 @@ export function createEnvironment(
       const shade = terrain.setGround(ground, key, sun.castShadow);
       ranges.setLevel(level, key, level ? await farFaceGrid(level) : null);
       dome.setSkyline(ranges.silhouette());
-      await shade;
+      // The cloud volume's noise too, so the warm that follows finds it.
+      await Promise.all([shade, clouds.prepare()]);
     },
     shadeSettled: () => terrain.settled(),
-    warm(gl, scene, camera, span) {
+    warm(gl, scene, camera, span, run) {
+      // The sky as the run's first frame will stand it, so the dome is
+      // warmed reading the clouds the way it will.
+      const look = skyLookAt(run.level, run.t, undefined, camera.position.y);
+      // The shadows first: three's pass reads the render state the last
+      // whole render left, and the clouds' passes leave none.
       warmShadows(gl, scene, sun, span);
+      clouds.warm(look, run.level, run.t, camera);
+      dome.syncClouds();
       warmPicture(gl, scene, camera);
     },
     dispose() {

@@ -100,6 +100,11 @@ vec3 skiGroove(vec2 p, float y) {
   vec3 g = vec3(0.0);
   if (uSkiClear < 1.5) return g;
   for (int s = 0; s < ${SKI_LINES}; s++) {
+    // Every station lies within SKI_HALF of the middle one, so a point
+    // further off than that and the widest groove's reach meets no segment.
+    float most = 0.0;
+    for (int k = 0; k < ${SKI_POINTS}; k++) most = max(most, uSkiLine[s * ${SKI_POINTS} + k].w);
+    if (distance(p, uSkiLine[s * ${SKI_POINTS} + ${SKI_POINTS >> 1}].xz) > ${SKI_HALF.toFixed(1)} + 2.0 * most + 0.05) continue;
     for (int k = 0; k < ${SKI_POINTS - 1}; k++) {
       vec4 a = uSkiLine[s * ${SKI_POINTS} + k];
       vec4 b = uSkiLine[s * ${SKI_POINTS} + k + 1];

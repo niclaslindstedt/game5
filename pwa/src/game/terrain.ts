@@ -45,6 +45,7 @@ import * as THREE from "three";
 import { LEVEL_RULES, bermProfile, regionOf, windFromOf, type Level } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import type { GroundFrame } from "./deform-shade.ts";
 import { regionLookOf } from "./region-look.ts";
 import { ROOM_CUT_PARS, roomCutUniforms } from "./room-cuts.ts";
 import {
@@ -94,6 +95,9 @@ export type Terrain = {
   follow(x: number, z: number, lens?: THREE.Camera, reach?: number, over?: number): void;
   /** The run's clock, s: what a summer's grass sways to. */
   tick(t: number): void;
+  /** The ground's gradient map and its frame, for the deformable snow's
+   * own shade (`deform-shade.ts`). */
+  readonly frame: GroundFrame;
   dispose(): void;
 };
 
@@ -553,6 +557,7 @@ export function createTerrain(
     uGridHalf: { value: options.n / 2 },
     uReliefHalf: { value: options.n / 2 },
     uDeformMesh: { value: 0 },
+    uFocalPx: { value: 0 },
     uBaseSpacing: { value: options.spacing },
     uSnowSkip: SNOW_SKIP,
     ...options.summer?.uniforms,
@@ -673,7 +678,7 @@ export function createTerrain(
   }
 
   type Own = Record<"uLevelCentre" | "uSpacing" | "uHole", THREE.IUniform> &
-    Partial<Record<"uGridHalf" | "uDeformMesh", THREE.IUniform>>;
+    Partial<Record<"uGridHalf" | "uDeformMesh" | "uFocalPx", THREE.IUniform>>;
   /** A level's ground, keeping the snow out of the rooms (`cut`) or not. */
   function groundMaterial(cut: boolean, own: Own): THREE.MeshStandardMaterial {
     const material = new THREE.MeshStandardMaterial({
@@ -730,12 +735,15 @@ export function createTerrain(
   function deformPatch(look: DeformLook) {
     const span = Math.round((2 * look.half) / look.cell);
     const centre = new THREE.Vector2();
+    const focal = { value: 0 };
+    const bufferSize = new THREE.Vector2();
     const own: Own = {
       uLevelCentre: { value: centre },
       uSpacing: { value: look.cell },
       uHole: { value: new THREE.Vector4(0, 0, 0, 0) },
       uGridHalf: { value: span / 2 },
       uDeformMesh: { value: 1 },
+      uFocalPx: focal,
     };
     const plain = groundMaterial(false, own);
     const cutting = groundMaterial(true, own);
@@ -748,6 +756,18 @@ export function createTerrain(
     mesh.matrixAutoUpdate = false;
     mesh.visible = false;
     mesh.name = "terrain-deform";
+    // Ahead of the opaque queue: about 0.2 ms a frame cheaper on an Apple
+    // laptop GPU at 1080p, measured. NOT for the overdraw of level 0 under
+    // it — culling those triangles outright saved nothing — so it is the
+    // order itself; a GPU that disagrees is a reason to drop it.
+    mesh.renderOrder = -1;
+    // The lens's focal length in the pixels of whatever it is drawn into,
+    // for the mesh's fold with distance (\`SNOW_VERTEX_PLACE\`).
+    mesh.onBeforeRender = (renderer, _scene, camera) => {
+      const target = renderer.getRenderTarget();
+      const high = target ? target.height : renderer.getDrawingBufferSize(bufferSize).y;
+      focal.value = 0.5 * high * camera.projectionMatrix.elements[5];
+    };
     group.add(mesh);
     return { mesh, centre, plain, cutting, look };
   }
@@ -812,6 +832,12 @@ export function createTerrain(
   };
   return {
     group,
+    frame: {
+      uGround: shared.uGround,
+      uHeightOrigin: shared.uHeightOrigin,
+      uHeightCount: shared.uHeightCount,
+      uCell: shared.uCell,
+    },
     tick(t) {
       clock = t;
     },

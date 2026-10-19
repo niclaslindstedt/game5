@@ -99,9 +99,9 @@ describe("the skis never under the drawn snow", () => {
 
   it("lets the ground's mesh down under the player's skis, after the surface is summed", () => {
     const at = (needle: string) => SNOW_VERTEX_PLACE.indexOf(needle);
-    expect(at("skiClear(snowXZ, snowY, uSpacing)")).toBeGreaterThan(at("slideAt(snowXZ)"));
+    expect(at("skiClear(snowXZ, snowY, snowCellV)")).toBeGreaterThan(at("slideAt(snowXZ)"));
     // ...and before the finer level's hole sinks what it covers.
-    expect(at("skiClear(snowXZ, snowY, uSpacing)")).toBeLessThan(at("if (uHole.w > 0.5)"));
+    expect(at("skiClear(snowXZ, snowY, snowCellV)")).toBeLessThan(at("if (uHole.w > 0.5)"));
     expect(SKI_CLEAR_GLSL).toContain(`uSkiLine[${SKI_LINES * SKI_POINTS}]`);
     expect(SKI_CLEAR_GLSL).toContain(`uRivalLine[${RIVALS * SKI_LINES * SKI_POINTS}]`);
   });

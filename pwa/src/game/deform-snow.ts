@@ -13,6 +13,7 @@ import * as THREE from "three";
 import type { SkierState } from "@engine";
 
 import { createDeformField, type DeformField, type DeformLook } from "./deform-field.ts";
+import { createDeformShade, type DeformShade, type GroundFrame } from "./deform-shade.ts";
 import { edgeSlips, emptySlip, type EdgeSlip } from "./spray-sim.ts";
 import type { TrailLevel } from "./settings-video.ts";
 import type { SnowProps } from "./snowpack.ts";
@@ -89,6 +90,10 @@ export type DeformSnow = {
   /** Follow the player, let the walls settle over `dt` s of the run, and
    * upload what changed. */
   update(skier: SkierState, on: boolean, dt?: number): void;
+  /** Its own shade marched a cell at a time on `gl` (`deform-shade.ts`)
+   * over the ground's slope toward `sun`, from now on — and once now,
+   * behind the loading card, so the pass is linked before the run. */
+  bind(gl: THREE.WebGLRenderer, ground: GroundFrame, sun: { value: THREE.Vector3 }): void;
   /** Kilograms of thrown snow the field has dug since the run began. */
   thrown(): number;
   clear(): void;
@@ -114,6 +119,8 @@ export function createDeformSnow(look: DeformTier, uniforms: TrailUniforms): Def
   uniforms.uDeform.value = texture;
   uniforms.uDeformSpan.value = size * look.cell;
   uniforms.uDeformMarch.value.set(look.march, look.grow);
+  let shade: DeformShade | null = null;
+  let drawn: THREE.WebGLRenderer | null = null;
   const slips: [EdgeSlip, EdgeSlip] = [emptySlip(), emptySlip()];
   const motion = { slide: 0, body: false, aheadX: 0, aheadZ: 0 };
 
@@ -175,12 +182,21 @@ export function createDeformSnow(look: DeformTier, uniforms: TrailUniforms): Def
       field.flush();
       uniforms.uDeformBox.value.set(field.centre.x, field.centre.z, look.half, look.cell);
       uniforms.uDeformOn.value = on && field.centre.x === field.centre.x ? 1 : 0;
+      if (shade && drawn && uniforms.uDeformOn.value > 0) shade.draw(drawn);
+    },
+    bind(gl, ground, sun) {
+      shade?.dispose();
+      shade = createDeformShade(size, texture, uniforms, ground, sun);
+      drawn = gl;
+      uniforms.uDeform.value = shade.texture;
+      shade.draw(gl);
     },
     thrown: () => field.thrown(),
     clear() {
       field.clear();
     },
     dispose() {
+      shade?.dispose();
       texture.dispose();
       uniforms.uDeformOn.value = 0;
     },

@@ -54,6 +54,16 @@ import { CALM_FROM, CALM_TO, FAR_EVEN, STRATA_GLSL, strataUniforms } from "./str
 
 /** A tile's side, m. */
 const TILE = 192;
+/** A skin tile's attributes, in the order its part holds them, and their
+ * sizes: the program is keyed by them, so its warm triangle carries the same. */
+const SKIN_ATTRIBUTES: readonly (readonly [string, number])[] = [
+  ["position", 3],
+  ["normal", 3],
+  ["color", 3],
+  ["soft", 3],
+  ["calm", 3],
+  ["strata", 3],
+];
 /** The building's share of a frame, ms. */
 const SLICE = 1.5;
 /** Within this of the lens a tile is built whole at once, whatever it
@@ -497,6 +507,23 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
       : null;
   if (talus) group.add(talus.mesh);
   group.userData.talusStats = talus?.stats;
+  // THE SKIN'S PROGRAM, LINKED BEHIND THE CARD: its tiles are built as the
+  // lens nears a wall, and the first one linked the program then, a frame
+  // stalled mid-run. A triangle of no area carrying the tiles' attributes,
+  // bound far under the map so the frustum always drops it, is what the
+  // load's compile and warm draw meet instead.
+  let warm: THREE.Mesh | null = null;
+  if (band) {
+    const g = new THREE.BufferGeometry();
+    for (const [name, size] of SKIN_ATTRIBUTES) {
+      g.setAttribute(name, new THREE.Float32BufferAttribute(new Float32Array(3 * size), size));
+    }
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, -1e7, 0), 1);
+    warm = new THREE.Mesh(g, material);
+    warm.matrixAutoUpdate = false;
+    warm.name = "rock-warm";
+    group.add(warm);
+  }
   const cols = band ? Math.ceil(level.size / TILE) : 0;
   const tiles: Tile[] = [];
   for (let j = 0; j < cols; j++) {
@@ -579,12 +606,10 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
     t.empty = part.pos.length === 0;
     if (t.empty) return true;
     const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(part.pos, 3));
-    g.setAttribute("normal", new THREE.Float32BufferAttribute(part.nrm, 3));
-    g.setAttribute("color", new THREE.Float32BufferAttribute(part.col, 3));
-    g.setAttribute("soft", new THREE.Float32BufferAttribute(part.soft, 3));
-    g.setAttribute("calm", new THREE.Float32BufferAttribute(part.calm, 3));
-    g.setAttribute("strata", new THREE.Float32BufferAttribute(part.bed, 3));
+    const arrays = [part.pos, part.nrm, part.col, part.soft, part.calm, part.bed];
+    SKIN_ATTRIBUTES.forEach(([name, size], i) => {
+      g.setAttribute(name, new THREE.Float32BufferAttribute(arrays[i], size));
+    });
     g.computeBoundingSphere();
     const mesh = new THREE.Mesh(g, material);
     mesh.userData.bytes =
@@ -688,6 +713,7 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
       for (const t of tiles) drop(t);
     },
     dispose() {
+      warm?.geometry.dispose();
       for (const t of tiles) drop(t);
       material.dispose();
       talus?.dispose();

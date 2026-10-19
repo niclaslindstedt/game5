@@ -126,13 +126,15 @@ export function deckFromBoot(board: Board, i: 0 | 1, sole: V3, boot: Boot): Boar
 }
 
 /** THE RIDER SAT ON A CHAIR, `seatY` the seat's top in his body frame: the
- * board hung off his front foot, his rear foot resting on its deck. */
-export function chairBoardPose(board: Board, seatY: number): BoardPose {
+ * board hung off his front foot, his rear foot resting on its deck — sat
+ * `pack` m further forward off the backrest for the pack on his back
+ * (`Seat.pack`). */
+export function chairBoardPose(board: Board, seatY: number, pack = 0): BoardPose {
   const fi = frontIndex(board.lead);
   const ri = (1 - fi) as 0 | 1;
   const face = board.lead === "regular" ? 1 : -1;
   // Sat back, the thighs along the seat (where `seatPose` puts the hips).
-  const sat = seatPose(restPose(), { share: 1, y: seatY }, MOUNTS);
+  const sat = seatPose(restPose(), { share: 1, y: seatY, pack }, MOUNTS);
   const hip = sat.hipJoints[fi];
   const knee = add(hip, { x: 0, y: -0.04, z: BODY.thigh * 0.99 });
   // The front shin hung a little forward of plumb, its boot turned in.
@@ -163,7 +165,7 @@ export function chairBoardPose(board: Board, seatY: number): BoardPose {
   base.boots[fi] = bootF;
   base.feet[ri] = cuffR;
   base.boots[ri] = rearToes;
-  const p = seatPose(base, { share: 1, y: seatY }, MOUNTS);
+  const p = seatPose(base, { share: 1, y: seatY, pack }, MOUNTS);
   // Each knee over its own foot, bent up and out off the seat's edge.
   for (const i of [0, 1] as const) {
     p.knees[i] = solveLimb(p.hipJoints[i], p.feet[i], BODY.thigh, SHIN_ABOVE_CUFF, {
@@ -178,7 +180,7 @@ export function chairBoardPose(board: Board, seatY: number): BoardPose {
 
 /** THE RIDER SAT IN A GONDOLA'S CABIN, both soft boots on its floor; the
  * board is in the rack (laid where the engine racks it, `rackedFrame`). */
-export function cabinBoardPose(seatY: number, floor = CABIN_FLOOR): SkierPose {
+export function cabinBoardPose(seatY: number, floor = CABIN_FLOOR, pack = 0): SkierPose {
   const base = restPose();
   for (const i of [0, 1] as const) {
     const f = norm({ x: (i ? 1 : -1) * 0.25, y: 0, z: 1 });
@@ -189,7 +191,7 @@ export function cabinBoardPose(seatY: number, floor = CABIN_FLOOR): SkierPose {
       z: 0.28 - SOFT_BOOT.heel,
     };
   }
-  const p = seatPose(base, { share: 1, y: seatY, floor }, MOUNTS);
+  const p = seatPose(base, { share: 1, y: seatY, floor, pack }, MOUNTS);
   p.poles = null;
   return p;
 }
@@ -238,8 +240,15 @@ export function mixDeck(a: BoardFrame, b: BoardFrame, k: number): BoardFrame {
 
 /** How the lift has him as drawn: sat on a chair or a cabin's bench
  * (`seated`, 0..1) and towed (`towing`, 0..1), the seat's top in his body
- * frame, and whether the seat is a cabin's. */
-export type BoardSeat = { seated: number; towing: number; y: number; cabin: boolean };
+ * frame, whether the seat is a cabin's, and how far a pack on his back sits
+ * him forward off it, m (`Seat.pack`). */
+export type BoardSeat = {
+  seated: number;
+  towing: number;
+  y: number;
+  cabin: boolean;
+  pack?: number;
+};
 
 /** The seat's top under a chair's or a cabin's rider, m (`skier-seat.ts`). */
 export const BOARD_SEAT_Y = TUNING.lift.seat - CHAIR_SEAT;
@@ -253,9 +262,10 @@ export function boardLiftPose(input: BoardPoseInput, seat: BoardSeat): BoardPose
   const ride = boardPose(input);
   if (seat.seated <= 0) return seat.towing > 0 ? towedBoardPose(ride, seat.towing) : ride;
   if (seat.cabin) {
-    return { ...ride, pose: mixPose(ride.pose, cabinBoardPose(seat.y), seat.seated), free: null };
+    const sat = cabinBoardPose(seat.y, CABIN_FLOOR, seat.pack);
+    return { ...ride, pose: mixPose(ride.pose, sat, seat.seated), free: null };
   }
-  const chair = chairBoardPose(input.board, seat.y);
+  const chair = chairBoardPose(input.board, seat.y, seat.pack);
   return {
     pose: mixPose(ride.pose, chair.pose, seat.seated),
     board: mixDeck(ride.board, chair.board, seat.seated),

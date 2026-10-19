@@ -1,6 +1,6 @@
 # The wanted level
 
-Steal the air ambulance or the police helicopter on a free ride and the army comes for you. How hard it hunts is a **wanted level**: five stars, raised by what you do and by how long you last, and lost only by staying out of every pursuer's sight long enough. This page is the engine's half (`engine/game/wanted.ts`, its numbers `engine/game/defs/wanted.ts`, its state `engine/game/wanted-state.ts`) and the HUD's. The army itself (the helicopters, the gunfire, the soldiers, the vehicles) is built on top of it in later work and reads the rows below.
+Steal the air ambulance or the police helicopter on a free ride and the army comes for you. How hard it hunts is a **wanted level**: five stars, raised by what you do and by how long you last, and lost only by staying out of every pursuer's sight long enough. This page is the engine's half (`engine/game/wanted.ts`, its numbers `engine/game/defs/wanted.ts`, its state `engine/game/wanted-state.ts`) and the HUD's. The army itself (the helicopters, the gunfire, the soldiers, the vehicles) is built on top of it in later work and reads the rows below; how its helicopter and its soldiers look is [`army.md`](army.md).
 
 ## Where it comes from
 

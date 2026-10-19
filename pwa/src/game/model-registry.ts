@@ -91,6 +91,24 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "blue star on white, a rescue hoist over the sliding door, a searchlight and wire cutters",
   },
   {
+    asset: "Army helicopter",
+    ids: ["army"],
+    source: "blender",
+    code: ["pwa/src/game/army-heli-view.ts", "pwa/src/game/army-heli-plan.ts"],
+    drawnBy: "pwa/src/game/army-heli-view.ts",
+    blender: {
+      builder: "scripts/blender/army.py",
+      files: ["army.glb"],
+      pattern: "army.glb",
+      switch: "VITE_MODEL_HELI",
+    },
+    note:
+      "the army's medium twin-engine utility helicopter, built off `ARMY_HELI` with the heli's " +
+      "machinery: a boxy cabin and a twin cowl in olive washed white for winter, a four-bladed " +
+      "rotor, sliding doors and door guns on pintles (nodes of their own), skids, fast-rope bars " +
+      "and the lights; the code's stand-in has the same nodes",
+  },
+  {
     asset: "Snowmobile",
     ids: ["sled"],
     source: "blender",
@@ -295,6 +313,23 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "procedural: the free ride's staff and guests off their skis — the crowd's eight bodies " +
       "without skis at three levels of detail, posed by morph targets off the afterski's keys, " +
       "their props, deck chairs and snowmen built in code",
+  },
+  {
+    asset: "Soldiers",
+    ids: ["soldier-skier", "soldier-foot", "soldier-gunner", "soldier-rocketeer"],
+    source: "code",
+    code: [
+      "pwa/src/game/soldier-shapes.ts",
+      "pwa/src/game/soldier-pose.ts",
+      "pwa/src/game/soldier-kit.ts",
+      "pwa/src/game/tree-mesh.ts",
+    ],
+    drawnBy: "pwa/src/game/soldier-shapes.ts",
+    note:
+      "procedural: the army's winter infantry on the crowd's rig — four figures (on skis, on " +
+      "foot, the door gunner, the anti-armour man) at three levels of detail, in white smocks " +
+      "with a snow camouflage laid per triangle, posed by morph targets, the rifle and the " +
+      "launcher built in code",
   },
   {
     asset: "Spectators",

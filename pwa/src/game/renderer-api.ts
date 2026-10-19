@@ -12,6 +12,7 @@ import type { LensPose } from "./camera-rigs.ts";
 import type { BackendState } from "./gpu-backend.ts";
 import type { PickRay } from "./machine-pick.ts";
 import type { PlumeBit } from "./spray-film.ts";
+import type { HazeUniforms } from "./haze.ts";
 import type { Outfit } from "./outfit.ts";
 import type { ReplayView } from "./camera-replay.ts";
 import type { VideoSettings } from "./settings-video.ts";
@@ -118,6 +119,12 @@ export interface DevRenderer {
   /** A named subsystem's group (`forest`, `rocks`, `terrain`…) — for a lab
    * that measures what it holds, never for drawing. */
   group(name: string): THREE.Object3D | undefined;
+  /** Stand a lab's OWN object in the world (a figure or a machine nothing
+   * in the run spawns yet), lit and hazed as the world is: its materials
+   * made with `labHaze()`. Never from the game. */
+  stage(node: THREE.Object3D): void;
+  /** The world's haze, for a lab's own materials (`hazeMaterial`). */
+  labHaze(): HazeUniforms;
   /** The snow in the air the last frame drew — the spray's grains and the
    * cloud's puffs (`plume-probe.ts`) — for the snow eval lab's film score. */
   plumes(): PlumeBit[];

@@ -39,7 +39,7 @@ const args = parseArgs(
     kind: {
       kind: "string",
       default: "all",
-      help: "publish only this kind (skis, heli, rescue, sled, groomer, plane, player) — the others' files and stamps are kept",
+      help: "publish only this kind (skis, heli, rescue, army, sled, groomer, plane, player) — the others' files and stamps are kept",
     },
     from: {
       kind: "string",
@@ -47,7 +47,7 @@ const args = parseArgs(
       help: "where make blender left the glTFs",
     },
   },
-  "usage: node scripts/models.mjs [--check] [--kind=all|skis|heli|rescue|sled|groomer|plane|player] [--from=previews/blender]",
+  "usage: node scripts/models.mjs [--check] [--kind=all|skis|heli|rescue|army|sled|groomer|plane|player] [--from=previews/blender]",
 );
 
 const out = join(root, MODELS_DIR);
@@ -70,6 +70,7 @@ const HALF_OF = {
   skis: "sources",
   heli: "heli",
   rescue: "rescue",
+  army: "army",
   sled: "sled",
   groomer: "groomer",
   plane: "plane",

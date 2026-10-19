@@ -154,6 +154,13 @@ export function rescueModelUrl(): string | null {
   return MODELS.heli ? `${String(ENV.BASE_URL ?? "/")}models/rescue.glb` : null;
 }
 
+/** Where this build serves the army's utility helicopter's glTF
+ * (`ARMY_NODES`), or `null` when the helicopter is switched off
+ * (`VITE_MODEL_HELI=0`) and the build packs none. */
+export function armyModelUrl(): string | null {
+  return MODELS.heli ? `${String(ENV.BASE_URL ?? "/")}models/army.glb` : null;
+}
+
 const loaded: { skis: Map<SkiId, GLTF> } = { skis: new Map() };
 let loading: Promise<void> | null = null;
 

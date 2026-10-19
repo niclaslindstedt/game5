@@ -37,6 +37,7 @@ import { DISCIPLINES, SLALOM } from "@engine";
 import { Glyph } from "./menu-glyphs.tsx";
 import { NO_HOLD, holdWait, tickHold, type HoldState } from "./menu-hold.ts";
 import { DEV_HOLD_MS, racesOpen } from "./settings.ts";
+import { DEVELOPER_BUILD } from "./edition.ts";
 import { STRINGS } from "./strings.ts";
 import { TitleLogo } from "./title-logo.tsx";
 import type { MenuPage } from "./url-params.ts";
@@ -125,7 +126,8 @@ export function MainMenu({
   onDeveloper?: () => void;
   onHeld?: () => void;
 }) {
-  const hold = useTitleHold(onHeld);
+  // A build without the developer page (`edition.ts`): the hold lets nothing out.
+  const hold = useTitleHold(DEVELOPER_BUILD ? onHeld : undefined);
   const lean = useLean();
   // With the races and tricks let out (`racesOpen`), PLAY opens its page
   // of three ways onto the snow; shut, it goes straight onto the free ride.

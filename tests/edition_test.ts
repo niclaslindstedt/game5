@@ -38,4 +38,17 @@ describe("a build's edition", () => {
     expect(s.mergeSettings({ developer: true }).developer).toBe(false);
     expect(s.racesOpen({ developer: true })).toBe(false);
   });
+
+  it("opens none of the developer's cards off a link without it", async () => {
+    await settingsUnder({ VITE_DEVELOPER: "off" });
+    const { readParams } = await import("../pwa/src/game/url-params.ts");
+    for (const shut of ["dev", "benchCosts", "play", "races", "freestyle", "levels", "tricks"]) {
+      expect(readParams(`?menu=${shut}`).page).toBe("root");
+    }
+    expect(readParams("?menu=options").page).toBe("options");
+    vi.unstubAllEnvs();
+    vi.resetModules();
+    const open = await import("../pwa/src/game/url-params.ts");
+    expect(open.readParams("?menu=dev").page).toBe("dev");
+  });
 });

@@ -37,6 +37,7 @@ import {
   type StatsBook,
 } from "./stats.ts";
 import { STRINGS, comboLine } from "./strings.ts";
+import { GORE_BUILD } from "./edition.ts";
 
 const skiName = (id: PairId): string => {
   try {
@@ -45,6 +46,10 @@ const skiName = (id: PairId): string => {
     return id;
   }
 };
+
+/** The rows that count a body's harm — none in a build without the gore. */
+const harm = (rows: [string, number, string][]): [string, number, string][] =>
+  GORE_BUILD ? rows : [];
 
 export function StatsPage({
   book,
@@ -122,16 +127,21 @@ export function StatsPage({
                   best={book.bests.peak}
                   value={STRINGS.statsPeakValue}
                 />
-                <BestRow
-                  label={STRINGS.statsMostBones}
-                  best={book.bests.bones}
-                  value={STRINGS.statsMostBonesValue}
-                />
-                <BestRow
-                  label={STRINGS.statsIss}
-                  best={book.bests.iss}
-                  value={STRINGS.statsIssValue}
-                />
+                {/* No body's harm in a build without the gore (`edition.ts`). */}
+                {GORE_BUILD && (
+                  <>
+                    <BestRow
+                      label={STRINGS.statsMostBones}
+                      best={book.bests.bones}
+                      value={STRINGS.statsMostBonesValue}
+                    />
+                    <BestRow
+                      label={STRINGS.statsIss}
+                      best={book.bests.iss}
+                      value={STRINGS.statsIssValue}
+                    />
+                  </>
+                )}
               </div>
             </Section>
 
@@ -166,9 +176,11 @@ export function StatsPage({
                   [STRINGS.statsWipeouts, s.wipeouts, STRINGS.statsCount(s.wipeouts)],
                   [STRINGS.statsTrees, s.trees, STRINGS.statsCount(s.trees)],
                   [STRINGS.statsSaves, s.saves, STRINGS.statsCount(s.saves)],
-                  [STRINGS.statsInjuries, s.injuries, STRINGS.statsCount(s.injuries)],
-                  [STRINGS.statsBones, s.bones, STRINGS.statsCount(s.bones)],
-                  [STRINGS.statsDeaths, s.deaths, STRINGS.statsCount(s.deaths)],
+                  ...harm([
+                    [STRINGS.statsInjuries, s.injuries, STRINGS.statsCount(s.injuries)],
+                    [STRINGS.statsBones, s.bones, STRINGS.statsCount(s.bones)],
+                    [STRINGS.statsDeaths, s.deaths, STRINGS.statsCount(s.deaths)],
+                  ]),
                 ]}
               />
               <Figures
@@ -183,7 +195,7 @@ export function StatsPage({
                   [STRINGS.statsGroomer, s.groomer, STRINGS.statsMinutes(s.groomer)],
                   [STRINGS.statsBumps, s.bumps, STRINGS.statsCount(s.bumps)],
                   [STRINGS.statsBeers, s.beers, STRINGS.statsCount(s.beers)],
-                  [STRINGS.statsMauled, s.mauled, STRINGS.statsCount(s.mauled)],
+                  ...harm([[STRINGS.statsMauled, s.mauled, STRINGS.statsCount(s.mauled)]]),
                 ]}
               />
             </div>
@@ -200,7 +212,7 @@ export function StatsPage({
               />
               <Bars
                 title={STRINGS.statsKilled}
-                rows={(Object.entries(book.killed) as [DeathCause, number][])
+                rows={(Object.entries(GORE_BUILD ? book.killed : {}) as [DeathCause, number][])
                   .sort((x, y) => y[1] - x[1])
                   .map(([cause, n]) => ({
                     key: cause,

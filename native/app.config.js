@@ -114,10 +114,11 @@ const CLOUD_ENTITLEMENTS = {
 // THE DEVICE'S CONTENT SETTING (src/content-filter.ts) is read through the
 // sensitive-content analysis policy, which needs the Sensitive Content
 // Analysis capability on the App ID — and, like iCloud, an entitlement the
-// App ID does not carry fails code signing. EXPO_PUBLIC_CONTENT_FILTER=off
-// drops it for a quick local build (the policy then reads as off and the game
-// follows its own OPTIONS switch alone); store builds leave it on.
-const CONTENT_FILTER = process.env.EXPO_PUBLIC_CONTENT_FILTER !== "off";
+// App ID does not carry fails code signing. OFF unless EXPO_PUBLIC_CONTENT_FILTER=on:
+// the setting only ever decided whether the injuries are shown, and the phone
+// build carries none (pwa/src/game/edition.ts), so the store build asks the
+// App ID for nothing it would use. The shell then says nothing of the setting.
+const CONTENT_FILTER = process.env.EXPO_PUBLIC_CONTENT_FILTER === "on";
 const CONTENT_ENTITLEMENTS = {
   "com.apple.developer.sensitivecontentanalysis.client": ["analysis"],
 };

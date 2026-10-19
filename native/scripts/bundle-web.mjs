@@ -13,9 +13,19 @@
 // of them is refused before it is zipped (scripts/lib/no-source.mjs) — so `--skip-build` over a plain
 // website build fails rather than shipping one.
 //
+// WHAT THE PHONE BUILD CARRIES (pwa/src/game/edition.ts): never the gore — the
+// wounds, the death and the INJURIES rows (VITE_GORE=off) — and, in the App
+// Store build (`--profile production`), no developer page, so the races and
+// the tricks behind it stay shut and the game is the free ride
+// (VITE_DEVELOPER=off). Any other profile keeps the developer page for
+// testing. The answer is written into the zip as `edition.json`, and the EAS
+// build refuses a zip packed for another profile (scripts/check-bundle.mjs).
+//
 // Usage:
-//   node scripts/bundle-web.mjs                # build the site, then zip dist/
-//   node scripts/bundle-web.mjs --skip-build   # re-zip an existing dist/
+//   node scripts/bundle-web.mjs --profile production   # the App Store build
+//   node scripts/bundle-web.mjs --profile testflight   # a test build, developer page kept
+//   node scripts/bundle-web.mjs                        # as testflight
+//   node scripts/bundle-web.mjs --skip-build           # re-zip an existing dist/
 //
 // The zip is a build artifact (gitignored). Generate it before `eas build`
 // (the native workflow and the `bundle` npm script do this for you); the
@@ -39,6 +49,15 @@ const WINDOWS = process.platform === "win32";
 const NPM_COMMAND = WINDOWS ? "npm.cmd" : "npm";
 
 const skipBuild = process.argv.includes("--skip-build");
+const at = process.argv.indexOf("--profile");
+const profile = at >= 0 ? (process.argv[at + 1] ?? "") : "testflight";
+if (!/^[a-z]+$/.test(profile)) {
+  throw new Error(
+    `--profile needs an EAS build profile's name (native/eas.json), not "${profile}"`,
+  );
+}
+/** What the phone build carries — see the header, and pwa/src/game/edition.ts. */
+const EDITION = { profile, gore: false, developer: profile !== "production" };
 
 if (!skipBuild) {
   console.log("• building website (npm run build --workspace pwa)…");
@@ -55,7 +74,16 @@ if (!skipBuild) {
     //
     // VITE_SHELL_BUILD: this is the phone app, which links nothing back to the
     // source and names none of the website.
-    env: { ...process.env, VITE_BASE: "/", VITE_PWA_IGNORE_PATHS: "", VITE_SHELL_BUILD: "on" },
+    //
+    // VITE_GORE / VITE_DEVELOPER: what this phone build carries (EDITION).
+    env: {
+      ...process.env,
+      VITE_BASE: "/",
+      VITE_PWA_IGNORE_PATHS: "",
+      VITE_SHELL_BUILD: "on",
+      VITE_GORE: EDITION.gore ? "on" : "off",
+      VITE_DEVELOPER: EDITION.developer ? "on" : "off",
+    },
   });
 }
 
@@ -92,6 +120,11 @@ if (count === 0 || !files["index.html"]) {
 
 refuseSourceLinks(DIST_DIR);
 
+// What the bundle was built as, for the EAS build to check against its own
+// profile (scripts/check-bundle.mjs). With --skip-build it is what this run
+// was asked for, not what dist/ was built as — rebuild when the profile moves.
+files["edition.json"] = new TextEncoder().encode(`${JSON.stringify(EDITION)}\n`);
+
 // Deterministic zip: pin every entry to the ZIP epoch (1980-01-01) so the
 // artifact is reproducible and doesn't drift by build time.
 const EPOCH = new Date("1980-01-01T00:00:00Z");
@@ -100,4 +133,7 @@ mkdirSync(dirname(OUT_ZIP), { recursive: true });
 writeFileSync(OUT_ZIP, zipped);
 
 const kb = (zipped.length / 1024).toFixed(0);
-console.log(`✓ wrote ${OUT_ZIP} — ${count} files, ${kb} KB`);
+console.log(
+  `✓ wrote ${OUT_ZIP} — ${count} files, ${kb} KB (profile ${profile}: ` +
+    `${EDITION.developer ? "developer page kept" : "no developer page"}, no gore)`,
+);

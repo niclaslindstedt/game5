@@ -39,10 +39,10 @@ Connect API key, the Play service account, and every console questionnaire.
   author's because Agilator AB holds the store agreements, and it is
   **unchangeable** once a record ships under it.
 - **Capabilities on the App ID**, before the record is created — exactly the
-  two the build's entitlements name, or code signing fails: **iCloud** with
-  **Key-value storage** (the cloud save) and **Sensitive Content Analysis**
-  (the device's content setting, which hides the injuries on a child's phone).
-  [`README.md`](README.md) says what each one does.
+  one the build's entitlements name, or code signing fails: **iCloud** with
+  **Key-value storage** (the cloud save). The phone build carries none of the
+  game's gore, so it asks for no Sensitive Content Analysis (see
+  [`README.md`](README.md)).
 - **SKU** is yours and never shown; the slug is fine.
 - Creating the record assigns the numeric **Apple ID**. Put it, and the team id
   from the developer portal's Membership page, into `eas.json`'s
@@ -80,9 +80,17 @@ iOS signing credentials for CLOUD builds live on the Expo project, not here.
 ## 3. Build
 
 ```sh
-make native-bundle                       # ALWAYS first: the app ships the zip on disk
-cd native && npm run build:testflight    # or build:production, or build:preview
+cd native && npm run build:production    # THE APP STORE BUILD: bundles, then builds
+cd native && npm run build:testflight    # a test build, the developer page kept
 ```
+
+Each script bundles the site for its own profile first (`npm run bundle --
+--profile <name>`), because what the zip carries depends on it: no phone build
+carries the gore, and the App Store build — the `production` profile — has no
+developer page, so its races stay shut and the game is the free ride. The EAS
+build checks the zip against its profile (`scripts/check-bundle.mjs`) and stops
+on a mismatch, so a zip bundled for testing never ships to the store. Submit
+the `production` build for review; a `testflight` build is for testers only.
 
 Or from GitHub: **Actions → native → Run workflow**, choosing the platform, the
 `eas.json` profile, and whether to auto-submit. It is dispatch-only on purpose —

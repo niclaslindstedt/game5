@@ -186,39 +186,33 @@ export const RULES: StoreRules = {
 
     advisory: {
       violenceCartoonOrFantasy: "NONE",
-      // FREQUENT_OR_INTENSE. Skiers fall, are thrown and are hurt, and the
-      // game says so: a crash at speed into a trunk, a rock, a lift tower or
-      // the snow does real harm to a human body (engine/game/body.ts — the
-      // injuries part by part, named on the HUD's anatomy plate), and a bad
-      // enough one KILLS the skier (DIED, and the run starts again). It is
-      // the core loop of a downhill game, not an occasional event.
-      violenceRealistic: "FREQUENT_OR_INTENSE",
-      // INFREQUENT_OR_MILD, and it is the answer to look at hardest. With the
-      // INJURIES switch on — on by default unless the device filters
-      // sensitive content, and always off under a parental control
-      // (pwa/src/game/settings.ts's `injuriesShown`) — a fatal crash is drawn
-      // as GORE (engine/game/gore.ts, docs/features.md): limbs torn off,
-      // a crushed skull, an opened chest, a body run through on a snag, blood
-      // that pools on the snow, and an optional slow-motion X-ray cam of the
-      // fatal fall. It is accidental, never inflicted on anyone by the
-      // player, and only on a fatal crash — so not sadistic, and not the
-      // usual run; but it is graphic, so the answer is not NONE.
-      violenceRealisticProlongedGraphicOrSadistic: "INFREQUENT_OR_MILD",
-      // INFREQUENT_OR_MILD. The free ride has a monster in its woods — the
-      // grimbear (engine/game/grimbear.ts, docs/features.md), dealt to about
-      // one free ride in three and never with INJURIES off — that lies in
-      // wait, chases a skier and, when it catches him, kills him. A rare
-      // encounter in one mode, not the tone of the game.
-      horrorOrFearThemes: "INFREQUENT_OR_MILD",
+      // INFREQUENT_OR_MILD. The App Store build is the phone app, and the
+      // phone app carries none of the game's gore (pwa/src/game/edition.ts,
+      // set by native/scripts/bundle-web.mjs for every profile): no wound is
+      // shown, nobody dies, and the INJURIES, X-RAY CAM and DAMAGE HUD rows
+      // are not in OPTIONS. What is left is a skiing game's falls: a skier
+      // who meets a trunk, a rock or the snow too hard is thrown and tumbles
+      // (the ragdoll), then stands up again at the reset. The same build plays
+      // safe for work throughout (`RunRules.sfw`): no skier knocks another
+      // down, and no machine crashes or burns.
+      violenceRealistic: "INFREQUENT_OR_MILD",
+      // NONE. The graphic half — a fatal crash drawn as gore, the X-ray cam
+      // of the fatal fall — is the website's and the desktop app's alone;
+      // the phone build never carries it (see above).
+      violenceRealisticProlongedGraphicOrSadistic: "NONE",
+      // NONE. The free ride's monster in the woods (the grimbear,
+      // engine/game/grimbear.ts) is dealt only with INJURIES on, which the
+      // phone build never is.
+      horrorOrFearThemes: "NONE",
       profanityOrCrudeHumor: "NONE",
       matureOrSuggestiveThemes: "NONE",
       sexualContentOrNudity: "NONE",
       sexualContentGraphicAndNudity: "NONE",
-      // INFREQUENT_OR_MILD. A free ride's AFTERSKI lodge serves beer: the
-      // player's skier can drink round after round, each one raising a BUZZ
-      // that blurs the picture and loosens the controls (afterski.ts,
-      // buzz.ts), and one of the crowd's kinds is a drunk skier. It is a
-      // side room of one mode, not something a run asks of the player.
+      // INFREQUENT_OR_MILD. The phone build keeps the afterski lodge's doors
+      // shut (`RunRules.sfw`), so the player's skier never drinks; but one of
+      // the free ride's crowd groups is a few skiers down from the hut, who
+      // sway and wander as they ski (engine/game/defs/crowd.ts). A mild
+      // reference at most, answered as one.
       alcoholTobaccoOrDrugUseOrReferences: "INFREQUENT_OR_MILD",
       // NONE. The HUD's anatomy plate names injuries by body part and grades
       // them (defs/anatomy.ts) as a game readout; nothing advises on, or

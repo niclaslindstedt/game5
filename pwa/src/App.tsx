@@ -132,6 +132,7 @@ import {
   specFor,
   type Settings,
 } from "./game/settings.ts";
+import { DEVELOPER_BUILD } from "./game/edition.ts";
 import { withPreset, type VideoSettings } from "./game/settings-video.ts";
 import { boundLabel } from "./game/settings-input.ts";
 import {
@@ -164,6 +165,19 @@ const LOAD_FADE_MS = 260;
 /** How much of the mix the bot's race gets under a card. */
 const CARD_DUCK = 0.5;
 
+/** The cards only the developer page leads to — its own, and the races' and
+ * tricks' it lets out (`racesOpen`). */
+const SHUT_WITHOUT_DEVELOPER: readonly MenuPage[] = [
+  "dev",
+  "benchHistory",
+  "benchCosts",
+  "play",
+  "races",
+  "freestyle",
+  "levels",
+  "tricks",
+];
+
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [params] = useState(() => readParams(location.search));
@@ -183,11 +197,15 @@ export function App() {
   const [warm, setWarm] = useState(false);
   const [settings, setSettings] = useState<Settings>(() => {
     const s = loadSettings(params.mode === "free" && !params.rides ? params.face : null);
-    if (params.page === "dev") s.developer = true;
+    if (params.page === "dev" && DEVELOPER_BUILD) s.developer = true;
     return params.camera ? { ...s, camera: params.camera, craftCamera: params.camera } : s;
   });
   /** Which page of the front door is up. */
-  const [page, setPage] = useState<MenuPage>(params.page);
+  // A build without the developer page opens none of its pages off a link,
+  // nor the races' and tricks' cards it lets out.
+  const [page, setPage] = useState<MenuPage>(
+    DEVELOPER_BUILD || !SHUT_WITHOUT_DEVELOPER.includes(params.page) ? params.page : "root",
+  );
   /** A link's pair for this visit (`?skis=`), never written back — until
    * the skier picks one on the skis card, which is theirs to keep. */
   const [linkSkis, setLinkSkis] = useState(params.skis);
@@ -957,7 +975,9 @@ export function App() {
           onStats={() => setPage("stats")}
           developer={settings.developer}
           onDeveloper={() => setPage("dev")}
-          onHeld={() => setSettings((s) => ({ ...s, developer: true }))}
+          onHeld={
+            DEVELOPER_BUILD ? () => setSettings((s) => ({ ...s, developer: true })) : undefined
+          }
         />
       )}
       {shell === "menu" && page !== "root" && page !== "play" && (

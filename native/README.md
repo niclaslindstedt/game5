@@ -101,10 +101,12 @@ only changes the default. On an older iOS, without the capability, and on
 Android — which has no such switch an app can read — nothing is said and the
 game's own switch is the whole answer.
 
-**Enabling it for a store build:** turn on the **Sensitive Content Analysis**
-capability on the App ID. `app.config.js` writes the entitlement
-(`com.apple.developer.sensitivecontentanalysis.client`); a local build without
-the capability sets `EXPO_PUBLIC_CONTENT_FILTER=off`.
+**Off in the store build.** The setting only ever decided whether the injuries
+are shown, and the phone build carries none of them (`pwa/src/game/edition.ts`,
+`VITE_GORE=off` from `scripts/bundle-web.mjs`), so `app.config.js` leaves the
+entitlement out and the App ID needs no **Sensitive Content Analysis**. A
+build that wants it back sets `EXPO_PUBLIC_CONTENT_FILTER=on`, with the
+capability on the App ID (`com.apple.developer.sensitivecontentanalysis.client`).
 
 ## The tree
 

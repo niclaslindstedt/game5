@@ -61,11 +61,15 @@ jobs:
         working-directory: native
         run: npm run typecheck
 
-      # vite build + zip. The root .easignore keeps the generated zip in the
-      # upload despite .gitignore.
+      # vite build + zip, for the profile being built: the App Store build
+      # (production) leaves the developer page out, and no phone build carries
+      # the gore. The EAS build checks the zip against its profile. The root
+      # .easignore keeps the generated zip in the upload despite .gitignore.
       - name: Bundle the website into the app
         working-directory: native
-        run: npm run bundle
+        env:
+          PROFILE: ${{ inputs.profile }}
+        run: npm run bundle -- --profile "$PROFILE"
 
       - name: EAS build
         working-directory: native

@@ -204,6 +204,14 @@ function cutOf(dress: SkierDress) {
   return { model, cut };
 }
 
+/** How far what `dress` carries stands out of his back, m (`KitDef.pack`):
+ * the modelled hiker's pack; nothing on a body dressed in code. */
+export function packOf(dress: SkierDress): number {
+  if (!dress.model || dress.suit !== undefined || dress.bare) return 0;
+  const kit = gearOf("body", dress.outfit.body).model;
+  return kit ? KITS[kit].pack : 0;
+}
+
 const boneIndices = (keep: readonly SkierBone[]) => keep.map((b) => SKIER_BONES.indexOf(b));
 
 /** Cut `dress` down to each of `pieces` ahead of the moment it is asked

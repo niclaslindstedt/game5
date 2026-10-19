@@ -34,8 +34,13 @@ export const RESCUE = {
    * width, and where the bearers' hands hold its rails (across and along
    * from its middle). */
   stretcher: { length: 2.0, width: 0.56, rail: 0.31, along: 0.72 },
-  /** The walking pace with a stretcher between four, m/s. */
+  /** The walking pace with a stretcher between four, m/s — and with a
+   * body bag, carried without a spine to guard, m/s; and how far off a
+   * body's middle a bag is laid (`scoop.beside` for a board), clear of
+   * limbs that lie where they came to rest, never straightened, m. */
   walk: 0.8,
+  bagWalk: 1.0,
+  bagBeside: 1.0,
   /** THE CABIN DOOR on the side he is loaded through: how far aft of the
    * skid datum's middle its middle is, and how far outboard the skin, m. */
   door: { z: 1.4, skin: HELI.body.width / 2 },
@@ -146,6 +151,11 @@ export type RescuePlan = {
   floor: number;
   /** THE CARRY: the path's points and their arc lengths, m. */
   path: { pts: P2[]; s: number[]; length: number };
+  /** The carry's pace, m/s (`RESCUE.walk`, or a body bag's `RESCUE.bagWalk`). */
+  walk: number;
+  /** How far off his middle the board is laid down, m (`scoop.beside`, or a
+   * body bag's `RESCUE.bagBeside`). */
+  beside: number;
   /** Where the stretcher's middle stops: carried (`end`), and in the cabin. */
   end: P2;
   cabin: P2;

@@ -6,38 +6,45 @@
 // walks it out, sagging a little between each two; the numbered yellow
 // TENTS, a number on either face, stood one by one; the CAMERA in the
 // photographer's hands and its FLASH, a bright short light at it and a
-// glare; and the body BAG on the stretcher, open under him and then closed
-// over him (`bagGeometries`). Presentation only: it reads the plan and the
-// frame it is handed and writes nothing.
+// glare. (The body bag is `police-bag.ts`'.) Presentation only: it reads
+// the plan and the frame it is handed and writes nothing.
 
 import * as THREE from "three";
 import type { Level } from "@engine";
 
 import { CROWD_LOOKS } from "./crowd-rig.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { TAPE_LIFT } from "./police-carry.ts";
 import { OFFICERS, POLICE } from "./police-defs.ts";
 import type { PolicePlan } from "./police-plan.ts";
 import type { SceneFrame } from "./police-defs.ts";
 import { CAMERA_AT } from "./rescue-crew.ts";
 import type { CrewPose } from "./rescue-defs.ts";
-import { RESCUE } from "./rescue-defs.ts";
 
 const C = POLICE.cordon;
 const M = POLICE.marker;
 
 /** The tape's red and white (sRGB), the length of a stripe and the tape's
- * width, m. */
-const TAPE = { red: 0xd21f1f, white: 0xf4f4f2, stripe: 0.3, width: 0.06 } as const;
+ * width, m; and its twist along a span (as real tape hangs, turning its
+ * face up and over): its lean off its edge, rad, about `lean` by up to
+ * `turn` either way, a turn every `every` m. */
+const TAPE = {
+  red: 0xd21f1f,
+  white: 0xf4f4f2,
+  stripe: 0.3,
+  width: 0.075,
+  lean: 0.8,
+  turn: 0.6,
+  every: 2.6,
+} as const;
 /** A stake: its colours, its girth, m. */
 const STAKE = { body: 0xe8e6df, band: 0xd21f1f, girth: 0.025 } as const;
-/** The marker tents' yellow and their numbers' black (CSS). */
-const TENT = { yellow: "#f6c81a", ink: "#111111" } as const;
+/** The marker tents' yellow and their numbers' black (CSS): a bright
+ * signal yellow, as the plastic ones are. */
+const TENT = { yellow: "#ffd60a", ink: "#111111" } as const;
 /** The flash: its light's colour, its peak (candela), its reach, m; the
  * glare's size at full, m. */
 const FLASH = { colour: 0xf2f5ff, peak: 900, reach: 30, glare: 0.9 } as const;
-/** The body bag: a black-grey sheet, closed over him. */
-const BAG = 0x1d1f22;
-const RAIL = 0x9ea4ab;
 
 export type PoliceDressing = {
   group: THREE.Group;
@@ -86,6 +93,8 @@ function atlas(): THREE.CanvasTexture {
   return tex;
 }
 
+const UP = new THREE.Vector3(0, 1, 0);
+
 /** ONE TENT for number `n`: an A-frame on the snow, its ridge across the
  * way its faces look (+z its front), the number on both faces. */
 function tentGeometry(n: number): THREE.BufferGeometry {
@@ -112,6 +121,15 @@ function tentGeometry(n: number): THREE.BufferGeometry {
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
   g.computeVertexNormals();
+  // Lit as the snow it stands on is, more than as its steep faces would
+  // be: the face turned from the sun reads yellow, not olive, in the bright
+  // light thrown up off the snow round it.
+  const nrm = g.getAttribute("normal");
+  const v = new THREE.Vector3();
+  for (let i = 0; i < nrm.count; i++) {
+    v.fromBufferAttribute(nrm, i).multiplyScalar(0.15).add(UP).normalize();
+    nrm.setXYZ(i, v.x, v.y, v.z);
+  }
   return g;
 }
 
@@ -156,14 +174,20 @@ function mergeColoured(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   return out;
 }
 
-/** ONE SPAN OF TAPE from stake `a` to stake `b`: a ribbon on its edge,
- * sagging between them (never into the snow), striped red and white —
+/** ONE SPAN OF TAPE from stake `a` to stake `b`: a ribbon sagging between
+ * them (never into the snow), striped red and white, twisting as it goes —
+ * off its edge toward its face and back — so that it shows its face from
+ * above as well as from the side (and casts a shadow that reads) —
  * non-indexed, a stripe six vertices, so the drawn share of it is a
- * `drawRange`. Returns the geometry and its stripes' count. */
+ * `drawRange`. Where the bag is carried in under it (`lift`: how far along
+ * the span, 0 … 1), a morph target holds it lifted there over the
+ * carriers' heads, its ends still on the stakes (`TAPE_LIFT`). Returns the
+ * geometry and its stripes' count. */
 function spanGeometry(
   level: Level,
   a: { x: number; z: number },
   b: { x: number; z: number },
+  lift: number | null,
 ): { geo: THREE.BufferGeometry; stripes: number } {
   const len = Math.hypot(b.x - a.x, b.z - a.z);
   const n = Math.max(2, Math.ceil(len / TAPE.stripe));
@@ -178,32 +202,41 @@ function spanGeometry(
   };
   const pos: number[] = [];
   const col: number[] = [];
+  const raise: number[] = [];
+  // The lifted tape: up at the crossing, falling to the stakes either side.
+  const up = (u: number): number => {
+    if (lift === null) return 0;
+    const c = Math.min(0.9, Math.max(0.1, lift));
+    const k = u <= c ? u / c : (1 - u) / (1 - c);
+    return TAPE_LIFT.height * Math.sin((Math.PI / 2) * k);
+  };
   const red = new THREE.Color(TAPE.red);
   const white = new THREE.Color(TAPE.white);
   const h = TAPE.width / 2;
+  // Across the span, level; the ribbon's half-width at `u` leaned off the
+  // vertical toward it by its twist there (each span its own phase).
+  const sx = -(b.z - a.z) / (len || 1);
+  const sz = (b.x - a.x) / (len || 1);
+  const phase = (a.x * 0.37 + a.z * 0.71) % (Math.PI * 2);
+  const half = (u: number): number[] => {
+    const t = TAPE.lean + TAPE.turn * Math.sin(((u * len) / TAPE.every) * Math.PI * 2 + phase);
+    const c = Math.cos(t) * h;
+    const k = Math.sin(t) * h;
+    return [sx * k, c, sz * k];
+  };
   for (let i = 0; i < n; i++) {
     const [x0, y0, z0] = at(i / n);
     const [x1, y1, z1] = at((i + 1) / n);
-    pos.push(
-      x0,
-      y0 - h,
-      z0,
-      x1,
-      y1 - h,
-      z1,
-      x1,
-      y1 + h,
-      z1,
-      x0,
-      y0 - h,
-      z0,
-      x1,
-      y1 + h,
-      z1,
-      x0,
-      y0 + h,
-      z0,
-    );
+    const [ax, ay, az] = half(i / n);
+    const [bx, by, bz] = half((i + 1) / n);
+    const lo0 = [x0 - ax, y0 - ay, z0 - az];
+    const hi0 = [x0 + ax, y0 + ay, z0 + az];
+    const lo1 = [x1 - bx, y1 - by, z1 - bz];
+    const hi1 = [x1 + bx, y1 + by, z1 + bz];
+    pos.push(...lo0, ...lo1, ...hi1, ...lo0, ...hi1, ...hi0);
+    const r0 = up(i / n);
+    const r1 = up((i + 1) / n);
+    for (const y of [r0, r1, r1, r0, r1, r0]) raise.push(0, y, 0);
     const c = i % 2 ? white : red;
     for (let k = 0; k < 6; k++) col.push(c.r, c.g, c.b);
   }
@@ -211,6 +244,10 @@ function spanGeometry(
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
   geo.computeVertexNormals();
+  if (lift !== null) {
+    geo.morphAttributes.position = [new THREE.Float32BufferAttribute(raise, 3)];
+    geo.morphTargetsRelative = true;
+  }
   return { geo, stripes: n };
 }
 
@@ -228,35 +265,6 @@ function glareTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(cv);
 }
 
-/** THE BODY BAG on the stretcher, in the stretcher's frame (x across, y up
- * from its rails, z his head's end): its rails and the bag OPEN flat on
- * them under him, and the bag CLOSED over him, a long low black shape. */
-export function bagGeometries(): { open: THREE.BufferGeometry; closed: THREE.BufferGeometry } {
-  const S = RESCUE.stretcher;
-  const rails: THREE.BufferGeometry[] = [];
-  for (const x of [-S.rail, S.rail]) {
-    const g = new THREE.CylinderGeometry(0.018, 0.018, S.length + 0.1, 8);
-    g.rotateX(Math.PI / 2);
-    g.translate(x, 0, 0);
-    rails.push(paint(g, RAIL));
-  }
-  const sheet = paint(
-    new THREE.BoxGeometry(0.78, 0.02, S.length - 0.06).translate(0, 0.03, 0),
-    BAG,
-  );
-  const open = mergeColoured([...rails.map((g) => g.clone()), sheet]);
-  const body = new THREE.CapsuleGeometry(0.24, S.length - 0.62, 4, 10);
-  body.rotateX(Math.PI / 2);
-  body.scale(1.1, 0.62, 1);
-  body.translate(0, 0.16, 0);
-  const zip = paint(
-    new THREE.BoxGeometry(0.03, 0.02, S.length - 0.5).translate(0.06, 0.315, 0),
-    0x6a6d72,
-  );
-  const closed = mergeColoured([...rails, paint(body, BAG), zip]);
-  return { open, closed };
-}
-
 export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDressing {
   const group = new THREE.Group();
   group.name = "police-scene";
@@ -267,7 +275,15 @@ export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDr
   );
   const numbers = atlas();
   const tentMat = hazeMaterial(
-    new THREE.MeshLambertMaterial({ map: numbers, side: THREE.DoubleSide }),
+    // Signal yellow: the plastic's own glow under a little of its paint, so a
+    // tent reads yellow in the shade of its own faces as in the sun.
+    new THREE.MeshLambertMaterial({
+      map: numbers,
+      emissive: 0xffffff,
+      emissiveMap: numbers,
+      emissiveIntensity: 0.45,
+      side: THREE.DoubleSide,
+    }),
     haze,
     "police-tent",
   );
@@ -336,8 +352,11 @@ export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDr
       }
       const n = plan.ring.length;
       for (let i = 0; i < n; i++) {
-        const { geo, stripes } = spanGeometry(level, plan.ring[i], plan.ring[(i + 1) % n]);
+        const gate = plan.carry.gates.find((g) => g.span === i);
+        const ends = [plan.ring[i], plan.ring[(i + 1) % n]] as const;
+        const { geo, stripes } = spanGeometry(level, ends[0], ends[1], gate ? gate.u : null);
         const mesh = new THREE.Mesh(geo, kit);
+        if (gate) mesh.morphTargetInfluences = [0];
         mesh.castShadow = true;
         mesh.frustumCulled = false;
         group.add(mesh);
@@ -364,6 +383,7 @@ export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDr
         const run = scene.tape[i] ?? 0;
         s.mesh.visible = run > 0;
         s.mesh.geometry.setDrawRange(0, 6 * Math.ceil(s.stripes * run));
+        if (s.mesh.morphTargetInfluences) s.mesh.morphTargetInfluences[0] = scene.lift[i] ?? 0;
       });
       tents.forEach((t, i) => (t.visible = i < scene.markers));
       // The camera in his hands: up at his eye, down at his chest.

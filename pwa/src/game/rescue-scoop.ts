@@ -106,7 +106,7 @@ function onSnow(level: Level, plan: RescuePlan, lat: number, roll: number, out: 
 }
 
 /** The board's last place and its axes: the way the carry sets off. */
-function axes(plan: RescuePlan) {
+export function axes(plan: RescuePlan) {
   const [a, b] = plan.path.pts;
   const h = Math.atan2(b.x - a.x, b.z - a.z);
   return { h, f: fwdOf(h), rt: rightOf(h) };
@@ -114,7 +114,7 @@ function axes(plan: RescuePlan) {
 
 /** A place `lat` m to the right of the board's last middle and `along` m
  * ahead of it. */
-function place(plan: RescuePlan, lat: number, along: number) {
+export function place(plan: RescuePlan, lat: number, along: number) {
   const { f, rt } = axes(plan);
   return {
     x: plan.spot.x + rt.x * lat + f.x * along,
@@ -140,7 +140,7 @@ export function scoopAt(level: Level, plan: RescuePlan, t: number, out: RescueFr
   const walked = clamp(t, 0, walkFor) * Q.pace;
   const walking = t > 0 && t < walkFor ? 1 : 0;
   const u = (from: number, span: number): number => clamp((t - from) / span, 0, 1);
-  const beside = RESCUE.scoop.lies + Q.beside;
+  const beside = RESCUE.scoop.lies + plan.beside;
   // THE BOARD's lateral place: beside him, then slid under him.
   // Slid a little past its last place, against his back, then drawn back
   // under him with him as he is laid down on it.

@@ -161,7 +161,9 @@ function siteCost(
     if (treesNear(level, px, pz, RESCUE.site.path, near).length > 0) return null;
   }
   // Off the groomed run where it can be; level with him or below him; as
-  // near the middle ring as there is room.
+  // near the middle ring as there is room — or, off a cordon, as near him
+  // as the cordon lets it (the bag is carried, and the officers walk to the
+  // impact from the door: every metre is minutes on the snow).
   let piste = 0;
   for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
     piste += level.packedAt(x + Math.sin(a) * R * 0.8, z + Math.cos(a) * R * 0.8);
@@ -175,29 +177,39 @@ function siteCost(
     3 * Math.abs(rise) +
     3 * Math.max(0, rise) +
     40 * slope +
-    Math.abs(r - 30)
+    (avoid ? 2 * r : Math.abs(r - 30))
   );
 }
 
+/** What a patch on the relaxed slope limit costs over a flat one, off a
+ * cordon: about 20 m nearer him. */
+const RELAXED = 40;
+
 /** A PATCH A MACHINE CAN SET DOWN ON round him — the strict search, then
- * the relaxed one, the rings reaching further out past a cordon (`avoid`)
- * — or null: nowhere fit to land (`fitToLand`). */
+ * the relaxed one, the rings reaching nearer and further out round a
+ * cordon (`avoid`), where both are weighed together — or null: nowhere fit
+ * to land (`fitToLand`). */
 function findSite(level: Level, spot: Vec3, avoid: readonly P2[] | null) {
   const far = avoid ? [50, 60, 70, 80, 95, 110] : [];
+  const close = avoid ? [14, 18] : [];
+  let best: { x: number; z: number; cost: number } | null = null;
   for (const relax of [false, true]) {
-    let best: { x: number; z: number; cost: number } | null = null;
-    for (const r of [...RESCUE.site.radii, ...(relax ? [50, 60, 18] : []), ...far]) {
+    for (const r of [...close, ...RESCUE.site.radii, ...(relax ? [50, 60, 18] : []), ...far]) {
       for (let k = 0; k < 24; k++) {
         const a = (k / 24) * Math.PI * 2;
         const x = spot.x + Math.sin(a) * r;
         const z = spot.z + Math.cos(a) * r;
-        const cost = siteCost(level, x, z, spot, r, relax, avoid);
+        const c = siteCost(level, x, z, spot, r, relax, avoid);
+        // Off a cordon a steeper patch near him beats a flat one far off
+        // (the carry is the scene's longest part); else only where no
+        // flat one is clear.
+        const cost = c === null ? null : c + (relax ? RELAXED : 0);
         if (cost !== null && (!best || cost < best.cost)) best = { x, z, cost };
       }
     }
-    if (best) return best;
+    if (best && !avoid) return best;
   }
-  return null;
+  return best;
 }
 
 /** WHETHER AN AIR AMBULANCE CAN SET DOWN near a skier lying at `spot`:
@@ -285,12 +297,15 @@ export function aroundNose(site: RescuePlan["site"], c: P2): P2 | null {
 /** THE PLAN for a skier found INJURED lying at `spot` — to a machine it
  * picks a patch for, or to one already sat at `landed` (a second casualty
  * for an air ambulance still on the snow, `rescue-flight.ts`) — its patch
- * kept off a cordon's ring (`avoid`) where one is given. */
+ * kept off a cordon's ring (`avoid`) where one is given, carried at `walk`
+ * m/s, the board laid `beside` m off him. */
 export function planRescue(
   level: Level,
   spot: { x: number; z: number },
   landed: Omit<RescuePlan["site"], "side"> | null = null,
   avoid: readonly P2[] | null = null,
+  walk: number = RESCUE.walk,
+  beside: number = RESCUE.scoop.beside,
 ): RescuePlan {
   const sy = level.groundAt(spot.x, spot.z);
   const c: Vec3 = { x: spot.x, y: sy, z: spot.z };
@@ -361,7 +376,7 @@ export function planRescue(
   const T = RESCUE.time;
   const { scoop, rise } = scoopClock();
   const carry = rise + T.rise;
-  const raise = carry + length / RESCUE.walk;
+  const raise = carry + length / walk;
   const inch = raise + T.raise;
   const climb = inch + T.inch;
   const slide = climb + T.climb;
@@ -374,6 +389,8 @@ export function planRescue(
     out,
     floor: door.y,
     path: { pts, s, length },
+    walk,
+    beside,
     end,
     cabin,
     at: { scoop, rise, carry, raise, inch, climb, slide, clear, lift, gone: lift + T.away },
@@ -436,7 +453,7 @@ export function handIn(rise: number): { x: number; z: number } {
  * cabin. */
 function middleAt(plan: RescuePlan, t: number) {
   const A = plan.at;
-  const carried = clamp(t - A.carry, 0, A.raise - A.carry) * RESCUE.walk;
+  const carried = clamp(t - A.carry, 0, A.raise - A.carry) * plan.walk;
   const mid = along(plan, carried);
   if (t < A.inch) return { ...mid, came: carried };
   const inch = (RESCUE.short + RESCUE.over) * ease((t - A.inch) / RESCUE.time.inch);

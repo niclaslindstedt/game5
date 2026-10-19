@@ -394,6 +394,8 @@ export function planSledCrew(
     out: { x: 0, z: 0 },
     floor: bed.y,
     path: { pts, s, length },
+    walk: RESCUE.walk,
+    beside: RESCUE.scoop.beside,
     end: { x: tob.x, z: tob.z },
     cabin: { x: tob.x, z: tob.z },
     at: {

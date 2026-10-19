@@ -6,16 +6,19 @@
 
 import type { CrowdBody, Evidence } from "@engine";
 
+import type { CarryIn } from "./police-carry.ts";
 import type { CrewPose } from "./rescue-defs.ts";
 
 /** The scene's numbers, m, s, m/s. */
 export const POLICE = {
-  /** Walking about the scene in boots, m/s; walking it slowly from the
-   * impact to the body, looking (the survey), m/s; and running the tape
-   * out stake to stake, m/s. */
+  /** Walking about the scene in boots, m/s; the photographer's brisk walk
+   * round it from shot to shot, m/s; walking it slowly from one end of it
+   * to the other, looking (the survey), m/s; and running the tape out
+   * stake to stake, m/s. */
   pace: 1.3,
-  survey: 0.8,
-  tape: 1.1,
+  brisk: 1.55,
+  survey: 1.1,
+  tape: 1.45,
   /** THE CORDON: how far past the hull of the evidence it runs, m; the
    * most between two stakes, m, and the least (nearer ones are one stake);
    * a stake's height and the tape's on it, m, and its sag between them as a
@@ -23,24 +26,24 @@ export const POLICE = {
    * drive in and the time the tape takes to tie off at the last, s. */
   cordon: {
     margin: 4,
-    gapMost: 9,
+    gapMost: 11,
     gapLeast: 2,
     stake: 1.05,
     tape: 0.92,
     sag: 0.012,
     sagMost: 0.12,
-    plant: 1.8,
-    tie: 2.0,
+    plant: 0.9,
+    tie: 1.5,
   },
   /** THE MARKERS: knelt at for `kneel` s (the tent stood at its middle),
    * the officer `off` m from it; a tent's base and its height, m; the body's
    * marker `head` m past his middle, beyond his head. */
-  marker: { kneel: 4.5, off: 0.7, base: 0.2, height: 0.17, head: 1.45 },
+  marker: { kneel: 3.0, off: 0.7, base: 0.2, height: 0.17, head: 1.45 },
   /** THE PHOTOGRAPHS: the camera raised (`raise` s), two exposures (at
    * `flashes` s into it), lowered by `hold` s; the overall shots taken
    * `corner` m outside the cordon's box at its four corners, the mid-range
    * `mid` m from a marker stood, the close-up `close` m from it crouched. */
-  shot: { raise: 0.6, flashes: [0.9, 1.7] as readonly number[], hold: 2.4 },
+  shot: { raise: 0.4, flashes: [0.5, 1.0] as readonly number[], hold: 1.5 },
   corner: 2.5,
   mid: 3.0,
   close: 1.0,
@@ -50,9 +53,12 @@ export const POLICE = {
   /** How long the two stand at the body after the survey, s; how long
    * the photographer waits by the door before boarding, s; how long the
    * four stand gathered before the recovery starts, s. */
-  brief: 4,
+  brief: 2,
   board: 0.6,
-  gather: 3,
+  gather: 2,
+  /** How long after the bag is carried in the marker officer takes its
+   * front from the patroller who brought it, s. */
+  handover: 0.5,
   /** Where the two patrollers come from for the recovery: up the hill from
    * the door, m. */
   patrol: 40,
@@ -88,11 +94,12 @@ export type P2 = { x: number; z: number };
 export type Path = { pts: P2[]; s: number[]; length: number };
 
 /** ONE STRETCH OF AN OFFICER'S WORK, from `t0` to `t1` (the call's clock):
- * a WALK along a path, or STILL at a place doing one thing — stood,
- * knelt at a marker, bent over a stake, the camera up (stood or crouched),
- * or gone aboard. A still stretch eases from the heading he came in on
- * (`from`) to the one it faces. `walked` is how far he had walked when it
- * began, m (his stride's count). */
+ * a WALK along a path, a patroller CARRYING the bag in at one end of it
+ * (`police-carry.ts`: carrier `k` of `carry`), or STILL at a place doing one
+ * thing — stood, holding the bag's rail, knelt at a marker, bent over a
+ * stake, the camera up (stood or crouched), or gone aboard. A still stretch
+ * eases from the heading he came in on (`from`) to the one it faces.
+ * `walked` is how far he had walked when it began, m (his stride's count). */
 export type Act =
   | {
       kind: "walk";
@@ -103,6 +110,7 @@ export type Act =
       /** Stepping down out of the cabin: the floor's height he starts at. */
       fromY?: number;
     }
+  | { kind: "carry"; t0: number; t1: number; carry: CarryIn; k: number; walked: number }
   | {
       kind: "still";
       t0: number;
@@ -112,7 +120,7 @@ export type Act =
       heading: number;
       from: number;
       walked: number;
-      doing: "stand" | "kneel" | "bend" | "shoot" | "shootLow" | "gone";
+      doing: "stand" | "hold" | "kneel" | "bend" | "shoot" | "shootLow" | "gone";
     };
 
 /** A marker on the snow: its number (from 1), what it marks, where it
@@ -122,13 +130,15 @@ export type Marker = Evidence & { n: number; facing: number; placed: number };
 /** THE SCENE AT A MOMENT, beside the crew (`police-plan.ts`'s
  * `PoliceFrame`): whether the cordon and the markers are up at all, how
  * many stakes are in and which, how far along each span the tape is run (0 … 1),
- * how many markers stand, and the flash — its share of full (0 dark) and
- * where the camera is. */
+ * how far each span is lifted for the bag carried in under it (0 … 1,
+ * `police-carry.ts`' `liftAt`), how many markers stand, and the flash —
+ * its share of full (0 dark) and where the camera is. */
 export type SceneFrame = {
   up: boolean;
   stakes: number;
   planted: boolean[];
   tape: number[];
+  lift: number[];
   markers: number;
   flash: { power: number; x: number; y: number; z: number };
 };
@@ -139,6 +149,7 @@ export function freshSceneFrame(): SceneFrame {
     stakes: 0,
     planted: [],
     tape: [],
+    lift: [],
     markers: 0,
     flash: { power: 0, x: 0, y: 0, z: 0 },
   };

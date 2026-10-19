@@ -125,6 +125,12 @@ A patrol machine left standing while the patrol works is the player's for the ta
 
 What it does to the rescue is a pure function of when it was taken (`RescueCall.sledsTaken`, the call's clock, which the engine writes and the book keeps from run to run): with the first machine gone, the second drives round onto the first one's straight, takes the toboggan and tows him down itself; with both gone, the toboggan stays where it is and the patrol with it. The engine and the drawing read the same function (`rescueSledsAt`), so the machines are solid where they are drawn: the skier is held off one at a crawl and thrown by one met at speed, as by the air ambulance on its skids.
 
+### As drawn
+
+`pwa/src/game/rescue-sleds-view.ts` draws every call by snowmobile each frame off `sledCrewAt` (built with the air ambulance's scene in `machines.ts`, so only with INJURIES on): the two machines are the player's snowmobile model in the patrol's livery (`sled-livery.ts`: the model's paint in a signal red, a white cross on each side of the hood and on the back of the tail pack, an amber beacon turning on a short mast over the pack and an orange pennant on a whip off the tunnel's end), each stood on the snow under its belt and skis; the toboggan is procedural (`rescue-toboggan.ts`: an orange pan with its nose swept up, runners, side rails, tail handles and a chain brake) with its A-frame tow bar drawn from the nose to the towing machine's hitch while hitched and laid on the snow ahead of the nose while not, and the three lashings done up over him one by one. The four ride sat astride, driver and passenger (`rescue-sleds-ride.ts`, two poses added to the air crew's on the same civilian bodies), in the patrol's red with the white cross, and on foot can be knocked over by a skier as the air crew can. After dark each machine's headlight lights the snow ahead of it and the nearest beacon sweeps amber round it. A machine he has stolen is drawn by his own snowmobile's view in the same livery and kit (`sled-view.ts`), and the machines he has left standing (`sledsLeft`) are drawn where they stand, each in its own livery.
+
+The lab's sheets for it are `make rescue ARGS="--sheet=sleds-arrive,sleds-scene,sleds-load,sleds-tow,sleds-night,sleds-stolen"` (`pwa/src/tools/rescue-sleds-views.ts` finds a spot near `--at` where only the patrol can come and books the call as the game does).
+
 ## Sources
 
 - High-altitude helicopter EMS operations (crew make-up, the rescue specialist): heliopsmag.com — *High Altitude HEMS*

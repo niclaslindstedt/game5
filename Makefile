@@ -1056,6 +1056,8 @@ grimbear:
 # the game's own renderer. One contact sheet a group, previews/rescue-<group>.png,
 # and every frame alone. Its own one-off bundle from pwa/rescue-preview.html
 # (never deployed); needs a Chromium like `world`. ARGS="--sheet=carry,load", "--at=0.6".
+# The ski patrol on snowmobiles, where no machine can land: ARGS="--sheet=sleds-arrive,
+# sleds-scene,sleds-load,sleds-tow,sleds-night,sleds-stolen".
 rescue:
 	npm run rescue -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 

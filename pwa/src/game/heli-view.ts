@@ -97,6 +97,9 @@ export type HeliView = {
   /** THE COCKPIT (`heli-cockpit.ts`) shown while the eye is in the cabin,
    * `pilotEye` the pilot's own (his head left out). */
   inside(on: boolean, pilotEye: boolean): void;
+  /** AWAY FROM ITS PAD: the run's machine is drawn by another view (one
+   * taken from its owners, `steal.ts`), so this one draws its pad alone. */
+  setAway(away: boolean): void;
   /** Throw this frame's wash into the snow cloud. */
   blow(state: GameState, dt: number, puff: WashPuff, loose: (x: number, z: number) => number): void;
   /** Resolved once the model is in the group (or the stand-in, should it
@@ -534,12 +537,19 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
     charred = k;
   }
 
+  let away = false;
   return {
     group,
     update(state, alpha, dt, player, hooks) {
       const h = state.heli;
       group.visible = !!h;
       if (!h) return;
+      machine.visible = !away;
+      shatter.group.visible = !away;
+      if (away) {
+        if (marks) marks.glow.opacity = 0;
+        return;
+      }
       clock += dt;
       const wreck = h.mode === "wreck";
       if (wreck && !wrecked && model) {
@@ -623,6 +633,14 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
     },
     setPace(p) {
       pace = p;
+    },
+    setAway(on) {
+      if (on === away) return;
+      away = on;
+      // Back on its pad: drawn where the engine has it, never eased from
+      // where it was last seen.
+      track.tick = -1;
+      if (!on) shatter.clear();
     },
     drawn() {
       return shown;

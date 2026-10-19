@@ -449,7 +449,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   const crewAt = (i: number, j: number, t: number, o: CivilianPose): CivilianPose => {
     const u = units[i];
     if (u.askedAt !== t) {
-      flightAt(level, flights[i], t - calls[i].start, u.asked);
+      flightAt(level, flights[i], callClock(calls[i], t), u.asked);
       u.askedAt = t;
     }
     const c = u.asked.crew[j];
@@ -512,17 +512,20 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   const pose = freshCivilianPose();
   const from = freshCivilianPose();
 
-  /** One machine, `t` s into its call, posed and drawn. */
+  /** One machine at the run's clock, posed and drawn. */
   const draw = (
     i: number,
     state: GameState,
-    t: number,
     dt: number,
     cloud: SnowCloud | null,
     snowAt: SnowSampler,
   ): void => {
     const u = units[i];
-    const now = flightAt(level, flights[i], t, u.now);
+    // STOLEN (`steal.ts`): the machine is the skier's now, drawn as his own
+    // (`heli-scene.ts`); the four stand where it left them, at what they
+    // were doing as it went.
+    const gone = calls[i].stolen !== undefined && state.t >= calls[i].stolen!;
+    const now = flightAt(level, flights[i], callClock(calls[i], state.t), u.now);
     // THE MACHINE, through the heli-ski machine's own drawing.
     const h = u.run.heli;
     const f = now.heli;
@@ -538,10 +541,10 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     h.grounded = h.agl < HUB + 0.3;
     u.run.tick += 1;
     u.heli.update(u.run as unknown as GameState, 1, dt, dummy, NO_HOOKS);
-    u.heli.group.visible = f.shown;
+    u.heli.group.visible = f.shown && !gone;
     // The wash raised only while it pulls — coming in to land above all: a
     // third of the player's own, so the scene is never lost in a whiteout.
-    if (f.shown && cloud && f.thrust > 0.5 && h.agl < 40) {
+    if (f.shown && !gone && cloud && f.thrust > 0.5 && h.agl < 40) {
       const puff: WashPuff = (x, y, z, vx, vy, vz, size) => {
         if (++puffs % 3 === 0) cloud.blow(x, y, z, vx, vy, vz, size);
       };
@@ -564,7 +567,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
         continue;
       }
       lying.visible = false;
-      let move = c.move;
+      let move = gone ? { ...c.move, walking: 0 } : c.move;
       let x = c.x;
       let z = c.z;
       let y = c.y;
@@ -635,8 +638,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       group.visible = calls.length > 0;
       if (!calls.length) return;
       updateKnocks(knocks, state, people);
-      for (let i = 0; i < calls.length; i++)
-        draw(i, state, state.t - calls[i].start, dt, cloud, snowAt);
+      for (let i = 0; i < calls.length; i++) draw(i, state, dt, cloud, snowAt);
     },
     dress(o) {
       outfit = o;
@@ -645,7 +647,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       if (lit <= 0) return;
       for (let i = 0; i < calls.length; i++) {
         const now = units[i].now;
-        if (!now.heli.shown) continue;
+        if (!now.heli.shown || calls[i].stolen !== undefined) continue;
         // The landing lamp under the nose, aimed down at the work beside it.
         const f = now.heli;
         const st = now.trips[Math.max(0, now.active)]?.stretcher ?? f;
@@ -679,6 +681,12 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       kit.dispose();
     },
   };
+}
+
+/** The seconds into call `c` its people are at, at the run's clock `t`:
+ * held at the moment its machine was stolen from under them. */
+function callClock(c: RescueCall, t: number): number {
+  return Math.min(t, c.stolen ?? Infinity) - c.start;
 }
 
 const HUB = HELI.rotor.hub;

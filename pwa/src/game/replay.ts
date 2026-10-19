@@ -108,9 +108,9 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     assist: { ...state.assist },
     damage: state.damage,
     gore: state.gore !== undefined,
-    // The rescues on the mountain, whose machines are solid — copied as they
-    // stood at the start, before any patrol machine was stolen.
-    ...(state.rescue ? { rescue: state.rescue.map(copyCall) } : {}),
+    // The air ambulances on the mountain, whose landed machines are solid —
+    // as they stood at the start, before any was stolen (`steal.ts`).
+    ...(state.rescue ? { rescue: state.rescue.map(({ stolen: _, ...r }) => copyCall(r)) } : {}),
     sfw: state.rules.sfw === true,
     poles: state.skier.poles,
     snowDepth: state.snowDepth,

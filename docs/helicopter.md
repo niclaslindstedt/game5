@@ -200,6 +200,10 @@ What it is drawn after — what the light helicopters flying mountain rescue and
 
 Materials, by name, for the drawer: the heli's (`trim` and `paint` now the yellow, `stripe` the red line, `glass`, `metal`, `dark`, `rotor`, `lamp`, `lamp_green`) and `band` (anthracite), `mark_white`, `emblem` (the star's blue) and `searchlight` (the lens).
 
+### Taking it
+
+The landed air ambulance is a machine the player can STEAL — walked up to and taken with the machine press, then flown as his own: `engine/game/steal.ts` (the generic mechanic: a SOURCE lists what it has parked and is told when one is taken, a TAKER turns the run's own machine of that kind into the taken one) and `takeHeli` in `heli.ts`. A taken machine carries its owner's `livery` and has no pilot of its own: dropped in the air it comes down unflown, set down it parks where it lands. `docs/rescue.md` § *Stolen* has the rest.
+
 ## Measuring it
 
 - `npx vitest run tests/heli_test.ts`: the thrust against momentum theory, the climb with no ceiling, the hang toward the skier, the turn, the drop and the lurch, the pilot home, the boarding, the crash and the restart, the wash, and determinism.

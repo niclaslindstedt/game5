@@ -815,6 +815,7 @@ export type GameEvent =
       /** How hard, m/s: the closing speed (a crash), its speed (a drop), else 0. */
       speed: number;
     }
+  | import("./steal.ts").StealEvent
   | SledEvent
   | import("./para-state.ts").ParaEvent
   | import("./balloon-state.ts").BalloonEvent

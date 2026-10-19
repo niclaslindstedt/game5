@@ -59,6 +59,9 @@ export type RescueCall = {
   /** When each of the two patrol machines was STOLEN, the call's clock (a
    * run's skier taking one sets it), or null. */
   sledsTaken?: (number | null)[];
+  /** The run's clock the machine was TAKEN at by the skier (`steal.ts`),
+   * from which it no longer stands there — absent while it is its crew's. */
+  stolen?: number;
 };
 
 /** A call copied whole, so a run never shares one with its caller. */
@@ -72,6 +75,7 @@ export function copyCall(r: RescueCall): RescueCall {
     ...(r.kind ? { kind: r.kind } : {}),
     ...(r.sleds ? { sleds: r.sleds } : {}),
     ...(r.sledsTaken ? { sledsTaken: [...r.sledsTaken] } : {}),
+    ...(r.stolen !== undefined ? { stolen: r.stolen } : {}),
   };
 }
 
@@ -152,7 +156,7 @@ function landedNear(state: GameState, x: number, z: number): readonly StripBox[]
   boxes.length = 0;
   for (const r of state.rescue ?? []) {
     if (r.kind === "sled") continue;
-    if (state.t < r.down || state.t >= r.up) continue;
+    if (state.t < r.down || state.t >= r.up || r.stolen !== undefined) continue;
     if (hypot(x - r.site.x, z - r.site.z) > NEAR) continue;
     rescueBoxes(r.site, boxes);
   }

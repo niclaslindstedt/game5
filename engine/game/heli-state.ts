@@ -37,6 +37,10 @@ export type HeliPhaseEvent =
  * a `wreck` burning where it came down. */
 export type HeliMode = "parked" | "flown" | "home" | "wreck";
 
+/** WHOSE MACHINE IT IS, when it is not the free ride's own (`steal.ts`):
+ * the air ambulance's. Drawn in its owner's colours; flown like any. */
+export type HeliLivery = "rescue";
+
 /** THE FREE RIDE'S HELICOPTER (`heli.ts`) — on a run whose rules carry one
  * (`RunRules.heli`), absent everywhere else. Its place is the SKID DATUM
  * (`HELI`: the ground under the middle of the skids), world frame, m; its
@@ -128,4 +132,8 @@ export type HeliState = {
   bladed: number;
   /** Every point of his body a blade has been through, a bit each. */
   taken: number;
+  /** TAKEN FROM ITS OWNERS (`steal.ts`): whose machine it is — absent for
+   * the free ride's own. Nobody but him flies it: let go in the air it
+   * comes down unflown, and it parks wherever it sets down. */
+  livery?: HeliLivery;
 };

@@ -79,6 +79,15 @@ The research below is restated in our own words, with the numbers the scene uses
 - **A solid** (`engine/game/rescue-call.ts`): a machine on its skids is boxes to the engine (the cabin, the engine deck, the boom, the fin, the tail rotor's disc and the two skids, off `HELI`), held exactly as the airstrip's plane is: met at a crawl the skier is held off, met at speed it is a `hit` on steel that throws him, and a thrown body is held out of it too. It is no solid before it touches down or after it lifts. A run with no call never reaches it, so no digest moves; a replay carries its calls in its recipe.
 - **The crew knocked over** (`rescue-view.ts`): the four are people on foot to `civilian-hits.ts`, struck by the skier or his thrown body like anyone in the village. A man struck staggers, falls or is flown on the ragdoll, lies, gets up and walks back to where the work has him. Presentation only, as every knock is.
 
+## Stolen
+
+A machine on its skids can be TAKEN by the player (`engine/game/steal.ts`). Rescue crews often load a casualty "hot", the rotor turning and the engine running, to save the minutes a shut-down and a restart cost on the ground; the landed machine here keeps its rotor at speed while the crew work, so there is nobody at the controls and nothing to stop a skier who walks up to it.
+
+- **The press:** stood within `HELI.board.reach` (6 m) of its seat skid, on his skis and slower than `HELI.board.fastest` (12 m/s), the machine press (ENTER, a double tap, or a tap on the machine or on the HUD's call, which reads AIR AMBULANCE · TAP TO STEAL) takes it — never before it touches down or after it lifts, and never while his own helicopter is the one at hand.
+- **What he gets:** the run's own helicopter becomes the one on the snow, at its site and attitude, its rotor at speed, in the ambulance's livery (`HeliState.livery`, drawn off the rescue model by `heli-scene.ts`), and he is sat on its skid. It flies exactly as his own does. The free ride's pad stands empty until it is wrecked, when a fresh machine waits there again.
+- **Nobody else flies it:** let go in the air, it has no pilot to fly it home — the collective drops and it comes down where it is, crashing if it lands hard; set down gently, it parks wherever it lands and takes him back on the same press.
+- **The crew left behind:** the call keeps the run's clock it was stolen at (`RescueCall.stolen`): its machine is no longer a solid, and the four and the casualty stand where they were as it went (`rescue-view.ts`). On the next run the book calls ANOTHER machine for every casualty it came for, sent from the moment of the theft (`rescue-book.ts`).
+
 ## How it is triggered and cleared
 
 - **Triggered:** `App.tsx`'s new run goes through `rescueAgain`, which books a call when the run before ended with `gore.injured ≥ 0`, at where he lay (his ragdoll's hips, or else where he stood). `rescue-view.ts` draws every call the run carries.
@@ -112,7 +121,7 @@ A grid of **8 m** cells over the map (`gridOf`, kept per map): a cell is open wh
 
 ### Stolen
 
-A patrol machine left standing while the patrol works is the player's for the taking: stood within **5 m** of it on his skis, no faster than 12 m/s, the machine press (ENTER, a double tap on touch) takes it, as it takes his own snowmobile (`otherSledWithin`, `swapSled`). It is his snowmobile from then on, in the patrol's colours (`SledState.livery`), and the one he had stays where he left it (`GameState.sledsLeft`, at most three kept), to be taken back the same way. A machine is only taken stood still, never on the move.
+A patrol machine left standing while the patrol works is the player's for the taking: stood within **5 m** of it on his skis, no faster than 12 m/s, the machine press (ENTER, a double tap on touch) takes it — a source of `steal.ts`'s like the air ambulance (`PATROL_SOURCE`, taken by `sled.ts`'s `takeSled`), never while his own stands nearer. It is his snowmobile from then on, in the patrol's colours (`SledState.livery`), and the one he had stays where he left it (`GameState.sledsLeft`, at most three kept), to be taken back the same way (`leftSledWithin`). A machine is only taken stood still, never on the move.
 
 What it does to the rescue is a pure function of when it was taken (`RescueCall.sledsTaken`, the call's clock, which the engine writes and the book keeps from run to run): with the first machine gone, the second drives round onto the first one's straight, takes the toboggan and tows him down itself; with both gone, the toboggan stays where it is and the patrol with it. The engine and the drawing read the same function (`rescueSledsAt`), so the machines are solid where they are drawn: the skier is held off one at a crawl and thrown by one met at speed, as by the air ambulance on its skids.
 
@@ -124,6 +133,7 @@ What it does to the rescue is a pure function of when it was taken (`RescueCall.
 - Landing zones (size, approach, bystanders): the landing zone guidelines of an air medical provider, a county fire service and a hospital flight program
 - Slope landings (across the slope, upslope skid first, never facing downhill, the limits): copters.com — *Slope landing*; the federal helicopter flying handbook's slope operations, as discussed and taught (backcountrypilot.org, cfinotebook.net)
 - High-visibility colours for responders: Cranfield University's work on conspicuity
+- Hot loading (a casualty loaded with the rotor turning and the engine running, to cut the time on the ground, and its hazards): a state EMS curriculum's definitions of hot and cold loading; a fire service's generic risk assessment for working with helicopters; an air medical pilot's article on whether hot loading saves time
 - The rescue toboggan (its shape, the akja, its materials): Wikipedia — *Rescue toboggan*; a current patrol toboggan's listing (length, width, weight, chain brake, tail rope)
 - Towing a toboggan behind a snowmobile (the folding tow bar's size): a rescue equipment maker's listing for a snowmobile tow device
 - Driving a patrol snowmobile and responding to an incident (low gear, the alarm, the parking brake, parked for departure, the attendant's work): a nordic centre's emergency response protocol and its first aid response guide

@@ -5,7 +5,7 @@
 // of the call (`rescueSledsAt`), held as solids the skier is kept out of,
 // and a machine STOLEN — a skier stood beside one the patrol has left
 // standing while it tends the casualty, who gives the machine press, takes
-// it (`takeSled`). It becomes the player's snowmobile (`GameState.sled`,
+// it (`PATROL_SOURCE`, through `steal.ts`). It becomes the player's snowmobile (`GameState.sled`,
 // in the patrol's colours); the one he had is left standing where it was
 // (`GameState.sledsLeft`), to be taken back the same way.
 //
@@ -24,7 +24,7 @@ import { RESCUE_SLEDS } from "./defs/rescue-sleds.ts";
 import { onSkis } from "./groomer.ts";
 import { inGrace } from "./machine-grace.ts";
 import { onRoute, type RescueSledPlan, type SledPark } from "./rescue-sled-route.ts";
-import type { RescueCall } from "./rescue-call.ts";
+import type { StealSource } from "./steal.ts";
 import type { GameEvent, GameState, SledState } from "./state.ts";
 
 const K = RESCUE_SLEDS;
@@ -222,87 +222,76 @@ export function ragdollOutOfSleds(
   if (near.length) ragdollOutOfBoxes(P, L, radius, struck, dt, near);
 }
 
-/** A machine the press could take instead of his own: a patrol machine
- * stood where the patrol left it (`call`, which of its two), or one he
- * left behind (`left`, its index in `sledsLeft`), and where it stands. */
-export type OtherSled =
-  | { call: RescueCall; k: number; at: SledPark; d: number }
-  | { left: number; at: SledPark; d: number };
-
-/**
- * THE MACHINE THE PRESS WOULD TAKE that is not his own: the nearest stood
- * still within `RESCUE_SLEDS.take.reach` of a skier on his skis who is off
- * every machine and slow enough — nearer than `own` m (his own machine,
- * when the press would take that) — or null.
- */
-export function otherSledWithin(run: GameState, own = Infinity): OtherSled | null {
-  if (!run.sled || inGrace(run)) return null;
-  const c = run.skier;
-  if (run.sled.rider || c.thrown || c.lift || c.tunnel || run.heli?.rider) return null;
-  if (run.para && run.para.mode !== "dropped") return null;
-  if (!onSkis(run) || hypot3(c.vx, c.vy, c.vz) > K.take.fastest) return null;
-  let best: OtherSled | null = null;
-  let most = Math.min(own, K.take.reach);
-  for (const r of run.rescue ?? []) {
-    if (r.kind !== "sled" || !r.sleds) continue;
-    rescueSledsAt(r.sleds, r.sledsTaken, run.t - r.start, frame);
-    for (let k = 0; k < 2; k++) {
-      const p = frame.sleds[k];
-      if (!p.shown || p.doing !== "parked") continue;
-      const d = hypot(c.x - p.x, c.z - p.z);
-      if (d < most) {
-        most = d;
-        best = { call: r, k, at: { x: p.x, z: p.z, heading: p.heading }, d };
+/** THE PATROL'S MACHINES as a source of machines to take (`steal.ts`):
+ * each of a call's two stood where the patrol left it, its door its
+ * middle; taken, its call keeps the call's clock it went at
+ * (`RescueCall.sledsTaken`), from which the rescue goes on without it.
+ * Index `2 × call + machine`. */
+export const PATROL_SOURCE: StealSource = {
+  id: "patrol",
+  parked(state, out) {
+    const calls = state.rescue;
+    if (!calls?.length || !state.sled) return;
+    for (let i = 0; i < calls.length; i++) {
+      const r = calls[i];
+      if (r.kind !== "sled" || !r.sleds) continue;
+      rescueSledsAt(r.sleds, r.sledsTaken, state.t - r.start, frame);
+      for (let k = 0; k < 2; k++) {
+        const p = frame.sleds[k];
+        if (!p.shown || p.doing !== "parked") continue;
+        out.push({
+          kind: "sled",
+          livery: "patrol",
+          from: "patrol",
+          index: 2 * i + k,
+          x: p.x,
+          y: state.level.groundAt(p.x, p.z),
+          z: p.z,
+          heading: p.heading,
+          pitch: 0,
+          roll: 0,
+          door: { x: p.x, z: p.z },
+          reach: K.take.reach,
+          fastest: K.take.fastest,
+          spool: 0,
+        });
       }
     }
-  }
-  const left = run.sledsLeft ?? [];
+  },
+  taken(state, index) {
+    const r = state.rescue?.[Math.floor(index / 2)];
+    if (!r) return;
+    (r.sledsTaken ??= [null, null])[index % 2] = state.t - r.start;
+  },
+};
+
+/** ONE HE LEFT STANDING that the press would take back instead of the one
+ * he has now: the nearest of `sledsLeft` within `RESCUE_SLEDS.take.reach`
+ * of a skier on his skis, slow enough and nearer than `own` m — its index
+ * there and how far — or null. */
+export function leftSledWithin(run: GameState, own = Infinity): { left: number; d: number } | null {
+  const left = run.sledsLeft;
+  if (!left?.length || !run.sled || inGrace(run) || !onSkis(run)) return null;
+  const c = run.skier;
+  if (hypot3(c.vx, c.vy, c.vz) > K.take.fastest) return null;
+  let best: { left: number; d: number } | null = null;
+  let most = Math.min(own, K.take.reach);
   for (let i = 0; i < left.length; i++) {
-    const s = left[i];
-    const d = hypot(c.x - s.x, c.z - s.z);
+    const d = hypot(c.x - left[i].x, c.z - left[i].z);
     if (d < most) {
       most = d;
-      best = { left: i, at: { x: s.x, z: s.z, heading: s.heading }, d };
+      best = { left: i, d };
     }
   }
   return best;
 }
 
-/**
- * THE SWAP: the machine he had left standing where it is (kept in
- * `sledsLeft`, the oldest beyond `RESCUE_SLEDS.left` gone back to the
- * patrol), and `other` made his — a patrol machine `fresh` built at its
- * place and marked stolen on its call, or one he left taken back. Returns
- * the machine now his, for the caller to put him on.
- */
-export function swapSled(
-  run: GameState,
-  other: OtherSled,
-  fresh: (x: number, z: number, heading: number) => SledState,
-  events: GameEvent[],
-): SledState {
+/** THE MACHINE HE HAS LEFT STANDING where it is, for `next` to be his —
+ * kept in `sledsLeft` (the oldest beyond `RESCUE_SLEDS.left` gone back to
+ * the patrol), unless it is burnt out. */
+export function leaveSledFor(run: GameState, next: SledState): void {
   const mine = run.sled!;
   const left = (run.sledsLeft ??= []);
-  let next: SledState;
-  if ("left" in other) {
-    next = left.splice(other.left, 1)[0];
-  } else {
-    next = fresh(other.at.x, other.at.z, other.at.heading);
-    next.livery = "patrol";
-    const call = other.call;
-    const taken = (call.sledsTaken ??= [null, null]);
-    taken[other.k] = run.t - call.start;
-    events.push({
-      kind: "sled",
-      t: run.t,
-      phase: "steal",
-      x: next.x,
-      y: next.y,
-      z: next.z,
-      speed: 0,
-    });
-  }
-  // His own, burnt out, is not kept; any other stays where it stands.
   if (!(mine.burn && mine.burn.boom >= 0)) {
     mine.running = false;
     mine.rider = false;
@@ -310,5 +299,4 @@ export function swapSled(
     while (left.length > K.left) left.shift();
   }
   run.sled = next;
-  return next;
 }

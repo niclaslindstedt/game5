@@ -7,11 +7,11 @@
 export { RESCUE, callRescue, disables, disablingOf, isInjured } from "./rescue.ts";
 export {
   freshSledsFrame,
-  otherSledWithin,
+  leftSledWithin,
+  PATROL_SOURCE,
   rescueSledsAt,
   sledCallGone,
   towOf,
-  type OtherSled,
   type RescueSledPose,
   type RescueSledsFrame,
 } from "./rescue-sled.ts";

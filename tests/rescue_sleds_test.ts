@@ -158,7 +158,7 @@ describe("a machine stolen", () => {
     expect(s.sled!.rider).toBe(true);
     expect(s.sledsLeft).toEqual([own]);
     expect(s.rescue![0].sledsTaken![0]).toBeCloseTo(plan.parked[0] + 5, 1);
-    expect(s.events.some((e) => e.kind === "sled" && e.phase === "steal")).toBe(true);
+    expect(s.events.some((e) => e.kind === "steal" && e.livery === "patrol")).toBe(true);
   });
 
   it("is not taken while it is driven", () => {

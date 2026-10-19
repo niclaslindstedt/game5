@@ -215,6 +215,16 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   chute: { kind: "chute", t: 1, phase: "open", x: 0, y: 0, z: 0, speed: 14, g: 4 },
   jib: { kind: "jib", t: 1, id: "J1L", jib: "rail", phase: "on", whole: true },
   grind: { kind: "grind", t: 1, id: "L1", phase: "on" },
+  steal: {
+    kind: "steal",
+    t: 1,
+    vehicle: "heli",
+    livery: "rescue",
+    from: "rescue",
+    index: 0,
+    x: 0,
+    z: 0,
+  },
 };
 
 /** The kinds the bank says nothing about, with the reason: the lip is the
@@ -224,7 +234,8 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
  * trunk or the edges' scrape that started it — and a body found too hurt to
  * get up has nothing more to say than the fall that did it; a ski jump's
  * moments are heard in the events beside them (the take-off's `air`, the
- * touch's `land`). */
+ * touch's `land`); a machine taken from its owners is heard in its own
+ * boarding (the `heli` event's `board` beside it). */
 const SILENT_KINDS: GameEvent["kind"][] = [
   "air",
   "stuck",
@@ -234,6 +245,7 @@ const SILENT_KINDS: GameEvent["kind"][] = [
   "death",
   "injured",
   "skiJump",
+  "steal",
 ];
 
 /** The ceiling a context at 16 kHz holds a cutoff under. */

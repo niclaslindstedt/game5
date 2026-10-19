@@ -86,6 +86,18 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
     if (ride?.sleds && call.sledsTaken) ride.sleds.taken = [...call.sledsTaken];
   }
   const now = book.clock + Math.max(0, ended.t);
+  // A MACHINE STOLEN off the snow (`steal.ts`) is gone with its thief: its
+  // crew call another, sent from the moment it was taken, for every
+  // casualty it came for.
+  for (const r of ended.rescue ?? []) {
+    if (r.stolen === undefined) continue;
+    const ride = book.rides.find((b) => Math.abs(b.start - book.clock - r.start) < 1e-6);
+    if (!ride) continue;
+    const casualties = ride.casualties.map((c) => ({ x: c.x, z: c.z, known: 0 }));
+    ride.start = book.clock + r.stolen;
+    ride.casualties = casualties;
+    ride.flight = planFlight(level, casualties);
+  }
   if (ended.gore && ended.gore.injured >= 0) {
     const at = spotOf(ended);
     const ride = book.rides.find((r) => r.flight && canTake(r.flight, at.x, at.z, now - r.start));

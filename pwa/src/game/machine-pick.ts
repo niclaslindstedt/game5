@@ -7,7 +7,7 @@
 // each machine's body. The listener the app hangs on the page is
 // `machine-tap.ts`'s.
 
-import { type GameState, groomerWithin, heliWithin, sledWithin } from "@engine";
+import { type GameState, groomerWithin, heliWithin, sledWithin, stealWithin } from "@engine";
 
 type Vec = { x: number; y: number; z: number };
 
@@ -75,5 +75,9 @@ export function machineHit(state: GameState, ray: PickRay): "sled" | "heli" | "g
   if (s && sledWithin(state) && hitsBody(ray, s, s.heading, PICK.sled)) return "sled";
   const h = state.heli;
   if (h && heliWithin(state) && hitsBody(ray, h, h.heading, PICK.heli)) return "heli";
+  // Somebody else's, stood at its door (`steal.ts`): the same press takes it.
+  const p = stealWithin(state);
+  if (p?.kind === "heli" && hitsBody(ray, p, p.heading, PICK.heli)) return "heli";
+  if (p?.kind === "sled" && hitsBody(ray, p, p.heading, PICK.sled)) return "sled";
   return null;
 }

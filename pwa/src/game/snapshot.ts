@@ -43,15 +43,17 @@ import {
   PARA,
   helipadOf,
   heliWithin,
+  stealWithin,
   mayGetUp,
   paraRigged,
   balloonAboard,
   sledWithin,
-  otherSledWithin,
+  leftSledWithin,
   skipShare,
   groomerWithin,
   trenched,
   type GameState,
+  type HeliLivery,
   type Level,
   type PisteGrade,
   type RegionId,
@@ -520,10 +522,17 @@ export function sledOf(state: GameState): HudSled | null {
     };
   }
   const c = state.skier;
-  // A ski patrol's machine left standing, or one he left, within the
-  // press's reach (`otherSledWithin`): the press takes that one.
-  const other = otherSledWithin(state);
-  if (other) return { kind: "waiting", away: other.d, near: true };
+  // A ski patrol's machine left standing (`stealWithin`), or one he left
+  // (`leftSledWithin`), within the press's reach: the press takes that one.
+  const taken = stealWithin(state);
+  if (taken?.kind === "sled") {
+    return { kind: "waiting", away: Math.hypot(taken.x - c.x, taken.z - c.z), near: true };
+  }
+  const back = leftSledWithin(
+    state,
+    sledWithin(state) ? Math.hypot(s.x - c.x, s.z - c.z) : Infinity,
+  );
+  if (back) return { kind: "waiting", away: back.d, near: true };
   const away = Math.hypot(s.x - c.x, s.z - c.z);
   return away < SLED_CALL && c.thrown === null && !state.heli?.rider && !c.lift
     ? { kind: "waiting", away, near: sledWithin(state) }
@@ -549,7 +558,13 @@ export type HudHeli =
       pitch: number;
       bank: number;
     }
-  | { kind: "waiting"; pad: number; near: boolean };
+  | {
+      kind: "waiting";
+      pad: number;
+      near: boolean;
+      /** Somebody else's, stood at its door (`stealWithin`): whose. */
+      livery?: HeliLivery;
+    };
 
 /** How near the waiting helicopter the HUD points him at it, m. */
 const HELI_CALL = 120;
@@ -577,6 +592,15 @@ export function heliOf(state: GameState): HudHeli | null {
     };
   }
   const c = state.skier;
+  // At the door of a machine that is not his (`steal.ts`): the press takes it.
+  const taken = stealWithin(state);
+  if (taken?.kind === "heli" && taken.livery === "rescue")
+    return {
+      kind: "waiting",
+      pad: Math.hypot(taken.door.x - c.x, taken.door.z - c.z),
+      near: true,
+      livery: taken.livery,
+    };
   const pad = Math.hypot(h.x - c.x, h.z - c.z);
   // Riding the snowmobile, the helicopter does not call him.
   return h.mode === "parked" && pad < HELI_CALL && c.thrown === null && !state.sled?.rider

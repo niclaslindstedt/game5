@@ -13,10 +13,12 @@
 // another holds none. Within a shard the heaviest file starts first, so the
 // long one is never the file left running alone at the end.
 //
-// The weights are seconds a file took on a CI shard, rounded — the time on
-// its `✓ tests/<file> (N tests) <ms>ms` line in the job's log, which is the
-// time on a runner busy with other files, the one that matters here —
-// and they only steer the balance: a stale weight costs wall time on one
+// The weights are seconds a file held its worker on a CI shard, rounded —
+// its `shard-weight tests/<file> <s>` line at the end of the job's log
+// (`shard-times.ts`), on a runner busy with other files, the time that
+// matters here. Not the `✓ tests/<file> <ms>ms` line above it, which leaves
+// out the import and the suite callbacks where most files build their maps.
+// They only steer the balance: a stale weight costs wall time on one
 // runner, never a test. But only a little while it is near: a heavy file
 // missing from the table counts as `DEFAULT_WEIGHT`, is started LAST, and
 // leaves its runner running it alone at the end (one such file cost a run

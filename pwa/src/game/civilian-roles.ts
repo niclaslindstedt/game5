@@ -823,6 +823,7 @@ export const CIVILIAN_ROLES: readonly Role[] = [
   },
 ];
 
+// isolation:stateless: the roles by id, indexed once (tests/support/isolation.ts).
 let rolesById: Map<RoleId, Role> | null = null;
 
 /** A role by its id. */

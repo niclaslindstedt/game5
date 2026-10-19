@@ -37,16 +37,19 @@ concurrency:
 
 jobs:
   # The suite is the long pole, so it is the one thing that gets its own
-  # runners: six of them, so the whole run lands in a minute or two.
+  # runners: ten of them. With the other jobs that is eighteen, under the
+  # twenty a free account runs at once, so no shard waits for a runner.
   #
   # `--shard` splits at FILE granularity, which means the SLOWEST SINGLE FILE
-  # is the floor and no number of runners gets under it — today about a
-  # minute, the resort, mapgen, weather and birds suites. The slices are cut
-  # by each file's measured time (`tests/support/shards.ts`), not vitest's
-  # hash of its path, so each heavy file gets a runner to itself and the
-  # cheap files fill in round it; a wider matrix buys nothing until one of
-  # those files is split. When this job is too slow, work on that floor:
-  # stop a file rebuilding the same levels once per rule
+  # is the floor and no number of runners gets under it — today a few
+  # minutes, the routes, resort, weather and mapgen suites. The slices are
+  # cut by each file's measured time (`tests/support/shards.ts`), not
+  # vitest's hash of its path, so each heavy file gets a runner to itself and
+  # the cheap files fill in round it. Within a shard, the files that keep no
+  # state between them share a worker's modules, so the corpus of maps they
+  # read is built once a worker rather than once a file
+  # (`tests/support/isolation.ts`). When this job is too slow, work on that
+  # floor: stop a file rebuilding the same levels once per rule
   # (`tests/support/levels.ts` hands out the corpus a rule suite shares),
   # split a file whose subject is really two, and re-weigh what moved.
   test:
@@ -57,11 +60,11 @@ jobs:
       # whether the break is local or general.
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
-      - run: make test SHARD=${{ matrix.shard }}/6
+      - run: make test SHARD=${{ matrix.shard }}/10
 
   # One stable check name over a matrix whose width is an implementation
   # detail. Branch protection requires `tests`; the shard count can then

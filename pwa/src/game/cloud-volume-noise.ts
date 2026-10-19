@@ -131,6 +131,7 @@ function toBytes(raw: Float32Array, channels: number): Uint8Array {
   return out;
 }
 
+// isolation:stateless: the noise volumes, decoded once (tests/support/isolation.ts).
 let shape: Uint8Array | null = null;
 let detail: Uint8Array | null = null;
 

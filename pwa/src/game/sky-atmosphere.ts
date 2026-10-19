@@ -25,6 +25,7 @@ export type AtmosphereRow = {
   sh: number[];
 };
 
+// isolation:stateless: the sky table, decoded once (tests/support/isolation.ts).
 let decoded: Float32Array | null = null;
 
 const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

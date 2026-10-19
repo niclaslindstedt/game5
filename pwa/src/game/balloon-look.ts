@@ -161,6 +161,7 @@ export const DRAWN_HEIGHT = E.mouthHeight + E.height;
 export type Profile = { r: Float64Array; y: Float64Array; s: Float64Array };
 
 const SAMPLES = 400;
+// isolation:stateless: the envelope's profile and layout, built once (tests/support/isolation.ts).
 let profileMemo: Profile | null = null;
 
 /** THE NATURAL SHAPE's meridian, mouth (y 0) to crown (y = height): a cubic

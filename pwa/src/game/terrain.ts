@@ -752,6 +752,11 @@ export function createTerrain(
     mesh.matrixAutoUpdate = false;
     mesh.visible = false;
     mesh.name = "terrain-deform";
+    // Ahead of the opaque queue: about 0.2 ms a frame cheaper on an Apple
+    // laptop GPU at 1080p, measured. NOT for the overdraw of level 0 under
+    // it — culling those triangles outright saved nothing — so it is the
+    // order itself; a GPU that disagrees is a reason to drop it.
+    mesh.renderOrder = -1;
     // The lens's focal length in the pixels of whatever it is drawn into,
     // for the mesh's fold with distance (\`SNOW_VERTEX_PLACE\`).
     mesh.onBeforeRender = (renderer, _scene, camera) => {

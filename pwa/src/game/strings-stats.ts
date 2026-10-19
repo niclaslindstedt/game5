@@ -91,6 +91,7 @@ const DEATH_NAMES: Record<DeathCause, string> = {
   blast: "ROTOR BLAST",
   rotor: "THE ROTOR",
   smothered: "AVALANCHE",
+  shot: "SHOT",
 };
 
 export const STATS_STRINGS = {

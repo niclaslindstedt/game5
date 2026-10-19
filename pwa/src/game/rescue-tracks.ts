@@ -53,8 +53,10 @@ export function crewTracks(level: Level, call: RescueCall): CrewTrack[] {
   return n > 0 ? tracks : [];
 }
 
-/** Every call of `calls` with its crew's tracks on it. */
+/** Every call of `calls` with its crew's tracks on it — but the ski
+ * patrol's on snowmobiles (`rescue-sled.ts`), which flies nothing to
+ * plan them off and leaves its men to the view. */
 export function withCrewTracks(level: Level, calls: RescueCall[]): RescueCall[] {
-  for (const c of calls) c.crew = crewTracks(level, c);
+  for (const c of calls) if (c.kind !== "sled") c.crew = crewTracks(level, c);
   return calls;
 }

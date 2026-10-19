@@ -59,6 +59,7 @@ import { PERSON_HIT } from "./defs/person-hit.ts";
 import { strikePerson } from "./person-hit.ts";
 import { standApart } from "./crowd-apart.ts";
 import { stepDown, throwAmateur } from "./crowd-down.ts";
+import { carryOff, hurtFall } from "./crowd-hurt.ts";
 import { boardFallSide, sitFor, stepSit } from "./crowd-board.ts";
 import { band, bodyFor, dealBoard, dealKnobs, freshAmateur, pickGroup } from "./crowd-deal.ts";
 import { CROWD, CROWD_GROUPS, CROWD_SIZE, TURN_STYLES } from "./defs/crowd.ts";
@@ -394,8 +395,10 @@ function capOf(a: Amateur, grade: PisteGrade | "road"): number {
 }
 
 /** A FALL: thrown off his skis (`throwAmateur`), then a few seconds lain
- * in the snow once his body has come to rest, and he gets up. */
+ * in the snow once his body has come to rest, and he gets up — unless it
+ * left him hurt (`crowd-hurt.ts`). */
 function fallDown(
+  state: GameState,
   a: Amateur,
   rng: Rng,
   side: number,
@@ -406,6 +409,7 @@ function fallDown(
 ): void {
   a.timer = band(rng, CROWD.fall.lie);
   throwAmateur(a, side, cause, vx, vz, vy);
+  hurtFall(state, a, cause);
 }
 
 /** WHAT HE DOES NEXT — every `CROWD.think` seconds. */
@@ -497,7 +501,7 @@ function decide(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur):
     (1 + CROWD.fall.wobble * k.wobble * 3) *
     wild;
   if (rng.chance((rate / 60) * think)) {
-    fallDown(a, rng, a.board ? boardFallSide(rng, a) : rng.chance(0.5) ? 1 : -1, "roll");
+    fallDown(state, a, rng, a.board ? boardFallSide(rng, a) : rng.chance(0.5) ? 1 : -1, "roll");
     return;
   }
 
@@ -717,7 +721,7 @@ function move(state: GameState, crowd: CrowdState, net: CrowdNet, a: Amateur): v
       const p = (1 - k.skill) * 0.5 * a.airT + k.wobble * 0.3;
       if (crowd.rng.chance(p)) {
         const side = a.board ? boardFallSide(crowd.rng, a) : crowd.rng.chance(0.5) ? 1 : -1;
-        fallDown(a, crowd.rng, side, "landing", a.vx, a.vz, (-G * a.airT) / 2);
+        fallDown(state, a, crowd.rng, side, "landing", a.vx, a.vz, (-G * a.airT) / 2);
       }
     }
   }
@@ -794,6 +798,7 @@ export function stepCrowd(state: GameState): void {
   const crowd = state.crowd;
   if (!crowd || crowd.amateurs.length === 0) return;
   const net = crowdNet(state.level);
+  carryOff(state, crowd);
   liftGroups(crowd, net);
   stepCrowdLifts(state, crowd, liftRunsOf(net));
   // Who is on each run, for the room each one keeps.
@@ -875,7 +880,7 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
       if (closing >= PERSON_HIT.strike && a.mode !== "down") {
         const hit = strikePerson(state, events, a, nx, nz, closing, throws);
         a.speed = hypot(hit.amateur.x, hit.amateur.z);
-        fallDown(a, crowd.rng, fell, "skier", hit.amateur.x, hit.amateur.z, hit.amateur.y);
+        fallDown(state, a, crowd.rng, fell, "skier", hit.amateur.x, hit.amateur.z, hit.amateur.y);
         if (c.bumpCooldown <= 0) {
           c.bumpCooldown = B.cooldown;
           events.push({ kind: "bump", t: state.t, rival: -1, speed: closing, amateur: a.id });
@@ -896,7 +901,7 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
       // (`shoulderShare`, by the riders' weights).
       const dealt = closing * (shoulderShare(ma, rider) / shoulderShare(ma, MEDIUM_RIDER.mass));
       const knock = CROWD.knock[0] + (CROWD.knock[1] - CROWD.knock[0]) * a.knobs.skill;
-      if (dealt >= knock && a.mode !== "down") fallDown(a, crowd.rng, fell, "skier", vx, vz);
+      if (dealt >= knock && a.mode !== "down") fallDown(state, a, crowd.rng, fell, "skier", vx, vz);
       if (closing >= B.speed && c.bumpCooldown <= 0) {
         c.bumpCooldown = B.cooldown;
         events.push({ kind: "bump", t: state.t, rival: -1, speed: closing, amateur: a.id });

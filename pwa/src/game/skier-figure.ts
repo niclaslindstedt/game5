@@ -19,7 +19,7 @@ import * as THREE from "three";
 import { createHandOff, handOff, resetHandOff } from "./pose-handoff.ts";
 
 import { gearOf } from "./outfit.ts";
-import { createDressed, type Dressed, type SkierDress } from "./skier-dress.ts";
+import { createDressed, packOf, type Dressed, type SkierDress } from "./skier-dress.ts";
 import { bodyCollapse } from "./gore-cut.ts";
 import { skierBones } from "./skier-rig.ts";
 import { skierPose, type SkierPose, type SkierPoseInput, type V3 } from "./skier-pose.ts";
@@ -95,6 +95,7 @@ export function createSkier(
 
   // THE DRESSED SKIN, bones and all.
   const dressed = createDressed(dress, wrap);
+  const pack = packOf(dress);
   group.add(dressed.group);
 
   // THE POLES: a shaft from the basket up to the fist, drawn along +y from
@@ -213,7 +214,10 @@ export function createSkier(
     head: headGroup,
     skin: dressed.meshes,
     pose(input, seat = null, after) {
-      const p = seat ? seatedPose(input, seat) : skierPose(input);
+      // Sat on a chair's seat or a cabin's bench with a pack on his back,
+      // forward off the backrest by it (never on a skid, which has none).
+      const backed = seat && pack > 0 && !seat.board && !seat.tow && !seat.held && !seat.legs;
+      const p = seat ? seatedPose(input, backed ? { ...seat, pack } : seat) : skierPose(input);
       lay(after ? after(p) : p);
     },
     sprawl(pose, lost = 0, crush = 0, poles = false) {

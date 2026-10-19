@@ -82,7 +82,10 @@
 // The SEVERITY of each injury is its Abbreviated Injury Scale rank (AIS):
 // 1 minor, 2 moderate, 3 serious, 4 severe, 5 critical. Six — unsurvivable
 // — is not on any ladder: this is a game, and the worst it says is
-// critical.
+// critical. The penetrating wounds a round or a fragment does are their own
+// file (`wounds.ts`), spread in at the catalog's end.
+
+import { WOUNDS } from "./wounds.ts";
 
 /** THE PARTS, in the order every per-part array keeps them — the body as
  * the HUD draws it, seen from behind (`hud-body.tsx`). */
@@ -217,8 +220,9 @@ export type Fracture = "hairline" | "break";
  * crooked (g, raised by how far), `twist` a caught edge or a twisting fall
  * (m/s of slide when the edge bit), `bend` the shin levered forward over
  * the boot (m/s of a fall over the tips), `heat` a fire's thermal dose on
- * the skin ((kW/m²)^4/3 · s, `defs/heli-wreck.ts`). */
-export type Mechanism = "blunt" | "load" | "drawer" | "twist" | "bend" | "heat";
+ * the skin ((kW/m²)^4/3 · s, `defs/heli-wreck.ts`), `pierce` a bullet's
+ * or a fragment's kinetic energy at the part (J, `defs/wounds.ts`). */
+export type Mechanism = "blunt" | "load" | "drawer" | "twist" | "bend" | "heat" | "pierce";
 
 /** WHICH SIDE OF THE TRUNK a blow came on, for the injuries that care:
  * the front, the back (the kidneys), the left (the spleen), the right (the
@@ -839,6 +843,7 @@ export const INJURIES = {
   bruisedLungFall: { part: "chest", ais: 3, mech: "load", at: 30, organs: ["lung"] },
   tornLiverFall: { part: "abdomen", ais: 3, mech: "load", at: 32, organs: ["liver"] },
   tornSpleenFall: { part: "abdomen", ais: 3, mech: "load", at: 34, organs: ["spleen"] },
+  ...WOUNDS,
 } as const satisfies Record<string, InjuryDef>;
 
 export type InjuryKind = keyof typeof INJURIES;

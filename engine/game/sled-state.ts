@@ -18,7 +18,8 @@ export type SledControls = { throttle: number; brake: number; steer: number; lea
  * or the ride begun again at the bottom (`restart`); ridden into a fire
  * and set alight (`alight`), its tank gone up (`boom`), and the burnt-out
  * wreck's place taken by a fresh machine at the bottom (`fresh`,
- * `sled-fire.ts`). */
+ * `sled-fire.ts`); or a ski patrol's machine stolen (`steal`,
+ * `rescue-sled.ts`). */
 export type SledPhaseEvent =
   "board" | "hop" | "crash" | "right" | "restart" | "alight" | "boom" | "fresh";
 
@@ -55,6 +56,9 @@ export type SledContact = {
   load: number;
   touching: boolean;
 };
+
+/** The owners a snowmobile taken off the snow is drawn for (`steal.ts`). */
+export type SledLivery = "patrol";
 
 /** THE FREE RIDE'S SNOWMOBILE (`sled.ts`) — on a run whose rules carry one
  * (`RunRules.sled`), absent everywhere else. A rigid body: its place is
@@ -129,6 +133,9 @@ export type SledState = {
   hitCooldown: number;
   /** ALIGHT (`sled-fire.ts`): ridden into a fire — absent until it is. */
   burn?: SledBurn;
+  /** STOLEN (`steal.ts`): whose colours it is drawn in — the ski patrol's
+   * (`rescue-sled.ts`). Absent on the free ride's own. */
+  livery?: SledLivery;
 };
 
 /** A SNOWMOBILE ON FIRE: which fire lit it (`Fire.id`) and the run's clock

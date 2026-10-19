@@ -78,5 +78,6 @@ export function machineHit(state: GameState, ray: PickRay): "sled" | "heli" | "g
   // Somebody else's, stood at its door (`steal.ts`): the same press takes it.
   const p = stealWithin(state);
   if (p?.kind === "heli" && hitsBody(ray, p, p.heading, PICK.heli)) return "heli";
+  if (p?.kind === "sled" && hitsBody(ray, p, p.heading, PICK.sled)) return "sled";
   return null;
 }

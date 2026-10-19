@@ -33,6 +33,7 @@ import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { AvalancheEvent, AvalancheState } from "./avalanche-state.ts";
 import type { WantedEvent, WantedState } from "./wanted-state.ts";
+import type { GunfireEvent, GunfireState } from "./gunfire-state.ts";
 import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
 import type { TrafficEvent } from "./traffic-contact.ts";
 import type { BeastEvent, WildState } from "./beast-hit.ts";
@@ -730,6 +731,7 @@ export type GameEvent =
   | GrimbearEvent
   | AvalancheEvent
   | WantedEvent
+  | GunfireEvent
   | AfterskiEvent
   | GroomerEvent
   | TrafficEvent
@@ -935,8 +937,7 @@ export type GameState = ContestState & {
   cross?: CrossHeat;
   /** The ski cross so far, carried for the app; never read by a step. */
   bracket?: Bracket;
-  /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as this run has
-   * knocked them — on a map with pole gates; absent everywhere else. */
+  /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as knocked. */
   gatePoles?: GamePoles;
   /** THE EDGE STAKES (`edge-stakes.ts`) knocked; absent until one is. */
   stakes?: import("./edge-stakes.ts").StakeState;
@@ -944,14 +945,14 @@ export type GameState = ContestState & {
   crowd?: CrowdState;
   foot?: import("./foot.ts").FootState;
   /** THE PLAYER'S CHAIR LEFT ONLY BY HAND (`chair-hands.ts`): set where the
-   * app asks for it, absent everywhere else — the labs, the suite and every
-   * rival stood off at the top as ever, so no digest moves. */
+   * app asks; absent elsewhere (rivals stood off at the top), so no digest moves. */
   chairHands?: true;
-  /** On a free ride THE HELICOPTER, THE SNOWMOBILE; begun on one the rest. */
+  /** On a free ride THE HELICOPTER, THE SNOWMOBILE (and those he LEFT for a
+   * patrol's, `rescue-sled.ts`); begun on one the rest. On a summer free
+   * ride that asked for one, THE DOWNHILL BIKE (`bike.ts`); else absent. */
   heli?: HeliState;
   sled?: SledState;
-  /** On a summer free ride that asked for one, THE DOWNHILL BIKE (`bike.ts`);
-   * else absent, so no digest moves. */
+  sledsLeft?: SledState[];
   bike?: import("./bike-state.ts").BikeState;
   para?: import("./para-state.ts").ParaState;
   balloon?: import("./balloon-state.ts").BalloonState;
@@ -966,18 +967,17 @@ export type GameState = ContestState & {
   /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;
-  /** THE WILDLIFE AS BODIES (`beast-hit.ts`): a free ride's frights and the
-   * animals met; absent on every other run, so no digest sees an animal. */
+  /** THE WILDLIFE AS BODIES (`beast-hit.ts`): a free ride's alone. */
   wild?: WildState;
-  /** HIS CLOTHES ALIGHT (`fire-burn.ts`): a free ride's, once he has
-   * ridden into a fire; absent otherwise, so no digest moves. */
+  /** HIS CLOTHES ALIGHT (`fire-burn.ts`), once he rode into a fire. */
   burn?: import("./fire-burn.ts").BurnState;
   /** THE AVALANCHES (`avalanche.ts`): a free ride that asked for them. */
   avalanche?: AvalancheState;
   /** THE WANTED LEVEL (`wanted.ts`), once an offence or the run's ask raised it. */
   wanted?: WantedState;
-  /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`): a free ride whose
-   * player asked for them. */
+  /** THE GUNFIRE (`gunfire.ts`), once a gun is armed; absent until then. */
+  gunfire?: GunfireState;
+  /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`), asked for. */
   mishaps?: import("./mishaps.ts").MishapState;
   /** PISTE MACHINES (`groomer.ts`), their snow and the snow guns': never written. */
   groomers?: GroomerState[];

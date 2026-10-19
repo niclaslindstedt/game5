@@ -122,6 +122,8 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   };
   const viewFor = (state: GameState): HeliView => {
     for (const r of state.rescue ?? []) lookOf(r.kind === "police" ? "police" : "rescue");
+    // A crowd the ambulance may be called to mid-run (`crowd-calls.ts`).
+    if (state.crowd && state.rules.heli) lookOf("rescue");
     const livery = state.heli?.livery;
     home.setAway(!!livery);
     for (const [k, v] of takenBy) if (k !== livery) v.group.visible = false;

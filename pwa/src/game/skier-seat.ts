@@ -114,6 +114,10 @@ export type Seat = {
   /** TOWED BY A T-BAR instead (`towPose`): the bar under his seat, `share`
    * how far he has sat back onto it. */
   tow?: boolean;
+  /** How far what he carries on his back stands out of it, m (a pack,
+   * `KitDef.pack`): sat that much further forward off the backrest, so the
+   * pack rests against it rather than through it. */
+  pack?: number;
   /** HELD ON A HELICOPTER'S SKID (`skier-perch.ts`): the upper body's
    * sway, brace and hang, and what he feels. */
   held?: { react: PerchReact; feel: PerchFeel };
@@ -152,7 +156,7 @@ function lerp(a: V3, b: V3, k: number): V3 {
 export function seatPose(p: SkierPose, seat: Seat, M: Mounts): SkierPose {
   const k = Math.max(0, Math.min(1, seat.share));
   if (k <= 0) return p;
-  const hipsTo = { x: 0, y: seat.y + PELVIS, z: CHAIR_BACK + BACK };
+  const hipsTo = { x: 0, y: seat.y + PELVIS, z: CHAIR_BACK + BACK + (seat.pack ?? 0) };
   // Stood up off his lean, about the hips, the whole trunk rigid.
   const back = (p.pitch - SIT_PITCH) * k;
   const cos = Math.cos(back);

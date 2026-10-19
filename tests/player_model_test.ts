@@ -89,6 +89,26 @@ describe.each(PLAYER_MODELS)("the player's modelled kit %s", (key) => {
     expect(pack.z).toBeLessThan(bindPose().frames.chest.head.z);
   });
 
+  it("carries nothing further behind his back than a chair's seat sits him forward for", async () => {
+    // Sat on a chair, the code's dressed back rests on its backrest
+    // (`skier-seat.ts`); whatever the kit carries or wears behind that, from
+    // the hips up, must fit in the `pack` he is sat forward by, or it is
+    // drawn through the backrest.
+    const m = await model;
+    const hips = bindPose().frames.pelvis.head.y;
+    const back = (p: number[]) => {
+      let lo = Infinity;
+      for (let i = 0; i < p.length; i += 3) if (p[i + 1] >= hips) lo = Math.min(lo, p[i + 2]);
+      return lo;
+    };
+    const code = dressOutfit({ ...DEFAULT_OUTFIT, body: female ? "woman" : "man" });
+    const deeper =
+      back([...code.cloth.position, ...code.hard.position]) -
+      back([...m.cloth.position, ...m.hard.position]);
+    expect(deeper).toBeLessThan(kit.pack + 0.02);
+    expect(deeper).toBeGreaterThan(kit.pack - 0.05);
+  });
+
   it("marks the hem, the straps' tails and the rope's tail loose, and the rest held", async () => {
     const m = await model;
     const loose = m.cloth.flutter.filter((f) => f > 0.05).length;

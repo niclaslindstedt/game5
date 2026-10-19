@@ -125,7 +125,7 @@ export function steepestAlong(
 }
 
 /** A binary heap of squares by cost. */
-class Heap {
+export class Heap {
   private ids: number[] = [];
   private keys: number[] = [];
   get size(): number {

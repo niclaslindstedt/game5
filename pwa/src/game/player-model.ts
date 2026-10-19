@@ -89,13 +89,17 @@ export const RACE_KITS: Record<RaceKit, ReadonlySet<string>> = {
  * with a shine (the rest is cloth), how rough its cloth is, what the air
  * does to it (how far a loose point streams back and flaps, m; how far it
  * floats off him falling free, m; how deep the suit's lee wrinkles are, m),
- * and whether a discipline leaves parts of it off (`RACE_KITS`). */
+ * whether a discipline leaves parts of it off (`RACE_KITS`), and how far
+ * what he carries or wears stands out behind the code's dressed back, m —
+ * the hiker's pack, the park jacket's baggy back — which a chair's seat sits
+ * him forward by (`skier-seat.ts`'s `Seat.pack`). */
 export type KitDef = {
   springs: readonly SpringDef[];
   hard: ReadonlySet<string>;
   rough: number;
   wind: { stream: number; flap: number; lift: number; shiver: number };
   raced: boolean;
+  pack: number;
 };
 
 export const KITS: Record<ModelKit, KitDef> = {
@@ -132,6 +136,9 @@ export const KITS: Record<ModelKit, KitDef> = {
     rough: 0.78,
     wind: { stream: 0.035, flap: 0.022, lift: 0, shiver: 0 },
     raced: false,
+    // The 30-litre pack, 17 cm deep, the axe and its straps on its face
+    // (`scripts/blender/hiker.py`), and its swing on the spring bone.
+    pack: 0.19,
   },
   racer: {
     springs: [],
@@ -151,6 +158,7 @@ export const KITS: Record<ModelKit, KitDef> = {
     rough: 0.5,
     wind: { stream: 0.075, flap: 0.03, lift: 0.06, shiver: 0.0022 },
     raced: true,
+    pack: 0,
   },
   freestyle: {
     // The hood: up over the helmet (a man's), or down on the back (a woman's).
@@ -163,6 +171,8 @@ export const KITS: Record<ModelKit, KitDef> = {
     rough: 0.86,
     wind: { stream: 0.06, flap: 0.034, lift: 0.025, shiver: 0 },
     raced: false,
+    // The baggy jacket's back, standing off his.
+    pack: 0.06,
   },
 };
 

@@ -68,3 +68,31 @@ export {
   wavesSent,
 } from "./wanted.ts";
 export type { Pursuer, WantedEnd, WantedEvent, WantedState } from "./wanted-state.ts";
+// THE GUNFIRE (`gunfire.ts`): the army's weapons and every round they fire.
+export {
+  GUNFIRE,
+  WEAPONS,
+  type BlastDef,
+  type GunDef,
+  type WeaponDef,
+  type WeaponKind,
+} from "./defs/weapons.ts";
+export { WOUNDS } from "./defs/wounds.ts";
+export {
+  aimPoint,
+  armGun,
+  disarmGun,
+  energyAt,
+  fireAt,
+  flightTime,
+  freshGunfire,
+  gunDraw,
+  gunReady,
+  lethalOf,
+  rulesOf,
+  speedAt,
+  stepGunfire,
+} from "./gunfire.ts";
+export { bodyCentre, bodyHit, bodyPoints } from "./gunfire-body.ts";
+export { machineAt } from "./gunfire-machine.ts";
+export type * from "./gunfire-state.ts";

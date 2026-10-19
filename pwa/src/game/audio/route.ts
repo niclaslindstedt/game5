@@ -848,6 +848,12 @@ export function soundForEvent(
     case "fire":
       return { id: event.what === "caught" ? "fire_catch" : "fire_out" };
 
+    // THE ARMY'S GUNS (`gunfire-bank.ts`): each weapon's report heard from
+    // where it fired, a round's strike near him, the crack of one going by,
+    // a rocket's burst as the helicopter's explosion, smaller.
+    case "gunfire":
+      return gunfireSound(event, contact);
+
     // A BUILDING'S DOOR (`door-bank.ts`): opened and shut, by what its leaf
     // is made of — heard at the door from the skier's head.
     case "door": {
@@ -895,4 +901,65 @@ export function heardFrom(
     gain: (shape?.gain ?? 1) * ear.events,
     pitch: (shape?.pitch ?? 1) * ear.muffle,
   };
+}
+
+/** THE REPORT each weapon makes. */
+const REPORT = {
+  rifle: "gun_rifle",
+  doorGun: "gun_mg",
+  heavyGun: "gun_heavy",
+  rocket: "rocket_launch",
+  tankGun: "tank_gun",
+} as const;
+
+/** What a round strikes sounds like. */
+const STRIKE = {
+  snow: "gun_puff",
+  trunk: "gun_wood",
+  steel: "gun_ping",
+  rock: "gun_ping",
+  machine: "gun_ping",
+  body: "gun_hit",
+} as const;
+
+/** A gun's report carries far (`REPORT_REF` m at full, never under its
+ * floor); a strike is heard only near. */
+const REPORT_REF = 30;
+const REPORT_FLOOR = 0.04;
+
+/** THE GUNFIRE'S SOUND (`gunfire.ts`). */
+function gunfireSound(
+  event: Extract<GameEvent, { kind: "gunfire" }>,
+  contact: Contact,
+): { id: string; shape?: PlayShape } | null {
+  switch (event.phase) {
+    case "shot":
+      return {
+        id: REPORT[event.weapon],
+        shape: heardAt(event, contact.ear, REPORT_REF, REPORT_FLOOR),
+      };
+    case "impact":
+      return { id: STRIKE[event.on ?? "snow"], shape: heardAt(event, contact.ear, 6) };
+    case "hit":
+      return { id: "gun_hit" };
+    case "snap":
+      return { id: "gun_snap" };
+    case "blast": {
+      const blast = heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR);
+      const big = event.weapon === "tankGun" ? 1 : 0.8;
+      return {
+        id: "heli_crash",
+        shape: {
+          gain: blast.gain! * big,
+          pitch: blast.pitch! * 1.25,
+          stretch: blast.stretch! * 0.6,
+        },
+      };
+    }
+    // Through the skin of the machine he rides: the ping, at him.
+    case "machine":
+      return event.stage === "hit" ? { id: "gun_ping", shape: { gain: 0.7 } } : null;
+    default:
+      return null;
+  }
 }

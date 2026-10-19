@@ -157,8 +157,10 @@ amateur, civilian, crew, sled).
   clock's rate the hour runs at. `footAt` is where he stands at a moment —
   exactly where `civilianAt` draws him. A crew member is a TRACK sampled off
   his call's own plan every quarter second (`rescue-tracks.ts`' `crewTracks`,
-  `RescueCall.crew`, `crewAt`). A replay's recipe carries the call
-  (`recipeOf`), so a replay meets the same people at the same places.
+  `RescueCall.crew`, `crewAt`). The ski patrol on snowmobiles
+  (`kind: "sled"`) is sampled for no tracks: its men are still the view's
+  alone. A replay's recipe carries the call (`recipeOf`), so a replay meets
+  the same people at the same places.
 - **The collision** past `PERSON_HIT.strike` is the amateur's: the exchange at
   the two real masses (`exchangeOf`, the person's mass `CROWD_SIZE`'s), the
   player slowed — or thrown past the crowd's own threshold — and struck on his

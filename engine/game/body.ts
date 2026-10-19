@@ -78,12 +78,11 @@ import { MEDIUM_RIDER, shoulderShare } from "./defs/riders.ts";
 import { WRECK, fireFlux, fireballAt } from "./defs/heli-wreck.ts";
 import { FIRE_BURN } from "./defs/fires.ts";
 import { envelopeOf } from "./defs/skis.ts";
-import { astride, bikeBlows, type BodyHands } from "./body-steel.ts";
+import { astride, bikeBlows, hardOpening, type BodyHands } from "./body-steel.ts";
 import { beastBlow } from "./body-beast.ts";
 import { PERSON_CAP, personBlows, struckHard } from "./body-person.ts";
 import { CROWD_SIZE } from "./defs/crowd.ts";
 import { GROOMER } from "./defs/groomer.ts";
-import { MISHAPS } from "./defs/mishaps.ts";
 import { TRAFFIC_STRIKE } from "./defs/traffic.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { crashLimit, noseDown } from "./crash.ts";
@@ -118,7 +117,7 @@ import type { Stuff } from "./upright-grid.ts";
 const I = TUNING.injury;
 const dt = TUNING.dt;
 const PARTS = BODY_PARTS.length;
-const MECHS: readonly Mechanism[] = ["blunt", "load", "drawer", "twist", "bend", "heat"];
+const MECHS: readonly Mechanism[] = ["blunt", "load", "drawer", "twist", "bend", "heat", "pierce"];
 const FACES: readonly Facing[] = ["front", "back", "left", "right"];
 /** The hash's own salt: no other draw reads this stream. */
 const SALT = 0x6b0d1e5;
@@ -399,7 +398,7 @@ function pointBlow(
 }
 
 /** What `body-steel.ts` strikes the body with. */
-const HANDS: BodyHands = { strike, blow, blowOf, offer, pointBlow };
+const HANDS: BodyHands = { strike, charge, blow, blowOf, offer, pointBlow };
 
 /** THROWN: every point of his body that met the snow or a trunk this step. */
 function ragdollBlows(state: GameState, b: Thrown): void {
@@ -774,7 +773,7 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
       else if (e.kind === "land") landing(state, e.g, e.airTime, e.impact);
       else if (e.kind === "wipeout") fall(c, e.cause, e.blow ?? e.speed);
       else if (e.kind === "chute" && e.phase === "malfunction" && state.chute?.mal === "hard") {
-        hardOpening(e.g ?? 0);
+        hardOpening(HANDS, e.g ?? 0);
       }
     }
     // Still on his skis after it, nothing carries him down: paid now.
@@ -823,16 +822,16 @@ function aflame(state: GameState, events: GameEvent[]): void {
   judge(state, events, PARTS);
 }
 
-/** A HARD OPENING (`mishaps.ts`): the canopy's load at `g` through the
- * harness — the head whipped on the neck and a load down the spine, past
- * `MISHAPS.hard.hurt`. */
-function hardOpening(g: number): void {
-  const H = MISHAPS.hard;
-  if (g <= H.hurt) return;
-  strike("neck", g * H.neck);
-  charge("back", "load", g * H.back);
-  offer(g, "neck", "snow");
+/** A ROUND'S OR A FRAGMENT'S WOUNDS (`gunfire-wound.ts`): `pierce` J of
+ * its energy on each part it struck, judged at once — a wound each. */
+export function pierceBody(state: GameState, events: GameEvent[], hits: PierceHit[]): void {
+  clear();
+  for (const h of hits) charge(h.part, "pierce", h.j);
+  judge(state, events, Math.max(1, hits.length));
 }
+
+/** One part a round or a fragment struck, and the energy it carried, J. */
+export type PierceHit = { part: BodyPart; j: number };
 
 /** THE ROTOR'S BLADES through the points of him they passed this step
  * (`HeliState.cut`, `heli-grip.ts`): steel at the blade's speed, met square. */

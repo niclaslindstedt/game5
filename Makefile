@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
+.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn gunfire gunfire-table water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
 
 build:
 	npm run build
@@ -1056,6 +1056,8 @@ grimbear:
 # the game's own renderer. One contact sheet a group, previews/rescue-<group>.png,
 # and every frame alone. Its own one-off bundle from pwa/rescue-preview.html
 # (never deployed); needs a Chromium like `world`. ARGS="--sheet=carry,load", "--at=0.6".
+# The ski patrol on snowmobiles, where no machine can land: ARGS="--sheet=sleds-arrive,
+# sleds-scene,sleds-load,sleds-tow,sleds-night,sleds-stolen".
 rescue:
 	npm run rescue -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
@@ -1182,6 +1184,28 @@ fires:
 # ARGS="--sheet=catch,burn", "--speed=8".
 burn:
 	npm run burn -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE GUNFIRE LAB: a stand-in shooter firing at a skier on the piste on the
+# real engine (docs/gunfire.md), photographed through the game's own
+# renderer with the INJURIES switch on — a rifleman's burst (its flash, its
+# strikes), a door gun in the air with its tracers, a rocket on its smoke
+# and its burst — by day, at dusk, and the army's warning fire under SAFE
+# FOR WORK. Every frame captioned with the time since the first shot, the
+# rounds and the hits, ms, draw calls and triangles. One contact sheet a
+# group, previews/gunfire-<group>.png. Its own one-off bundle from
+# pwa/gunfire-preview.html (never deployed); needs a Chromium like `world`.
+# ARGS="--sheet=dusk", "--views=rocket --dusk=16.5".
+gunfire:
+	npm run gunfire -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE GUNFIRE TABLE: every weapon's numbers against range off the real
+# engine, pure Node — the time of flight, the speed and the energy kept,
+# the drop, and a stand-in shooter's bursts at a skier crossing in front
+# of him: the share of rounds and of bursts that hit, the share that kill
+# (INJURIES on), the median miss. ARGS="--weapons=rifle,doorGun
+# --trials=80", "--up=40", "--json=previews/gunfire-table.json".
+gunfire-table:
+	npm run gunfire-table -- $(ARGS)
 
 # THE WATER LAB: the lakes and the streams through the game's own renderer,
 # on a map with placeholder water laid on it — the valley lake and the tarn

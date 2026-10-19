@@ -46,7 +46,6 @@ import {
   TUNING,
   copyCall,
   isGameMode,
-  step,
   type CreateGameOptions,
   type GameMode,
   type GameState,
@@ -60,6 +59,7 @@ import {
   type AxisKind,
 } from "@niclaslindstedt/oss-game-framework/racing/tape";
 
+import { stepRun } from "./crowd-calls.ts";
 import { trainingOf } from "./downhill-run.ts";
 import { POP_LEVELS, popLevel } from "./ghost.ts";
 import { createKeyframes, standUp, type Keyframes } from "./replay-keep.ts";
@@ -477,7 +477,7 @@ export function createReplayRig(): ReplayRig {
       },
       seeking: () => target,
       pump: (more) => {
-        while (target !== null && at < target && more()) step(state, tape.at(at++));
+        while (target !== null && at < target && more()) stepRun(state, tape.at(at++));
         if (target !== null && at >= target) target = null;
       },
     };

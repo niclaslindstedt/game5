@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE AIR AMBULANCES CALLED TO A MOUNTAIN, KEPT FROM RUN TO RUN — a run
 // that ends INJURED (`GoreState.injured`) calls one for where he lay — or,
-// where no machine can set down near him (`fitToLand`), the SKI PATROL on
-// two snowmobiles (`planSledRescue`), which take nobody else and keep the
+// where no machine can set down near him, the SKI PATROL on two
+// snowmobiles (`rescue-dispatch.ts` chooses), which take nobody else and keep the
 // machines the player stole from them stolen (`RescueCall.sledsTaken`,
 // read back off the run that ended) — and
 // the runs after it see it come: the first sees it FLOWN IN and set down
@@ -32,12 +32,12 @@ import type {
   RescueCasualty,
   RescueSledPlan,
 } from "@engine";
-import { planSledRescue, sledCallGone, withRescue } from "@engine";
+import { sledCallGone, withRescue } from "@engine";
 
 import { planPolice } from "./police-plan.ts";
 import { evidenceOf, lyingAt } from "./police-scene.ts";
 import { canTake, planFlight, type Called, type RescueFlight } from "./rescue-flight.ts";
-import { fitToLand } from "./rescue-plan.ts";
+import { dispatchRescue, sledCall } from "./rescue-dispatch.ts";
 
 export { stepRun } from "./crowd-calls.ts";
 
@@ -119,11 +119,13 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
   for (const r of ended.rescue ?? []) {
     if (r.start < 0 || !r.casualties.some((c) => c.amateur !== undefined)) continue;
     const casualties = r.casualties.map(({ amateur: _, ...c }) => ({ ...c }));
-    book.rides.push({
-      start: book.clock + r.start,
-      casualties,
-      flight: planFlight(level, casualties),
-    });
+    const start = book.clock + r.start;
+    if (r.kind === "sled" && r.sleds) {
+      const taken = [...(r.sledsTaken ?? [null, null])];
+      book.rides.push({ start, casualties, flight: null, sleds: { plan: r.sleds, taken } });
+    } else {
+      book.rides.push({ start, casualties, flight: planFlight(level, casualties) });
+    }
   }
   // A MACHINE STOLEN off the snow (`steal.ts`) is gone with its thief: its
   // crew call another, sent from the moment it was taken, for every
@@ -157,19 +159,21 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
       (r) => !r.kind && r.flight && canTake(r.flight, at.x, at.z, now - r.start),
     );
     const casualties = [{ x: at.x, z: at.z, known: 0 }];
-    const sleds = ride || fitToLand(level, at) ? null : planSledRescue(level, at);
     if (ride) {
       ride.casualties.push({ x: at.x, z: at.z, known: now - ride.start });
       ride.flight = planFlight(level, ride.casualties);
-    } else if (sleds) {
-      book.rides.push({
-        start: now,
-        casualties,
-        flight: null,
-        sleds: { plan: sleds, taken: [null, null] },
-      });
     } else {
-      book.rides.push({ start: now, casualties, flight: planFlight(level, casualties) });
+      const sent = dispatchRescue(level, casualties);
+      book.rides.push(
+        sent.sleds
+          ? {
+              start: now,
+              casualties,
+              flight: null,
+              sleds: { plan: sent.sleds, taken: [null, null] },
+            }
+          : { start: now, casualties, flight: sent.flight },
+      );
     }
   }
   book.rides = book.rides.filter((r) => r.start + goneOf(r) > now);
@@ -182,18 +186,8 @@ export function callsOf(book: RescueBook): RescueCall[] {
   return book.rides.map((r) => {
     const start = r.start - book.clock;
     if (r.sleds) {
-      const p = r.sleds.plan.park[0];
-      const end = start + goneOf(r);
-      return {
-        start,
-        site: { x: p.x, y: 0, z: p.z, heading: p.heading, pitch: 0, roll: 0 },
-        down: end,
-        up: end,
-        casualties: r.casualties.map((c) => ({ ...c })),
-        kind: "sled" as const,
-        sleds: r.sleds.plan,
-        sledsTaken: [...r.sleds.taken],
-      };
+      const casualties = r.casualties.map((c) => ({ ...c }));
+      return sledCall(r.sleds.plan, start, start + goneOf(r), casualties, r.sleds.taken);
     }
     const { x, y, z, heading, pitch, roll } = r.flight!.site;
     return {

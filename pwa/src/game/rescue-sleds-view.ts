@@ -32,7 +32,13 @@
 // (`rescue-sled.ts`), never to this view.
 
 import * as THREE from "three";
-import { RESCUE_SLEDS, type GameState, type Level, type RescueCall } from "@engine";
+import {
+  RESCUE_SLEDS,
+  type GameState,
+  type Level,
+  type RescueCall,
+  type RescueCasualty,
+} from "@engine";
 
 import { CIVILIAN_SLOT as SLOT, PART } from "./civilian-dress.ts";
 import {
@@ -258,15 +264,16 @@ export function createRescueSledsScene(level: Level, haze: HazeUniforms): Rescue
     return u;
   };
 
-  /** HIM on call `u`, in the player's colours (rebuilt when they change). */
-  const dressCasualty = (u: Unit): void => {
-    const key = outfit ? JSON.stringify(outfit) : "none";
+  /** HIM on call `u`, in the player's colours (rebuilt when they change) —
+   * or, an amateur the call came for, his own body and kit (`look`). */
+  const dressCasualty = (u: Unit, look?: RescueCasualty["look"]): void => {
+    const key = look ? JSON.stringify(look) : outfit ? JSON.stringify(outfit) : "none";
     if (u.casualty && u.dressed === key) return;
     if (u.casualty) {
       group.remove(u.casualty);
       u.casualty.geometry.dispose();
     }
-    const fig = casualtyFigure(outfit);
+    const fig = casualtyFigure(outfit, look);
     const mesh = new THREE.Mesh(fig.geometry, material);
     mesh.morphTargetInfluences = [1];
     mesh.matrixAutoUpdate = false;
@@ -331,8 +338,8 @@ export function createRescueSledsScene(level: Level, haze: HazeUniforms): Rescue
     calls.forEach((c, i) => {
       const u = unitFor(i);
       u.askedAt = NaN;
-      dressCasualty(u);
       const cas = c.casualties[0];
+      dressCasualty(u, cas.look);
       BEARERS.forEach((b, j) =>
         people.push({
           key: 4 * i + j,
@@ -457,7 +464,7 @@ export function createRescueSledsScene(level: Level, haze: HazeUniforms): Rescue
       for (let r = 0; r < RIDES.length; r++) m.weights[N + r] = seat?.place === RIDES[r] ? on : 0;
     }
     // THE STRETCHER, and him.
-    dressCasualty(u);
+    dressCasualty(u, c.casualties[0].look);
     const st = now.stretcher;
     u.litter.visible = st.shown;
     u.litter.position.set(st.x, st.y, st.z);

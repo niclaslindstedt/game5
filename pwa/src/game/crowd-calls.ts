@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE AIR AMBULANCE CALLED MID-RUN FOR THE CROWD — an amateur down hurt on
+// THE RESCUE CALLED MID-RUN FOR THE CROWD — an amateur down hurt on
 // his own (`engine/game/crowd-hurt.ts`), or run into and left injured, is
 // called for once his body has come to rest: the machine flies in from
 // down the valley to him as it does to the player on the run after his
-// (`rescue-flight.ts`), with injuries on or off. A second one down near a
+// (`rescue-flight.ts`) — or, where none can set down near him, the ski
+// patrol drives up on its snowmobiles (`rescue-dispatch.ts`) — with
+// injuries on or off. A second one down near a
 // machine still on the snow, with a stretcher's room aboard (`canTake`),
 // is taken by that machine; any other calls one of its own, while fewer
 // than `MOST` are out for the crowd — the rest wait their turn where they
@@ -17,9 +19,17 @@
 // so a replay makes the same calls on the same steps, and its run is the
 // run again. DOM-free and three-free.
 
-import { step, waitsForRescue, type GameState, type RescueCall, type SkierInput } from "@engine";
+import {
+  sledCallGone,
+  step,
+  waitsForRescue,
+  type GameState,
+  type RescueCall,
+  type SkierInput,
+} from "@engine";
 
 import { CROWD_PALETTE, outfitOf } from "./crowd-dress.ts";
+import { dispatchRescue, sledCall } from "./rescue-dispatch.ts";
 import { canTake, planFlight, type RescueFlight } from "./rescue-flight.ts";
 
 /** How long his body lies still before the call is made, s (thrown). */
@@ -81,7 +91,15 @@ export function callCrowd(state: GameState): number {
     }
     const out = calls.filter((r) => r.start >= 0 && forCrowd(r) && state.t < r.up).length;
     if (out >= MOST) continue;
-    const flight = planFlight(state.level, [casualty]);
+    const sent = dispatchRescue(state.level, [casualty]);
+    if (sent.sleds) {
+      // Nowhere near him to set down: the patrol drives up (it takes him alone).
+      const end = state.t + sledCallGone(sent.sleds);
+      calls.push(sledCall(sent.sleds, state.t, end, [casualty], [null, null]));
+      made++;
+      continue;
+    }
+    const flight = sent.flight;
     const { x, y, z, heading, pitch, roll } = flight.site;
     const call: RescueCall = {
       start: state.t,

@@ -18,6 +18,7 @@ export {
 export {
   onRoute,
   planSledRescue,
+  warmSledRoutes,
   type RescueSledPlan,
   type SledPark,
   type SledRoute,

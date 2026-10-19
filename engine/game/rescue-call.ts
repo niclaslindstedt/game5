@@ -26,6 +26,7 @@
 import { fromEuler, rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { meetBoxes, ragdollOutOfBoxes, type StripBox } from "./airstrip-solids.ts";
+import type { CrowdBody } from "./defs/crowd.ts";
 import { HELI } from "./defs/heli.ts";
 import { onSkis } from "./groomer.ts";
 import type { GameEvent, GameState } from "./state.ts";
@@ -51,17 +52,31 @@ export type Evidence = {
   z: number;
 };
 
+/** ONE CASUALTY a call is there for: where he lay, and the plan's clock he
+ * was found at — and, an amateur of this run's crowd called for mid-run
+ * (`crowd-hurt.ts`), his id, from which he is the rescue's, and how he is
+ * dressed (`look`: his figure and its colours, the app's to draw and never
+ * read here). The player, or a casualty of an earlier run, has neither. */
+export type RescueCasualty = {
+  x: number;
+  z: number;
+  known: number;
+  amateur?: number;
+  look?: { body: CrowdBody; dress: readonly number[] };
+};
+
 /** ONE AIR AMBULANCE called to the mountain, as a run sees it: the run's
  * clock its flight began at (its plan's 0 — negative when it set off on an
  * earlier run), where it sits, the run's clocks it touches down and lifts
- * at, and the casualties it is there for (where each lay, and the plan's
- * clock each was found at — the app's to draw). */
+ * at, and the casualties it is there for. A call is handed in at a run's
+ * start, or made while it runs for an amateur down hurt
+ * (`pwa/src/game/crowd-calls.ts`, `start` the run's clock then). */
 export type RescueCall = {
   start: number;
   site: RescueSite;
   down: number;
   up: number;
-  casualties: { x: number; z: number; known: number }[];
+  casualties: RescueCasualty[];
   /** The run's clock the machine was TAKEN at by the skier (`steal.ts`),
    * from which it no longer stands there — absent while it is its crew's. */
   stolen?: number;

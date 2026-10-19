@@ -23,6 +23,10 @@
 //   pass     pass (ridden: the player skiing down past it on the chase
 //            lens, every two seconds)
 //   night    night (the overview and the carry at hour 21)
+//   steal    steal (the landed machine taken from under its crew)
+//   crowd    crowd (safe for work: an amateur down hurt on his own, the
+//            call made mid-run, the machine in, him scooped in his own
+//            kit, the machine taken)
 //
 // Each GROUP is one contact sheet, previews/rescue-<group>.png, and every
 // frame is also written alone, previews/rescue-<view>-<label>.png. The page
@@ -54,12 +58,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (site, scoop, carry, load, lift, pass, night, plane, arrive, second, knock, steal); every one when left out",
+      help: "which sheets, comma-separated (site, scoop, carry, load, lift, pass, night, plane, arrive, second, knock, steal, crowd); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (overview, scoop, carry, carry-front, load, lift, pass, night, arrive, arrive-chase, second, knock, solid, steal)",
+      help: "only these views, comma-separated (overview, scoop, carry, carry-front, load, lift, pass, night, arrive, arrive-chase, second, knock, solid, steal, crowd)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     at: {

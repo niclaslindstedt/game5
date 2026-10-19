@@ -38,6 +38,7 @@ import {
   type HeliState,
   type Level,
   type RescueCall,
+  type RescueCasualty,
 } from "@engine";
 
 import { CIVILIAN_SLOT as SLOT, PART } from "./civilian-dress.ts";
@@ -317,6 +318,8 @@ type Litter = {
   casualty: THREE.Mesh | null;
   dressed: string;
   bag: THREE.Mesh | null;
+  /** His figure laid flat on the board, for his body's height. */
+  lie: THREE.Matrix4;
 };
 
 type Kind = "ambulance" | "police";
@@ -453,15 +456,16 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       return m;
     });
     group.add(g);
-    const l: Litter = { group: g, straps, casualty: null, dressed: "", bag };
+    const l: Litter = { group: g, straps, casualty: null, dressed: "", bag, lie: lyingMatrix(1.8) };
     u.litters[k] = l;
     return l;
   };
 
-  /** HIM, in the player's colours, on trip `l` (rebuilt when they change). */
-  let lying = lyingMatrix(1.8);
-  const dressCasualty = (l: Litter): void => {
-    const key = outfit ? JSON.stringify(outfit) : "none";
+  /** HIM on trip `l` (rebuilt when his colours change): the player, in
+   * his own colours — or an amateur of the crowd called for mid-run
+   * (`crowd-calls.ts`), in his body and his kit (`look`). */
+  const dressCasualty = (l: Litter, look?: RescueCasualty["look"]): void => {
+    const key = look ? JSON.stringify(look) : outfit ? JSON.stringify(outfit) : "none";
     if (l.casualty && l.dressed === key) return;
     if (l.casualty) {
       group.remove(l.casualty);
@@ -469,19 +473,21 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     }
     const o = outfit;
     const female = o ? gearOf("body", o.body).female : false;
-    const body: CrowdBody = female ? "woman" : "man";
+    const body: CrowdBody = look ? look.body : female ? "woman" : "man";
     const c = o ? coloursOf(o) : null;
+    const [jacket, pants, head, accent, skin, hair] = look
+      ? look.dress
+      : [
+          c?.jacket ?? 0x2b5fa8,
+          c?.pants ?? 0x1c1f24,
+          c?.helmet ?? 0xe8e8e8,
+          c?.accent ?? 0xffffff,
+          c?.skin ?? SKIN[0],
+          HAIR[0],
+        ];
     const g = dressed(
       buildPosedFigure(body, "near", casualtyTargets(body), `casualty:${body}`),
-      {
-        jacket: c?.jacket ?? 0x2b5fa8,
-        pants: c?.pants ?? 0x1c1f24,
-        head: c?.helmet ?? 0xe8e8e8,
-        accent: c?.accent ?? 0xffffff,
-        vest: c?.jacket ?? 0x2b5fa8,
-        skin: c?.skin ?? SKIN[0],
-        hair: HAIR[0],
-      },
+      { jacket, pants, head, accent, vest: jacket, skin, hair },
       [PART.helmet],
     );
     const mesh = new THREE.Mesh(g, material);
@@ -489,7 +495,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     mesh.matrixAutoUpdate = false;
     mesh.castShadow = true;
     mesh.frustumCulled = false;
-    lying = lyingMatrix(CROWD_LOOKS[body].height);
+    l.lie = lyingMatrix(CROWD_LOOKS[body].height);
     group.add(mesh);
     l.casualty = mesh;
     l.dressed = key;
@@ -500,8 +506,10 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   unitFor(0);
   hide(units[0]);
 
-  // THE CALLS this run carries (`GameState.rescue`) and their flights.
+  // THE CALLS this run carries (`GameState.rescue`) and their flights —
+  // read again whenever one is made or joined mid-run (`crowd-calls.ts`).
   let last: GameState | null = null;
+  let shape = "";
   let calls: readonly RescueCall[] = [];
   let flights: RescueFlight[] = [];
   // THE CREW OF EVERY MACHINE AS PEOPLE ON FOOT a skier knocks over
@@ -554,7 +562,8 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     });
     calls.forEach((c, i) => {
       const u = units[i];
-      for (let k = 0; k < c.casualties.length; k++) dressCasualty(litterFor(u, k));
+      for (let k = 0; k < c.casualties.length; k++)
+        dressCasualty(litterFor(u, k), c.casualties[k].look);
       bodiesOf(u.kind).forEach((body, j) =>
         people.push({
           key: 8 * i + j,
@@ -685,7 +694,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     // EACH TRIP'S STRETCHER and him on it.
     for (let k = 0; k < now.trips.length; k++) {
       const l = litterFor(u, k);
-      dressCasualty(l);
+      dressCasualty(l, calls[i].casualties[k]?.look);
       const tf = now.trips[k];
       const st = tf.stretcher;
       l.group.visible = st.shown;
@@ -708,7 +717,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       euler.set(-cs.pitch, cs.heading, -cs.roll, "YXZ");
       quat.setFromEuler(euler);
       placed.compose(pos.set(cs.x, cs.y, cs.z), quat, ONE);
-      mesh.matrix.multiplyMatrices(placed, lying);
+      mesh.matrix.multiplyMatrices(placed, l.lie);
       mesh.matrixWorldNeedsUpdate = true;
       mesh.morphTargetInfluences![0] = cs.sprawl;
     }
@@ -746,8 +755,10 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   return {
     group,
     frame(state, dt, cloud, snowAt) {
-      if (state !== last) {
+      const now = shapeOf(state);
+      if (state !== last || now !== shape) {
         last = state;
+        shape = now;
         begin(state);
       }
       group.visible = calls.length > 0;
@@ -814,6 +825,13 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       kit.dispose();
     },
   };
+}
+
+/** What calls a run carries, as a key: each one's casualties. */
+function shapeOf(state: GameState): string {
+  let key = "";
+  for (const r of state.rescue ?? []) key += `${r.start}:${r.casualties.length};`;
+  return key;
 }
 
 /** The seconds into call `c` its people are at, at the run's clock `t`:

@@ -239,13 +239,15 @@ export function createEnvironment(
   shadowLook: ShadowLook,
   domeRadius: number,
   gl: THREE.WebGLRenderer | null = null,
-  /** Drawn by the node renderer (`render-seam.ts`), whose shadow keeps its own map. */
+  /** Drawn by the node renderer (`render-seam.ts`): its shadow keeps its own
+   * map, its sky's passes are drawn by their node twins (`sky-atmo-tsl.ts`)
+   * and its clouds' passes are not drawn yet (`docs/webgpu.md`, part 10). */
   node = false,
 ): Environment {
   const haze = createHazeUniforms();
-  const gpu = createSkyGpu(gl, haze);
+  const gpu = createSkyGpu(gl, haze, node);
   const terrain = createTerrainShade(haze);
-  const clouds = createClouds(gl, haze);
+  const clouds = createClouds(node ? null : gl, haze);
   const contrails = createContrails();
   const dome = createSkyDome(haze, domeRadius, clouds, contrails);
   dome.mesh.name = "sky";

@@ -216,7 +216,7 @@ export function createWorldRenderer(
     scene,
     shadowLook(),
     FAR * 0.9,
-    native ? gl : null,
+    native || passOn("sky-gpu") ? gl : null,
     !native,
   );
   seam.dress(scene, env.haze); // the node renderer's haze and lights (`gpu-dress.ts`)

@@ -56,7 +56,7 @@ export type GpuPort = {
 
 /** THE REGISTER, in the plan's order (`docs/webgpu.md` keeps the ledger). */
 export const GPU_PORTS: readonly GpuPort[] = [
-  { id: "sky-gpu", kind: "pass", part: 3, what: "the sky's LUT passes", ported: false },
+  { id: "sky-gpu", kind: "pass", part: 3, what: "the sky's LUT passes", ported: true },
   {
     id: "clouds",
     kind: "pass",
@@ -123,10 +123,17 @@ export const GPU_PORTS: readonly GpuPort[] = [
     ported: true,
   },
   {
-    id: "shader",
+    id: "sky",
     kind: "material",
     part: 3,
-    what: "every ShaderMaterial (the dome first; the spray, the clouds… in theirs)",
+    what: "the dome, the far ranges and the sky's passes, each drawn by its node twin",
+    ported: true,
+  },
+  {
+    id: "shader",
+    kind: "material",
+    part: 9,
+    what: "every other ShaderMaterial (the spray first; the clouds, the rest in theirs)",
     ported: false,
   },
   {
@@ -191,6 +198,19 @@ export function glslOnly<T extends { userData: Record<string, unknown> }>(
 ): T {
   target.userData.glsl = family;
   return target;
+}
+
+/** Flag a ShaderMaterial as drawn on the webgpu paths by node twin `twin`
+ * (`sky-twins-tsl.ts`): its GLSL is WebGL's, and the node renderer's
+ * library hands the twin in its place, reading the same uniforms. Its
+ * family is `family`'s row of `GPU_PORTS`, hidden until that is ported. */
+export function nodeTwin<T extends { userData: Record<string, unknown> }>(
+  material: T,
+  family: string,
+  twin: string,
+): T {
+  material.userData.twin = twin;
+  return glslOnly(material, family);
 }
 
 /** WHAT DREW THE FRAME, for the developer page and the benchmark's report. */

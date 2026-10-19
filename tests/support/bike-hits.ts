@@ -243,6 +243,7 @@ function riderDepth(s: GameState, solids: readonly SolidLike[]): number {
 /** A trunk on a gentle meadow: 30 cm across at the breast (a grown spruce
  * of a ski area's woods), on a 4 % fall so the bike keeps its pace. */
 const TRUNK: TreeDef = { x: 300, z: 300, y: 0, height: 14, radius: 0.15, crown: 2.5 };
+// isolation:stateless: its benches, built once and read only (tests/support/isolation.ts).
 let bench: Level | null = null;
 function trunkLevel(): Level {
   bench ??= shapedLevel((_x, z) => -0.04 * z, { trees: [{ ...TRUNK }] });

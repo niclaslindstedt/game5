@@ -907,6 +907,7 @@ export function fieldOf(level: Pick<Level, "seed" | "sun" | "weather" | "mountai
   return f;
 }
 
+// isolation:stateless: a memo of the last cloud field asked, keyed by the map and the moment (tests/support/isolation.ts).
 /** The last field a moving sky was asked for: the look and the cloud's
  * drawing ask for the same moment each frame. */
 let lastFront: { level: object; t: number; field: CloudField } | null = null;

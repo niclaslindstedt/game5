@@ -59,6 +59,7 @@ export type TangleRow = {
 /** A LEDGE across a gentle meadow: the ground up 0.9 m over 0.15 m at
  * z = 300 — a log or a rock step the front wheel stops dead against. */
 const LEDGE = 300;
+// isolation:stateless: its benches, built once and read only (tests/support/isolation.ts).
 let bench: Level | null = null;
 function ledgeLevel(): Level {
   bench ??= shapedLevel(

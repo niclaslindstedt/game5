@@ -31,6 +31,7 @@ export type PlacedFace = {
   lat: number;
   lon: number;
 };
+// isolation:stateless: the faces' places and ranks, listed once (tests/support/isolation.ts).
 let every: PlacedFace[] | null = null;
 export function placedFaces(): readonly PlacedFace[] {
   every ??= REAL_FACE_IDS.map((id) => ({ id, ...realFacePlace(id)! }));

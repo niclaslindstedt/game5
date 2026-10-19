@@ -17,13 +17,16 @@
 //   * BURIED BY AN AVALANCHE (`avalanche.ts`) it clears the same way, on
 //     every run whatever the INJURIES switch: the word BURIED over the
 //     debris he went under, the picture going dark, a new rider.
+//   * TAKEN IN BY THE ARMY (`wanted.ts`, SAFE FOR WORK, where the army
+//     does not kill) it clears the same way: the word ARRESTED, the time he
+//     survived the hunt against the best, a new rider.
 //   * HURT TOO BADLY TO SKI ON (`rescue.ts`) it clears the same way, on the
 //     same timeline: the word INJURED and what keeps him down come up, the
 //     picture goes WHITE rather than dark, and the run starts again from
 //     the top — where, on the next run, the air ambulance is taking him off
 //     the mountain (`rescue-plan.ts`).
 
-import type { GameState } from "@engine";
+import { arrestedOf, type GameState } from "@engine";
 
 /** THE DEATH'S TIMELINE, s after he died. The readouts fade first and are
  * gone before the word comes up, while the camera still holds on him and
@@ -143,6 +146,7 @@ export function injuredOf(state: GameState): number | null {
  * run starts again, `again` s after it (OPTIONS ▸ RESTART AFTER), or at
  * once on the reset pressed over it (`GoreState.again`). */
 export function deathOver(state: GameState, again: number = DEATH.again): boolean {
-  const d = diedOf(state) ?? injuredOf(state);
+  // ...and an ARREST (`wanted.ts`, SAFE FOR WORK) ends the run the same way.
+  const d = diedOf(state) ?? injuredOf(state) ?? arrestedOf(state);
   return d !== null && (d >= again || !!state.gore?.again);
 }

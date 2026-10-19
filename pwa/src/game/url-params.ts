@@ -170,6 +170,8 @@
 //   ?grimbear=1     a free ride the GRIMBEAR hunts (`grimbear.ts`) — or,
 //                   with 0, one he never shows on — over the odds the app
 //                   deals him by (`GRIMBEAR_ODDS`).
+//   ?wanted=3       a free ride begun WANTED at this many stars, 1–5
+//                   (`wanted.ts`): the army already hunting him.
 //   ?avalanche=0    a free ride whose slopes never AVALANCHE (`avalanche.ts`)
 //                   — or, with 1, one whose do; left out, they do.
 //   ?ramps=1        a free ride with TRICK RAMPS down every piste
@@ -410,6 +412,9 @@ export type UrlParams = {
   /** A free ride the grimbear hunts (true) or never shows on (false), over
    * the odds; null when the link names neither. */
   grimbear: boolean | null;
+  /** A free ride begun wanted at this many stars, 1..5 (`?wanted=N`), or
+   * null. */
+  wanted: number | null;
   /** The downhill bike's look this visit (`bike-variant.ts`), or null. */
   bikeLook: BikeLook | null;
   /** A free ride whose loaded slopes may avalanche (true) or never do
@@ -591,6 +596,7 @@ export function readParams(search: string): UrlParams {
     suit: q.get("suit") === "wing" ? "wing" : q.get("suit") === "rig" ? "rig" : null,
     chute: chuteOf(q.get("chute")),
     grimbear: q.get("grimbear") === "1" ? true : q.get("grimbear") === "0" ? false : null,
+    wanted: wantedOf(q.get("wanted")),
     bikeLook: bikeLookOf(q.get("bikelook")),
     groomer: q.get("groomer") === "1" ? true : q.get("groomer") === "0" ? false : null,
     avalanche: q.get("avalanche") === "1" ? true : q.get("avalanche") === "0" ? false : null,
@@ -716,6 +722,7 @@ function overCard(ride: CreateGameOptions, params: UrlParams): CreateGameOptions
     grade: params.grade ?? ride.grade,
     grimbear: params.grimbear === null ? ride.grimbear : params.grimbear ? "hunt" : undefined,
     groomer: params.groomer === null ? ride.groomer : params.groomer ? "on" : "off",
+    wanted: params.wanted ?? ride.wanted,
     avalanche: params.avalanche ?? ride.avalanche,
     trickRamps: params.ramps ?? ride.trickRamps,
     front: params.front ?? ride.front,
@@ -728,6 +735,12 @@ function overCard(ride: CreateGameOptions, params: UrlParams): CreateGameOptions
 function chuteOf(raw: string | null): number | null {
   const m = raw === null || raw.trim() === "" ? NaN : Number(raw);
   return Number.isFinite(m) && m > 0 ? Math.min(6000, Math.max(30, m)) : null;
+}
+
+/** A link's wanted level: a whole number of stars, 1–5, or null. */
+function wantedOf(raw: string | null): number | null {
+  const n = raw === null || raw.trim() === "" ? NaN : Math.round(Number(raw));
+  return Number.isFinite(n) && n >= 1 ? Math.min(5, n) : null;
 }
 
 /** A frozen title time a link may name: 0–600 s. */

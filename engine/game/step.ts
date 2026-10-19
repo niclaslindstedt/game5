@@ -92,6 +92,7 @@ import { arriveByLift, freeRunOf } from "./lift-ride.ts";
 import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 import { freshWild, stepWild } from "./beast-hit.ts";
 import { freshAvalanche, stepAvalanche } from "./avalanche.ts";
+import { setWanted, stepWanted } from "./wanted.ts";
 import { freshMishaps, type MishapAsk } from "./mishaps.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
 import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
@@ -379,6 +380,10 @@ export type CreateGameOptions = {
    * the groomed runs may slide under the skier. None when left out.
    * Ignored by every other mode. */
   avalanche?: boolean;
+  /** THE WANTED LEVEL (`wanted.ts`) on a FREE RIDE: begun already hunted
+   * at this many stars, 1..5 — a link's `?wanted=N`. None when left out
+   * (an offence raises it). Ignored by every other mode. */
+  wanted?: number;
   /** TRICK RAMPS down every piste of a FREE RIDE's ski area
    * (`trick-ramps.ts`), laid over the map off no stream. None when left
    * out, and never in summer. Ignored by every other mode. */
@@ -769,6 +774,8 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   if (free) state.wild = freshWild();
   // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.
   if (rules.avalanche) state.avalanche = freshAvalanche(state);
+  // THE WANTED LEVEL (`wanted.ts`), on a free ride begun hunted.
+  if (free && options.wanted && options.wanted > 0) setWanted(state, options.wanted);
   if (free && options.mishaps) state.mishaps = freshMishaps(seed, options.mishaps);
   // THE PISTE MACHINES (`groomer.ts`), out working the runs after dark.
   if (free && rules.groomer && groomersOut(level, options.groomer)) {
@@ -846,6 +853,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   if (state.wild) stepWild(state);
   // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.
   if (state.avalanche) stepAvalanche(state, events, input);
+  // THE WANTED LEVEL (`wanted.ts`), once an offence raised it.
+  if (state.wanted) stepWanted(state, events);
   // THE BODY (`body.ts`): what a shoulder into a rival or an amateur did.
   if (state.rules.contact) feelBumps(state, events);
   // THE G METER bills a blow only once someone went down on it.

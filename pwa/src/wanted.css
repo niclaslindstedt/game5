@@ -1,0 +1,88 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/* THE WANTED LEVEL (hud-wanted.tsx): five stars under the presses in the
+   top right, the lit ones solid white over a dark rim, the rest a faint
+   outline; FLASHING while the army searches rather than sees him; the
+   survival timer under them and the best under that. As wide as the
+   presses' row (`--hud-cluster`), so the column keeps one axis. */
+
+.hud-wanted {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: var(--hud-cluster);
+  color: var(--hud-ink);
+  text-shadow:
+    0 0 3px var(--hud-shadow),
+    0 1px 2px var(--hud-shadow);
+  pointer-events: none;
+  line-height: 1.05;
+}
+
+.hud-wanted-stars {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 70%));
+}
+
+.hud-wanted-lit {
+  fill: #ffffff;
+  stroke: rgb(var(--hud-plate));
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.hud-wanted-dim {
+  fill: rgb(var(--hud-plate) / 35%);
+  stroke: rgb(255 255 255 / 45%);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+/* SEARCHING: the lit stars blink between white and a pale grey-blue — still
+   plainly lit against the unlit outlines in either phase, so a still frame
+   (the shutter stills it at its computed value) never reads as no stars. */
+.hud-wanted[data-flash] .hud-wanted-lit {
+  animation: hud-wanted-flash 0.9s steps(1, end) infinite;
+}
+
+@keyframes hud-wanted-flash {
+  0% {
+    fill: #ffffff;
+  }
+  50% {
+    fill: #8fa6bd;
+  }
+}
+
+/* LOST THEM: the stars gone grey with the stopped timer, a few seconds. */
+.hud-wanted[data-ended="escaped"] {
+  opacity: 0.7;
+}
+
+.hud-wanted-time {
+  margin-top: 0.15rem;
+  font-size: clamp(1rem, 3.6vmin, 1.5rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.hud-wanted-best {
+  font-size: clamp(0.6rem, 1.9vmin, 0.8rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+  color: var(--hud-info);
+}
+
+/* The hunt's line on an ended run's card (hud-glass.tsx). */
+.hud-death-hunt {
+  margin-top: 0.4em;
+  font-size: min(3vmin, 20px);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  font-variant-numeric: tabular-nums;
+  color: #f1e7e2;
+  text-shadow: 0 0 1.2vmin rgb(0 0 0 / 90%);
+}

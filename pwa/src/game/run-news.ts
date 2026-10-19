@@ -134,6 +134,16 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
             : null;
     case "avalanche":
       return avalancheNews(e);
+    case "wanted":
+      // A star gained, the army shaken off, taken in; the flashing says
+      // the rest (`hud-wanted.tsx`).
+      return e.change === "raised"
+        ? { text: STRINGS.newsWanted(e.stars), tone: "bad" }
+        : e.change === "lost"
+          ? { text: STRINGS.newsWantedLost, tone: "good" }
+          : e.change === "arrested"
+            ? { text: STRINGS.newsArrested, tone: "bad" }
+            : null;
     case "groomer":
       // Into its cab and out of it; ridden into, it is the wipeout's word.
       return e.phase === "board"

@@ -207,6 +207,9 @@ export function createGradePass(samples: number): GradePass {
     stencilBuffer: false,
     samples,
   });
+  // The picture's depth is the multisampled buffer's own and nothing reads
+  // it once the scene is drawn: only the colour is resolved for the grade.
+  target.resolveDepthBuffer = false;
   const uniforms = {
     uPicture: { value: target.texture },
     uContrast: { value: 1 },

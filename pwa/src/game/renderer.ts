@@ -137,11 +137,10 @@ import * as ahead from "./world-prime.ts";
 import { createPeopleView, type CrowdView } from "./spectators.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
 import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
+import { quietThree } from "./three-console.ts";
 
 // The modelled skis and skiers, fetched before the kit (`use-render-kit.ts`).
-export async function loadModels(): Promise<void> {
-  await loadSkierModels();
-}
+export const loadModels = (): Promise<void> => loadSkierModels();
 
 export type { FrameInfo, RendererOptions, WorldRendererExt } from "./renderer-api.ts";
 import type { RendererOptions, WorldRendererExt } from "./renderer-api.ts";
@@ -157,6 +156,7 @@ export function createWorldRenderer(
   options: RendererOptions = {},
 ): WorldRendererExt {
   let video: VideoSettings = { ...(options.video ?? DEFAULT_VIDEO) };
+  quietThree();
   const gl = new THREE.WebGLRenderer({
     canvas,
     antialias: video.antialias,

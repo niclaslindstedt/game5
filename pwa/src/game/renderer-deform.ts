@@ -5,10 +5,13 @@
 // and moved after him. The player's alone: a rival's snow is the trail
 // map's, as it always was.
 
+import type * as THREE from "three";
+
 import type { SkierState } from "@engine";
 
 import { createDeformSnow, deformLook, deformShown, type DeformSnow } from "./deform-snow.ts";
 import type { DeformLook } from "./deform-field.ts";
+import type { GroundFrame } from "./deform-shade.ts";
 import type { VideoSettings } from "./settings-video.ts";
 import type { SnowProps } from "./snowpack.ts";
 import { drainTakes, recordTakes } from "./snow-takes.ts";
@@ -36,6 +39,8 @@ export type DeformRig = {
     snowAt: (x: number, z: number) => SnowProps,
   ): void;
   update(skier: SkierState, on: boolean): void;
+  /** The ground built over the field: its shade marched on `gl` from now on. */
+  bind(gl: THREE.WebGLRenderer, ground: GroundFrame, sun: { value: THREE.Vector3 }): void;
   /** Kilograms of thrown snow the field has dug this run (none: 0). */
   thrown(): number;
   clear(): void;
@@ -81,6 +86,9 @@ export function createDeformRig(): DeformRig {
     update(skier, on) {
       snow?.update(skier, on, since);
       since = 0;
+    },
+    bind(gl, ground, sun) {
+      snow?.bind(gl, ground, sun);
     },
     thrown: () => snow?.thrown() ?? 0,
     clear() {

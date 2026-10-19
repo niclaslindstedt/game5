@@ -37,7 +37,7 @@ export const SNOW_TRAIL_SAMPLE = /* glsl */ `
   }
 
   // The sun the deformable snow's own relief hides (\`deform-glsl.ts\`).
-  snowSelf = deformSelf(p, uSunDir, g.rg, snowDist);
+  snowSelf = deformSelf(p, uSunDir, snowDist);
 
   // THE THREE DEPTHS OF A TRAIL, off the depth the map holds here: a
   // groomer's or a crust's SCUFF a centimetre or two deep — two pencil lines

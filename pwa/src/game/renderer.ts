@@ -364,8 +364,7 @@ export function createWorldRenderer(
   const told = createBuildCount(); // what the loading card is told (`building`)
   /** The pieces `world-prime.ts` names, a breath round each; false once superseded. */
   const prime = (mine: number, pieces: ahead.Prime[]) => ahead.primed(pieces, () => rest(mine));
-  /** Whether the world standing has had its shaders compiled. */
-  let warmed = true;
+  let warmed = true; // whether the world standing has had its shaders compiled
   /** The trail maps and the ground that reads them, built for the picture in force: the
    * ground's shader holds the maps' uniforms by reference, so new maps are a new ground. */
   function buildTrail(lv: Level): TrailMap {
@@ -380,6 +379,7 @@ export function createWorldRenderer(
     const { wells } = TRAIL_LOOK[video.trails]; // the tree wells, from TRAILS MEDIUM up
     const options = { ...summerOptions(look, lv, video), deform: deformed, wells };
     const ground = createTerrain(lv, env.haze, map.uniforms, options);
+    deform.bind(gl, ground.frame, env.haze.uSunDir); // its shade, a cell at a time
     ground.group.name = "terrain";
     scene.add(ground.group);
     return ground;

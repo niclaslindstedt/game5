@@ -45,6 +45,7 @@ import * as THREE from "three";
 import { LEVEL_RULES, bermProfile, regionOf, windFromOf, type Level } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import type { GroundFrame } from "./deform-shade.ts";
 import { regionLookOf } from "./region-look.ts";
 import { ROOM_CUT_PARS, roomCutUniforms } from "./room-cuts.ts";
 import {
@@ -94,6 +95,9 @@ export type Terrain = {
   follow(x: number, z: number, lens?: THREE.Camera, reach?: number, over?: number): void;
   /** The run's clock, s: what a summer's grass sways to. */
   tick(t: number): void;
+  /** The ground's gradient map and its frame, for the deformable snow's
+   * own shade (`deform-shade.ts`). */
+  readonly frame: GroundFrame;
   dispose(): void;
 };
 
@@ -828,6 +832,12 @@ export function createTerrain(
   };
   return {
     group,
+    frame: {
+      uGround: shared.uGround,
+      uHeightOrigin: shared.uHeightOrigin,
+      uHeightCount: shared.uHeightCount,
+      uCell: shared.uCell,
+    },
     tick(t) {
       clock = t;
     },

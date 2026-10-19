@@ -167,8 +167,7 @@ export function createBenchRun(world: BenchWorld): BenchRun {
     const pictures = sweep ? dealSweep(sweep, SWEEP.seed + at) : null;
     sweeping = pictures !== null;
     planted = scene.vista;
-    const draw = (picture: SweepPicture): void =>
-      world.renderer.setVideo({ ...picture, antialias: world.video().antialias });
+    const draw = (picture: SweepPicture): void => world.renderer.setVideo(picture);
     // The sweep's first picture is the one warmed, so the lights compile
     // what the first block draws.
     if (pictures) draw(pictures[0]);

@@ -134,6 +134,11 @@ Judge at race speed from the chase camera (`make world`, `make screenshots
   closing in.
 - **What sharpens a thing already there** is worth little: SHADOWS HIGH
   over MEDIUM (the skiers' shadows sharper), TERRAIN HIGH over MEDIUM, SPRAY.
+- **ANTIALIAS and RESOLUTION are given up first, by rule** (the owner's
+  call): `fitPicture` walks ANTIALIAS to OFF, then RESOLUTION to LOW, before
+  its search may touch another row (`GIVEN_UP_FIRST`). Their benefits are
+  kept lowest per millisecond on the list too — re-check that after a
+  re-price, or the rule alone carries the order.
 
 Write the reasoning in `PICTURE_PRICES`' header, row by row, when a number
 moves.

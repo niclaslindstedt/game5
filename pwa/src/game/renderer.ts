@@ -159,7 +159,7 @@ export function createWorldRenderer(
   quietThree();
   const gl = new THREE.WebGLRenderer({
     canvas,
-    antialias: video.antialias,
+    antialias: video.antialias !== "off",
     powerPreference: "high-performance",
     preserveDrawingBuffer: options.preserveDrawingBuffer ?? false,
   });
@@ -181,7 +181,7 @@ export function createWorldRenderer(
 
   const scene = new THREE.Scene();
   // THE REGION'S GRADE (R21, `region-picture.ts`): the frame through it or straight on.
-  const picture = createRegionPicture(gl, video.antialias ? 4 : 0);
+  const picture = createRegionPicture(gl, () => video.antialias);
   const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
   scene.add(lens.camera);

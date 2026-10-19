@@ -67,10 +67,12 @@ import {
   HORIZON_LEVELS,
   type HorizonLevel,
   RESOLUTION_LEVELS,
+  ANTIALIAS_LEVELS,
   TIERS,
   TRAIL_LEVELS,
   presetOf,
   withPreset,
+  type AntialiasLevel,
   type DistanceLevel,
   type ResolutionLevel,
   type ShadowLevel,
@@ -109,11 +111,7 @@ const RESTART_STOPS: Stop<string>[] = Array.from(
 );
 const PRESET_STOPS: Stop<Tier | "auto">[] = [{ id: "auto", label: STRINGS.optAuto }, ...TIER_STOPS];
 const DISTANCE_STOPS = stopsOf<DistanceLevel>(DISTANCE_LEVELS);
-/** RESOLUTION reads as the share it is: 50% … 100%. */
-const RESOLUTION_STOPS: Stop<ResolutionLevel>[] = RESOLUTION_LEVELS.map((id) => ({
-  id,
-  label: STRINGS.optShare(id),
-}));
+const RESOLUTION_STOPS = stopsOf<ResolutionLevel>(RESOLUTION_LEVELS);
 const TRAIL_STOPS = stopsOf<TrailLevel>(TRAIL_LEVELS);
 const SHADOW_WORD: Record<ShadowLevel, string> = {
   off: STRINGS.optOff,
@@ -133,6 +131,12 @@ const SKY_STOPS: Stop<SkyLevel>[] = SKY_LEVELS.map((id) => ({
 const HORIZON_STOPS: Stop<HorizonLevel>[] = HORIZON_LEVELS.map((id) => ({
   id,
   label: id === "painted" ? STRINGS.optHorizonPainted : STRINGS.optHorizon3d,
+}));
+
+/** ANTIALIAS reads as the samples it takes: OFF, 2×, 4×. */
+const ANTIALIAS_STOPS: Stop<AntialiasLevel>[] = ANTIALIAS_LEVELS.map((id) => ({
+  id,
+  label: id === "off" ? STRINGS.optOff : STRINGS.optSamples(id),
 }));
 
 const LEVER_STOPS: Stop<LeverSide>[] = LEVER_SIDES.map((id) => ({
@@ -522,9 +526,9 @@ export function OptionsPage({
               <StepRow
                 label={STRINGS.optAntialias}
                 hint={STRINGS.optAntialiasHint}
-                stops={ON_OFF}
-                value={onOff(video.antialias)}
-                onPick={(id) => setVideo({ antialias: id === "on" })}
+                stops={ANTIALIAS_STOPS}
+                value={video.antialias}
+                onPick={(antialias) => setVideo({ antialias })}
                 onHint={setHint}
               />
             </KnobGroup>

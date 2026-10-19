@@ -317,12 +317,10 @@ describe("the report (benchmark-report.ts)", () => {
     expect(text).toContain("HIDDEN  forest · shadow — an A/B reading");
   });
 
-  it("writes every row of OPTIONS ▸ PICTURE down, the switch as a word", () => {
+  it("writes every row of OPTIONS ▸ PICTURE down, each at its stop", () => {
     const rows = pictureRows(DEFAULT_VIDEO);
     expect(rows.map((r) => r.label)).toEqual(Object.keys(DEFAULT_VIDEO));
-    expect(rows.find((r) => r.label === "antialias")?.value).toBe(
-      DEFAULT_VIDEO.antialias ? "on" : "off",
-    );
+    expect(rows.find((r) => r.label === "antialias")?.value).toBe(DEFAULT_VIDEO.antialias);
   });
 });
 

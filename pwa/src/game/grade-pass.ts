@@ -177,6 +177,8 @@ export type GradePass = {
   readonly target: THREE.WebGLRenderTarget;
   /** Size it in DEVICE pixels — the drawing buffer's own size. */
   setSize(w: number, h: number): void;
+  /** Multisample it this many times a pixel (0: not at all). */
+  setSamples(n: number): void;
   setGrade(grade: ColourGrade): void;
   /** How drunk the picture is, 0..1, and the clock it swims by, s. */
   setBuzz(buzz: number, t: number): void;
@@ -245,6 +247,12 @@ export function createGradePass(samples: number): GradePass {
   };
   return {
     target,
+    setSamples(n) {
+      if (target.samples === n) return;
+      target.samples = n;
+      // The framebuffers are made again, at the new count, at the next draw.
+      target.dispose();
+    },
     setSize(w, h) {
       const wide = Math.max(1, Math.round(w));
       const high = Math.max(1, Math.round(h));

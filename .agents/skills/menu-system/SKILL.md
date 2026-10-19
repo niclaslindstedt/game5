@@ -109,9 +109,11 @@ whether it is stepped at all.
 - **THE PICTURE APPLIES AT ONCE, OVER THE LIVE RACE** — that is why it is on
   the front door and not the pause card, which freezes the very thing it is
   judged against. TERRAIN and TRAILS REBUILD the ground (a grid's pitch is
-  what its buffer was allocated at) and lose the trails cut so far; ANTIALIAS
-  is the one row a running context cannot take, and its caption says "next
-  time". ASSIST is dealt to a race when it is stood up, so its caption says
+  what its buffer was allocated at) and lose the trails cut so far.
+  ANTIALIAS (OFF, 2×, 4×) is the picture target's sample count and takes at
+  once (`region-picture.ts`); only the canvas's own multisampling is fixed
+  when it is made, so a neutral region is drawn through the pass at any
+  count the canvas was not made with. ASSIST is dealt to a race when it is stood up, so its caption says
   "from the next race".
 - **A LAB'S PICTURE IS NEVER STORED.** `?video=<tier>` is this visit's, and
   `?probe=0` holds the probe off; `make screenshots` and `make profile` send

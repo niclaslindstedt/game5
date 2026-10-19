@@ -9,11 +9,18 @@
 // A graded region draws into the pass's half-float target and the pass
 // writes the canvas. The pass is built the first time a graded region
 // loads, and kept.
+//
+// THE ANTIALIAS ROW (`ANTIALIAS_SAMPLES`) is the target's sample count, set
+// at once. The canvas's own multisampling is fixed when the canvas is made,
+// so a neutral region is drawn straight onto it only while that is what the
+// row asks for (its four samples, or none); at any other count it is drawn
+// through the pass, at the neutral grade, as under the buzz.
 
 import * as THREE from "three";
 import { regionOf, type Level } from "@engine";
 
 import { gradeOf, isNeutral, type ColourGrade } from "./colour-grade.ts";
+import { ANTIALIAS_SAMPLES, type AntialiasLevel } from "./settings-video.ts";
 import { summerShown } from "./season-look.ts";
 import type { GpuTimer } from "./gpu-timer.ts";
 import { createGradePass, gradeSupported, type GradePass } from "./grade-pass.ts";
@@ -37,7 +44,18 @@ export type RegionPicture = {
   dispose(): void;
 };
 
-export function createRegionPicture(gl: THREE.WebGLRenderer, samples: number): RegionPicture {
+/** What a canvas made with multisampling takes a pixel. */
+const CANVAS_SAMPLES = 4;
+
+/** The picture over `gl`, multisampled as the ANTIALIAS row `antialias`
+ * reads at each frame. */
+export function createRegionPicture(
+  gl: THREE.WebGLRenderer,
+  antialias: () => AntialiasLevel,
+): RegionPicture {
+  let samples = ANTIALIAS_SAMPLES[antialias()];
+  // The canvas's own, as it was made.
+  const canvas = gl.getContextAttributes()?.antialias ? CANVAS_SAMPLES : 0;
   let pass: GradePass | null = null;
   let graded = false;
   let grade: ColourGrade | null = null;
@@ -45,12 +63,23 @@ export function createRegionPicture(gl: THREE.WebGLRenderer, samples: number): R
   let burning = false;
   const size = new THREE.Vector2();
   const last = { calls: 0, triangles: 0, points: 0 };
+  /** The row moved: the target takes the new count at once, and a neutral
+   * region not drawn straight onto the canvas gets a pass to be drawn by. */
+  const follow = (): void => {
+    const n = ANTIALIAS_SAMPLES[antialias()];
+    if (n === samples) return;
+    samples = n;
+    pass?.setSamples(n);
+    if (pass || samples === canvas || !gradeSupported(gl)) return;
+    pass = createGradePass(samples);
+    if (grade) pass.setGrade(grade);
+  };
   return {
     load(level) {
       grade = gradeOf(regionOf(level).id, summerShown());
       graded = !isNeutral(grade) && gradeSupported(gl);
       pass?.setGrade(grade);
-      if (!graded) return null;
+      if (!graded && (samples === canvas || !gradeSupported(gl))) return null;
       pass ??= createGradePass(samples);
       pass.setGrade(grade);
       return pass.target;
@@ -75,7 +104,8 @@ export function createRegionPicture(gl: THREE.WebGLRenderer, samples: number): R
       else pass?.setBlaze(0, 0, 0, t);
     },
     draw(scene, camera, timer) {
-      if ((!graded && buzz === 0 && !burning) || !pass) {
+      follow();
+      if ((!graded && buzz === 0 && !burning && samples === canvas) || !pass) {
         gl.render(scene, camera);
         const r = gl.info.render;
         last.calls = r.calls;

@@ -38,13 +38,8 @@ export function createPictureAuto(
     frame(elapsedMs, drawMs, drawnAt) {
       if (!probe) return;
       const next = probe.frame(elapsedMs, drawMs, drawnAt);
-      // The fit's rows, the canvas's own antialiasing, and only while the
-      // picture is still the fit's to set.
-      if (next !== null) {
-        update((s) =>
-          s.autoPicture ? { ...s, video: { ...next, antialias: s.video.antialias } } : s,
-        );
-      }
+      // The fit's picture, only while it is still the fit's to set.
+      if (next !== null) update((s) => (s.autoPicture ? { ...s, video: next } : s));
       if (probe.done()) {
         probe = null;
         fitted = true;

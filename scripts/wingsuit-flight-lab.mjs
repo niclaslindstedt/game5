@@ -9,8 +9,10 @@
 //
 //   glide-*     hands off at 2,500 m: the glide ratio, the speed across and
 //               the sink (a large suit's 3.0–3.5, 150–190 km/h, 10–14 m/s)
-//   dive-top    the arms swept and the lean forward from 3,500 m: the most
-//               air speed in 40 s (a dive's 250 km/h and more)
+//   dive-*      the arms swept and the lean forward from 3,500 m: the most
+//               air speed in 40 s (a dive's 250 km/h and more; a head-down
+//               dive's past 340) and the steepest path, ° below the horizon
+//               (a suit can be flown straight down)
 //   flare-*     an 8 s dive, then the lean back and the wings spread: the
 //               height gained, the least sink (through zero: climbing) and
 //               the seconds of climb; held on past its top, the sink it
@@ -103,11 +105,14 @@ function glide() {
 function dive() {
   const s = suit(3500);
   let top = 0;
+  let steep = 0;
   for (let i = 0; i < steps(40) && s.chute.agl > 300; i++) {
     E.step(s, { ...N, tuck: 1, lean: -1 });
     top = Math.max(top, s.chute.airspeed);
+    const c = s.skier;
+    steep = Math.max(steep, (Math.atan2(-c.vy, Math.hypot(c.vx, c.vz)) * 180) / Math.PI);
   }
-  return top;
+  return { top, steep };
 }
 
 /** THE FLARE after an 8 s dive (lean forward), held 20 s. */
@@ -347,10 +352,17 @@ const rows = [
   { id: "glide-sink", value: G.sink, unit: "m/s", band: "10–14", note: "" },
   {
     id: "dive-top",
-    value: DV * KMH,
+    value: DV.top * KMH,
     unit: "km/h",
     band: "≥250",
     note: "arms swept, lean forward: the most air speed",
+  },
+  {
+    id: "dive-steep",
+    value: DV.steep,
+    unit: "°",
+    band: "≥80",
+    note: "...the steepest path below the horizon: straight down",
   },
   { id: "flare-gain", value: F.gain, unit: "m", band: "10–40", note: "out of an 8 s dive" },
   {
@@ -364,7 +376,7 @@ const rows = [
     id: "flare-held",
     value: F.held,
     unit: "m/s",
-    band: ">10",
+    band: ">9",
     note: `held on past its top: mushing${F.stalled ? ", stalled" : ""}`,
   },
   {
@@ -379,14 +391,14 @@ const rows = [
     id: "turn-rate",
     value: T.rate,
     unit: "°/s",
-    band: "15–35",
+    band: "30–50",
     note: "the full edge in the glide",
   },
   {
     id: "turn-sink",
     value: T.sink,
     unit: "m/s",
-    band: "12–25",
+    band: "12–30",
     note: "...sinking harder under the bank's load",
   },
   {

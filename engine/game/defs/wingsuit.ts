@@ -47,14 +47,14 @@ export const WINGSUIT = {
    * the lift slope, the parasitic and the induced factors all down) and the
    * wings SPREAD full and pushed forward (the back key: a little more lift
    * and more drag — the float and the flare). */
-  sweep: { lift: 0.6, parasite: 0.55, induced: 0.7 },
+  sweep: { lift: 0.6, parasite: 0.85, induced: 0.7 },
   spread: { lift: 1.12, parasite: 1.15, induced: 1.05 },
   /** THE TRIM: the attack the flyer's body holds the suit at, rad — hands
    * off (the best glide), the lean forward all the way (the dive), the lean
    * back all the way (the flare, near the stall); the arms swept take it
    * lower, the wings spread higher, and a turn pulled `turn` higher at the
    * full edge (a turn is pulled, and sinks). */
-  trim: { glide: 0.17, dive: 0.05, flare: 0.42, sweep: -0.06, spread: 0.06, turn: 0.12 },
+  trim: { glide: 0.17, dive: -0.14, flare: 0.42, sweep: -0.06, spread: 0.06, turn: 0.4 },
   /** THE PITCH (the short period): the inertia, kg·m², the moment's slope
    * against the attack off its trim, m³ per rad (ρV² times it), and the
    * damping on the pitch rate, m⁴ (ρV times it), set so the short period
@@ -65,7 +65,7 @@ export const WINGSUIT = {
    * roll to it, s (a body's roll is quick, its inertia small), and the yaw
    * a flyer falling too steeply for a heading to mean anything turns by on
    * the edge, rad/s. */
-  roll: { bank: 1.15, time: 0.35, flat: 1.2 },
+  roll: { bank: 1.55, time: 0.22, flat: 2.5 },
   /** How fast the body follows the hands — the lean, the sweep, the spread
    * — s. */
   hands: 0.35,
@@ -116,7 +116,7 @@ export const WINGSUIT = {
     hoverLeast: 100,
     hoverMost: 800,
     hoverStep: 25,
-    hoverRoom: 200,
+    hoverRoom: 100,
   },
   /** THE SNOW MET IN FLIGHT: the body's half thickness lying on the wind,
    * m — his centre this near the snow under him (or where he will be next

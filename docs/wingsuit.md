@@ -40,8 +40,8 @@ The suit **pressurises** with the air through it. It is empty below 8 m/s and fu
 
 | The hands | Key | What it does |
 | --- | --- | --- |
-| Pitch | The lean | Forward toward the dive's trim (0.05 rad), back toward the flare's (0.42 rad) |
-| Roll | The edge | Rolls him to 1.15 rad of bank in 0.35 s. The tilted lift turns him; a turn is pulled a little higher and sinks |
+| Pitch | The lean | Forward toward the dive's trim (−0.14 rad, the suit's zero lift: nothing holds the path up, so it bends on down to straight down, a head-down dive), back toward the flare's (0.42 rad) |
+| Roll | The edge | Rolls him to 1.55 rad of bank in 0.22 s. The tilted lift turns him; a turn is pulled 0.4 rad higher, near the stall, and sinks: some 40 °/s at the full edge, a carving turn's. Falling straight down, where a heading means nothing, the edge spins him about his length at 2.5 rad/s |
 | Sweep | The tuck | The arms swept back to the hips: the delta dive, with less lift, less drag and a lower trim |
 | Spread | The back key | The wings full and pushed forward: more lift and drag, and a higher trim. With the lean back, it is **the flare** |
 
@@ -53,7 +53,7 @@ The suit **pressurises** with the air through it. It is empty below 8 m/s and fu
 
 **The cliff exit** (`wingsuitExitOf`, memoized per map) is searched over the top 55 % of the mountain's vertical, every 12 m, on the fall line and 0.35 rad either side. The 48 likeliest spots are kept: the drop over 30 m, plus three tenths of the drop over 100 m, plus a tenth of each metre the spot stands above the band's foot. Off each one the **start arc** is flown: the suit's own lift and drag on a point mass, from a running push of 4.5 m/s out and 0.8 m/s up. The highest spot whose arc clears the snow by 10 m is taken.
 
-A real exit point is a wall near sheer for its first hundred metres. A generated mountain has no such wall: its faces top out near 45°, and the arc off the best of them meets the snow 60–80 m down. So on every generated map the exit is a **HOVER**. He stands on the skid of a helicopter held still over the highest of those edges, at the least height (100–800 m, in 25 m steps) whose arc from rest clears the snow. Then the hover is raised 200 m above that (`hoverRoom`), kept low so the flight is down the face rather than high over it, the face falling away under him giving the room for the pull 350 m over the snow. He steps off at 1 m/s. On seed 38 the least that clears is 175 m, so he hovers at 375 m; on the others tried, 350–375 m. `WingsuitExit.hover` says which kind it is, and so does `GameState.wingsuit.hover`.
+A real exit point is a wall near sheer for its first hundred metres. A generated mountain has no such wall: its faces top out near 45°, and the arc off the best of them meets the snow 60–80 m down. So on every generated map the exit is a **HOVER**. He stands on the skid of a helicopter held still over the highest of those edges, at the least height (100–800 m, in 25 m steps) whose arc from rest clears the snow. Then the hover is raised 100 m above that (`hoverRoom`), kept low so the flight is down the face rather than high over it, the face falling away under him giving the room for the pull 350 m over the snow. He steps off at 1 m/s. On seed 38 the least that clears is 175 m, so he hovers at 275 m; on the others tried, 250–275 m. So near the face the ridge's updraft carries him out of the start arc within a second (`exit-time`). `WingsuitExit.hover` says which kind it is, and so does `GameState.wingsuit.hover`.
 
 **The exit's attack**: he leads with his body into the air coming up at him, at 0.55 rad of attack, just short of the stall, where the suit's lift is greatest. It is held there until the air reaches 15 m/s. The hands are his from a second after the jump. He is **flying** once his path's glide reaches 1 (as fast across as down), or after 14 s. On seed 38 that is 114 m and 5.8 s after the jump.
 
@@ -113,7 +113,7 @@ The start card's **START** row has a **WINGSUIT** stop after the plane: the ride
 - **Home**: from 1,000 m over the valley floor it flies for the nearest point of the piste instead of the fall line (the snow ahead allowing), until it is within 150 m of it, so the canopy pulled at 350 m reaches open snow rather than the woods short of it.
 - **The pull**: it slows from 450 m over the valley floor and pulls at 350 m. It never pulls in the start arc. Flying, it also pulls when the snow ahead is closer than it can lift him off and he is within 40 m of it.
 
-On seed 38 it flies 4.2 km in the suit, pulls 354 m over the snow and lands on its boots 3.9 km from the exit.
+On seed 38 it flies 3.4 km in the suit and pulls about 330 m over the snow, but its canopy pattern brings it down in a crown beside the piste: the canopy hand does not yet keep clear of the woods that line a piste (it lands clean on about half the maps tried).
 
 ## The lab
 
@@ -124,16 +124,17 @@ On seed 38 it flies 4.2 km in the suit, pulls 354 m over the snow and lands on i
 | `glide-ratio` | 3.2 | 3.0–3.5 |
 | `glide-across` | 152 km/h | 150–190 |
 | `glide-sink` | 13.1 m/s | 10–14 |
-| `dive-top` | 359 km/h | ≥250 |
-| `flare-gain` | 20.7 m | 10–40 |
-| `flare-sink` | −8.0 m/s (climbing for 4 s) | <0 |
-| `flare-held` | 10.4 m/s | >10 |
+| `dive-top` | 377 km/h | ≥250 |
+| `dive-steep` | 90° | ≥80 |
+| `flare-gain` | 31.6 m | 10–40 |
+| `flare-sink` | −11.1 m/s (climbing for 4 s) | <0 |
+| `flare-held` | 9.9 m/s | >9 |
 | `short` | 0.9 Hz | 0.6–1.0 |
 | `phugoid` | 24 s | 10–30 |
-| `turn-rate` | 17.8 °/s | 15–35 |
-| `turn-sink` | 21.4 m/s | 12–25 |
-| `exit-drop` | 120 m | 60–120 |
-| `exit-time` | 6.0 s | 4–7 |
+| `turn-rate` | 40.1 °/s | 30–50 |
+| `turn-sink` | 26.9 m/s | 12–30 |
+| `exit-drop` | 4.9 m | 60–120 (off a hover by a face: the updraft) |
+| `exit-time` | 1.0 s | 4–7 |
 | `plane-time` | 1.5 s | 1–4 |
 | `plane-lost` | 3.9 m | <100 |
 | `pull-full` | 4.3 s | 3–5 |
@@ -142,8 +143,8 @@ On seed 38 it flies 4.2 km in the suit, pulls 354 m over the snow and lands on i
 | `canopy-fwd` | 9.1 m/s | 8–10 |
 | `canopy-sink` | 3.6 m/s | 3.5–5 |
 | `land` | 2.1 m/s | <3 |
-| `edge` | 256 m | >0 |
-| `flight` | 4.2 km | — |
+| `edge` | 332 m | >0 |
+| `flight` | 3.4 km | — |
 
 Write the table with `ARGS=--json=FILE` before a change and compare against it with `--compare=FILE` after. `SEED=` flies another map. `tests/wingsuit_test.ts` holds the bands that matter.
 

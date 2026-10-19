@@ -31,17 +31,24 @@ import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { HELI } from "./defs/heli.ts";
 import { onSkis } from "./groomer.ts";
 import { heliWithin, takeHeli } from "./heli.ts";
+import { PATROL_SOURCE } from "./rescue-sled.ts";
+import { sledWithin, takeSled } from "./sled.ts";
 import { SEAT } from "./heli-rotor.ts";
 import { inGrace } from "./machine-grace.ts";
 import type { HeliLivery } from "./heli-state.ts";
+import type { SledLivery } from "./sled-state.ts";
 import type { GameEvent, GameState } from "./state.ts";
 import { raiseHeat } from "./wanted.ts";
 import type { WantedCause } from "./defs/wanted.ts";
 
 export type { HeliLivery } from "./heli-state.ts";
+export type { SledLivery } from "./sled-state.ts";
 
 /** The kinds of machine a skier can take, each with its taker. */
-export type StealKind = "heli";
+export type StealKind = "heli" | "sled";
+
+/** Whose colours a taken machine is drawn in. */
+export type StealLivery = HeliLivery | SledLivery;
 
 /** ONE MACHINE PARKED where a skier may take it: its kind and the livery
  * it is drawn in, which source it is (`from`) and its index there, where
@@ -50,7 +57,7 @@ export type StealKind = "heli";
  * stand within `reach` of, slower than `fastest`, m and m/s. */
 export type StealTarget = {
   kind: StealKind;
-  livery: HeliLivery;
+  livery: StealLivery;
   from: string;
   index: number;
   x: number;
@@ -73,7 +80,7 @@ export type StealEvent = {
   kind: "steal";
   t: number;
   vehicle: StealKind;
-  livery: HeliLivery;
+  livery: StealLivery;
   from: string;
   index: number;
   x: number;
@@ -113,7 +120,8 @@ const RESCUE_SOURCE: StealSource = {
     if (!calls?.length || !state.heli) return;
     for (let i = 0; i < calls.length; i++) {
       const r = calls[i];
-      if (r.stolen !== undefined || state.t < r.down || state.t >= r.up) continue;
+      if (r.kind === "sled" || r.stolen !== undefined) continue;
+      if (state.t < r.down || state.t >= r.up) continue;
       out.push({
         kind: "heli",
         livery: r.kind === "police" ? "police" : "rescue",
@@ -143,13 +151,14 @@ const OFFENCE: Readonly<Record<string, WantedCause>> = {
 
 /** EVERY SOURCE, in the order the press looks at them. A machine added to
  * the mechanic is a row here. */
-export const STEAL_SOURCES: StealSource[] = [RESCUE_SOURCE];
+export const STEAL_SOURCES: StealSource[] = [RESCUE_SOURCE, PATROL_SOURCE];
 
 /** THE TAKERS: the run's own machine of each kind made the taken one, the
  * skier aboard — false when the run carries no such machine to become it. */
 const TAKERS: Record<StealKind, (run: GameState, p: StealTarget, events: GameEvent[]) => boolean> =
   {
-    heli: (run, p, events) => takeHeli(run, p, p.livery, p.spool, events),
+    heli: (run, p, events) => p.livery !== "patrol" && takeHeli(run, p, p.livery, p.spool, events),
+    sled: (run, p, events) => p.livery === "patrol" && takeSled(run, p, p.livery, events),
   };
 
 const found: StealTarget[] = [];
@@ -163,11 +172,14 @@ export function stealWithin(state: GameState): StealTarget | null {
   const c = state.skier;
   found.length = 0;
   for (const s of STEAL_SOURCES) s.parked(state, found);
+  // His own snowmobile nearer than another's: the press is his own's.
+  const own = sledWithin(state) ? hypot(c.x - state.sled!.x, c.z - state.sled!.z) : Infinity;
   let best: StealTarget | null = null;
   let near = Infinity;
   for (const p of found) {
     const d = hypot(c.x - p.door.x, c.z - p.door.z);
     if (d > p.reach || d >= near || c.speed > p.fastest) continue;
+    if (p.kind === "sled" && d >= own) continue;
     best = p;
     near = d;
   }

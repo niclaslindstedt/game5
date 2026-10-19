@@ -67,7 +67,7 @@ export function callCrowd(state: GameState): number {
     // A machine still on the snow near him, with the room to take him.
     const join = calls.find(
       (r) =>
-        !r.kind &&
+        (!r.kind || r.kind === "heli") &&
         r.stolen === undefined &&
         r.start >= 0 &&
         forCrowd(r) &&

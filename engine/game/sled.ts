@@ -37,6 +37,7 @@ import { deriveSled, freshContacts, rideSled } from "./sled-body.ts";
 import { depthUnder } from "./snow.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 import { stepSledFire } from "./sled-fire.ts";
+import { leaveSledFor, leftSledWithin } from "./rescue-sled.ts";
 import { SLED_FIRE } from "./defs/sled-fire.ts";
 import { derive } from "./skier.ts";
 import { windAt, type Wind } from "./wind.ts";
@@ -207,9 +208,24 @@ export function stepSled(run: GameState, input: SkierInput, events: GameEvent[])
   if (!s.rider) {
     // Taken on: the press that does it is spent on it, never read again as
     // the hop off on the same step.
-    if (input.machine && sledWithin(run)) {
-      board(run, s, events);
-      return true;
+    if (input.machine) {
+      // The nearest machine he could take: his own, or one he left standing
+      // (`rescue-sled.ts`) — a patrol's is taken before this (`steal.ts`).
+      const own = sledWithin(run);
+      const back = leftSledWithin(
+        run,
+        own ? hypot(run.skier.x - s.x, run.skier.z - s.z) : Infinity,
+      );
+      if (back) {
+        const next = run.sledsLeft!.splice(back.left, 1)[0];
+        leaveSledFor(run, next);
+        board(run, next, events);
+        return true;
+      }
+      if (own) {
+        board(run, s, events);
+        return true;
+      }
     }
     // Left to itself: it settles where it stands on its parking brake, the
     // engine idling down — stepped like any body, so a machine left in
@@ -585,6 +601,23 @@ export function sledWithin(run: GameState): boolean {
     hypot3(c.vx, c.vy, c.vz) <= SLED.board.fastest &&
     s.speed <= 1
   );
+}
+
+/** THE TAKER for somebody else's machine (`steal.ts`): a fresh machine of
+ * his at its stand, in its owner's livery, him on it — the one he had left
+ * standing where it is (`leaveSledFor`). False with no machine of his. */
+export function takeSled(
+  run: GameState,
+  at: { x: number; z: number; heading: number },
+  livery: SledState["livery"],
+  events: GameEvent[],
+): boolean {
+  if (!run.sled) return false;
+  const next = parkedAt(run, at.x, at.z, at.heading);
+  next.livery = livery;
+  leaveSledFor(run, next);
+  board(run, next, events);
+  return true;
 }
 
 /** Taken on: the skis racked, on the boards — a machine lying on its side

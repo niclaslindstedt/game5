@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE AIR AMBULANCES CALLED TO A MOUNTAIN, KEPT FROM RUN TO RUN — a run
-// that ends INJURED (`GoreState.injured`) calls one for where he lay, and
+// that ends INJURED (`GoreState.injured`) calls one for where he lay — or,
+// where no machine can set down near him (`fitToLand`), the SKI PATROL on
+// two snowmobiles (`planSledRescue`), which take nobody else and keep the
+// machines the player stole from them stolen (`RescueCall.sledsTaken`,
+// read back off the run that ended) — and
 // the runs after it see it come: the first sees it FLOWN IN and set down
 // (`rescue-flight.ts`), a later one finds it landed, its crew at work, or
 // gone. A second casualty while a machine is still on the snow, near
@@ -20,25 +24,41 @@
 // numbered from the point of impact, the run's last wipeout, which the app
 // notes as the run goes (`noteImpact`), down to the body.
 
-import type { Evidence, GameState, Level, RescueCall, RescueCasualty } from "@engine";
-import { withRescue } from "@engine";
+import type {
+  Evidence,
+  GameState,
+  Level,
+  RescueCall,
+  RescueCasualty,
+  RescueSledPlan,
+} from "@engine";
+import { planSledRescue, sledCallGone, withRescue } from "@engine";
 
 import { planPolice } from "./police-plan.ts";
 import { evidenceOf, lyingAt } from "./police-scene.ts";
 import { canTake, planFlight, type Called, type RescueFlight } from "./rescue-flight.ts";
+import { fitToLand } from "./rescue-plan.ts";
 
 export { stepRun } from "./crowd-calls.ts";
 
 /** ONE CALL: the book's clock it was made at, its casualties (each's
- * `known` from the call), its flight — and, a police call, its kind and
- * the scene's evidence. */
+ * `known` from the call), and its flight — or the snowmobiles' plan and
+ * when each of the two was stolen, the call's clock — and, a police call,
+ * its kind and the scene's evidence. */
 export type BookedRide = {
   start: number;
   casualties: (Called & Pick<RescueCasualty, "look">)[];
-  flight: RescueFlight;
+  flight: RescueFlight | null;
+  sleds?: { plan: RescueSledPlan; taken: (number | null)[] };
   kind?: "police";
   evidence?: Evidence[];
 };
+
+/** When a ride is over, s from its call. */
+function goneOf(r: BookedRide): number {
+  if (r.sleds) return sledCallGone(r.sleds.plan, r.sleds.taken);
+  return r.flight!.gone;
+}
 
 export type RescueBook = {
   /** The map the calls are on (a new map clears them). */
@@ -87,6 +107,11 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
     book.clock = 0;
   }
   book.level = level;
+  // The patrol's machines the run that ended stole, kept stolen.
+  for (const call of ended.rescue ?? []) {
+    const ride = book.rides.find((r) => Math.abs(r.start - book.clock - call.start) < 1e-6);
+    if (ride?.sleds && call.sledsTaken) ride.sleds.taken = [...call.sledsTaken];
+  }
   const now = book.clock + Math.max(0, ended.t);
   // THE CALLS MADE WHILE IT RAN, for the crowd (`crowd-calls.ts`): kept,
   // so the runs after see them through — who they came for out of the
@@ -128,16 +153,26 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
     book.rides.push({ start: now, casualties, flight, kind: "police", evidence });
   } else if (ended.gore && ended.gore.injured >= 0) {
     const at = spotOf(ended);
-    const ride = book.rides.find((r) => !r.kind && canTake(r.flight, at.x, at.z, now - r.start));
+    const ride = book.rides.find(
+      (r) => !r.kind && r.flight && canTake(r.flight, at.x, at.z, now - r.start),
+    );
+    const casualties = [{ x: at.x, z: at.z, known: 0 }];
+    const sleds = ride || fitToLand(level, at) ? null : planSledRescue(level, at);
     if (ride) {
       ride.casualties.push({ x: at.x, z: at.z, known: now - ride.start });
       ride.flight = planFlight(level, ride.casualties);
+    } else if (sleds) {
+      book.rides.push({
+        start: now,
+        casualties,
+        flight: null,
+        sleds: { plan: sleds, taken: [null, null] },
+      });
     } else {
-      const casualties = [{ x: at.x, z: at.z, known: 0 }];
       book.rides.push({ start: now, casualties, flight: planFlight(level, casualties) });
     }
   }
-  book.rides = book.rides.filter((r) => r.start + r.flight.gone > now);
+  book.rides = book.rides.filter((r) => r.start + goneOf(r) > now);
   book.clock = now;
   return withRescue(next, callsOf(book));
 }
@@ -146,12 +181,26 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
 export function callsOf(book: RescueBook): RescueCall[] {
   return book.rides.map((r) => {
     const start = r.start - book.clock;
-    const { x, y, z, heading, pitch, roll } = r.flight.site;
+    if (r.sleds) {
+      const p = r.sleds.plan.park[0];
+      const end = start + goneOf(r);
+      return {
+        start,
+        site: { x: p.x, y: 0, z: p.z, heading: p.heading, pitch: 0, roll: 0 },
+        down: end,
+        up: end,
+        casualties: r.casualties.map((c) => ({ ...c })),
+        kind: "sled" as const,
+        sleds: r.sleds.plan,
+        sledsTaken: [...r.sleds.taken],
+      };
+    }
+    const { x, y, z, heading, pitch, roll } = r.flight!.site;
     return {
       start,
       site: { x, y, z, heading, pitch, roll },
-      down: start + r.flight.down,
-      up: start + r.flight.lift,
+      down: start + r.flight!.down,
+      up: start + r.flight!.lift,
       casualties: r.casualties.map((c) => ({ ...c })),
       ...(r.kind ? { kind: r.kind, evidence: (r.evidence ?? []).map((e) => ({ ...e })) } : {}),
     };

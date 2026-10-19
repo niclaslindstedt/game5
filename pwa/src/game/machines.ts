@@ -63,6 +63,7 @@ import { createBasketWalk } from "./ride-perch.ts";
 import { skydiveShapeOf } from "./skier-skydive.ts";
 import { wingsuitShapeOf } from "./skier-wingsuit.ts";
 import { createHoverScene, type HoverScene } from "./wingsuit-hover.ts";
+import { createRescueSledsScene, type RescueSledsScene } from "./rescue-sleds-view.ts";
 import type { Taken } from "./police-remains.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createPatrolView, patrolShown, type PatrolView } from "./patrol-view.ts";
@@ -327,6 +328,7 @@ export function createMachines(
   // built with the first run that carries its injuries — or a crowd it may
   // be called to mid-run, injuries on or off (`crowd-calls.ts`).
   let rescue: RescueScene | null = null;
+  let rescueSleds: RescueSledsScene | null = null;
   // THE AVALANCHE (`avalanche-view.ts`), built with the run's first slab.
   let slide: AvalancheView | null = null;
   // THE SKI PATROL AND THE SEARCH (`patrol-view.ts`), built when the first
@@ -537,6 +539,14 @@ export function createMachines(
       }
       if (rescue && fx.wearing) rescue.dress(fx.wearing());
       rescue?.frame(s, dt, fx.cloud, fx.snowAt);
+      // THE SKI PATROL on snowmobiles where no machine could land
+      // (`rescue-sleds-view.ts`), built with the air ambulance's.
+      if (s.gore && !rescueSleds) {
+        rescueSleds = createRescueSledsScene(level, haze);
+        group.add(rescueSleds.group);
+      }
+      if (rescueSleds && fx.wearing) rescueSleds.dress(fx.wearing());
+      rescueSleds?.frame(s);
       if (s.avalanche?.slide && !slide) {
         slide = createAvalancheView(level, haze);
         group.add(slide.group);
@@ -577,6 +587,7 @@ export function createMachines(
       burn?.lamps(lit, floods);
       sledFire?.lamps(lit, eye, floods);
       rescue?.lamps(lit, floods);
+      rescueSleds?.lamps(lit, eye, floods);
       plane?.lamps(lit, floods);
       strip?.frame(current, lit, eye);
       strip?.lamps(lit, eye, floods);
@@ -689,6 +700,7 @@ export function createMachines(
       strip?.dispose();
       balloon?.dispose();
       rescue?.dispose();
+      rescueSleds?.dispose();
       hover?.dispose();
       slide?.dispose();
       patrol?.dispose();

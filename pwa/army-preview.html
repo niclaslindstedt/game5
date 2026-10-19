@@ -1,0 +1,62 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Army preview harness</title>
+    <!-- Tooling page for scripts/army-preview.mjs — not part of the app
+         build (vite builds only index.html) and never deployed. It stands
+         the army's helicopter and its winter infantry on a real mountain
+         and photographs them through the game's own renderer (the machine
+         landed, close up, with its doors open and in flight by day and at
+         dusk; every soldier's pose from the front, the side and behind),
+         and lays each view's frames out as a contact sheet. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0b1116;
+      }
+      canvas {
+        display: block;
+      }
+      #sheet {
+        display: grid;
+        gap: 6px;
+        padding: 6px;
+        width: max-content;
+      }
+      #sheet header {
+        grid-column: 1 / -1;
+        color: #dfe8ee;
+        font: 15px/1.4 monospace;
+        letter-spacing: 0.04em;
+        padding: 2px 4px 4px;
+      }
+      figure {
+        margin: 0;
+        position: relative;
+      }
+      figcaption {
+        position: absolute;
+        left: 8px;
+        top: 6px;
+        right: 8px;
+        color: #fff;
+        font: 12px/1.35 monospace;
+        letter-spacing: 0.04em;
+        text-shadow:
+          0 1px 3px rgb(0 0 0 / 95%),
+          0 0 2px rgb(0 0 0 / 95%);
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div id="sheet"></div>
+    <script type="module" src="/src/tools/army-harness.ts"></script>
+  </body>
+</html>

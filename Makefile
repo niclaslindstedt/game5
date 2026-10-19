@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn gunfire gunfire-table water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
+.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn gunfire gunfire-table army water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
 
 build:
 	npm run build
@@ -392,13 +392,13 @@ lean:
 blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
-# The models the game ships: every pair of skis, the heli-ski helicopter
-# and its air ambulance,
+# The models the game ships: every pair of skis, the heli-ski helicopter,
+# its air ambulance and the army's utility helicopter,
 # the mountain snowmobile, the night's piste machine and the jump plane, game quality (no
 # stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=sled, KIND=groomer, KIND=plane or KIND=player (the player's hiker, racer and freestyle rider, man and woman) makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=army (the army's helicopter), KIND=sled, KIND=groomer, KIND=plane or KIND=player (the player's hiker, racer and freestyle rider, man and woman) makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
 # VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, VITE_MODEL_PLANE=0,
@@ -410,6 +410,7 @@ models:
 	$(if $(filter all skis,$(or $(KIND),all)),npm run blender -- --kind skis --id all --quality=game --views=none,)
 	$(if $(filter all heli,$(or $(KIND),all)),npm run blender -- --kind heli --quality=game --views=none,)
 	$(if $(filter all rescue,$(or $(KIND),all)),npm run blender -- --kind rescue --quality=game --views=none,)
+	$(if $(filter all army,$(or $(KIND),all)),npm run blender -- --kind army --quality=game --views=none,)
 	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
 	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
 	$(if $(filter all plane,$(or $(KIND),all)),npm run blender -- --kind plane --quality=game --views=none,)
@@ -1197,6 +1198,21 @@ burn:
 # ARGS="--sheet=dusk", "--views=rocket --dusk=16.5".
 gunfire:
 	npm run gunfire -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE ARMY LAB: the army as drawn (docs/army.md) — the military helicopter
+# (its model `make models KIND=army`) landed on a real mountain from eight
+# bearings, close up, its doors open with the gunners on their guns and a
+# section sat in the doorways, its section out on the snow, and in flight
+# by day and at dusk with a man on the fast rope; and every soldier's pose
+# from the front, the side and behind at the chase camera's range, the door
+# gunner at each aim and the three cuts. Through the game's own renderer.
+# One contact sheet a view, previews/army-<view>.png, and every frame
+# alone. Its own one-off bundle from pwa/army-preview.html (never
+# deployed); needs a Chromium like `world`.
+# ARGS="--sheet=soldiers", "--views=doors,flight-dusk", "--poses=aim,kneel",
+# "--smock=whites".
+army:
+	npm run army -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
 # THE GUNFIRE TABLE: every weapon's numbers against range off the real
 # engine, pure Node — the time of flight, the speed and the energy kept,

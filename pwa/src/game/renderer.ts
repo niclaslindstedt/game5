@@ -849,6 +849,8 @@ export function createWorldRenderer(
     cost: () => cost,
     sceneTally: () => tallyScene(scene, lens.camera),
     group: (name) => scene.getObjectByName(name),
+    stage: (node) => void scene.add(node),
+    labHaze: () => env.haze,
     plumes: () => plumeBits(spray, cloud?.mesh ?? null),
     backend: (): BackendState => seam.state,
     skisUnder: () =>

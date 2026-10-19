@@ -19,7 +19,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
-import { GROOMER, HELI, PLANE, SKI_CATALOG } from "@engine";
+import { ARMY_HELI, GROOMER, HELI, PLANE, SKI_CATALOG } from "@engine";
 
 import {
   ALL_MODELS,
@@ -38,12 +38,14 @@ import {
   PLANE_NODES,
   planeModelUrl,
   rescueModelUrl,
+  armyModelUrl,
   SLED_NODES,
   sledModelUrl,
 } from "../pwa/src/game/skier-models.ts";
 import { coloursOf, RIVAL_OUTFITS } from "../pwa/src/game/outfit.ts";
 import { pairStyle } from "../pwa/src/game/skis-body.ts";
 import { GROOMER_LOOK } from "../pwa/src/game/groomer-look.ts";
+import { ARMY_NODES } from "../pwa/src/game/army-heli-plan.ts";
 
 const root = join(import.meta.dirname, "..");
 const matNames = (file: string): string[] =>
@@ -63,12 +65,13 @@ const PLAYER = [
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, the helicopter and its air ambulance, the snowmobile, the piste machine, the jump plane and the player's hiker, racer and freestyle rider, man and woman", () => {
+  it("are every pair under its id, the helicopter, its air ambulance and the army's machine, the snowmobile, the piste machine, the jump plane and the player's hiker, racer and freestyle rider, man and woman", () => {
     expect([...all].sort()).toEqual(
       [
         ...SKI_CATALOG.map((s) => `${s.id}.glb`),
         "heli.glb",
         "rescue.glb",
+        "army.glb",
         "sled.glb",
         "groomer.glb",
         "plane.glb",
@@ -92,13 +95,14 @@ describe("the models the game ships", () => {
     expect(modelFiles(ALL_MODELS, "player")).toEqual(PLAYER);
     expect(modelFiles({ ...none, plane: true })).toEqual(["plane.glb"]);
     expect(modelFiles(ALL_MODELS, "plane")).toEqual(["plane.glb"]);
-    expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb", "rescue.glb"]);
+    expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb", "rescue.glb", "army.glb"]);
     expect(modelFiles({ ...none, sled: true })).toEqual(["sled.glb"]);
     expect(modelFiles({ ...none, groomer: true })).toEqual(["groomer.glb"]);
     expect(modelFiles({ ...none, skis: true })).toEqual(SKI_CATALOG.map((s) => `${s.id}.glb`));
     expect(modelFiles(none)).toEqual([]);
     expect(modelFiles(ALL_MODELS, "heli")).toEqual(["heli.glb"]);
     expect(modelFiles(ALL_MODELS, "rescue")).toEqual(["rescue.glb"]);
+    expect(modelFiles(ALL_MODELS, "army")).toEqual(["army.glb"]);
     expect(modelFiles(ALL_MODELS, "sled")).toEqual(["sled.glb"]);
     expect(modelFiles(ALL_MODELS, "groomer")).toEqual(["groomer.glb"]);
     expect(modelFiles(ALL_MODELS, "sources")).toHaveLength(SKI_CATALOG.length);
@@ -113,6 +117,7 @@ describe("the models the game ships", () => {
       readFileSync(join(root, MODELS_DIR, "sources.json"), "utf8"),
     ) as object;
     expect(Object.keys(stamp).sort()).toEqual([
+      "army",
       "blender",
       "groomer",
       "heli",
@@ -210,6 +215,70 @@ for (const m of [
     });
   });
 }
+
+// The army's utility helicopter: its own airframe laid with the heli's
+// machinery (`army.py` runs `heli.py`'s top half as a module), its doors
+// and guns nodes of their own.
+describe("the army's helicopter model", () => {
+  const glb = readFileSync(join(root, MODELS_DIR, "army.glb"));
+  const gltf = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString("utf8")) as {
+    nodes: { name: string; translation?: number[]; mesh?: number }[];
+    materials: { name: string }[];
+    meshes: { primitives: { indices: number }[] }[];
+    accessors: { count: number }[];
+  };
+  const node = (name: string) => gltf.nodes.find((n) => n.name === name);
+  const builder = readFileSync(join(root, "scripts", "blender", "army.py"), "utf8");
+  const v = (n: number[] | undefined) => (n ?? [0, 0, 0]).map((x) => Math.round(x * 1000) / 1000);
+
+  it("carries every node its drawer is told of, each a rigid mesh", () => {
+    for (const name of Object.values(ARMY_NODES)) {
+      expect(builder, `army.py names ${name}`).toContain(name.replace(/_[rl]$/, ""));
+      expect(node(name)?.mesh, name).toBeTypeOf("number");
+    }
+    expect(armyModelUrl()).toBe("/models/army.glb");
+  });
+
+  it("hangs the rotors at their hubs, the doors at their forward edges and the guns at their pivots, as ARMY_HELI has them (glTF: y up, the nose on -z)", () => {
+    expect(v(node(ARMY_NODES.body)?.translation)).toEqual([0, 0, 0]);
+    expect(v(node(ARMY_NODES.rotor)?.translation)).toEqual(
+      v([0, ARMY_HELI.rotor.hub, -ARMY_HELI.rotor.at]),
+    );
+    const t = ARMY_HELI.tail.hub;
+    expect(v(node(ARMY_NODES.tail)?.translation)).toEqual(v([t.x, t.y, -t.z]));
+    const p = ARMY_HELI.gun.pivot;
+    expect(v(node(ARMY_NODES.gunR)?.translation)).toEqual(v([p.x, p.y, -p.z]));
+    expect(v(node(ARMY_NODES.gunL)?.translation)).toEqual(v([-p.x, p.y, -p.z]));
+    for (const [name, side] of [
+      [ARMY_NODES.doorR, 1],
+      [ARMY_NODES.doorL, -1],
+    ] as const) {
+      const [x, y, z] = v(node(name)?.translation);
+      expect(Math.sign(x), name).toBe(side);
+      expect(y, name).toBeCloseTo(ARMY_HELI.door.sill, 2);
+      expect(z, name).toBeCloseTo(-ARMY_HELI.door.front, 2);
+    }
+  });
+
+  it("names its materials as its builders do", () => {
+    const named = new Set(["heli.py", "army.py"].flatMap(matNames));
+    for (const n of ["paint", "trim", "glass", "metal", "dark", "rotor", "lamp", "cabin", "gun"]) {
+      expect(named.has(n), `a builder names "${n}"`).toBe(true);
+    }
+    for (const m of gltf.materials) expect(named.has(m.name), m.name).toBe(true);
+  });
+
+  it("stays inside the game's triangle budget", () => {
+    const tris = gltf.meshes
+      .flatMap((x) => x.primitives)
+      .reduce((n, p) => n + gltf.accessors[p.indices].count / 3, 0);
+    // 24k: the heli's 14k airframe grown to the bigger class's cabin and
+    // twin cowl (about 15k), its sliding doors cut from the skin (1.5k
+    // each), the four-bladed rotor and the two door guns; past 24k the
+    // builder lost its game cut.
+    expect(tris).toBeLessThanOrEqual(24_000);
+  });
+});
 
 describe("the model switches", () => {
   it("are on unless a build turns one back", () => {

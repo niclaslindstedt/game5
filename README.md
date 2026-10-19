@@ -259,6 +259,7 @@ Three layers, one direction of dependency: `engine/` is the whole game as a fram
 - [Configuration](docs/configuration.md) — URL parameters, the deploy slots, the identity
 - [Getting started](docs/getting-started.md) — a first run, every control, running from a checkout
 - [Troubleshooting](docs/troubleshooting.md) — what goes wrong playing and developing, and why
+- [Performance](docs/performance.md) — every round of optimization: what it changed and what it bought
 - [Audio](docs/audio.md) — how every sound is synthesized and mixed
 - [The helicopter](docs/helicopter.md) — the free ride's helicopter: its flight model, its controls, the crash and the rotor's wash
 - [The jump plane](docs/airplane.md) — the free ride's jump plane: its flight model and aerobatics, its controls, the airstrip, the cockpit, the crash, and the airborne edge every craft shares

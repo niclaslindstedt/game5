@@ -10,11 +10,14 @@
 // (`tools/cloud-harness.ts`), the turns lab (`tools/turns-harness.ts`) and
 // the app ride the same hands.
 
-import { placeRun, step, TUNING, type GameState, type SkierInput } from "@engine";
+import { flipLean, placeRun, step, TUNING, type GameState, type SkierInput } from "@engine";
 
 import { snapInput } from "./ghost.ts";
 
-// ...and CLIMB: straight UP the fall line, the way a wall is run into.
+// ...and CLIMB: straight UP the fall line, the way a wall is run into;
+// and FLIP: along the way he already faces (a pose stood square to a
+// kicker), the lean held back from the ramp to the air — the backflip a
+// store frame or a lab photographs mid-loop.
 export const HOLD_MOVES = [
   "straight",
   "carve",
@@ -24,6 +27,7 @@ export const HOLD_MOVES = [
   "stop",
   "skate",
   "climb",
+  "flip",
 ] as const;
 export type HoldMove = (typeof HOLD_MOVES)[number];
 
@@ -77,6 +81,12 @@ export function holdInput(
     case "climb":
       // Run up the wall and let it have him: nothing pressed but the line.
       return { ...base, tuck: 0, brake: 0 };
+    case "flip":
+      // Square at the lip and off it, then the lean carried across its gate
+      // in the air — a held lean on the snow is marked as made and throws
+      // nothing — on the engine's own hands for one loop round
+      // (`flipLean`): let go in time to come round onto his skis.
+      return { ...base, brake: 0, lean: s.airborne ? flipLean(state, 1, 1) : 0 };
     default:
       return base;
   }
@@ -102,7 +112,8 @@ export function rideHold(
   state.level.normalAt(s.x, s.z, n);
   const slope = Math.hypot(n.x, n.z);
   const up = hold.move === "climb" ? -1 : 1;
-  const heading = slope > 0.05 ? Math.atan2(up * n.x, up * n.z) : s.heading;
+  // A flip is ridden the way he was stood, square to the kicker he faces.
+  const heading = hold.move !== "flip" && slope > 0.05 ? Math.atan2(up * n.x, up * n.z) : s.heading;
   placeRun(state, {
     x: s.x,
     z: s.z,

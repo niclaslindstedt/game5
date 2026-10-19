@@ -3,7 +3,6 @@
 // naming convention; they exercise the engine and
 // the headless simulator — nothing here needs a DOM.
 import { readdirSync } from "node:fs";
-import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import { canShareWorker } from "./tests/support/isolation.ts";
@@ -39,11 +38,6 @@ export default defineConfig({
     // CI's shards are cut by each file's measured time rather than by
     // vitest's hash of its path, and the heaviest files start first.
     sequence: { sequencer: WeightedSequencer },
-    // Vitest keeps a core back for itself by default, which on a four-core
-    // CI runner is a quarter of the machine idle: the main process only
-    // hands out files and prints. Locally the default stands, so a run
-    // leaves the machine usable.
-    maxWorkers: process.env.CI ? availableParallelism() : undefined,
     projects: [
       { extends: true, test: { name: "shared", include: shared, isolate: false } },
       { extends: true, test: { name: "isolated", include: isolated } },

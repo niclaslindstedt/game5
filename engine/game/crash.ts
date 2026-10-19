@@ -478,6 +478,7 @@ export function throwRider(
   if (c.spec.board) strapBoard(thrown, c, cause === "slam", RAGDOLL);
   else if (!opts.keepSkis) thrown.skis = letGo(state, c, side, speed);
   for (const ski of thrown.skis) outOfRock(state.level, ski.ends, ski.last, SKI_ENDS);
+  thrown.from = { x: c.x, y: c.y, z: c.z };
   c.thrown = thrown;
   events.push({
     kind: "wipeout",

@@ -463,7 +463,10 @@ describe("the player meets the crowd", () => {
     expect(stood.state.skier.body.fallPeak).toBe(blow.g);
     // The amateur knocked down, or the player thrown: a fall's at once.
     expect(meet(6).state.skier.body.impact?.fall).toBe(true);
-    expect(meet(20).state.skier.body.impact?.fall).toBe(true);
+    // ...and a collision's (`person-hit.ts`), struck on him a step later.
+    const hard = meet(20).state;
+    step(hard, NEUTRAL_INPUT);
+    expect(hard.skier.body.impact?.fall).toBe(true);
   });
 
   it("a fall long after the shove is not the shove's", () => {

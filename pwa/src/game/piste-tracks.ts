@@ -203,6 +203,11 @@ float pisteTracks(vec2 p, vec2 acr, float weight, inout vec2 grad) {
         float apart = ${f(T.stance)} * carve;
         float wid = mix(mix(${f(T.width.skid)} * (0.6 + 0.8 * abs(s)), ${f(T.width.board)}, board), ${f(T.width.carve)}, carve)
           * mix(1.0, ${f(T.width.churned)}, churn);
+        // A line further off than its grooves' and its spray's bells reach
+        // (each under e^-20 there, the cut nought) adds nothing, and most of
+        // the six a pixel asks of are: none of the rest is worked out.
+        float sprayW = 0.07 + 0.2 * churn;
+        if (abs(d) > apart + max(4.5 * wid, carve * (0.14 + 4.5 * sprayW))) continue;
         // Older lines are skied over in stretches.
         float keep = smoothstep(-0.45, 0.15, sin(v * 0.035 * (0.7 + h2) + h0 * 31.0) + 0.7 * h1 - 0.2);
         // The groove's relief while a pixel is finer than it; past that
@@ -222,7 +227,7 @@ float pisteTracks(vec2 p, vec2 acr, float weight, inout vec2 grad) {
         gr += dh * k * inv * vec2(1.0, -slope);
         cut = max(cut, line * (1.0 - smoothstep(apart + 0.8 * wid, apart + 2.2 * wid, abs(d))));
         // The snow a carve throws out on the outside of its turn.
-        float o = (d * sign(s) - apart - 0.14) / (0.07 + 0.2 * churn);
+        float o = (d * sign(s) - apart - 0.14) / sprayW;
         float spray = carve * exp(-o * o) * s * s;
         shade += line * (spray * 0.7 - (g1 + g2) * mix(0.35, 0.8, carve + board) * (1.0 - 0.4 * churn));
       }

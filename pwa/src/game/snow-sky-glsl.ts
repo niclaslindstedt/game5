@@ -27,6 +27,9 @@
 //     absorbs the red a little more than the blue over centimetres). It
 //     glows when the eye looks toward the sun past it (`SNOW_SKY_LIGHT`).
 
+import { DEFORM } from "./deform-field.ts";
+import { TRAIL } from "./trail-stamp.ts";
+
 /** The functions the light chunk calls — appended to the snow's fragment
  * pars, after the noise, the trail map and the snow's globals. */
 export const SNOW_SKY_PARS = /* glsl */ `
@@ -51,9 +54,20 @@ float snowBumpLit(vec2 p, vec3 L, vec2 macro, float swell, float chop, float gra
   float rise = L.y / run - dot(macro, u);
   if (rise <= 0.0 || rise > 1.6) return 1.0;
   float h0 = snowBumpHeight(p, swell, chop, grain);
+  // The tallest the relief can stand anywhere along the march: the trail
+  // map's highest berm, or the deformable snow's tallest heap where the
+  // march can reach its window, and every swell, heap and grain at full.
+  vec2 win = abs(p - uDeformBox.xy);
+  float trailTop = uDeformOn > 0.5 && max(win.x, win.y) < uDeformBox.z + 11.5
+    ? ${Math.max(TRAIL.maxBerm, DEFORM.tallest).toFixed(3)} : ${TRAIL.maxBerm.toFixed(3)};
+  float top = trailTop + 0.35 * swell + 0.32 * chop + 0.035 * grain;
   float lit = 1.0;
   float d = 0.15;
   for (int i = 0; i < 8; i++) {
+    // Once the ray stands over the tallest relief by more than a step's
+    // penumbra it does at every step after (it climbs faster than the
+    // penumbra widens): nothing further on can shade the point.
+    if (rise > 0.012 && h0 + d * rise - top >= 0.012 + 0.012 * d) break;
     float above = h0 + d * rise - snowBumpHeight(p + u * d, swell, chop, grain);
     float soft = 0.012 + 0.012 * d;
     lit = min(lit, smoothstep(-soft, soft, above));

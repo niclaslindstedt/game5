@@ -98,8 +98,11 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
     ride.casualties = casualties;
     ride.flight =
       ride.kind === "police"
-        ? planPolice(level, { x: casualties[0].x, z: casualties[0].z, evidence: ride.evidence ?? [] })
-            .flight
+        ? planPolice(level, {
+            x: casualties[0].x,
+            z: casualties[0].z,
+            evidence: ride.evidence ?? [],
+          }).flight
         : planFlight(level, casualties);
   }
   if (ended.gore && ended.gore.dead >= 0) {

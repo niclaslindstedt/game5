@@ -39,7 +39,7 @@ export type HeliMode = "parked" | "flown" | "home" | "wreck";
 
 /** WHOSE MACHINE IT IS, when it is not the free ride's own (`steal.ts`):
  * the air ambulance's. Drawn in its owner's colours; flown like any. */
-export type HeliLivery = "rescue";
+export type HeliLivery = "rescue" | "police";
 
 /** THE FREE RIDE'S HELICOPTER (`heli.ts`) — on a run whose rules carry one
  * (`RunRules.heli`), absent everywhere else. Its place is the SKID DATUM

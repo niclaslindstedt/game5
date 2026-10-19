@@ -700,7 +700,10 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       const cs = tf.casualty;
       const mesh = l.casualty!;
       // A police call's body is the one left lying until the crew have him.
-      const left = !!u.police && t < flights[i].trips[k].offset && lyingNear(statues, cs.x, cs.z);
+      const left =
+        !!u.police &&
+        callClock(calls[i], state.t) < flights[i].trips[k].offset &&
+        lyingNear(statues, cs.x, cs.z);
       mesh.visible = cs.shown && !bagged && !left;
       euler.set(-cs.pitch, cs.heading, -cs.roll, "YXZ");
       quat.setFromEuler(euler);

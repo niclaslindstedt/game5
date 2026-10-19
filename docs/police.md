@@ -57,6 +57,7 @@ On the seeds the suite plans, the scene keeps the machine on the snow **4–6 mi
 
 - **Booked** (`rescue-book.ts`): `App.tsx` notes each step's `wipeout` as the run's point of impact (`noteImpact`). When a run ends dead, `bookRun` reads the evidence off it (`evidenceOf`: the impact, `gore.smears`, `gore.torn`, the skis in `skier.thrown`) and books a police call at where he lay. That call carries `kind: "police"` and the evidence.
 - **Its own machine:** a police call never takes a second casualty, and an injury near it calls an ambulance of its own.
+- **Stolen** (`engine/game/steal.ts`): a landed police machine is offered to the machine press at its door exactly as the ambulance is, and taken in its own livery (`HeliLivery` `"police"`, drawn by `heli-scene.ts` off the same look). Its officers freeze where they stood, and the next run sends another police machine to the same scene with the same evidence.
 - **Kept and cleared** as the ambulance's calls are: from run to run on the book's clock, until its machine has gone, and every call when the map changes. A replay carries it in its recipe.
 
 ## The livery

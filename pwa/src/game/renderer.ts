@@ -146,6 +146,7 @@ import { paintAhead } from "./paint-ahead.ts";
 import * as ahead from "./world-prime.ts";
 import { createPeopleView, type CrowdView } from "./spectators.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
+import { drawnContacts } from "./trail-skis.ts";
 import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
 import { quietThree } from "./three-console.ts";
 
@@ -630,7 +631,7 @@ export function createWorldRenderer(
         deform.begin(i, skier, stamps); // his stamps and the spray's takes, for the hole
         if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp && !summer()) {
           stampsOf(
-            skier.contacts,
+            drawnContacts(skier),
             r.pen,
             level.packedAt,
             nominalLoad,

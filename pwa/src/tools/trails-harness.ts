@@ -16,6 +16,9 @@
 //           turns, from above and close: two lines, one wide wedged line,
 //           and a packed belt printed with the paddles between two ski
 //           grooves.
+//   skate   SKATING AND POLING on the flat — the V's diagonal strokes each
+//           ski leaves, on the groomer and in powder, from overhead, from
+//           above to the side and behind him.
 //
 // A track is cut by the engine itself (`step` under a scripted steer, so
 // the stations, the sink, the edge and the skid are the physics' own) on a
@@ -64,6 +67,7 @@ const GROUPS: Record<string, readonly string[]> = {
   low: ["groomed-low", "powder-low", "deep-low"],
   night: ["deep-night"],
   speed: ["speed-powder", "speed-deep"],
+  skate: ["skate-groomed", "skate-powder"],
   rider: ["rider-skis-deep", "rider-board-powder", "rider-board-deep", "rider-board-crawl"],
   kinds: [
     "skis-groomed",
@@ -140,6 +144,55 @@ type Start = { x: number; z: number; heading: number };
 function pisteStart(s: GameState): Start {
   const p = trackPointAt(s.level, s.level.track.length * 0.35);
   return { x: p.x, z: p.z, heading: p.heading };
+}
+
+/** A FLAT TO SKATE ON: ground under 3° — groomed (`packed`) or untouched
+ * powder — clear of every trunk for 40 m along it, run ACROSS its fall
+ * line, so the hill neither pulls him on nor holds him back. */
+function flatStart(s: GameState, packed: boolean): Start {
+  const lv = s.level;
+  const n = { x: 0, y: 1, z: 0 };
+  const snowOk = (x: number, z: number) =>
+    packed ? lv.packedAt(x, z) > 0.9 : lv.packedAt(x, z) < 0.02;
+  let best: Start | null = null;
+  let score = Infinity;
+  for (let gx = 80; gx < lv.size - 80; gx += 6) {
+    for (let gz = 80; gz < lv.size - 80; gz += 6) {
+      if (!snowOk(gx, gz)) continue;
+      lv.normalAt(gx, gz, n);
+      const slope = Math.hypot(n.x, n.z) / n.y;
+      if (slope > 0.05) continue;
+      const heading = Math.atan2(n.x, n.z) + Math.PI / 2;
+      const fx = Math.sin(heading);
+      const fz = Math.cos(heading);
+      let steep = slope;
+      let ok = true;
+      for (let k = 4; k <= 40 && ok; k += 4) {
+        const x = gx + fx * k;
+        const z = gz + fz * k;
+        if (!snowOk(x, z)) ok = false;
+        lv.normalAt(x, z, n);
+        steep = Math.max(steep, Math.hypot(n.x, n.z) / n.y);
+      }
+      if (!ok || steep > 0.06) continue;
+      for (const t of lv.trees) {
+        const dx = t.x - gx;
+        const dz = t.z - gz;
+        const along = dx * fx + dz * fz;
+        const across = dx * fz - dz * fx;
+        if (along > -12 && along < 52 && Math.abs(across) < 12) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok && steep < score) {
+        score = steep;
+        best = { x: gx, z: gz, heading };
+      }
+    }
+  }
+  if (!best) throw new Error(`no ${packed ? "groomed" : "powder"} flat on this map`);
+  return best;
 }
 
 /** OFF IT: an open slope of 12–25° clear of the piste and of every trunk
@@ -436,7 +489,45 @@ async function rider(cutter: "skis" | "board", b: Band, speed: number): Promise<
   shoot(s, "the chase lens", chase(s), extra, true);
 }
 
+/** SKATING: rolled in at a jog on the flat and asked to go (the tuck), so
+ * he skates and poles — each ski opened into the V, pushed out on its
+ * inside edge and lifted back in — and his marks shot from overhead, from
+ * above to the side and from behind him. */
+async function skate(b: "groomed" | "powder"): Promise<void> {
+  const def = BANDS[b];
+  const s = fresh(def.dial);
+  await renderer.load(s);
+  const at = flatStart(s, def.piste);
+  const path = cut(s, at, 5, { brake: 0, speed: 3.5, steer: 0, tuck: 1 });
+  const k = s.skier;
+  const mid = path[Math.floor(path.length * 0.6)];
+  const fx = Math.sin(k.heading);
+  const fz = Math.cos(k.heading);
+  const g = (x: number, z: number) => s.level.groundAt(x, z);
+  const extra = `skating, ${def.word} — ${k.speed.toFixed(1)} m/s, drive ${k.drive.toFixed(2)}`;
+  shoot(
+    s,
+    "from overhead",
+    lens(
+      { x: mid.x - fx * 0.5, y: g(mid.x, mid.z) + 5, z: mid.z - fz * 0.5 },
+      { x: mid.x, y: g(mid.x, mid.z), z: mid.z },
+      60,
+    ),
+    extra,
+  );
+  const side = { x: mid.x - fz * 4 - fx * 2, z: mid.z + fx * 4 - fz * 2 };
+  shoot(
+    s,
+    "from above, to the side",
+    lens({ ...side, y: g(side.x, side.z) + 3.5 }, { x: mid.x, y: g(mid.x, mid.z), z: mid.z }, 55),
+    extra,
+  );
+  shoot(s, "the chase lens", chase(s), extra, true);
+}
+
 const VIEWS: Record<string, () => Promise<void>> = {
+  "skate-groomed": () => skate("groomed"),
+  "skate-powder": () => skate("powder"),
   "rider-skis-deep": () => rider("skis", "deep", 9),
   "rider-board-powder": () => rider("board", "powder", 9),
   "rider-board-deep": () => rider("board", "deep", 9),

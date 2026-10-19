@@ -711,7 +711,6 @@ export const STRINGS = {
   optHigh: "HIGH",
   optMax: "MAX",
   /** A RESOLUTION stop: "70%". */
-  optShare: (percent: string): string => `${percent}%`,
   optShadowSkiers: "SKIERS",
   optCustom: "CUSTOM",
   optAuto: "AUTO",
@@ -773,7 +772,8 @@ export const STRINGS = {
   optPresetHint:
     "Every row below at once. AUTO times this machine and sets each row for sixty frames a second, keeping what shows most. CUSTOM means a row has been moved off the preset it was on.",
   optResolution: "RESOLUTION",
-  optResolutionHint: "How many pixels are drawn, as a share of the screen's own.",
+  optResolutionHint:
+    "How many pixels are drawn: HIGH the screen's own, MEDIUM half of them, LOW a quarter.",
   optDistance: "DISTANCE",
   optDistanceHint:
     "How far out anything is drawn. Shorter is cheaper, and a mist closes before the edge. MAX draws the whole mountain, clear to the summit ridge.",
@@ -803,8 +803,10 @@ export const STRINGS = {
   optFrameRateHint:
     "The most frames a second the game draws. At 60 a phone runs cooler and keeps its speed for longer.",
   frameCapNone: "UNLIMITED",
-  optAntialias: "SMOOTH EDGES",
-  optAntialiasHint: "Antialiasing. Takes effect the next time the game is opened.",
+  optAntialias: "ANTIALIASING",
+  optAntialiasHint:
+    "Antialiasing: how many samples a pixel along every edge. 2× smooths most of the steps for less than 4× costs.",
+  optSamples: (n: string): string => `${n}×`,
 
   /* ── OPTIONS ▸ KEYS (menu-keys.tsx) ────────────────────────────────── */
   keysTitle: "KEYS",

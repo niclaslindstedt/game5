@@ -4,14 +4,13 @@
 // `tests/video_test.ts` reads the whole ladder without a browser, and
 // `renderer.setVideo` is the one place a row becomes a draw call.
 //
-// NINE ROWS, BECAUSE THEY ARE NINE DIFFERENT BILLS. A phone can be short
+// A ROW A BILL, BECAUSE THEY ARE DIFFERENT BILLS. A phone can be short
 // of pixels and rich in triangles, or the other way round, and one QUALITY
 // knob would make it pay for the thing it can afford to save on the thing it
 // cannot:
 //
-//   RESOLUTION  how many pixels: a share of the device's own pixel ratio,
-//               in tenths from a half to the whole — the row a phone short
-//               of pixels wants fine steps on.
+//   RESOLUTION  how many pixels: HIGH the screen's own, MEDIUM half of
+//               them, LOW a quarter.
 //   DISTANCE    how far anything is drawn at all: the woods, and the ground's
 //               clipmap cut to the view — with a MIST closing over the last
 //               of it, the one row that changes the WEATHER, which is how the
@@ -44,9 +43,11 @@
 //               field's lamps. Each one is a beam, a falloff and a glint
 //               worked out over the whole snow, so on a phone's screen it is
 //               the night's own bill. Nothing by day.
-//   ANTIALIAS   the canvas's multisampling. The one row that cannot be
-//               changed under a running context: it is read when the canvas
-//               is made, and the page says so.
+//   ANTIALIAS   the picture's multisampling: OFF, 2× or 4× samples a pixel
+//               along every edge (`ANTIALIAS_SAMPLES`). The scene's target
+//               takes it at once (`region-picture.ts`); the canvas's own,
+//               read when the canvas is made, is used only where it is
+//               what the row asks for.
 //
 // Every ladder runs CHEAPEST FIRST, so a skier hunting for frames always
 // walks the same way. `VIDEO_PRESETS` are whole pictures a tier at a time —
@@ -70,9 +71,9 @@ export const DISTANCE_LEVELS: readonly DistanceLevel[] = [...TIERS, "max"];
 export type TrailLevel = "off" | Tier;
 export const TRAIL_LEVELS: readonly TrailLevel[] = ["off", ...TIERS];
 
-/** RESOLUTION: a share of the screen's own pixels, in tenths. */
-export type ResolutionLevel = "50" | "60" | "70" | "80" | "90" | "100";
-export const RESOLUTION_LEVELS: readonly ResolutionLevel[] = ["50", "60", "70", "80", "90", "100"];
+/** RESOLUTION: a quarter of the screen's own pixels, half of them, all. */
+export type ResolutionLevel = Tier;
+export const RESOLUTION_LEVELS: readonly ResolutionLevel[] = TIERS;
 
 /** SKY: PLAIN the air's own colour from the horizon to the zenith as the
  * hour and the weather light it, and nothing in it — no cloud, sun, moon,
@@ -85,6 +86,11 @@ export const SKY_LEVELS: readonly SkyLevel[] = ["plain", "full"];
 export type HorizonLevel = "painted" | "3d";
 export const HORIZON_LEVELS: readonly HorizonLevel[] = ["painted", "3d"];
 
+/** ANTIALIAS: the samples a pixel along an edge — none, two or four. */
+export type AntialiasLevel = "off" | "2" | "4";
+export const ANTIALIAS_LEVELS: readonly AntialiasLevel[] = ["off", "2", "4"];
+export const ANTIALIAS_SAMPLES: Record<AntialiasLevel, number> = { off: 0, "2": 2, "4": 4 };
+
 export type VideoSettings = {
   resolution: ResolutionLevel;
   distance: DistanceLevel;
@@ -96,26 +102,21 @@ export type VideoSettings = {
   lamps: Tier;
   sky: SkyLevel;
   horizon: HorizonLevel;
-  antialias: boolean;
+  antialias: AntialiasLevel;
 };
 
 /* ── What each stop buys ─────────────────────────────────────────────── */
 
-/** RESOLUTION: the share of the device's pixel ratio the canvas is drawn at.
- * The top is the screen's own. The bottom is half of it a side — on a
- * phone, whose two pixels to the point (`App.tsx` caps the ratio at 2) it
- * leaves one pixel a point, a quarter of the pixels the top draws; under it
- * the HUD's crisp type sits over a picture that reads as out of focus
- * rather than as cheaper. A tenth a stop, because the pixels a frame shades
- * go as the square of the share: each stop down is a sixth to a fifth fewer,
- * so a machine just short of its frame gives up a step, not a third. */
+/** RESOLUTION: the share of the device's pixel ratio the canvas is drawn at,
+ * a side — the pixels a frame shades go as its square. HIGH is the
+ * screen's own; MEDIUM half its pixels; LOW a quarter, half of it a side —
+ * on a phone, whose two pixels to the point (`App.tsx` caps the ratio at
+ * 2), one pixel a point; under it the HUD's crisp type sits over a picture
+ * that reads as out of focus rather than as cheaper. */
 export const RESOLUTION_SHARE: Record<ResolutionLevel, number> = {
-  "50": 0.5,
-  "60": 0.6,
-  "70": 0.7,
-  "80": 0.8,
-  "90": 0.9,
-  "100": 1,
+  low: 0.5,
+  medium: Math.SQRT1_2,
+  high: 1,
 };
 
 /** How far out the ground reaches under DISTANCE MAX, m: past the basin's
@@ -429,12 +430,10 @@ export const LAMP_GLINT: Record<Tier, boolean> = { low: false, medium: true, hig
 
 /* ── Whole pictures ──────────────────────────────────────────────────── */
 
-/** A whole picture a tier at a time. ANTIALIAS is not in it: it is a fact
- * about the canvas rather than a cost the probe weighs, and a preset that
- * moved it would be a press that did nothing until the next visit. */
-export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
+/** A whole picture a tier at a time. */
+export const VIDEO_PRESETS: Record<Tier, VideoSettings> = {
   low: {
-    resolution: "80",
+    resolution: "medium",
     distance: "low",
     terrain: "low",
     trails: "low",
@@ -444,9 +443,10 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     lamps: "low",
     sky: "plain",
     horizon: "3d",
+    antialias: "2",
   },
   medium: {
-    resolution: "100",
+    resolution: "high",
     distance: "medium",
     terrain: "medium",
     trails: "medium",
@@ -456,9 +456,10 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     lamps: "medium",
     sky: "full",
     horizon: "3d",
+    antialias: "4",
   },
   high: {
-    resolution: "100",
+    resolution: "high",
     distance: "high",
     terrain: "high",
     trails: "high",
@@ -468,12 +469,13 @@ export const VIDEO_PRESETS: Record<Tier, Omit<VideoSettings, "antialias">> = {
     lamps: "high",
     sky: "full",
     horizon: "3d",
+    antialias: "4",
   },
 };
 
 /** The picture a first visit opens on: the design point, which the probe
  * then moves up or down once it has timed this machine drawing it. */
-export const DEFAULT_VIDEO: VideoSettings = { ...VIDEO_PRESETS.medium, antialias: true };
+export const DEFAULT_VIDEO: VideoSettings = { ...VIDEO_PRESETS.medium };
 
 export type PresetLevel = Tier | "custom";
 
@@ -494,15 +496,14 @@ export function videoUntouched(video: VideoSettings): boolean {
   );
 }
 
-/** A picture moved onto a preset, the canvas's antialiasing kept. */
+/** A picture moved onto a preset. */
 export function withPreset(video: VideoSettings, tier: Tier): VideoSettings {
   return { ...video, ...VIDEO_PRESETS[tier] };
 }
 
 /** The rows a picture is fitted by (`picture-fit.ts`) and a link may set
- * (`?picture=`), each with its ladder, cheapest first. ANTIALIAS is not
- * one: the canvas takes it only when it is made. */
-export type PictureRow = Exclude<keyof VideoSettings, "antialias">;
+ * (`?picture=`), each with its ladder, cheapest first. */
+export type PictureRow = keyof VideoSettings;
 export const PICTURE_LADDERS: { readonly [R in PictureRow]: readonly VideoSettings[R][] } = {
   resolution: RESOLUTION_LEVELS,
   distance: DISTANCE_LEVELS,
@@ -514,6 +515,7 @@ export const PICTURE_LADDERS: { readonly [R in PictureRow]: readonly VideoSettin
   lamps: TIERS,
   sky: SKY_LEVELS,
   horizon: HORIZON_LEVELS,
+  antialias: ANTIALIAS_LEVELS,
 };
 export const PICTURE_ROWS = Object.keys(PICTURE_LADDERS) as PictureRow[];
 
@@ -542,11 +544,20 @@ export function mergeVideo(parsed: unknown): VideoSettings {
   const blob = parsed as Record<string, unknown>;
   const pick = <T extends string>(value: unknown, ladder: readonly T[], fallback: T): T =>
     typeof value === "string" && ladder.includes(value as T) ? (value as T) : fallback;
-  // A picture stored under the word ladder: the share each word stood for.
-  const said = { min: "50", low: "60", medium: "80", high: "100" } as const;
+  // A picture stored under the ladder of tenths (or the word ladder before
+  // it, whose MIN was the half): the stop nearest it by the pixels drawn.
+  const tenths: Record<string, ResolutionLevel> = {
+    min: "low",
+    "50": "low",
+    "60": "low",
+    "70": "medium",
+    "80": "medium",
+    "90": "high",
+    "100": "high",
+  };
   const resolution =
-    typeof blob.resolution === "string" && Object.hasOwn(said, blob.resolution)
-      ? said[blob.resolution as keyof typeof said]
+    typeof blob.resolution === "string" && Object.hasOwn(tenths, blob.resolution)
+      ? tenths[blob.resolution]
       : blob.resolution;
   out.resolution = pick(resolution, RESOLUTION_LEVELS, out.resolution);
   out.distance = pick(blob.distance, DISTANCE_LEVELS, out.distance);
@@ -564,10 +575,14 @@ export function mergeVideo(parsed: unknown): VideoSettings {
   // every other row stood on LOW, so it is still that preset.
   const low = VIDEO_PRESETS.low;
   const wasLow = (Object.keys(low) as (keyof typeof low)[]).every(
-    (k) => k === "sky" || k === "horizon" || out[k] === low[k],
+    (k) => k === "sky" || k === "horizon" || k === "antialias" || out[k] === low[k],
   );
   out.sky = pick(blob.sky, SKY_LEVELS, wasLow && blob.sky === undefined ? "plain" : out.sky);
   out.horizon = pick(blob.horizon, HORIZON_LEVELS, out.horizon);
-  if (typeof blob.antialias === "boolean") out.antialias = blob.antialias;
+  // A picture stored when the row was on or off: on was the canvas's own,
+  // four samples.
+  const antialias =
+    blob.antialias === true ? "4" : blob.antialias === false ? "off" : blob.antialias;
+  out.antialias = pick(antialias, ANTIALIAS_LEVELS, out.antialias);
   return out;
 }

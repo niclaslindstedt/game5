@@ -273,10 +273,7 @@ export type ReportRow = { label: string; value: string };
 
 /** OPTIONS ▸ PICTURE as report rows, in the settings' own order. */
 export function pictureRows(video: VideoSettings): ReportRow[] {
-  return Object.entries(video).map(([label, value]) => ({
-    label,
-    value: typeof value === "boolean" ? (value ? "on" : "off") : String(value),
-  }));
+  return Object.entries(video).map(([label, value]) => ({ label, value: String(value) }));
 }
 
 /** A run, ready to paste. */

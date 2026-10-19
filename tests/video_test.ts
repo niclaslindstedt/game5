@@ -60,11 +60,12 @@ describe("the picture's ladders (settings-video.ts)", () => {
   it("runs every ladder cheapest first", () => {
     const shares = RESOLUTION_LEVELS.map((t) => RESOLUTION_SHARE[t]);
     expect(shares).toEqual([...shares].sort((a, b) => a - b));
-    expect(RESOLUTION_SHARE["100"]).toBe(1);
-    // A tenth a stop, from half the screen's own a side: a phone's one
-    // pixel a point at the bottom.
-    expect(shares).toEqual([0.5, 0.6, 0.7, 0.8, 0.9, 1]);
-    for (const t of RESOLUTION_LEVELS) expect(RESOLUTION_SHARE[t]).toBe(Number(t) / 100);
+    // By the pixels drawn: a quarter of the screen's own (half a side, a
+    // phone's one pixel a point), half of them, all of them.
+    const pixels = shares.map((a) => a * a);
+    expect(pixels[0]).toBeCloseTo(0.25, 9);
+    expect(pixels[1]).toBeCloseTo(0.5, 9);
+    expect(pixels[2]).toBe(1);
 
     // LAMPS: his own headlamp at every stop, and every slot there is on HIGH.
     const lamps = TIERS.map((t) => LAMP_COUNT[t]);
@@ -179,36 +180,43 @@ describe("the picture's ladders (settings-video.ts)", () => {
   it("reads a picture back as the preset it is, and CUSTOM once a row moves", () => {
     for (const t of TIERS) {
       expect(presetOf(withPreset(DEFAULT_VIDEO, t))).toBe(t);
-      // The canvas's antialiasing is not the preset's.
-      expect(presetOf({ ...withPreset(DEFAULT_VIDEO, t), antialias: false })).toBe(t);
+      // ANTIALIAS is a row like any other: moved off, the picture is CUSTOM.
+      expect(presetOf({ ...withPreset(DEFAULT_VIDEO, t), antialias: "off" })).toBe("custom");
     }
     expect(presetOf(DEFAULT_VIDEO)).toBe("medium");
     expect(presetOf({ ...DEFAULT_VIDEO, shadows: "off" })).toBe("custom");
-    expect(withPreset({ ...DEFAULT_VIDEO, antialias: false }, "high").antialias).toBe(false);
+    expect(withPreset({ ...DEFAULT_VIDEO, antialias: "off" }, "high").antialias).toBe("4");
     // Every preset is a stop on every ladder it names.
     for (const t of TIERS) expect(mergeVideo(VIDEO_PRESETS[t])).toMatchObject(VIDEO_PRESETS[t]);
   });
 
   it("merges a stored picture row by row", () => {
     expect(mergeVideo(null)).toEqual(DEFAULT_VIDEO);
-    expect(mergeVideo({ terrain: "high", trails: "off", antialias: false })).toEqual({
+    expect(mergeVideo({ terrain: "high", trails: "off", antialias: "2" })).toEqual({
       ...DEFAULT_VIDEO,
       terrain: "high",
       trails: "off",
-      antialias: false,
+      antialias: "2",
     });
+    // Stored when the row was a switch: on was the canvas's own four samples.
+    expect(mergeVideo({ antialias: true }).antialias).toBe("4");
+    expect(mergeVideo({ antialias: false }).antialias).toBe("off");
+    expect(mergeVideo({ antialias: "8" }).antialias).toBe(DEFAULT_VIDEO.antialias);
     expect(mergeVideo({ terrain: "ultra", shadows: "max", spray: 3 })).toEqual(DEFAULT_VIDEO);
     // The row's old stops: the quality ladder's LOW is MEDIUM now, and the
     // mode ladder's ALL is HIGH, its skiers sharp.
     expect(mergeVideo({ shadows: "low" }).shadows).toBe("medium");
     expect(mergeVideo({ shadows: "all" }).shadows).toBe("high");
     expect(mergeVideo({ shadows: "high" }).shadows).toBe("high");
-    // RESOLUTION stored as a word: the share that word stood for.
-    expect(mergeVideo({ resolution: "low" }).resolution).toBe("60");
-    expect(mergeVideo({ resolution: "medium" }).resolution).toBe("80");
-    expect(mergeVideo({ resolution: "high" }).resolution).toBe("100");
-    expect(mergeVideo({ resolution: "min" }).resolution).toBe("50");
-    expect(mergeVideo({ resolution: "70" }).resolution).toBe("70");
+    // RESOLUTION stored in tenths: the stop nearest it by the pixels drawn.
+    expect(mergeVideo({ resolution: "50" }).resolution).toBe("low");
+    expect(mergeVideo({ resolution: "60" }).resolution).toBe("low");
+    expect(mergeVideo({ resolution: "70" }).resolution).toBe("medium");
+    expect(mergeVideo({ resolution: "80" }).resolution).toBe("medium");
+    expect(mergeVideo({ resolution: "90" }).resolution).toBe("high");
+    expect(mergeVideo({ resolution: "100" }).resolution).toBe("high");
+    expect(mergeVideo({ resolution: "min" }).resolution).toBe("low");
+    expect(mergeVideo({ resolution: "medium" }).resolution).toBe("medium");
     expect(mergeVideo({ resolution: "toString" }).resolution).toBe(DEFAULT_VIDEO.resolution);
   });
 
@@ -300,11 +308,39 @@ describe("fitting the picture to the machine (picture-fit.ts)", () => {
     }
   });
 
+  it("gives up the antialiasing first, then the resolution, before any other row", () => {
+    const at = top();
+    const cost = pictureCost(at);
+    const others = PICTURE_ROWS.filter((r) => r !== "antialias" && r !== "resolution");
+    // A frame a little short: only the antialiasing goes.
+    const short = fitPicture(at, cost, cost - 0.25);
+    expect(short.antialias).not.toBe("4");
+    expect(short.resolution).toBe("high");
+    for (const r of others) expect(short[r]).toBe(at[r]);
+    // Shorter by the antialiasing whole and more: the resolution next, and
+    // still nothing else.
+    const shorter = fitPicture(at, cost, cost - 1.2 - 1.0);
+    expect(shorter.antialias).toBe("off");
+    expect(shorter.resolution).not.toBe("high");
+    for (const r of others) expect(shorter[r]).toBe(at[r]);
+  });
+
   it("gives up the step that loses least per millisecond first, and never one that saves nothing", () => {
     // Two rows that save the same: the one worth less goes; a row that costs
-    // nothing is never taken down and is always taken up.
+    // nothing is never taken down and is always taken up. (The rows the list
+    // gives up before any other are made free here, out of the way.)
     const prices = {
       ...PICTURE_PRICES,
+      resolution: {
+        low: { cost: 0, benefit: 0 },
+        medium: { cost: 0, benefit: 3 },
+        high: { cost: 0, benefit: 8 },
+      },
+      antialias: {
+        off: { cost: 0, benefit: 0 },
+        "2": { cost: 0, benefit: 1 },
+        "4": { cost: 0, benefit: 1.1 },
+      },
       spray: {
         low: { cost: 0, benefit: 0 },
         medium: { cost: 0, benefit: 5 },
@@ -381,9 +417,9 @@ describe("fitting the picture to the machine (picture-fit.ts)", () => {
     expect(fit.sky).toBe("full");
   });
 
-  it("keeps the canvas's antialiasing, whatever it fits", () => {
-    expect(fitPicture({ ...DEFAULT_VIDEO, antialias: false }, 2).antialias).toBe(false);
-    expect(fitPicture({ ...DEFAULT_VIDEO, antialias: true }, 500).antialias).toBe(true);
+  it("fits the antialiasing as any other row: kept on a fast machine, given up on a slow one", () => {
+    expect(fitPicture({ ...DEFAULT_VIDEO, antialias: "off" }, 2).antialias).toBe("4");
+    expect(fitPicture({ ...DEFAULT_VIDEO, antialias: "4" }, 500).antialias).toBe("off");
   });
 });
 
@@ -463,11 +499,11 @@ describe("PRESET ▸ AUTO as the app runs it (picture-auto.ts)", () => {
     return { get: () => settings, set: (s: Settings) => (settings = s), ride };
   };
 
-  it("fits the picture once a visit, keeping the canvas's antialiasing", () => {
+  it("fits the picture once a visit, antialiasing and all", () => {
     const r = rig();
     r.ride(1000);
     expect(r.get().video.distance).toBe("max");
-    expect(r.get().video.antialias).toBe(DEFAULT_VIDEO.antialias);
+    expect(r.get().video.antialias).toBe("4");
     expect(r.get().probed).toBe(true);
   });
 

@@ -114,7 +114,7 @@ export const UNDER_SCENES: UnderScene[] = [
 
 /** The moments measured, s into the ride. */
 const MOMENTS = [0.6, 0.9, 1.2, 1.5, 1.8, 2.1, 2.4, 2.7, 3.0];
-const RESOLUTIONS: ResolutionLevel[] = ["50", "100"];
+const RESOLUTIONS: ResolutionLevel[] = ["low", "high"];
 
 export type UnderStat = { worst: number; mean: number; n: number };
 export type UnderRow = {
@@ -202,7 +202,7 @@ export async function underSheet(
           spec: pairById(scene.skis),
           snowDepth: scene.depth,
         });
-        renderer.setVideo({ ...top, terrain, trails, resolution: "100" });
+        renderer.setVideo({ ...top, terrain, trails, resolution: "high" });
         await lab.loaded(state);
         const spot = scene.spot(level);
         placeRun(state, { x: spot.x, z: spot.z, heading: spot.heading, speed: scene.kmh / 3.6 });
@@ -229,7 +229,7 @@ export async function underSheet(
             renderer.draw(state, 0, 0, true);
             const pts = renderer.skisUnder();
             got.get(res)!.push(...pts);
-            if (res === "100") last = pts;
+            if (res === "high") last = pts;
           }
           if (shoot && !shot && k >= MOMENTS.length - 2) {
             shot = true;

@@ -191,7 +191,7 @@ Each is a real cost found in a round and not taken, with why:
   The alpine draws straight onto the canvas and needs it. The context's
   multisampling is fixed when it is made, so the fix is a context without it
   and the alpine drawn through the pass too — dearer for the alpine, cheaper
-  for the rest. Needs the GPU A/B on both kinds of map before anyone decides. Measured on an M3 Max, maritime race at 1080p: the canvas's multisampling 0.2 ms, the grade target's 4× 1.2 ms (2× saves 0.2); at the full-Retina buffer 4× → off is 17.6 → 14.9 ms a frame — a high-density canvas may not need it, a look call for the owner.
+  for the rest. Needs the GPU A/B on both kinds of map before anyone decides. Measured on an M3 Max, maritime race at 1080p: the canvas's multisampling 0.2 ms, the grade target's 4× 1.2 ms (2× saves 0.2). ANTIALIAS is now an OFF / 2× / 4× picture row, priced and fitted like the rest; this lead is what is left of it: a canvas made multisampled still resolves under a graded region.
 
 - **The sun's map's filter** is no longer a lead: three (0.186) reads it
   through a comparing sampler, five hardware taps a pixel — the sixteen

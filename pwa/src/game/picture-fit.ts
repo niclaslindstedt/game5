@@ -45,6 +45,13 @@
 // MORE of the look than a faster one. An exact answer is monotone by
 // construction — a smaller budget only chooses from fewer pictures. A stop
 // that costs nothing is always kept.
+//
+// TWO ROWS GO FIRST, BY RULE (`GIVEN_UP_FIRST`): ANTIALIAS down its ladder,
+// then RESOLUTION down its, before the search may give up any stop of any
+// other row — the edges' steps and the pixels' softness before anything in
+// the picture. Their worths are set lowest a millisecond too, but the rule
+// is what holds the order where one step of RESOLUTION alone would cover a
+// shortfall the ANTIALIAS could only half cover.
 
 import {
   PICTURE_LADDERS,
@@ -74,8 +81,13 @@ export const FLOOR_MS = 3.79;
 /**
  * THE PRICE LIST. Benefits, row by row:
  *
- * RESOLUTION is the sharpness of EVERYTHING — the one row whose loss is on
- * every pixel; 0.8 is soft, 0.6 is blurred under crisp type, 0.5 more so.
+ * ANTIALIAS AND RESOLUTION ARE GIVEN UP FIRST, IN THAT ORDER — the owner's
+ * call: the edges' steps, then the pixels' softness, before anything that
+ * changes what is in the picture. Their worths are set so that a
+ * millisecond of either buys less than a millisecond of any other row
+ * (the cheapest of those, DISTANCE MAX over HIGH, about 4 a ms;
+ * RESOLUTION about 2 to 3; ANTIALIAS under 1), and the fit — which keeps
+ * the most worth the frame affords — always takes them first.
  * DISTANCE: LOW closes the mist a few seconds ahead, which is a real loss of
  * place; MEDIUM and HIGH push it out; MAX only clears the last haze off the
  * rim mountains.
@@ -117,13 +129,12 @@ export const FLOOR_MS = 3.79;
  * on (12.5 ms a frame at the top picture).
  */
 export const PICTURE_PRICES: PriceList = {
+  // MEDIUM (71% a side) read between the 70% and 80% stops of the ladder of
+  // tenths these were last measured on; the row owes a re-price.
   resolution: {
-    "50": { cost: 0, benefit: 0 },
-    "60": { cost: 0.55, benefit: 15 },
-    "70": { cost: 1.07, benefit: 38 },
-    "80": { cost: 1.73, benefit: 60 },
-    "90": { cost: 2.41, benefit: 75 },
-    "100": { cost: 3.34, benefit: 85 },
+    low: { cost: 0, benefit: 0 },
+    medium: { cost: 1.12, benefit: 3 },
+    high: { cost: 3.34, benefit: 8 },
   },
   // Carries the SKY's tiers (`SKY_TIER`, `sky-gpu.ts`), the CLOUD
   // (`CLOUD_TIER`: LOW the shell, MEDIUM the slab, HIGH and MAX the
@@ -190,6 +201,14 @@ export const PICTURE_PRICES: PriceList = {
     painted: { cost: 0, benefit: 0 },
     "3d": { cost: 0.06, benefit: 5 },
   },
+  // The picture's target multisampled, on the benchmark's maritime race at
+  // the reference buffer: 4× 1.2 ms over none, 2× 0.2 ms less (interleaved
+  // A/B builds, not yet the --costs list's share of the top frame).
+  antialias: {
+    off: { cost: 0, benefit: 0 },
+    "2": { cost: 1.0, benefit: 1 },
+    "4": { cost: 1.2, benefit: 1.1 },
+  },
 };
 
 /** The frame the fit aims a drained frame at, ms: sixty a second, with a
@@ -229,28 +248,17 @@ const grain = (ms: number): number => Math.max(0, Math.ceil(ms * 100 - 1e-6));
  * cheapest there is, every stop that costs nothing kept. A tie in worth
  * goes to the cheaper picture. `at`'s ANTIALIAS is kept: the canvas owns it.
  */
-export function fitPicture(
-  at: VideoSettings,
-  measuredMs: number,
-  budgetMs: number = FIT_BUDGET_MS,
-  prices: PriceList = PICTURE_PRICES,
-): VideoSettings {
-  if (!(measuredMs > 0)) return at;
-  const scale = measuredMs / pictureCost(at, prices);
-  const rows = PICTURE_ROWS.map((row) => {
-    const ladder = PICTURE_LADDERS[row] as readonly string[];
-    const stops = prices[row] as Record<string, StopPrice>;
-    return {
-      row,
-      ladder,
-      cost: ladder.map((stop) => grain(stops[stop].cost)),
-      worth: ladder.map((stop) => stops[stop].benefit),
-    };
-  });
-  const most = rows.reduce((sum, r) => sum + Math.max(...r.cost), 0);
-  // The budget past the floor, rounded DOWN onto the grain as the costs are
-  // rounded up; under the floor, nothing but the stops that cost nothing.
-  const room = Math.min(most, Math.max(0, Math.floor((budgetMs / scale - FLOOR_MS) * 100 + 1e-6)));
+/** THE ROWS GIVEN UP FIRST, in this order and each to its bottom before the
+ * next moves — the owner's call: the edges' steps, then the pixels'
+ * softness, before anything that changes what is in the picture. */
+export const GIVEN_UP_FIRST = ["antialias", "resolution"] as const;
+
+type FitRow = { row: PictureRow; ladder: readonly string[]; cost: number[]; worth: number[] };
+
+/** The exact fit of `rows` into `room` hundredths: the most worth there is,
+ * and each row's stop for it, at the cheapest budget that buys it (so a tie
+ * keeps headroom). One stop a row, a knapsack with a choice in each row. */
+function knapsack(rows: readonly FitRow[], room: number): { worth: number; stops: number[] } {
   // best[c]: the most worth the rows so far can buy for at most c; pick[r][c]
   // the stop row r took for it.
   let best = new Array<number>(room + 1).fill(0);
@@ -271,15 +279,78 @@ export function fitPicture(
     best = next;
     pick.push(took);
   }
-  // The cheapest budget that buys the most worth, so a tie keeps headroom.
   let c = room;
   while (c > 0 && best[c - 1] === best[room]) c--;
-  const video = { ...at } as Record<string, unknown>;
+  const stops = new Array<number>(rows.length);
   for (let i = rows.length - 1; i >= 0; i--) {
-    const s = pick[i][c];
-    video[rows[i].row] = rows[i].ladder[s];
-    c -= rows[i].cost[s];
+    stops[i] = pick[i][c];
+    c -= rows[i].cost[stops[i]];
   }
+  return { worth: best[room], stops };
+}
+
+export function fitPicture(
+  at: VideoSettings,
+  measuredMs: number,
+  budgetMs: number = FIT_BUDGET_MS,
+  prices: PriceList = PICTURE_PRICES,
+): VideoSettings {
+  if (!(measuredMs > 0)) return at;
+  const scale = measuredMs / pictureCost(at, prices);
+  const fitRow = (row: PictureRow): FitRow => {
+    const ladder = PICTURE_LADDERS[row] as readonly string[];
+    const stops = prices[row] as Record<string, StopPrice>;
+    return {
+      row,
+      ladder,
+      cost: ladder.map((stop) => grain(stops[stop].cost)),
+      worth: ladder.map((stop) => stops[stop].benefit),
+    };
+  };
+  const first = GIVEN_UP_FIRST.map(fitRow);
+  const rest = PICTURE_ROWS.filter((r) => !(GIVEN_UP_FIRST as readonly string[]).includes(r)).map(
+    fitRow,
+  );
+  const most = [...first, ...rest].reduce((sum, r) => sum + Math.max(...r.cost), 0);
+  // The budget past the floor, rounded DOWN onto the grain as the costs are
+  // rounded up; under the floor, nothing but the stops that cost nothing.
+  const room = Math.min(most, Math.max(0, Math.floor((budgetMs / scale - FLOOR_MS) * 100 + 1e-6)));
+  // What the other rows are worth with room for all of them.
+  const whole = knapsack(
+    rest,
+    rest.reduce((sum, r) => sum + Math.max(...r.cost), 0),
+  ).worth;
+  // The first rows' stops in the order they are given up: the first row
+  // down its ladder from the top, then the next with the first at its
+  // bottom. The first of them that leaves the rest all they would take is
+  // the picture; past the last, the rest are fitted to what is left.
+  const steps: number[][] = [];
+  const tops = first.map((r) => r.ladder.length - 1);
+  for (let i = 0; i < first.length; i++) {
+    for (let s = first[i].ladder.length - 1; s >= 0; s--) {
+      if (i > 0 && s === tops[i]) continue;
+      steps.push(first.map((_, j) => (j < i ? 0 : j === i ? s : tops[j])));
+    }
+  }
+  let chosen = steps[steps.length - 1];
+  let fitted: number[] | null = null;
+  for (const step of steps) {
+    const spent = step.reduce((sum, s, j) => sum + first[j].cost[s], 0);
+    if (spent > room) continue;
+    const fit = knapsack(rest, room - spent);
+    if (fit.worth === whole) {
+      chosen = step;
+      fitted = fit.stops;
+      break;
+    }
+  }
+  if (!fitted) {
+    const spent = chosen.reduce((sum, s, j) => sum + first[j].cost[s], 0);
+    fitted = knapsack(rest, Math.max(0, room - spent)).stops;
+  }
+  const video = { ...at } as Record<string, unknown>;
+  first.forEach((r, j) => (video[r.row] = r.ladder[chosen[j]]));
+  rest.forEach((r, j) => (video[r.row] = r.ladder[fitted[j]]));
   return video as VideoSettings;
 }
 

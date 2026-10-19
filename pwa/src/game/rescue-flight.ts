@@ -86,7 +86,7 @@ function scoopOrigin(plan: RescuePlan): P2 {
 }
 
 /** A polyline resampled every `STEP` m and smoothed by a running mean
- * `REACH` m either side (narrowed at its ends, which stay where they are),
+ * `reach` m either side (`REACH` unless asked; narrowed at its ends, which stay where they are),
  * so no corner on it is tighter than a walker's turn. */
 const STEP = 0.25;
 const REACH = 2;
@@ -197,7 +197,10 @@ const formation = freshRescueFrame();
 
 /** Where the lead is at arc `d`: its point and its heading — past either
  * end, straight on along that end's way. */
-function leadAt(lead: FlightTrip["lead"], d: number): { x: number; z: number; heading: number } {
+export function leadAt(
+  lead: FlightTrip["lead"],
+  d: number,
+): { x: number; z: number; heading: number } {
   const { pts, s, length } = lead;
   const at = Math.max(0, Math.min(length, d));
   let i = 0;
@@ -216,7 +219,7 @@ function leadAt(lead: FlightTrip["lead"], d: number): { x: number; z: number; he
  * as far ahead of the formation's origin and as far to its side, at arc
  * `d` of it — each of them walks his own line beside the lead, never
  * swung round it as a rigid frame. */
-function onLead(
+export function onLead(
   lead: FlightTrip["lead"],
   d: number,
   o: P2,

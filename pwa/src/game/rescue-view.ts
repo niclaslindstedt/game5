@@ -197,7 +197,7 @@ export function dressed(
 }
 
 /** A box from its two corners, in a colour, into a list of parts. */
-function box(
+export function box(
   geos: THREE.BufferGeometry[],
   colour: number,
   x0: number,
@@ -213,7 +213,7 @@ function box(
   geos.push(g);
 }
 
-function paint(g: THREE.BufferGeometry, colour: number): void {
+export function paint(g: THREE.BufferGeometry, colour: number): void {
   const c = new THREE.Color(colour);
   const n = g.getAttribute("position").count;
   const a = new Float32Array(n * 3);
@@ -222,7 +222,7 @@ function paint(g: THREE.BufferGeometry, colour: number): void {
 }
 
 /** Every part merged into one, non-indexed, coloured. */
-function merge(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
+export function merge(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const flat = geos.map((g) => (g.index ? g.toNonIndexed() : g));
   let n = 0;
   for (const g of flat) n += g.getAttribute("position").count;
@@ -249,7 +249,7 @@ function merge(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
  * — his head's end): the rails and their ends, and the vacuum mattress on
  * them moulded up a hand's breadth round him and round his head, low enough
  * that all of him shows. */
-function stretcherGeometry(): THREE.BufferGeometry {
+export function stretcherGeometry(): THREE.BufferGeometry {
   const S = RESCUE.stretcher;
   const L = S.length / 2;
   const geos: THREE.BufferGeometry[] = [];
@@ -273,7 +273,7 @@ function stretcherGeometry(): THREE.BufferGeometry {
 
 /** Along the board, m, and how high over its rails his front is there:
  * the straps over his chest, his hips and his shins. */
-const STRAPS = [
+export const STRAPS = [
   { z: 0.42, top: 0.31 },
   { z: 0.0, top: 0.29 },
   { z: -0.48, top: 0.24 },
@@ -281,7 +281,7 @@ const STRAPS = [
 
 /** One STRAP done up across him: over the top of him and down both sides
  * to the mattress's edge. */
-function strapGeometry(z: number, top: number): THREE.BufferGeometry {
+export function strapGeometry(z: number, top: number): THREE.BufferGeometry {
   const geos: THREE.BufferGeometry[] = [];
   box(geos, STRAP, -0.27, top, z - 0.025, 0.27, top + 0.015, z + 0.025);
   for (const s of [-1, 1])
@@ -293,7 +293,7 @@ function strapGeometry(z: number, top: number): THREE.BufferGeometry {
 /** His own frame (x right, y up, z his face) laid on his back with his
  * middle at the origin: his up along +z (the way his head points), his face
  * up, his right to the left — `height` m tall in his boots. */
-function lyingMatrix(height: number): THREE.Matrix4 {
+export function lyingMatrix(height: number): THREE.Matrix4 {
   const m = new THREE.Matrix4().makeBasis(
     new THREE.Vector3(-1, 0, 0),
     new THREE.Vector3(0, 0, 1),
@@ -301,6 +301,32 @@ function lyingMatrix(height: number): THREE.Matrix4 {
   );
   m.setPosition(0, 0, -height / 2);
   return m;
+}
+
+/** HIM, dressed in the player's outfit (his own colours, his helmet on),
+ * at his lying target (its one weight his sprawl), and the matrix that lays
+ * his own frame on his back about his middle. */
+export function casualtyFigure(outfit: Outfit | null): {
+  geometry: THREE.BufferGeometry;
+  lying: THREE.Matrix4;
+} {
+  const female = outfit ? gearOf("body", outfit.body).female : false;
+  const body: CrowdBody = female ? "woman" : "man";
+  const c = outfit ? coloursOf(outfit) : null;
+  const geometry = dressed(
+    buildPosedFigure(body, "near", casualtyTargets(body), `casualty:${body}`),
+    {
+      jacket: c?.jacket ?? 0x2b5fa8,
+      pants: c?.pants ?? 0x1c1f24,
+      head: c?.helmet ?? 0xe8e8e8,
+      accent: c?.accent ?? 0xffffff,
+      vest: c?.jacket ?? 0x2b5fa8,
+      skin: c?.skin ?? SKIN[0],
+      hair: HAIR[0],
+    },
+    [PART.helmet],
+  );
+  return { geometry, lying: lyingMatrix(CROWD_LOOKS[body].height) };
 }
 
 /** How a FakeHeli is handed to `heli-view.ts`: the state it reads. */
@@ -467,29 +493,13 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       group.remove(l.casualty);
       l.casualty.geometry.dispose();
     }
-    const o = outfit;
-    const female = o ? gearOf("body", o.body).female : false;
-    const body: CrowdBody = female ? "woman" : "man";
-    const c = o ? coloursOf(o) : null;
-    const g = dressed(
-      buildPosedFigure(body, "near", casualtyTargets(body), `casualty:${body}`),
-      {
-        jacket: c?.jacket ?? 0x2b5fa8,
-        pants: c?.pants ?? 0x1c1f24,
-        head: c?.helmet ?? 0xe8e8e8,
-        accent: c?.accent ?? 0xffffff,
-        vest: c?.jacket ?? 0x2b5fa8,
-        skin: c?.skin ?? SKIN[0],
-        hair: HAIR[0],
-      },
-      [PART.helmet],
-    );
-    const mesh = new THREE.Mesh(g, material);
+    const fig = casualtyFigure(outfit);
+    const mesh = new THREE.Mesh(fig.geometry, material);
     mesh.morphTargetInfluences = [1];
     mesh.matrixAutoUpdate = false;
     mesh.castShadow = true;
     mesh.frustumCulled = false;
-    lying = lyingMatrix(CROWD_LOOKS[body].height);
+    lying = fig.lying;
     group.add(mesh);
     l.casualty = mesh;
     l.dressed = key;
@@ -538,7 +548,9 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     return o;
   };
   const begin = (state: GameState): void => {
-    calls = state.rescue ?? [];
+    // The air ambulances' and the police's (the patrol's snowmobiles are
+    // `rescue-sleds-view.ts`').
+    calls = (state.rescue ?? []).filter((c) => c.kind !== "sled");
     people = [];
     flights = calls.map((c, i) => {
       const u = unitFor(i, c.kind === "police" ? "police" : "ambulance");

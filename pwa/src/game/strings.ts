@@ -442,6 +442,7 @@ export const STRINGS = {
   /** A machine taken from its owners (`steal.ts`), by whose it was. */
   newsSteal: {
     rescue: "STOLE THE AIR AMBULANCE!",
+    patrol: "STOLE THE SKI PATROL'S SNOWMOBILE!",
     police: "STOLE THE POLICE HELICOPTER!",
   } as const,
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */

@@ -40,7 +40,7 @@ const Q = RESCUE.scoop;
 const PUSH_SPAN = FACE_HANDS.pushFar.z - FACE_HANDS.pushNear.z;
 
 /** Where the board's rails rest over the snow lying on it, m. */
-const ON_SNOW = 0.07;
+export const ON_SNOW = 0.07;
 
 type Pose = { x: number; y: number; z: number; heading: number; pitch: number; roll: number };
 

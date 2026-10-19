@@ -24,6 +24,18 @@
 //            lens, every two seconds)
 //   night    night (the overview and the carry at hour 21)
 //
+// and the SKI PATROL ON SNOWMOBILES, sent where no machine can land
+// (`rescue-sleds-view.ts`; `pwa/src/tools/rescue-sleds-views.ts` finds a
+// spot near `--at` where only the patrol can come):
+//
+//   sleds-arrive  the convoy driven up, parked, stepping off
+//   sleds-scene   the work from above, board to lashings to back on
+//   sleds-load    close on the toboggan: lowered in, lashed, all sat
+//   sleds-tow     towed down: the bar on the hitch, from beside and behind
+//   sleds-night   the arrival, the work and the tow at hour 21
+//   sleds-stolen  a machine taken while it stands, the other towing him,
+//                 the player's own left standing
+//
 // Each GROUP is one contact sheet, previews/rescue-<group>.png, and every
 // frame is also written alone, previews/rescue-<view>-<label>.png. The page
 // (`pwa/src/tools/rescue-harness.ts`) ends a run INJURED at a spot down the
@@ -54,12 +66,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (site, scoop, carry, load, lift, pass, night, plane, arrive, second, knock, steal); every one when left out",
+      help: "which sheets, comma-separated (site, scoop, carry, load, lift, pass, night, plane, arrive, second, knock, steal, sleds-arrive, sleds-scene, sleds-load, sleds-tow, sleds-night, sleds-stolen); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (overview, scoop, carry, carry-front, load, lift, pass, night, arrive, arrive-chase, second, knock, solid, steal)",
+      help: "only these views, comma-separated (overview, scoop, carry, carry-front, load, lift, pass, night, arrive, arrive-chase, second, knock, solid, steal, and each sleds-* sheet's own)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     at: {

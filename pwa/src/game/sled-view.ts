@@ -7,7 +7,11 @@
 // PADDLES run round the loop at the belt's own speed (the `run` morph), the
 // headlamp lit while the engine runs — and the SKI RACK carrying the rider's
 // pair (dressed in his topsheet's colours) while he rides it. While it waits
-// for him, parked near him, a halo over it calls him to it.
+// for him, parked near him, a halo over it calls him to it. A machine he has
+// stolen from the ski patrol (`SledState.livery`) is drawn in the patrol's
+// livery and kit (`sled-livery.ts`), its beacon turning while it runs; and
+// the machines he has left standing (`GameState.sledsLeft`) are drawn where
+// they stand, each in its own livery, from the livery's fleet.
 //
 // Presentation only: it reads `GameState.sled` and writes nothing back.
 
@@ -20,6 +24,17 @@ import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import type { RackLoad } from "./board-rack.ts";
+import {
+  atBody,
+  createSledFleet,
+  domeGlow,
+  isPaint,
+  kitMaterials,
+  patrolKit,
+  tintSled,
+  type FleetSled,
+  type SledLivery,
+} from "./sled-livery.ts";
 import { SLED_LOOK } from "./sled-look.ts";
 import { createSledRack, type SledRack } from "./sled-rack.ts";
 import { createSledCockpit } from "./sled-cockpit.ts";
@@ -250,6 +265,18 @@ export function createSledView(haze: HazeUniforms): SledView {
   const call = sprite(0x7fe0ff, 3.2);
   call.position.set(0, 1.5, 0);
   machine.add(call);
+  // THE PATROL'S KIT, shown while he rides one of theirs; the paint put on
+  // in its livery (`tintSled`), the model's own kept to put back.
+  const kitMats = kitMaterials(haze);
+  const kit = patrolKit(kitMats);
+  kit.group.visible = false;
+  frame.add(kit.group);
+  const ownPaint = new Map<THREE.Material, THREE.Color>();
+  let livery: SledLivery | undefined;
+  // THE ONES HE LEFT STANDING, a fleet's copies by livery.
+  const fleet = createSledFleet(haze);
+  group.add(fleet.group);
+  const parked: Record<string, FleetSled[]> = {};
 
   const axisOf = (a: readonly number[], b: readonly number[]): THREE.Vector3 =>
     // A trace (z, y) pair to the glTF's frame: z forward is −z there.
@@ -290,7 +317,7 @@ export function createSledView(haze: HazeUniforms): SledView {
       // shown and hidden a primitive at a time (`sled-rack.ts`).
       if (!node || key === "rack") continue;
       // Its plain primitives one draw in the picture (`mergeParts`), then one in the sun's map.
-      mergeParts(node, (m) => hazeMaterial(m, haze, "sled"), allMats);
+      mergeParts(node, (m) => hazeMaterial(m, haze, "sled"), allMats, isPaint);
       mergeCasters(node, allMats);
     }
     if (nodes.rack && !rack) rack = createSledRack(nodes.rack, (m, n) => hazeMaterial(m, haze, n));
@@ -350,13 +377,46 @@ export function createSledView(haze: HazeUniforms): SledView {
     if (axis && angle !== 0) node.quaternion.multiply(turn.setFromAxisAngle(axis, angle));
   };
 
+  /** The model's paint in `next`'s livery, and its char laid back over. */
+  const wear = (next: SledLivery | undefined): void => {
+    livery = next;
+    tintSled(allMats, next, ownPaint);
+    for (const m of allMats) {
+      if (!isPaint(m) || !(m instanceof THREE.MeshStandardMaterial)) continue;
+      const o = made.get(m);
+      if (!o) continue;
+      o.colour.copy(m.color);
+      m.color.lerp(SOOT, charred);
+    }
+  };
+
+  /** Every machine he has left standing, where it stands. */
+  const drawLeft = (left: readonly SledState[] | undefined): void => {
+    const used: Record<string, number> = {};
+    for (const s of left ?? []) {
+      const key = s.livery ?? "own";
+      const k = (used[key] = (used[key] ?? 0) + 1) - 1;
+      const pool = (parked[key] ??= []);
+      pool[k] ??= fleet.make(s.livery);
+      pool[k].root.visible = true;
+      atBody(pool[k], s);
+    }
+    for (const [key, pool] of Object.entries(parked)) {
+      for (let k = used[key] ?? 0; k < pool.length; k++) pool[k].root.visible = false;
+    }
+  };
+
   return {
     group,
     ready,
     update(state, alpha, dt, player, inCockpit = false) {
       const s: SledState | undefined = state.sled;
-      group.visible = !!s;
+      group.visible = !!s || !!state.sledsLeft?.length;
+      drawLeft(state.sledsLeft);
+      fleet.light(state.t, 0.3, null);
+      machine.visible = !!s;
       if (!s) return;
+      if (s.livery !== livery && allMats.length) wear(s.livery);
       const close = inCockpit && s.rider;
       swap.allow(!s.rider && Math.hypot(s.vx, s.vy, s.vz) < 0.5);
       clock += dt;
@@ -397,6 +457,11 @@ export function createSledView(haze: HazeUniforms): SledView {
       const running = s.rider || s.rpm > 100;
       for (const l of lampGlow) l.visible = running;
       for (const m of lampMats) m.emissiveIntensity = running ? 1 : 0.05;
+      kit.group.visible = s.livery === "patrol";
+      if (kit.group.visible) {
+        kit.update(clock, 0.3, null, running);
+        domeGlow(kitMats, running ? clock : 0, 0.3);
+      }
       const near = Math.hypot(player.x - s.x, player.z - s.z);
       const waiting = !s.rider && s.mode !== "down" && near < LIGHT_UP && near > 3;
       call.visible = waiting;
@@ -430,6 +495,9 @@ export function createSledView(haze: HazeUniforms): SledView {
     },
     dispose() {
       disposed = true;
+      fleet.dispose();
+      kit.dispose();
+      for (const m of kitMats.all) m.dispose();
       cockpit.dispose();
       rack?.dispose();
       group.traverse((o) => {

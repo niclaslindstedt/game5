@@ -605,7 +605,6 @@ export {
   snowGive,
   stepBody,
 } from "./game/body.ts";
-export { RESCUE, callRescue, disables, disablingOf, isInjured } from "./game/rescue.ts";
 export * from "./game/gore-api.ts";
 export {
   BODY_PARTS,
@@ -798,6 +797,7 @@ export {
   rpmGoal as sledRpmGoal,
 } from "./game/sled-drive.ts";
 export { sledSpotOf, type SledSpot } from "./game/sled-pad.ts";
+export * from "./game/rescue-api.ts";
 export { sledPilot, type SledAim } from "./game/sled-pilot.ts";
 export { BIKE_PILOT, bikeAim, bikePilot, type BikeAim } from "./sim/bike-pilot.ts";
 export { PARA, pilotMass as paraPilotMass } from "./game/defs/para.ts";

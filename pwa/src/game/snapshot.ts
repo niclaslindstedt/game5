@@ -49,6 +49,7 @@ import {
   paraRigged,
   balloonAboard,
   sledWithin,
+  leftSledWithin,
   skipShare,
   groomerWithin,
   trenched,
@@ -529,6 +530,17 @@ export function sledOf(state: GameState): HudSled | null {
     };
   }
   const c = state.skier;
+  // A ski patrol's machine left standing (`stealWithin`), or one he left
+  // (`leftSledWithin`), within the press's reach: the press takes that one.
+  const taken = stealWithin(state);
+  if (taken?.kind === "sled") {
+    return { kind: "waiting", away: Math.hypot(taken.x - c.x, taken.z - c.z), near: true };
+  }
+  const back = leftSledWithin(
+    state,
+    sledWithin(state) ? Math.hypot(s.x - c.x, s.z - c.z) : Infinity,
+  );
+  if (back) return { kind: "waiting", away: back.d, near: true };
   const away = Math.hypot(s.x - c.x, s.z - c.z);
   return away < SLED_CALL && c.thrown === null && !state.heli?.rider && !c.lift
     ? { kind: "waiting", away, near: sledWithin(state) }
@@ -590,7 +602,7 @@ export function heliOf(state: GameState): HudHeli | null {
   const c = state.skier;
   // At the door of a machine that is not his (`steal.ts`): the press takes it.
   const taken = stealWithin(state);
-  if (taken?.kind === "heli")
+  if (taken?.kind === "heli" && taken.livery !== "patrol")
     return {
       kind: "waiting",
       pad: Math.hypot(taken.door.x - c.x, taken.door.z - c.z),

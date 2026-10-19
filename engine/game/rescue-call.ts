@@ -29,6 +29,8 @@ import { meetBoxes, ragdollOutOfBoxes, type StripBox } from "./airstrip-solids.t
 import { HELI } from "./defs/heli.ts";
 import { onSkis } from "./groomer.ts";
 import type { GameEvent, GameState } from "./state.ts";
+import { meetRescueSleds, ragdollOutOfSleds } from "./rescue-sled.ts";
+import type { RescueSledPlan } from "./rescue-sled-route.ts";
 
 /** Where a rescue's machine sits: its skid datum, heading and the
  * attitude the snow under its skids leaves it at. */
@@ -62,13 +64,22 @@ export type RescueCall = {
   down: number;
   up: number;
   casualties: { x: number; z: number; known: number }[];
+  /** WHO COMES: the air ambulance (left out), the ski patrol on two
+   * snowmobiles where there is nowhere to set a machine down
+   * (`rescue-sled.ts`; `site`, `down` and `up` then unread), or, after a
+   * death, the police. */
+  kind?: "heli" | "sled" | "police";
+  /** The rescue by snowmobile, planned off the map (`rescue-sled-route.ts`):
+   * read-only, shared between the runs that carry the call. */
+  sleds?: RescueSledPlan;
+  /** When each of the two patrol machines was STOLEN, the call's clock (a
+   * run's skier taking one sets it), or null. */
+  sledsTaken?: (number | null)[];
   /** The run's clock the machine was TAKEN at by the skier (`steal.ts`),
    * from which it no longer stands there — absent while it is its crew's. */
   stolen?: number;
-  /** What was called: the air ambulance (left out) or, after a death, the
-   * police — and the scene's evidence, numbered from the impact to the
-   * body, which only a police call carries. */
-  kind?: "police";
+  /** The scene's evidence, numbered from the impact to the body, which
+   * only a police call carries. */
   evidence?: Evidence[];
 };
 
@@ -80,8 +91,10 @@ export function copyCall(r: RescueCall): RescueCall {
     down: r.down,
     up: r.up,
     casualties: r.casualties.map((c) => ({ ...c })),
-    ...(r.stolen !== undefined ? { stolen: r.stolen } : {}),
     ...(r.kind ? { kind: r.kind } : {}),
+    ...(r.sleds ? { sleds: r.sleds } : {}),
+    ...(r.sledsTaken ? { sledsTaken: [...r.sledsTaken] } : {}),
+    ...(r.stolen !== undefined ? { stolen: r.stolen } : {}),
     ...(r.evidence ? { evidence: r.evidence.map((e) => ({ ...e })) } : {}),
   };
 }
@@ -162,6 +175,7 @@ const boxes: StripBox[] = [];
 function landedNear(state: GameState, x: number, z: number): readonly StripBox[] {
   boxes.length = 0;
   for (const r of state.rescue ?? []) {
+    if (r.kind === "sled") continue;
     if (state.t < r.down || state.t >= r.up || r.stolen !== undefined) continue;
     if (hypot(x - r.site.x, z - r.site.z) > NEAR) continue;
     rescueBoxes(r.site, boxes);
@@ -175,6 +189,7 @@ export function meetRescue(state: GameState, events: GameEvent[]): void {
   if (!state.rescue?.length || !onSkis(state)) return;
   const near = landedNear(state, state.skier.x, state.skier.z);
   if (near.length) meetBoxes(state, near, events);
+  meetRescueSleds(state, events);
 }
 
 /** THE THROWN BODY HELD OUT OF THEM (`ragdoll.ts`, beside the strip's). */
@@ -189,6 +204,7 @@ export function ragdollOutOfRescue(
   if (!state.rescue?.length) return;
   const near = landedNear(state, P[0], P[2]);
   if (near.length) ragdollOutOfBoxes(P, L, radius, struck, dt, near);
+  ragdollOutOfSleds(state, P, L, radius, struck, dt);
 }
 
 /** THE CALLS A RUN STARTS WITH, set before its first step (a run stood up

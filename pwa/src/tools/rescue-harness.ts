@@ -37,6 +37,7 @@ import { bookRun, createRescueBook } from "../game/rescue-book.ts";
 import { flightAt, freshFlightFrame, planFlight } from "../game/rescue-flight.ts";
 import { BEARERS, RESCUE, freshRescueFrame, planRescue, rescueAt } from "../game/rescue-plan.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
+import { SLED_GROUPS, sledViews } from "./rescue-sleds-views.ts";
 
 type Frame = { view: string; label: string; caption: string; png: string };
 
@@ -160,7 +161,7 @@ function shoot(s: GameState, label: string, lens: LensPose | "chase"): void {
   frames.push({
     view,
     label,
-    caption: `${view} ${label}\nt ${s.t.toFixed(2)} s · ${stage(s.t - T0)}`,
+    caption: `${view} ${label}\nt ${s.t.toFixed(2)} s${view.startsWith("sleds") ? "" : ` · ${stage(s.t - T0)}`}`,
     png: canvas.toDataURL("image/png"),
   });
 }
@@ -649,14 +650,31 @@ const GROUPS: Record<string, readonly string[]> = {
   second: ["second"],
   knock: ["knock", "solid"],
   steal: ["steal"],
+  ...SLED_GROUPS,
 };
+
+/** THE SNOWMOBILE SHEETS (`rescue-sleds-views.ts`), lent this page's lenses. */
+const sleds = sledViews({
+  renderer,
+  level,
+  share,
+  sky: baseSky,
+  fresh,
+  shoot,
+  poseAt,
+  planted,
+  setView: (v) => (view = v),
+  setT0: (t) => (T0 = t),
+});
 
 async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] }> {
   const note = await ready;
   frames = [];
   for (const v of views) {
     view = v;
-    if (v === "plane") {
+    if (sleds[v]) {
+      await sleds[v]();
+    } else if (v === "plane") {
       await planeCrash();
     } else if (v === "steal") {
       // The taken machine's own view is built the first frame a run carries

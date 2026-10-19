@@ -179,9 +179,10 @@ function siteCost(
   );
 }
 
-/** THE PATCH, its heading along the contour and its door's side — the
- * rings searched reaching further out past a cordon (`avoid`). */
-function pickSite(level: Level, spot: Vec3, avoid: readonly P2[] | null) {
+/** A PATCH A MACHINE CAN SET DOWN ON round him — the strict search, then
+ * the relaxed one, the rings reaching further out past a cordon (`avoid`)
+ * — or null: nowhere fit to land (`fitToLand`). */
+function findSite(level: Level, spot: Vec3, avoid: readonly P2[] | null) {
   const far = avoid ? [50, 60, 70, 80, 95, 110] : [];
   for (const relax of [false, true]) {
     let best: { x: number; z: number; cost: number } | null = null;
@@ -196,6 +197,22 @@ function pickSite(level: Level, spot: Vec3, avoid: readonly P2[] | null) {
     }
     if (best) return best;
   }
+  return null;
+}
+
+/** WHETHER AN AIR AMBULANCE CAN SET DOWN near a skier lying at `spot`:
+ * where it cannot, the ski patrol comes on snowmobiles
+ * (`rescue-book.ts`, `planSledRescue`). */
+export function fitToLand(level: Level, spot: { x: number; z: number }): boolean {
+  const at = { x: spot.x, y: level.groundAt(spot.x, spot.z), z: spot.z };
+  return findSite(level, at, null) !== null;
+}
+
+/** THE PATCH, its heading along the contour and its door's side — the
+ * rings searched reaching further out past a cordon (`avoid`). */
+function pickSite(level: Level, spot: Vec3, avoid: readonly P2[] | null) {
+  const found = findSite(level, spot, avoid);
+  if (found) return found;
   // Nowhere clear: the flattest seat round him, the fewest trunks under
   // the disc, wherever it is (a steep face in the woods has no good one).
   let flat = { x: spot.x + 30, z: spot.z, cost: Infinity };
@@ -342,7 +359,31 @@ export function planRescue(
   }
   const length = s[s.length - 1];
   const T = RESCUE.time;
-  // THE SCOOP, from the moment they set off toward him with the board.
+  const { scoop, rise } = scoopClock();
+  const carry = rise + T.rise;
+  const raise = carry + length / RESCUE.walk;
+  const inch = raise + T.raise;
+  const climb = inch + T.inch;
+  const slide = climb + T.climb;
+  const clear = slide + T.slide;
+  const lift = slide + T.slide * 0.55 + 2 * T.turn + T.clear + 1;
+  return {
+    spot: c,
+    site,
+    away,
+    out,
+    floor: door.y,
+    path: { pts, s, length },
+    end,
+    cabin,
+    at: { scoop, rise, carry, raise, inch, climb, slide, clear, lift, gone: lift + T.away },
+  };
+}
+
+/** THE SCOOP'S CLOCK, from the moment they set off toward him with the
+ * board: when each of its parts starts, and when the four rise with him
+ * (the carry's own parts follow on from there). */
+export function scoopClock(): { scoop: RescuePlan["at"]["scoop"]; rise: number } {
   const Q = RESCUE.scoop.time;
   let k0 = RESCUE.scoop.approach / RESCUE.scoop.pace;
   const step = (d: number): number => {
@@ -362,25 +403,7 @@ export function planRescue(
     step: step(Q.step),
     kneel: step(Q.kneel),
   };
-  const rise = k0;
-  const carry = rise + T.rise;
-  const raise = carry + length / RESCUE.walk;
-  const inch = raise + T.raise;
-  const climb = inch + T.inch;
-  const slide = climb + T.climb;
-  const clear = slide + T.slide;
-  const lift = slide + T.slide * 0.55 + 2 * T.turn + T.clear + 1;
-  return {
-    spot: c,
-    site,
-    away,
-    out,
-    floor: door.y,
-    path: { pts, s, length },
-    end,
-    cabin,
-    at: { scoop, rise, carry, raise, inch, climb, slide, clear, lift, gone: lift + T.away },
-  };
+  return { scoop, rise: k0 };
 }
 
 /** Where along the carry the stretcher's middle is at arc `d`, and its
@@ -403,7 +426,7 @@ function along(plan: RescuePlan, d: number): { x: number; z: number; heading: nu
 
 /** Where a bearer's hand grips the rail, his own frame, by how far up he
  * has risen (knelt 0, stood 1). */
-function handIn(rise: number): { x: number; z: number } {
+export function handIn(rise: number): { x: number; z: number } {
   const r = ease(rise);
   return { x: 0.3 + (0.27 - 0.3) * r, z: 0.12 + (0.02 - 0.12) * r };
 }

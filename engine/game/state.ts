@@ -943,14 +943,14 @@ export type GameState = ContestState & {
   /** THE CROWD (`crowd.ts`): the free ride's amateurs; else absent. */
   crowd?: CrowdState;
   /** THE PLAYER'S CHAIR LEFT ONLY BY HAND (`chair-hands.ts`): set where the
-   * app asks for it, absent everywhere else — the labs, the suite and every
-   * rival stood off at the top as ever, so no digest moves. */
+   * app asks; absent elsewhere (rivals stood off at the top), so no digest moves. */
   chairHands?: true;
-  /** On a free ride THE HELICOPTER, THE SNOWMOBILE; begun on one the rest. */
+  /** On a free ride THE HELICOPTER, THE SNOWMOBILE (and those he LEFT for a
+   * patrol's, `rescue-sled.ts`); begun on one the rest. On a summer free
+   * ride that asked for one, THE DOWNHILL BIKE (`bike.ts`); else absent. */
   heli?: HeliState;
   sled?: SledState;
-  /** On a summer free ride that asked for one, THE DOWNHILL BIKE (`bike.ts`);
-   * else absent, so no digest moves. */
+  sledsLeft?: SledState[];
   bike?: import("./bike-state.ts").BikeState;
   para?: import("./para-state.ts").ParaState;
   balloon?: import("./balloon-state.ts").BalloonState;

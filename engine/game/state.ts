@@ -35,6 +35,7 @@ import type { AvalancheEvent, AvalancheState } from "./avalanche-state.ts";
 import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
 import type { TrafficEvent } from "./traffic-contact.ts";
 import type { BeastEvent, WildState } from "./beast-hit.ts";
+import type { StruckEvent } from "./person-hit.ts";
 import type { PisteDay } from "./piste-day.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { ContestState } from "./contest-state.ts";
@@ -731,6 +732,7 @@ export type GameEvent =
   | GroomerEvent
   | TrafficEvent
   | BeastEvent
+  | StruckEvent
   | GoreEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number; well?: true }

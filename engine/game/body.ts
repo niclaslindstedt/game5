@@ -80,6 +80,7 @@ import { FIRE_BURN } from "./defs/fires.ts";
 import { envelopeOf } from "./defs/skis.ts";
 import { astride, bikeBlows, type BodyHands } from "./body-steel.ts";
 import { beastBlow } from "./body-beast.ts";
+import { PERSON_CAP, personBlows, struckHard } from "./body-person.ts";
 import { CROWD_SIZE } from "./defs/crowd.ts";
 import { GROOMER } from "./defs/groomer.ts";
 import { MISHAPS } from "./defs/mishaps.ts";
@@ -761,6 +762,8 @@ export function stepBody(state: GameState, events: GameEvent[], off: Thrown | nu
     beastBlow(HANDS, e);
     cap = I.perBlow * 2;
   }
+  // ...and A PERSON (`body-person.ts`), met the step before.
+  if (personBlows(HANDS, state)) cap = I.perBlow * PERSON_CAP;
   if (off) {
     ragdollBlows(state, off);
     bikeBlows(HANDS, state, off);
@@ -960,7 +963,8 @@ export function feelBumps(state: GameState, events: GameEvent[]): void {
       e.rival >= 0
         ? state.rivals.find((x) => x.id === e.rival)?.run.skier
         : state.crowd?.amateurs.find((a) => a.id === e.amateur);
-    if (!o) continue;
+    // A body met past `PERSON_HIT.strike` is a collision's (`body-person.ts`).
+    if (!o || ("body" in o && struckHard(e.speed))) continue;
     if (!any) clear();
     any = true;
     const side =

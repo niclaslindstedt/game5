@@ -5,6 +5,7 @@
 
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import type { AmateurKnobs, CrowdBody, CrowdKind, GroupKind, GroupFollow } from "./defs/crowd.ts";
+import type { StruckPerson } from "./person-hit.ts";
 import type { Thrown } from "./thrown-state.ts";
 
 /** What an amateur is doing: on his run (`ski`, `stop`, `down`, `air`);
@@ -109,6 +110,11 @@ export type Amateur = {
    * run without avalanches. */
   buried?: number;
   dead?: boolean;
+  /** RUN INTO BY THE PLAYER at speed on a run with injuries
+   * (`person-hit.ts`): hurt past getting up, alive (`dead` when killed),
+   * and how crushed, 0..1. Absent while he is sound. */
+  injured?: boolean;
+  crush?: number;
   /** ON A SNOWBOARD (`CROWD.board`): the foot he rides with forward, or
    * null on skis. Stood, he SITS in the snow: how far down, 0..1, and
    * whether this stop is sat (`crowd-board.ts`). */
@@ -141,4 +147,7 @@ export type CrowdState = {
   groups: CrowdGroup[];
   /** Every lift's queue at its foot, front first, by amateur id. */
   queues: number[][];
+  /** Every amateur the player has run into at speed, in order
+   * (`person-hit.ts`); absent until the first. */
+  struck?: StruckPerson[];
 };

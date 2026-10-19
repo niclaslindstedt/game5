@@ -164,6 +164,22 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
     killed: true,
     crush: 0.6,
   },
+  struck: {
+    kind: "struck",
+    t: 9,
+    amateur: 3,
+    x: 1,
+    y: 1,
+    z: 2,
+    speed: 20,
+    taken: 10,
+    given: 11,
+    height: 1.8,
+    thrown: true,
+    killed: true,
+    injured: false,
+    crush: 0.3,
+  },
   traffic: { kind: "traffic", t: 40, phase: "strike", vehicle: "hatch", x: 0, z: 0, speed: 5 },
   air: { kind: "air", t: 1, vy: 4, speed: 20 },
   jump: { kind: "jump", t: 1, pop: 4, held: 1 },
@@ -233,6 +249,8 @@ const SILENT_KINDS: GameEvent["kind"][] = [
   "injury",
   "death",
   "injured",
+  // A person run into is heard through its bump and the wipeout.
+  "struck",
   "skiJump",
 ];
 

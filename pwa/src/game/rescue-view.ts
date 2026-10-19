@@ -18,6 +18,13 @@
 // rolled onto the board (`rescue-scoop.ts`) and strapped; and the
 // stretcher: its rails and an orange vacuum mattress moulded round him.
 //
+// A POLICE call (after a death, `police-plan.ts`) is drawn by the same
+// hands: the machine in the police livery (`police-livery.ts`), three
+// officers in dark blue with high-visibility vests and two patrollers, him
+// lying where he died and then bagged, and the scene they lay
+// (`police-view.ts`: the stakes, the tape, the numbered tents, the camera
+// and its flash).
+//
 // Presentation only: it reads the states it is handed and the map, and
 // writes nothing. The machine on its skids is a solid to the ENGINE
 // (`rescue-call.ts`), never to this view.
@@ -50,6 +57,11 @@ import type { Flood } from "./headlamp.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createHeliView, type HeliView, type WashPuff } from "./heli-view.ts";
 import { coloursOf, gearOf, type Outfit } from "./outfit.ts";
+import { OFFICERS, PHOTO } from "./police-defs.ts";
+import { policeLivery } from "./police-livery.ts";
+import { freshPoliceFrame, planPolice, policeAt, type PolicePlan } from "./police-plan.ts";
+import { lyingNear, type Taken } from "./police-remains.ts";
+import { bagGeometries, createPoliceDressing, type PoliceDressing } from "./police-view.ts";
 import {
   CREW_POSES,
   RESCUE_STRIDE,
@@ -87,6 +99,16 @@ export const DRESS: Record<
   patrol: { jacket: 0xc4161c, pants: 0x18191c, head: 0xc4161c, accent: 0xffffff },
 };
 
+/** A police officer's: dark blue, a fluorescent yellow vest over it (the
+ * vest's slot), reflective trim, a dark blue helmet. */
+export const OFFICER_DRESS = {
+  jacket: 0x1b2544,
+  pants: 0x151a29,
+  head: 0x1b2544,
+  accent: 0xd6dade,
+  vest: 0xd4ec1c,
+} as const;
+
 /** The stretcher's own colours. */
 const MATTRESS = 0xe9581c;
 const BUCKLE = 0xb8bcc2;
@@ -107,6 +129,10 @@ export type RescueScene = {
   lamps(lit: number, out: Flood[]): void;
   /** Whether any rescue is under way on this run. */
   active(): boolean;
+  /** Told where the dead are left lying (`police-remains.ts`): a police
+   * call's casualty there is drawn by the remains until its crew have him.
+   * Hands back each police call's casualty and whether they have him. */
+  police(spots: readonly { x: number; z: number }[]): readonly Taken[];
   dispose(): void;
 };
 
@@ -283,17 +309,22 @@ type HeliRun = { heli: HeliState; level: Level; tick: number };
 /** The crew's empty hand (`rescue-crew.ts`' figure is built holding it). */
 const EMPTY_HAND = { tool: "hold", tip: 0 } as const;
 
-/** ONE TRIP's things: the stretcher, its straps, and him. */
+/** ONE TRIP's things: the stretcher, its straps, and him — and on a
+ * police call the body bag closed over him (`bag`). */
 type Litter = {
   group: THREE.Group;
   straps: THREE.Mesh[];
   casualty: THREE.Mesh | null;
   dressed: string;
+  bag: THREE.Mesh | null;
 };
+
+type Kind = "ambulance" | "police";
 
 /** ONE MACHINE's things: the helicopter, the four (stood, and on the
  * ragdoll when knocked), its trips, the frame it was last posed at. */
 type Unit = {
+  kind: Kind;
   heli: HeliView;
   run: HeliRun;
   crew: Member[];
@@ -303,6 +334,9 @@ type Unit = {
   /** The frame a knock's `at` last asked for, and its clock. */
   asked: FlightFrame;
   askedAt: number;
+  /** A police call's plan and its scene. */
+  police: PolicePlan | null;
+  dressing: PoliceDressing | null;
 };
 
 export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene {
@@ -320,58 +354,81 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     "rescue-kit",
   );
   const frameGeometry = stretcherGeometry();
+  const bags = bagGeometries();
   const strapGeometries = STRAPS.map(({ z, top }) => strapGeometry(z, top));
   let outfit: Outfit | null = null;
 
-  const colourOf = (i: number) => {
-    const b = BEARERS[i];
-    const d = b.role === "patrol" ? DRESS.patrol : DRESS.crew;
+  const colourOf = (i: number, kind: Kind) => {
+    const role = i < BEARERS.length ? BEARERS[i].role : "officer";
+    const officer = kind === "police" && role !== "patrol";
+    const d = officer ? OFFICER_DRESS : role === "patrol" ? DRESS.patrol : DRESS.crew;
+    const vest = "vest" in d ? d.vest : d.jacket;
     return {
-      colours: { ...d, vest: d.jacket, skin: SKIN[i % 4], hair: HAIR[i % 4], skis: 0x30343a },
-      parts: [PART.helmet, ...(b.role === "patrol" ? [PART.cross] : [])],
+      colours: { ...d, vest, skin: SKIN[i % 4], hair: HAIR[i % 4], skis: 0x30343a },
+      parts: [PART.helmet, ...(role === "patrol" ? [PART.cross] : [])],
     };
   };
+  /** Who is drawn for a call: the four, and on a police call the
+   * photographer (`PHOTO`) after them. */
+  const bodiesOf = (kind: Kind): CrowdBody[] => [
+    ...BEARERS.map((b) => b.body),
+    ...(kind === "police" ? [OFFICERS[2].body] : []),
+  ];
 
-  /** A machine's things, built the first time a rescue needs that many. */
+  /** A machine's things, built the first time a rescue needs that many
+   * (and again for a call of the other kind). */
   const units: Unit[] = [];
-  const unitFor = (i: number): Unit => {
-    if (units[i]) return units[i];
-    const heli = createHeliView(level, haze, { pad: false, url: MODEL_URL(), cockpit: false });
+  const unitFor = (i: number, kind: Kind = "ambulance"): Unit => {
+    if (units[i]?.kind === kind) return units[i];
+    if (units[i]) drop(units[i]);
+    const heli = createHeliView(level, haze, {
+      pad: false,
+      url: MODEL_URL(),
+      cockpit: false,
+      ...(kind === "police" ? { livery: policeLivery } : {}),
+    });
     group.add(heli.group);
     const crew: Member[] = [];
     const down: THREE.Mesh[] = [];
-    BEARERS.forEach((b, j) => {
-      const { colours, parts } = colourOf(j);
-      const mesh = new THREE.Mesh(dressed(bodyOf(b.body), colours, parts), material);
+    bodiesOf(kind).forEach((body, j) => {
+      const { colours, parts } = colourOf(j, kind);
+      const role =
+        kind === "police" && j !== 2 && j !== 3 ? "police" : (BEARERS[j]?.role ?? "police");
+      const mesh = new THREE.Mesh(dressed(bodyOf(body), colours, parts), material);
       mesh.morphTargetInfluences = new Array<number>(CREW_POSES.length).fill(0);
       mesh.castShadow = true;
       mesh.frustumCulled = false;
-      mesh.name = `rescue-${b.role}-${i}-${j}`;
+      mesh.name = `rescue-${role}-${i}-${j}`;
       group.add(mesh);
       crew.push({ mesh, weights: mesh.morphTargetInfluences });
       // Knocked over: his own copy of the stance, posed off his ragdoll.
-      const own = bodyOf(b.body).clone();
+      const own = bodyOf(body).clone();
       own.morphAttributes = {};
       const lying = new THREE.Mesh(dressed(own, colours, parts), material);
       lying.castShadow = true;
       lying.frustumCulled = false;
       lying.visible = false;
-      lying.name = `rescue-${b.role}-${i}-${j}-down`;
+      lying.name = `rescue-${role}-${i}-${j}-down`;
       group.add(lying);
       down.push(lying);
     });
     const run: HeliRun = { heli: freshHeli({ level } as GameState), level, tick: 0 };
     run.heli.mode = "home";
     run.heli.rider = false;
+    const dressing = kind === "police" ? createPoliceDressing(level, haze) : null;
+    if (dressing) group.add(dressing.group);
     const u: Unit = {
+      kind,
       heli,
       run,
       crew,
       down,
       litters: [],
-      now: freshFlightFrame(),
-      asked: freshFlightFrame(),
+      now: kind === "police" ? freshPoliceFrame() : freshFlightFrame(),
+      asked: kind === "police" ? freshPoliceFrame() : freshFlightFrame(),
       askedAt: NaN,
+      police: null,
+      dressing,
     };
     units[i] = u;
     return u;
@@ -380,17 +437,23 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   const litterFor = (u: Unit, k: number): Litter => {
     if (u.litters[k]) return u.litters[k];
     const g = new THREE.Group();
-    const frame = new THREE.Mesh(frameGeometry, kit);
+    const police = u.kind === "police";
+    const frame = new THREE.Mesh(police ? bags.open : frameGeometry, kit);
     frame.castShadow = true;
     g.add(frame);
-    const straps = strapGeometries.map((geo) => {
+    const bag = police ? new THREE.Mesh(bags.closed, kit) : null;
+    if (bag) {
+      bag.castShadow = true;
+      g.add(bag);
+    }
+    const straps = (police ? [] : strapGeometries).map((geo) => {
       const m = new THREE.Mesh(geo, kit);
       m.castShadow = true;
       g.add(m);
       return m;
     });
     group.add(g);
-    const l: Litter = { group: g, straps, casualty: null, dressed: "" };
+    const l: Litter = { group: g, straps, casualty: null, dressed: "", bag };
     u.litters[k] = l;
     return l;
   };
@@ -441,15 +504,21 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   let last: GameState | null = null;
   let calls: readonly RescueCall[] = [];
   let flights: RescueFlight[] = [];
-  // THE FOUR OF EVERY MACHINE AS PEOPLE ON FOOT a skier knocks over
-  // (`civilian-hits.ts`): person `4i + j` is machine `i`'s bearer `j`.
+  // THE CREW OF EVERY MACHINE AS PEOPLE ON FOOT a skier knocks over
+  // (`civilian-hits.ts`): person `8i + j` is machine `i`'s man `j`.
   let people: Person[] = [];
   const knocks = createKnocks();
-  /** Bearer `j` of machine `i` at the run's clock `t`, as a person on foot. */
+  /** Machine `i`'s call `t` s in, into `out`. */
+  const frameAt = (i: number, t: number, out: FlightFrame): FlightFrame => {
+    const u = units[i];
+    if (u.police) return policeAt(level, u.police, t, out as ReturnType<typeof freshPoliceFrame>);
+    return flightAt(level, flights[i], t, out);
+  };
+  /** Man `j` of machine `i` at the run's clock `t`, as a person on foot. */
   const crewAt = (i: number, j: number, t: number, o: CivilianPose): CivilianPose => {
     const u = units[i];
     if (u.askedAt !== t) {
-      flightAt(level, flights[i], callClock(calls[i], t), u.asked);
+      frameAt(i, callClock(calls[i], t), u.asked);
       u.askedAt = t;
     }
     const c = u.asked.crew[j];
@@ -470,17 +539,27 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   };
   const begin = (state: GameState): void => {
     calls = state.rescue ?? [];
-    flights = calls.map((c) => planFlight(level, c.casualties));
     people = [];
-    calls.forEach((c, i) => {
-      const u = unitFor(i);
+    flights = calls.map((c, i) => {
+      const u = unitFor(i, c.kind === "police" ? "police" : "ambulance");
       u.askedAt = NaN;
+      if (c.kind !== "police") {
+        u.police = null;
+        return planFlight(level, c.casualties);
+      }
+      const at = c.casualties[0];
+      u.police = planPolice(level, { x: at.x, z: at.z, evidence: c.evidence ?? [] });
+      u.dressing?.build(u.police);
+      return u.police.flight;
+    });
+    calls.forEach((c, i) => {
+      const u = units[i];
       for (let k = 0; k < c.casualties.length; k++) dressCasualty(litterFor(u, k));
-      BEARERS.forEach((b, j) =>
+      bodiesOf(u.kind).forEach((body, j) =>
         people.push({
-          key: 4 * i + j,
-          id: 7000 + 4 * i + j,
-          body: b.body,
+          key: 8 * i + j,
+          id: 7000 + 8 * i + j,
+          body,
           skis: false,
           rx: c.site.x,
           rz: c.site.z,
@@ -494,6 +573,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   };
   function hide(u: Unit): void {
     u.heli.group.visible = false;
+    if (u.dressing) u.dressing.group.visible = false;
     for (const m of u.crew) m.mesh.visible = false;
     for (const m of u.down) m.visible = false;
     for (const l of u.litters) {
@@ -502,6 +582,9 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     }
   }
 
+  /** Where the dead are left lying, and the police's casualties drawn. */
+  let statues: readonly { x: number; z: number }[] = [];
+  const taken: Taken[] = [];
   let puffs = 0;
   const dummy = { x: 0, z: 0 };
   const quat = new THREE.Quaternion();
@@ -524,7 +607,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     // (`heli-scene.ts`); the four stand where it left them, at what they
     // were doing as it went.
     const gone = calls[i].stolen !== undefined && state.t >= calls[i].stolen!;
-    const now = flightAt(level, flights[i], callClock(calls[i], state.t), u.now);
+    const now = frameAt(i, callClock(calls[i], state.t), u.now);
     // THE MACHINE, through the heli-ski machine's own drawing.
     const h = u.run.heli;
     const f = now.heli;
@@ -554,7 +637,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       const c = now.crew[j];
       const m = u.crew[j];
       const lying = u.down[j];
-      const key = 4 * i + j;
+      const key = 8 * i + j;
       const knock = knocks.map.get(key);
       if (knock && onRagdoll(knock)) {
         m.mesh.visible = false;
@@ -611,9 +694,17 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       quat.setFromEuler(euler);
       l.group.quaternion.copy(quat);
       for (let s = 0; s < l.straps.length; s++) l.straps[s].visible = s < st.straps;
+      // Bagged once the first strap would go on: the bag closed over him.
+      const bagged = !!l.bag && st.straps > 0;
+      if (l.bag) l.bag.visible = bagged;
       const cs = tf.casualty;
       const mesh = l.casualty!;
-      mesh.visible = cs.shown;
+      // A police call's body is the one left lying until the crew have him.
+      const left =
+        !!u.police &&
+        callClock(calls[i], state.t) < flights[i].trips[k].offset &&
+        lyingNear(statues, cs.x, cs.z);
+      mesh.visible = cs.shown && !bagged && !left;
       euler.set(-cs.pitch, cs.heading, -cs.roll, "YXZ");
       quat.setFromEuler(euler);
       placed.compose(pos.set(cs.x, cs.y, cs.z), quat, ONE);
@@ -625,7 +716,32 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       u.litters[k].group.visible = false;
       if (u.litters[k].casualty) u.litters[k].casualty!.visible = false;
     }
+    // THE POLICE'S SCENE, and the photographer's camera.
+    if (u.dressing && "scene" in now) {
+      const pf = now as ReturnType<typeof freshPoliceFrame>;
+      u.dressing.update(pf.scene, pf.crew[PHOTO]);
+    }
   };
+  /** A machine's things put away for good (its call of another kind). */
+  function drop(u: Unit): void {
+    u.heli.dispose();
+    group.remove(u.heli.group);
+    for (const m of [...u.crew.map((c) => c.mesh), ...u.down]) {
+      group.remove(m);
+      m.geometry.dispose();
+    }
+    for (const l of u.litters) {
+      group.remove(l.group);
+      if (l.casualty) {
+        group.remove(l.casualty);
+        l.casualty.geometry.dispose();
+      }
+    }
+    if (u.dressing) {
+      group.remove(u.dressing.group);
+      u.dressing.dispose();
+    }
+  }
 
   return {
     group,
@@ -667,14 +783,32 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       }
     },
     active: () => calls.length > 0,
+    police(spots) {
+      statues = spots;
+      taken.length = 0;
+      for (let i = 0; i < calls.length; i++) {
+        if (!units[i]?.police || !last) continue;
+        const c = calls[i].casualties[0];
+        const t = last.t - calls[i].start;
+        taken.push({
+          x: c.x,
+          z: c.z,
+          taken: t >= flights[i].trips[0].offset && t < flights[i].gone,
+        });
+      }
+      return taken;
+    },
     dispose() {
       for (const u of units) {
         u.heli.dispose();
         for (const m of u.crew) m.mesh.geometry.dispose();
         for (const m of u.down) m.geometry.dispose();
         for (const l of u.litters) l.casualty?.geometry.dispose();
+        u.dressing?.dispose();
       }
       frameGeometry.dispose();
+      bags.open.dispose();
+      bags.closed.dispose();
       for (const g of strapGeometries) g.dispose();
       material.dispose();
       kit.dispose();

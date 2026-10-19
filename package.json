@@ -126,6 +126,7 @@
     "wingsuit-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/wingsuit-flight-lab.mjs",
     "grimbear": "node scripts/grimbear-preview.mjs",
     "rescue": "node scripts/rescue-preview.mjs",
+    "police": "node scripts/police-preview.mjs",
     "gore": "node scripts/gore-preview.mjs",
     "gore-cost": "node scripts/gore-cost.mjs",
     "bones": "node scripts/bones-preview.mjs",

@@ -68,6 +68,7 @@ import { createRideMemory, liftCut, stepRideLook } from "./camera-lift.ts";
 import { createGazeRig } from "./lift-gaze.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createMachines, type Machines } from "./machines.ts";
+import { bagRemains, remainsAt } from "./police-remains.ts";
 import {
   chooseBackend,
   readBackend,
@@ -672,6 +673,7 @@ export function createWorldRenderer(
       if (state.gore && !gore) addGore(level, riders[0].model);
       gore?.setPace(pace);
       gore?.update(state, riders[0].model, simDt, dt, hurt.veil());
+      if (gore && machines) bagRemains(gore.remains(), machines.police(remainsAt(gore.remains())));
       lastTick = state.tick;
       // The ghost is posed and drawn, and nothing more: no furrow, no spray.
       ghost?.draw(ghostRun?.level === level ? ghostRun : null, alpha);

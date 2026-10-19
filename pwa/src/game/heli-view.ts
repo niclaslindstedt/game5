@@ -316,7 +316,18 @@ function padMarks(
 /** How a helicopter is drawn: with its PAD on the valley floor (the free
  * ride's own) or alone, and off which model file (the air ambulance's,
  * `rescue-view.ts`). */
-export type HeliLook = { pad?: boolean; url?: string | null; cockpit?: boolean };
+/** How a machine is drawn: its pad, its model, its cockpit — and a
+ * LIVERY laid over the model's own (`police-livery.ts`): handed each of
+ * its materials once, by name, before the haze is grafted on, it repaints
+ * it and may hand back a graft of its own for that material's shader. */
+export type HeliLook = {
+  pad?: boolean;
+  url?: string | null;
+  cockpit?: boolean;
+  livery?: (
+    m: THREE.MeshStandardMaterial,
+  ) => ((shader: THREE.WebGLProgramParametersWithUniforms) => void) | void;
+};
 
 export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook = {}): HeliView {
   const group = new THREE.Group();
@@ -417,7 +428,20 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
 
   const swap = createFarSwap(HELI_FAR, HELI_MARGIN);
   machine.add(swap.node);
+  /** The livery over a material, once (the model's meshes share them). */
+  const repainted = new Map<THREE.Material, ReturnType<NonNullable<HeliLook["livery"]>>>();
+  const repaint = (m: THREE.MeshStandardMaterial) => {
+    if (!look.livery) return undefined;
+    if (!repainted.has(m)) repainted.set(m, look.livery(m));
+    return repainted.get(m) ?? undefined;
+  };
   const adopt = (root: THREE.Object3D, standing = false): void => {
+    // The livery first: the blades' own copies are cut from its colours.
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material])
+        if (m instanceof THREE.MeshStandardMaterial) repaint(m);
+    });
     root.traverse((o) => {
       if (o.name === "heli_rotor") {
         mainBlades = bladesOf(o);
@@ -436,7 +460,8 @@ export function createHeliView(level: Level, haze: HazeUniforms, look: HeliLook 
         const list = Array.isArray(o.material) ? o.material : [o.material];
         for (const m of list) {
           if (m instanceof THREE.MeshStandardMaterial) {
-            hazeMaterial(m, haze, "heli");
+            const graft = repaint(m);
+            hazeMaterial(m, haze, graft ? `heli-${m.name}` : "heli", graft);
             originals.set(m, m.color.clone());
             if (/lamp/i.test(m.name)) lampMats.push(m);
           }

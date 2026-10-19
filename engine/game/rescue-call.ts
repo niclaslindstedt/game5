@@ -14,6 +14,12 @@
 // steel that throws him (`crash.ts`'s `wipeoutCause`). A thrown body is
 // held out of it too.
 //
+// A call is an air ambulance unless it says otherwise: a run that ended
+// DEAD calls the POLICE (`kind: "police"`, `docs/police.md`), whose machine
+// sits on the same skids and is the same solid — its `evidence` (where he
+// struck, what he left on the snow, where he lay) is the app's to draw and
+// never read here.
+//
 // A run that asked for none never reaches it, so no digest moves, and
 // nothing is drawn from the stream.
 
@@ -35,6 +41,16 @@ export type RescueSite = {
   roll: number;
 };
 
+/** ONE ITEM OF EVIDENCE at a fatal accident's scene, on the snow (m,
+ * world): where he struck (`impact`), blood a smash left on a solid
+ * (`blood`), a piece of him torn off (`piece`), a ski that went on without
+ * him (`ski`), and the body (`body`). */
+export type Evidence = {
+  what: "impact" | "blood" | "piece" | "ski" | "body";
+  x: number;
+  z: number;
+};
+
 /** ONE AIR AMBULANCE called to the mountain, as a run sees it: the run's
  * clock its flight began at (its plan's 0 — negative when it set off on an
  * earlier run), where it sits, the run's clocks it touches down and lifts
@@ -49,6 +65,11 @@ export type RescueCall = {
   /** The run's clock the machine was TAKEN at by the skier (`steal.ts`),
    * from which it no longer stands there — absent while it is its crew's. */
   stolen?: number;
+  /** What was called: the air ambulance (left out) or, after a death, the
+   * police — and the scene's evidence, numbered from the impact to the
+   * body, which only a police call carries. */
+  kind?: "police";
+  evidence?: Evidence[];
 };
 
 /** A call copied whole, so a run never shares one with its caller. */
@@ -60,6 +81,8 @@ export function copyCall(r: RescueCall): RescueCall {
     up: r.up,
     casualties: r.casualties.map((c) => ({ ...c })),
     ...(r.stolen !== undefined ? { stolen: r.stolen } : {}),
+    ...(r.kind ? { kind: r.kind } : {}),
+    ...(r.evidence ? { evidence: r.evidence.map((e) => ({ ...e })) } : {}),
   };
 }
 

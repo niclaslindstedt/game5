@@ -91,7 +91,7 @@ import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
 import { createHudLive, feedHudLive } from "./game/hud-live.ts";
 import { deathOver } from "./game/hud-wreck.ts";
-import { rescueAgain } from "./game/rescue-book.ts";
+import { noteImpact, rescueAgain } from "./game/rescue-book.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
@@ -428,6 +428,7 @@ export function App() {
       if (!watching(shellRef.current)) book.step(input, state.events);
       replays.step(input, state);
       xray.step(state);
+      noteImpact(state);
       for (const e of state.events) tally[e.kind] = (tally[e.kind] ?? 0) + 1;
       if (preroll) return;
       const rides = playerRides(shellRef.current);
@@ -493,8 +494,7 @@ export function App() {
       window.setTimeout(() => setLoadLeaving(false), LOAD_FADE_MS);
     };
 
-    /** The race again on the same map, no card, just the lights (`onSnow`, the
-     * PISTE MAP's way back on too) — any rescue under way kept (`rescueAgain`). */
+    /** The race again on the same map, just the lights; any rescue kept (`rescueAgain`). */
     const restart = (): void => {
       if (loader.busy()) return;
       // A free ride again at the top of its last piste; any other run from its start.

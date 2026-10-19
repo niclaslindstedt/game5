@@ -649,9 +649,8 @@ export function createWorldRenderer(
         // The landing puff (none off a lift's rope: that is steel, not snow).
         const onRope = !!skier.grind;
         let landed = 0;
-        if (r.wasAirborne && !skier.airborne && r.airTime > 0.25 && !onRope) {
+        if (r.wasAirborne && !skier.airborne && r.airTime > 0.25 && !onRope)
           landed = Math.abs(r.vy) + r.airTime * 2;
-        }
         if ((simDt > 0 || landed > 0) && !run.plane?.rider && !onRope && !summer()) {
           spray.emit(skier, level, simDt, landed, thrownSnow(skier.x, skier.z));
           cloud.emit(skier, simDt, landed, thrownSnow);
@@ -699,8 +698,9 @@ export function createWorldRenderer(
       const over = lensGround(state, level.groundAt); // over an avalanche's snow
       const ladder = lens.frame(rigPose, Math.min(dt, 0.1), over, boomClear, trunks, own);
       hurt.update(state, player.model.skin(), (piece, out) => gore?.flown(piece, out) ?? null);
-      // THE LENS ON A HURT BODY (`xray-scene.ts`); a wreck he was on is `camera-crash.ts`'s.
-      const allowed = !override && !watched && lens.rung() !== "orbit" && !wrecked(state);
+      // THE LENS ON A HURT BODY (`xray-scene.ts`; a replay: its impact cam); a wreck: camera-crash.
+      const allowed =
+        !override && (watched ? hurt.impact() : lens.rung() !== "orbit" && !wrecked(state));
       const dead = hurt.lens(
         allowed,
         body,
@@ -713,7 +713,7 @@ export function createWorldRenderer(
       // The ladder is framed underneath either way: a planted lens hands back to a boom in place.
       const planted =
         override ??
-        broadcast.lens(state, rigPose, watched, clear) ??
+        (watched && hurt.impact() ? dead : broadcast.lens(state, rigPose, watched, clear)) ??
         (watched ? replayCam.update(watched, rigPose, body, state.t, dt, dt / pace) : null) ??
         (hurt.active() ? dead : null) ??
         machines?.lens(ladder, Math.min(dt, 0.1)) ??

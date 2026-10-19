@@ -66,6 +66,36 @@ describe("the blow seen coming", () => {
     const seen = forecast(run, NEUTRAL_INPUT, 0.5);
     expect(seen?.tear?.piece).toBe("lower");
     expect(seen?.fatal).toBe(true);
+    // The IMPACT cam's strike: sliced, where he meets it, his way then.
+    expect(seen?.strike?.kind).toBe("slice");
+    expect(seen!.strike!.in).toBeCloseTo(seen!.in, 1);
+    expect(seen!.strike!.way.x).toBeCloseTo(-hx * 25, 0);
+  });
+
+  it("sees a trunk met fast enough to crush him as the impact cam's strike", () => {
+    const { state, input } = stageTrial(
+      { ...INTO_A_TRUNK, stage: { ...INTO_A_TRUNK.stage, speed: 32 } },
+      0,
+      true,
+    );
+    let seen = null;
+    for (let k = 0; k < 600 && !seen?.strike; k++) {
+      seen = forecast(state, input, 0.5);
+      if (!seen?.strike) step(state, input);
+    }
+    expect(seen?.strike?.kind).toBe("crush");
+    expect(seen!.strike!.solid).toBeDefined();
+  });
+
+  it("sees no strike in a trunk met too slow to crush him", () => {
+    const { state, input } = stageTrial(INTO_A_TRUNK, 0, true);
+    let seen = null;
+    for (let k = 0; k < 600 && !seen; k++) {
+      seen = forecast(state, input, 0.5);
+      if (!seen) step(state, input);
+    }
+    expect(seen).not.toBeNull();
+    expect(seen!.strike).toBeUndefined();
   });
 
   it("leaves the run it reads exactly as it was", () => {

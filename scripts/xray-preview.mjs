@@ -15,9 +15,15 @@
 //   fall        off a cliff 200 m onto the flat snow
 //   fall-high   off one 400 m: the skis land first and the body slams on
 //               down, each bone breaking as its part meets the snow
+//   post        skied at a steel upright (a lamp's pole, a lift's tower)
+//   cable       flown across a chair's rope at 90 km/h, his chest to it
 //   anatomy     no blow: he stands still under the glass, the lens circling
 //               the ribs, the spine, the skull, the pelvis and the whole of
 //               him in turn — the skeleton and the organs judged at rest
+//
+// `--impact` runs them with the X-RAY CAM switch OFF: the IMPACT cam's
+// side-on slow motion of a body crushed on a solid or sliced by a rope,
+// previews/impact-<scene>.png.
 //
 // Each scene is one contact sheet, previews/xray-<scene>.png. The page
 // (`pwa/src/tools/xray-harness.ts`, its stagings the gore lab's) steps the
@@ -28,6 +34,7 @@
 //
 //   node scripts/xray-preview.mjs                 # every scene
 //   node scripts/xray-preview.mjs --scene=trunk
+//   node scripts/xray-preview.mjs --impact --scene=trunk-fast,post,cable
 
 import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -48,7 +55,7 @@ const args = parseArgs(
     scene: {
       kind: "string",
       default: "",
-      help: "which scenes, comma-separated (trunk-fast, head, slam, fall, fall-high, spike, spike-post, groomer, maul, heli, cable, cable-shins, rotor, anatomy); every one when left out",
+      help: "which scenes, comma-separated (trunk-fast, post, head, slam, fall, fall-high, spike, spike-post, groomer, maul, heli, cable, cable-shins, rotor, anatomy); every one when left out",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     every: { kind: "number", default: 0.5, help: "wall seconds between two frames shot" },
@@ -62,6 +69,7 @@ const args = parseArgs(
     height: { kind: "number", default: 720, help: "a frame's height, px" },
     cols: { kind: "number", default: 4, help: "tiles a row on a sheet" },
     scale: { kind: "number", default: 0.4, help: "a tile's size as a share of the frame" },
+    impact: { kind: "flag", help: "the X-ray switch off: the impact cam alone" },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 1800, help: "how long a sheet may take to draw, s" },
   },
@@ -133,6 +141,7 @@ const query = new URLSearchParams({
   every: String(args.every),
   most: String(args.most),
   again: String(args.again),
+  xray: args.impact ? "0" : "1",
 }).toString();
 await page.goto(`${server.url}xray-preview.html?${query}`);
 await guarded(page.waitForFunction("window.__xray !== undefined"));
@@ -159,7 +168,7 @@ for (const scene of scenes) {
     width: Math.max(args.width, Math.ceil(box.width)),
     height: Math.ceil(box.y + box.height),
   });
-  const out = join(outDir, `xray-${scene}.png`);
+  const out = join(outDir, `${args.impact ? "impact" : "xray"}-${scene}.png`);
   await page.locator("#sheet").screenshot({ path: out });
   await page.setViewportSize(viewport);
   console.log(

@@ -15,6 +15,7 @@ import { createLineClear, heliBox, type SolidBox } from "./camera-clear.ts";
 import { createDeathCam, dropDeathCam, frameDeath } from "./camera-death.ts";
 import type { LensPose, LineClear, Vec3 } from "./camera-rigs.ts";
 import { XRAY_LENS, createXrayLens, frameXray, type LensSide } from "./camera-xray.ts";
+import { createImpactLens, frameImpact } from "./camera-impact.ts";
 import { createXrayView, type Flown, type XraySkin } from "./xray-view.ts";
 import { IDLE_XRAY, type XrayLook } from "./xray-shots.ts";
 
@@ -40,6 +41,8 @@ export type HurtLens = {
   ): LensPose | null;
   /** Whether the X-ray cam has the run (the figure is drawn whatever rung). */
   active(): boolean;
+  /** Whether it is the IMPACT cam: the one a recording watched back plays. */
+  impact(): boolean;
   /** How far the skin is glass this frame, 0 … 1: what is drawn outside
    * him (the gore's blood and shards) stands down while the world is veiled. */
   veil(): number;
@@ -95,6 +98,7 @@ const MACHINE_SHOT = { reach: 12, over: 1.2, turn: 1.3, arm: 7, height: 3.2, fov
 export function createHurtLens(): HurtLens {
   const view = createXrayView();
   const xlens = createXrayLens();
+  const ilens = createImpactLens();
   const death = createDeathCam();
   let deathOn = false;
   let look: XrayLook | null = null;
@@ -178,6 +182,22 @@ export function createHurtLens(): HurtLens {
         if (death.ended && !shot) snap();
       } else if (death.active) dropDeathCam(death);
       prev = home;
+      // THE IMPACT CAM: a standing lens beside the strike, cut to (`camera-impact.ts`).
+      if (look?.kind === "impact" || ilens.active) {
+        const impact = look?.kind === "impact" ? shot : null;
+        const him = body ? target.set(body.x, body.y, body.z) : view.bodyCentre(target);
+        const i = frameImpact(
+          ilens,
+          impact,
+          him ? { x: him.x, y: him.y, z: him.z } : null,
+          home ?? ladder,
+          look?.back ?? 0,
+          dt,
+          groundAt,
+          shredClear,
+        );
+        if (i || impact) return i ?? home;
+      }
       // Nothing hides him under the X-ray (`xray-view.ts`), so its lens is
       // pulled in by nothing that stands between but the helicopter he
       // falls past (`machine`): a lens is never stood in its cabin. A
@@ -204,6 +224,7 @@ export function createHurtLens(): HurtLens {
       return x ?? home;
     },
     active: () => !!look?.active,
+    impact: () => !!look?.active && look.kind === "impact",
     veil: () => (look?.active ? look.xray : 0),
     dispose() {
       view.dispose();

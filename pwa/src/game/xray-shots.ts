@@ -39,6 +39,18 @@
 // shot held as long as pieces keep coming off him (`XRAY.shred.hold` after
 // the last, `.most` at the most), and the same way back.
 //
+// THE IMPACT CAM — the same director again, with the X-RAY CAM switch OFF:
+// only for a body CRUSHED on a solid (a trunk, a mast, a lift's tower) or
+// SLICED by a lift's rope (`impact-forecast.ts`'s `Strike`), and never
+// through the skin. The read ahead knows the strike is coming, so the
+// picture CUTS to a lens already standing beside the place it will land,
+// side on to his way (`camera-impact.ts`), the run slowed evenly over
+// `XRAY.impact.leadWall` so he arrives into that frame and meets it on the
+// lead's last frame; the strike is held slowed (`XRAY.impact.hold`) and the
+// same way back draws the lens home. A blow that is neither (a fall on the
+// snow, a bone broken on a trunk met slower) is left to the game's own
+// camera.
+//
 // NOT THE HELICOPTER COMING DOWN WITH HIM ON IT (`wrecked`): there is
 // nothing inside him worth the look, and the crash's own lens
 // (`camera-crash.ts`) holds on the machine blowing up and never goes after
@@ -60,7 +72,7 @@ import {
   type GorePiece,
 } from "@engine";
 
-import { mangled, wrecked, type Forecast } from "./impact-forecast.ts";
+import { mangled, wrecked, type Forecast, type Strike } from "./impact-forecast.ts";
 
 /** The whole director, as numbers: seconds of the WALL clock unless named
  * game seconds; rates are game seconds per wall second. */
@@ -98,11 +110,16 @@ export const XRAY = {
   /** A piste machine is slow work: shot faster, so its belts and tiller
    * are seen to go over him rather than a moment of it. */
   shred: { slow: 0.05, machine: 0.14, hold: 2.2, most: 7 },
+  /** THE IMPACT CAM: how near a strike seen coming cuts to it, game s; the
+   * wall seconds from the cut to the strike; how slow it is shot, and the
+   * wall seconds it is held after it lands. */
+  impact: { lead: 0.45, leadWall: 1.1, slow: 0.07, hold: 2.6 },
 } as const;
 
 /** Which cam has the fall: the X-RAY (a body broken, seen through the
- * skin) or the SHRED (a body taken apart, seen from outside). */
-export type XrayKind = "xray" | "shred";
+ * skin), the SHRED (a body taken apart, seen from outside) or the IMPACT
+ * (crushed or sliced, seen side on with the X-ray switch off). */
+export type XrayKind = "xray" | "shred" | "impact";
 
 /** THE BIG BONES — the ones worth a shot of their own after the first. */
 export const BIG_BONES: readonly BoneKind[] = [
@@ -124,6 +141,7 @@ export type XrayShot =
   | { kind: "bone"; bone: Bone }
   | { kind: "tear"; piece: GorePiece | null; at: { x: number; y: number; z: number } }
   | { kind: "shred" }
+  | { kind: "impact"; strike: Strike }
   | { kind: "body" };
 
 export type XrayLook = {
@@ -153,10 +171,11 @@ type Pending = {
 };
 
 export type XrayDirector = {
-  /** A blow read ahead, this frame. */
-  seen(f: Forecast | null, state: GameState): void;
+  /** A blow read ahead, this frame; `glass` the X-RAY CAM switch (off:
+   * only the IMPACT cam is shot). */
+  seen(f: Forecast | null, state: GameState, glass?: boolean): void;
   /** One step's events. */
-  step(state: GameState): void;
+  step(state: GameState, glass?: boolean): void;
   /** One frame, `wall` seconds after the last: the look. */
   frame(state: GameState, wall: number): XrayLook;
   /** Put it down (a new run). */
@@ -240,6 +259,8 @@ export function createXrayDirector(): XrayDirector {
   const shotBones = new Set<string>();
   let last: GameState | null = null;
   let heldTill = -Infinity;
+  /** An IMPACT seen coming, not yet due: the strike and the game second it lands. */
+  let armed: { strike: Strike; at: number } | null = null;
 
   const reset = (): void => {
     on = false;
@@ -261,6 +282,7 @@ export function createXrayDirector(): XrayDirector {
     since = 0;
     shotBones.clear();
     heldTill = -Infinity;
+    armed = null;
   };
 
   const keyOf = (s: XrayShot): string =>
@@ -284,20 +306,46 @@ export function createXrayDirector(): XrayDirector {
     if (body) body = false;
   };
 
+  const queueShot = want;
+
   /** Whether a shred is a piste machine's. */
   let machine = false;
-  const begin = (shred: boolean, cause: string | null = null): void => {
+  const begin = (shred: boolean | "impact", cause: string | null = null): void => {
     on = true;
     spent = true;
-    kind = shred ? "shred" : "xray";
+    kind = shred === "impact" ? "impact" : shred ? "shred" : "xray";
     machine = cause === "machine";
   };
   const slow = (): number =>
-    kind === "xray" ? XRAY.slow : machine ? XRAY.shred.machine : XRAY.shred.slow;
+    kind === "xray"
+      ? XRAY.slow
+      : kind === "impact"
+        ? XRAY.impact.slow
+        : machine
+          ? XRAY.shred.machine
+          : XRAY.shred.slow;
 
   return {
-    seen(f, state) {
+    seen(f, state, glass = true) {
       if (!f || (spent && !on) || (body && !on) || state.t < heldTill) return;
+      if (!glass || (on && kind === "impact")) {
+        const k = f.strike;
+        if (!k) return;
+        const at = state.t + k.in;
+        // Seen again in the lead: the strike's moment as the read now has it.
+        if (on) {
+          if (kind === "impact" && leading && current && !current.landed) {
+            firstAt = at;
+            current.at = at;
+          }
+          return;
+        }
+        // Kept until the lead's moment comes (`frame`): the read ahead
+        // finds a strike well before the cut is due, and only now and then.
+        if (f.wrecked || f.mangled || wrecked(state)) armed = null;
+        else armed = { strike: k, at };
+        return;
+      }
       if (!on && (f.in > XRAY.lead || !f.fatal || f.wrecked || wrecked(state))) return;
       // Burnt to death: nothing a bone shows — his flames are the shot, and
       // the death cam's (`burn-view.ts`).
@@ -345,7 +393,7 @@ export function createXrayDirector(): XrayDirector {
       want({ kind: "bone", bone: look }, at, false);
     },
 
-    step(state) {
+    step(state, glass = true) {
       if (state !== last) {
         reset();
         last = state;
@@ -353,6 +401,14 @@ export function createXrayDirector(): XrayDirector {
       // Stood back up: ready for the next fall.
       const down = !!state.skier.thrown || !!(state.gore && state.gore.dead >= 0);
       if (spent && !on && !down && state.t >= heldTill) reset();
+      // THE IMPACT: landed on the step the body is smashed or cut.
+      if (on && kind === "impact") {
+        for (const e of state.events as GameEvent[])
+          if (e.kind === "gore" || (e.kind === "grind" && e.phase === "cut"))
+            for (const p of [current, ...queue]) if (p) p.landed = true;
+        return;
+      }
+      if (!glass) return;
       // A blow the read ahead missed starts the cam only if he is dying.
       const dying =
         !!state.gore && (state.gore.mortal >= 0 || state.gore.dead >= 0) && !wrecked(state);
@@ -395,6 +451,18 @@ export function createXrayDirector(): XrayDirector {
         reset();
         last = state;
       }
+      // THE IMPACT'S CUT, on the frame its lead comes due.
+      if (!on && armed) {
+        if (state.t > armed.at + XRAY.late) armed = null;
+        else if (state.t >= armed.at - XRAY.impact.lead) {
+          begin("impact");
+          leading = true;
+          firstAt = armed.at;
+          leadAge = 0;
+          queueShot({ kind: "impact", strike: armed.strike }, armed.at, false);
+          armed = null;
+        }
+      }
       if (!on) return IDLE;
       age += wall;
       if (leading && state.t >= firstAt) leading = false;
@@ -405,7 +473,13 @@ export function createXrayDirector(): XrayDirector {
         if (tore) since = 0;
         tore = false;
         const shred = current.shot.kind === "shred";
-        const held = shred ? XRAY.shred.hold : current.shot.kind === "tear" ? XRAY.tear : XRAY.hold;
+        const held = shred
+          ? XRAY.shred.hold
+          : current.shot.kind === "impact"
+            ? XRAY.impact.hold
+            : current.shot.kind === "tear"
+              ? XRAY.tear
+              : XRAY.hold;
         const late = !current.landed && state.t > current.at + XRAY.late;
         const long = shred && age > XRAY.shred.most;
         if ((current.landed && since > held) || late || long) current = null;
@@ -428,10 +502,11 @@ export function createXrayDirector(): XrayDirector {
         // runs out; the skin solid, then glass.
         leadAge += wall;
         const gap = Math.max(0, firstAt - state.t);
-        const left = Math.max(0.05, XRAY.leadWall - leadAge);
+        const leadWall = kind === "impact" ? XRAY.impact.leadWall : XRAY.leadWall;
+        const left = Math.max(0.05, leadWall - leadAge);
         rate = Math.min(1, Math.max(slow(), (2 * gap) / left - slow()));
         const glass = (leadAge - XRAY.leadSolid) / (XRAY.leadWall - XRAY.leadSolid);
-        xray = kind === "shred" ? 0 : Math.min(1, Math.max(0, glass));
+        xray = kind !== "xray" ? 0 : Math.min(1, Math.max(0, glass));
         return { active: true, kind, rate, xray, back: 0, shot: current!.shot, age, index };
       }
       if (body) {
@@ -442,7 +517,7 @@ export function createXrayDirector(): XrayDirector {
       } else {
         home = Math.max(0, home - wall * XRAY.backIn);
         want = slow();
-        xray = kind === "shred" ? 0 : Math.min(1, xray + wall / XRAY.glassIn);
+        xray = kind !== "xray" ? 0 : Math.min(1, xray + wall / XRAY.glassIn);
       }
       rate += (want - rate) * (1 - Math.exp(-XRAY.ease * wall));
       // Home, solid and at its own pace: the game's camera has him already.

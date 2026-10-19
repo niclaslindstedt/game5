@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE APP: the shell the game lives inside, and the §37 clock underneath it.
 //
-// SEVEN SURFACES, ONE CANVAS, AND THE SNOW NEVER STOPS — except under the
-// card standing over the PLAYER's own race, and under the BENCHMARK, whose
-// pump turns it itself. `game/shell.ts` names every surface (the attract
-// card, the front door and all its pages, the loading card, the pause card,
-// the run, the replay and the bench) and owns what each means; this file
-// decides when one gives way to the next. DEVELOPER's half is `dev-app.tsx`.
+// SEVEN SURFACES, ONE CANVAS, AND THE SNOW NEVER STOPS — except under the card standing over the
+// PLAYER's own race, and under the BENCHMARK, whose pump turns it itself. `game/shell.ts` names
+// every surface (the attract card, the front door and all its pages, the loading card, the pause
+// card, the run, the replay and the bench) and owns what each means; this file decides when one
+// gives way to the next. DEVELOPER's half is `dev-app.tsx`.
 //
 // ONE ENGINE STATE THROUGHOUT, and the surface decides who rides it: `botInput` under a card, the
 // input manager under a run. Leaving a race for the front door hands the same skis back to the bot
@@ -687,7 +686,8 @@ export function App() {
       renderer.setDeathCam(playerRides(shellRef.current) && dying(state));
       const exit = xrayOn ? renderer.exitPace() : 1;
       const film = cinema.frame(state, backdrop && !held && title.raced()); // `cinema-run.ts`
-      const rate = film * replays.frame() * xray.frame(state, xrayOn ? dtFrame : 0, xrayOn) * exit;
+      const watchOn = watching(shellRef.current) && !frozen && !held && shown; // its impact cam's
+      const rate = film * xray.paced(state, dtFrame, xrayOn, watchOn, replays) * exit;
       const dtRun = dtFrame * rate;
       renderer.setPace(rate);
       const simAt = performance.now();

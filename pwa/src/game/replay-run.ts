@@ -129,6 +129,10 @@ export type ReplayRun = {
    * told which moment holds the frame, and the rate the picture runs at
    * returned — 0 while paused or seeking. */
   frame: () => number;
+  /** The rate the PLAYER asked the picture to run at — the speed chip's,
+   * 0 while paused or seeking — without the director's slow motion: what
+   * the impact cam's own is laid over (`xray-run.ts`). */
+  pace: () => number;
   /** At most the steps left on the tape: a recording is never stepped past
    * its own end. */
   cap: (steps: number) => number;
@@ -178,6 +182,8 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
   let rung: WatchRung = WATCHING_CAMERAS[0];
   let rate = 1;
   let playing = true;
+  /** The player's own speed this frame, 0 paused or seeking (`pace`). */
+  let paced = 1;
   let speed = 1;
   /** When an instant replay ran off its end playing, ms — the hand-back's
    * clock — or null. */
@@ -207,6 +213,7 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
       watched ? Math.max(0, Math.min(steps, watched.replay.end - watched.replay.at())) : steps,
     offers: () => rig.offers() && hudOver(world.shell()) && !watching(world.shell()),
     crash: () => rig.crash() !== null && world.shell() === "run",
+    pace: () => (watched ? paced : 1),
     frame: () => {
       if (!watched) {
         filmBars("replay", false);
@@ -237,7 +244,8 @@ export function createReplayRun(world: ReplayRunWorld): ReplayRun {
       );
       filmBars("replay", own === "film"); // the letterbox (`film-bars.ts`)
       const director = own ? call.rate : 1;
-      rate = playing && replay.seeking() === null ? speed * director : 0;
+      paced = playing && replay.seeking() === null ? speed : 0;
+      rate = paced * director;
       return rate;
     },
     watch: (from, live, back) => {

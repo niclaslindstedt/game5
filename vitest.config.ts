@@ -6,6 +6,7 @@ import { readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import { canShareWorker } from "./tests/support/isolation.ts";
+import { ShardTimes } from "./tests/support/shard-times.ts";
 import { WeightedSequencer } from "./tests/support/shards.ts";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
@@ -38,6 +39,9 @@ export default defineConfig({
     // CI's shards are cut by each file's measured time rather than by
     // vitest's hash of its path, and the heaviest files start first.
     sequence: { sequencer: WeightedSequencer },
+    // On CI each shard ends by printing the whole time every file held its
+    // worker — the numbers `SHARD_WEIGHTS` is re-measured from.
+    reporters: process.env.CI ? ["default", new ShardTimes()] : ["default"],
     projects: [
       { extends: true, test: { name: "shared", include: shared, isolate: false } },
       { extends: true, test: { name: "isolated", include: isolated } },

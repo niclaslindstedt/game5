@@ -46,6 +46,9 @@ export type RescueCall = {
   down: number;
   up: number;
   casualties: { x: number; z: number; known: number }[];
+  /** The run's clock the machine was TAKEN at by the skier (`steal.ts`),
+   * from which it no longer stands there — absent while it is its crew's. */
+  stolen?: number;
 };
 
 /** A call copied whole, so a run never shares one with its caller. */
@@ -56,6 +59,7 @@ export function copyCall(r: RescueCall): RescueCall {
     down: r.down,
     up: r.up,
     casualties: r.casualties.map((c) => ({ ...c })),
+    ...(r.stolen !== undefined ? { stolen: r.stolen } : {}),
   };
 }
 
@@ -135,7 +139,7 @@ const boxes: StripBox[] = [];
 function landedNear(state: GameState, x: number, z: number): readonly StripBox[] {
   boxes.length = 0;
   for (const r of state.rescue ?? []) {
-    if (state.t < r.down || state.t >= r.up) continue;
+    if (state.t < r.down || state.t >= r.up || r.stolen !== undefined) continue;
     if (hypot(x - r.site.x, z - r.site.z) > NEAR) continue;
     rescueBoxes(r.site, boxes);
   }

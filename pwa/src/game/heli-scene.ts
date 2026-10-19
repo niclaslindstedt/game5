@@ -14,7 +14,7 @@
 // and the ride begun again after a crash cut to it.
 
 import * as THREE from "three";
-import { HELI, type GameState, type Level } from "@engine";
+import { HELI, type GameState, type HeliLivery, type Level } from "@engine";
 import { sunNow } from "./sky-clock.ts";
 
 import { frameCrash, startCrashCam, wooded, type CrashCam } from "./camera-crash.ts";
@@ -27,6 +27,7 @@ import type { HazeUniforms } from "./haze.ts";
 import { createHeliView, type HeliView, type WashPuff } from "./heli-view.ts";
 import type { Perch } from "./skier-dangle.ts";
 import { createHeliPerch } from "./ride-perch.ts";
+import { rescueModelUrl } from "./skier-models.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
 import type { SnowProps } from "./snowpack.ts";
@@ -71,6 +72,9 @@ export type HeliScene = {
   dispose(): void;
 };
 
+/** Each owner's model, by the livery a taken machine is drawn in. */
+const LIVERY_URL: Record<HeliLivery, () => string | null> = { rescue: rescueModelUrl };
+
 /** How long the drop's lens is held after the push, s, and how long its
  * look takes to come round onto him; how long the lens takes to fly onto
  * the helicopter as he sits on the skid, and back to the ladder after the
@@ -94,9 +98,28 @@ const CABIN = (() => {
 export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   const group = new THREE.Group();
   group.name = "helicopter";
-  const view: HeliView = createHeliView(level, haze);
+  const home: HeliView = createHeliView(level, haze);
+  /** THE MACHINE TAKEN FROM ITS OWNERS (`steal.ts`), drawn in their
+   * livery off their model — built as soon as a run carries one he could
+   * take, so its model is in before he takes it — and the view drawing the
+   * run's machine this frame. */
+  let taken: HeliView | null = null;
+  let view = home;
+  const viewFor = (state: GameState): HeliView => {
+    const livery = state.heli?.livery ?? (state.rescue?.length ? "rescue" : null);
+    if (livery && !taken) {
+      taken = createHeliView(level, haze, { pad: false, url: LIVERY_URL[livery]() });
+      group.add(taken.group);
+    }
+    home.setAway(!!state.heli?.livery);
+    if (!state.heli?.livery) {
+      if (taken) taken.group.visible = false;
+      return home;
+    }
+    return taken!;
+  };
   const boom: Explosion = createExplosion();
-  group.add(view.group, boom.group);
+  group.add(home.group, boom.group);
   const cam = createHeliCam();
   let wasWreck = false;
   /** THE CRASH'S LENS: from the lens on screen the moment it goes up,
@@ -135,7 +158,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   // between the engine's steps (the tick it was read at, and the velocity).
   return {
     group,
-    ready: view.ready,
+    ready: home.ready,
     frame(state, alpha, dt, player, rung, flying, cloud, snowAt, aspect = 16 / 9) {
       const h = state.heli;
       cam.cut = !flying;
@@ -145,6 +168,8 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       if (!h) return;
       strikeCloud = (x, y, z, speed) =>
         cloud?.burst(x, y + 0.3, z, 0, 0, Math.min(1.5, speed / 15), snowAt(x, z));
+      view = viewFor(state);
+      if (view !== home) home.update(state, alpha, dt, player, hooks);
       view.update(state, alpha, dt, player, hooks);
       const puff: WashPuff = (x, y, z, vx, vy, vz, size) => cloud?.blow(x, y, z, vx, vy, vz, size);
       view.blow(state, dt, puff, (x, z) => snowAt(x, z).loose);
@@ -250,7 +275,8 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       return out;
     },
     setPace(pace) {
-      view.setPace(pace);
+      home.setPace(pace);
+      taken?.setPace(pace);
     },
     dusk(lit) {
       boom.dusk(lit);
@@ -277,7 +303,8 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
     drawn: () => view.drawn(),
     perch: createHeliPerch(),
     dispose() {
-      view.dispose();
+      home.dispose();
+      taken?.dispose();
       boom.dispose();
     },
   };

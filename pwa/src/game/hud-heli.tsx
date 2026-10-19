@@ -63,8 +63,10 @@ export function HeliReadout({
     if (heli.near)
       return (
         <MachinePress
-          word={STRINGS.heliCall}
-          sub={STRINGS.heliTake(touch, machineKey)}
+          word={heli.livery ? STRINGS.heliOwned[heli.livery] : STRINGS.heliCall}
+          sub={
+            heli.livery ? STRINGS.heliSteal(touch, machineKey) : STRINGS.heliTake(touch, machineKey)
+          }
           kind="heli"
           onBoard={onBoard}
         />

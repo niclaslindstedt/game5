@@ -202,6 +202,9 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       // and, carried, how to skip the ride or leave it.
       if (e.phase === "board") return { text: STRINGS.newsLift(e.lift), tone: "info" };
       return e.phase === "take" ? { text: STRINGS.newsLiftTaken, tone: "info" } : null;
+    case "steal":
+      // Somebody else's machine taken off the snow.
+      return { text: STRINGS.newsSteal[e.livery], tone: "good" };
     case "heli":
       // The helicopter: sat on, pushed off (from how high over the snow),
       // flown into the mountain, and the ride begun again on the pad.

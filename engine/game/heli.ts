@@ -185,6 +185,7 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
       // Dropped off before it went down: a fresh machine waits on the pad.
       Object.assign(h, freshHeli(run));
       delete h.engine;
+      delete h.livery;
       say(run, events, "restart");
     }
     return h.rider;
@@ -270,6 +271,8 @@ function controlsFor(run: GameState, h: HeliState, input: SkierInput): HeliContr
     return turnedBack(run, h, run.rules.sfw ? steadyControls(run, stick) : stick);
   }
   if (h.mode === "home") {
+    // A TAKEN MACHINE has no pilot of its own to fly it home: let go.
+    if (h.livery) return { ...DOWN };
     if (h.t < K.home.beat) return h.controls;
     const pad = helipadOf(run.level);
     return pilotControls(run, {
@@ -466,7 +469,8 @@ function fly(run: GameState, h: HeliState, c: HeliControls, events: GameEvent[])
       h.yawRate *= 0.2;
       say(run, events, "land", sink);
       const pad = helipadOf(level);
-      if (h.mode === "home" && hypot(h.x - pad.x, h.z - pad.z) < 15) park(run, h, events);
+      if (h.mode === "home" && (h.livery || hypot(h.x - pad.x, h.z - pad.z) < 15))
+        park(run, h, events);
     }
   } else if (h.y > under + 0.05) {
     h.grounded = false;
@@ -876,12 +880,47 @@ function board(run: GameState, events: GameEvent[]): void {
   say(run, events, "board");
 }
 
+/** A MACHINE TAKEN FROM ITS OWNERS (`steal.ts`): the run's helicopter made
+ * the one standing `at`, in `livery`, its rotor at `spool`, the skier sat
+ * on its skid — wherever the free ride's own was, a fresh one waits on the
+ * pad once this one is wrecked. False on a run that carries none. */
+export function takeHeli(
+  run: GameState,
+  at: { x: number; y: number; z: number; heading: number; pitch: number; roll: number },
+  livery: HeliState["livery"],
+  spool: number,
+  events: GameEvent[],
+): boolean {
+  const h = run.heli;
+  if (!h) return false;
+  // On its skids where the snow is under its datum: a site on a slope
+  // stands its datum on the uphill skid, and a machine let down off it
+  // would land hard.
+  Object.assign(h, freshHeli(run), {
+    x: at.x,
+    y: run.level.groundAt(at.x, at.z),
+    z: at.z,
+    heading: at.heading,
+    pitch: at.pitch,
+    roll: at.roll,
+    spool,
+    livery,
+  });
+  delete h.engine;
+  board(run, events);
+  const s = seatFrame(h);
+  standSkier(run, s.x, s.z, h.heading + FACE);
+  hold(run, h);
+  return true;
+}
+
 /** THE RIDE STARTED AGAIN FROM THE BOTTOM: a machine on the pad, the rotor
  * at speed, the skier sat on its skid and mended. */
 export function startAgain(run: GameState, events: GameEvent[]): void {
   const h = run.heli!;
   Object.assign(h, freshHeli(run));
   delete h.engine;
+  delete h.livery;
   h.mode = "flown";
   h.rider = true;
   h.spool = 1;

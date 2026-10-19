@@ -43,6 +43,8 @@ import {
 } from "./civilian-hits.ts";
 import { onRagdoll, type Knock } from "./civilian-knock.ts";
 import { knockedPose } from "./civilian-knock-pose.ts";
+import { breakPose, flatOf, footHurtOf } from "./crowd-broken.ts";
+import { lyingMatrix } from "./crowd-view.ts";
 import {
   CIVILIAN_POSES,
   SETTLE,
@@ -425,6 +427,7 @@ export function createCiviliansView(
     eye: THREE.Vector3,
     colours: ArrayLike<number>,
     kit: CivilianKit | null,
+    state: GameState,
   ): void => {
     const b = k.rag;
     const far = Math.hypot(b.x - eye.x, b.y - eye.y, b.z - eye.z);
@@ -433,9 +436,13 @@ export function createCiviliansView(
       far < CIVILIAN_CUTS.near ? "near" : far < CIVILIAN_CUTS.mid ? "mid" : "far";
     const d = downMesh(body, lod, skis);
     const posed = knockedPose(b.points, body, [b.x, b.y, b.z]);
+    // Struck by the engine and hurt (INJURIES on): lying broken, a crushed
+    // one flatter (`crowd-broken.ts`, as an amateur struck lies).
+    const hurt = k.engine ? footHurtOf(state, k.engine) : undefined;
+    if (hurt) breakPose(posed, hurt);
     if (skis) poseCrowdFigure(body, lod, posed, d.mesh.geometry);
     else poseCivilianFigure(body, lod, posed, d.mesh.geometry, undefined, summer);
-    d.mesh.setMatrixAt(0, m.makeTranslation(b.x, b.y, b.z));
+    d.mesh.setMatrixAt(0, lyingMatrix(m, posed, b.x, b.y, b.z, hurt ? flatOf(hurt) : 1));
     d.mesh.instanceMatrix.needsUpdate = true;
     d.dress.setXYZW(0, colours[0], colours[1], colours[2], colours[3]);
     d.dress2.setXYZW(0, colours[4], colours[5], colours[6], skis ? 0 : colours[7]);
@@ -474,7 +481,7 @@ export function createCiviliansView(
       const knock = knocks.map.get(i);
       if (knock && onRagdoll(knock)) {
         const colours = c.skis ? outfits.get(i)! : kits[i].colours;
-        drawKnocked(knock, c.body, c.skis, eye, colours, c.skis ? null : kits[i]);
+        drawKnocked(knock, c.body, c.skis, eye, colours, c.skis ? null : kits[i], state);
         continue;
       }
       // Cheap first: where he lives, before he is posed.
@@ -572,7 +579,7 @@ export function createCiviliansView(
       const w = walkers[wi];
       const knock = knocks.map.get(plan.people.length + wi);
       if (knock && onRagdoll(knock)) {
-        drawKnocked(knock, w.body, false, eye, w.kit.colours, w.kit);
+        drawKnocked(knock, w.body, false, eye, w.kit.colours, w.kit, state);
         continue;
       }
       dogWalkerAt(dogs!, w.h, w.member, t, hour, pose);

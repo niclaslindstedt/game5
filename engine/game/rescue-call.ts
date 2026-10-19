@@ -28,6 +28,7 @@ import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { meetBoxes, ragdollOutOfBoxes, type StripBox } from "./airstrip-solids.ts";
 import { HELI } from "./defs/heli.ts";
 import { onSkis } from "./groomer.ts";
+import type { CrewTrack } from "./foot.ts";
 import type { GameEvent, GameState } from "./state.ts";
 
 /** Where a rescue's machine sits: its skid datum, heading and the
@@ -70,6 +71,10 @@ export type RescueCall = {
    * body, which only a police call carries. */
   kind?: "police";
   evidence?: Evidence[];
+  /** Where each of its crew is on the snow over the call (`foot.ts`'s
+   * `CrewTrack`), sampled off its plan by the app — the bodies the skier
+   * meets; absent when the app sampled none. */
+  crew?: CrewTrack[];
 };
 
 /** A call copied whole, so a run never shares one with its caller. */
@@ -83,6 +88,8 @@ export function copyCall(r: RescueCall): RescueCall {
     ...(r.stolen !== undefined ? { stolen: r.stolen } : {}),
     ...(r.kind ? { kind: r.kind } : {}),
     ...(r.evidence ? { evidence: r.evidence.map((e) => ({ ...e })) } : {}),
+    // Never written during a run: shared, not copied.
+    ...(r.crew ? { crew: r.crew } : {}),
   };
 }
 

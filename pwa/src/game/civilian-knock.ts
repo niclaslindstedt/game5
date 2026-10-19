@@ -43,6 +43,7 @@ import {
   centreOf,
   stepRagdoll,
   type CrowdBody,
+  type FootDown,
   type GameState,
   type Thrown,
 } from "@engine";
@@ -171,6 +172,10 @@ export type Knock = {
   /** The pose he was drawn in when struck, in his own frame (`keyPoints`),
    * that his balance's pose is eased in from (`KNOCK.into`); null: none. */
   start: readonly number[] | null;
+  /** STRUCK AS A BODY by the engine (`engine/game/foot.ts`): its record
+   * while the engine throws him — his body is the engine's, copied here
+   * each frame and never stepped — absent once he is the knock's own. */
+  engine?: FootDown;
 };
 
 const right = (h: number): XZ => ({ x: Math.cos(h), z: -Math.sin(h) });

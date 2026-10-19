@@ -940,8 +940,9 @@ export type GameState = ContestState & {
   gatePoles?: GamePoles;
   /** THE EDGE STAKES (`edge-stakes.ts`) knocked; absent until one is. */
   stakes?: import("./edge-stakes.ts").StakeState;
-  /** THE CROWD (`crowd.ts`): the free ride's amateurs; else absent. */
+  /** A free ride's CROWD (`crowd.ts`), THE PEOPLE ON FOOT met (`foot.ts`). */
   crowd?: CrowdState;
+  foot?: import("./foot.ts").FootState;
   /** THE PLAYER'S CHAIR LEFT ONLY BY HAND (`chair-hands.ts`): set where the
    * app asks for it, absent everywhere else — the labs, the suite and every
    * rival stood off at the top as ever, so no digest moves. */
@@ -973,8 +974,7 @@ export type GameState = ContestState & {
   burn?: import("./fire-burn.ts").BurnState;
   /** THE AVALANCHES (`avalanche.ts`): a free ride that asked for them. */
   avalanche?: AvalancheState;
-  /** THE WANTED LEVEL (`wanted.ts`): the army hunting him, once an offence
-   * (`raiseHeat`) or the run's ask raised it; absent until then. */
+  /** THE WANTED LEVEL (`wanted.ts`), once an offence or the run's ask raised it. */
   wanted?: WantedState;
   /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`): a free ride whose
    * player asked for them. */

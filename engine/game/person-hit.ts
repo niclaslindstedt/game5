@@ -18,7 +18,9 @@
 // Every meeting is filed on the crowd (`CrowdState.struck`) and reported
 // (`StruckEvent`); `casualtiesOf` lists every body on the snow that needs
 // collecting, for the rescue and the police to come for. A free ride only
-// (no other run has a crowd), and nothing here draws from any stream.
+// (no other run has a crowd), and nothing here draws from any stream. The
+// people ON FOOT — the civilians and the rescue's and the police's crews —
+// are the same two bodies colliding (`foot.ts`, through `exchangeOf`).
 
 import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
@@ -27,15 +29,20 @@ import { PERSON_HIT as K } from "./defs/person-hit.ts";
 import { totalMass } from "./defs/skis.ts";
 import type { Amateur } from "./crowd-state.ts";
 import type { CrashCause, GameEvent, GameState } from "./state.ts";
+import type { FootDown } from "./foot.ts";
 
 /** ONE PERSON STRUCK: the amateur (`Amateur.id`), the run time, the spot
  * the two met (between them, at the height of a body's middle), the
  * closing speed, m/s, the change of speed it made in the player
  * (`taken`) and in him (`given`), m/s, his height, m, whether it threw the
  * player, whether the amateur was killed or injured and how crushed, 0..1
- * — and whether the player's body has been struck by it yet. */
+ * — and whether the player's body has been struck by it yet. A person on
+ * foot (`foot.ts`) is `amateur` −1 and carries his `foot` key and `who`
+ * he is. */
 export type StruckPerson = {
   amateur: number;
+  foot?: number;
+  who?: FootDown["who"];
   t: number;
   x: number;
   y: number;
@@ -55,6 +62,26 @@ export type StruckPerson = {
  * own bookkeeping). */
 export type StruckEvent = { kind: "struck" } & Omit<StruckPerson, "dosed">;
 
+/** THE EXCHANGE between the player's `mp` kg and a person's `ma` kg
+ * closing at `closing` m/s, flesh on flesh: the change of speed it makes
+ * in each, m/s, and what it does to the person on a run that carries its
+ * injuries (`GameState.gore`) — killed, injured, how crushed 0..1. */
+export function exchangeOf(
+  state: GameState,
+  mp: number,
+  ma: number,
+  closing: number,
+): { taken: number; given: number; killed: boolean; injured: boolean; crush: number } {
+  const j = ((1 + K.restitution) * closing) / (1 / mp + 1 / ma);
+  const taken = j / mp;
+  const given = j / ma;
+  const injuries = state.gore !== undefined;
+  const killed = injuries && given >= K.kill;
+  const injured = injuries && !killed && given >= K.injure;
+  const crush = injuries ? Math.min(1, Math.max(0, (given - K.kill) / (K.crush - K.kill))) : 0;
+  return { taken, given, killed, injured, crush };
+}
+
 /** THE COLLISION itself, once `clipCrowd` has found the two closing at
  * `closing` m/s along (`nx`, `nz`) — from the player to the amateur — and
  * judged whether it `throws` the player: the exchange, the amateur's
@@ -71,15 +98,13 @@ export function strikePerson(
   throws: boolean,
 ): { player: Vec3; amateur: Vec3 } {
   const c = state.skier;
-  const mp = totalMass(c.spec);
   const ma = CROWD_SIZE[a.body].mass;
-  const j = ((1 + K.restitution) * closing) / (1 / mp + 1 / ma);
-  const taken = j / mp;
-  const given = j / ma;
-  const injuries = state.gore !== undefined;
-  const killed = injuries && given >= K.kill;
-  const injured = injuries && !killed && given >= K.injure;
-  const crush = injuries ? Math.min(1, Math.max(0, (given - K.kill) / (K.crush - K.kill))) : 0;
+  const { taken, given, killed, injured, crush } = exchangeOf(
+    state,
+    totalMass(c.spec),
+    ma,
+    closing,
+  );
   if (killed) a.dead = true;
   if (injured) a.injured = true;
   if (crush > 0) a.crush = crush;
@@ -122,14 +147,14 @@ export function struckPerson(state: GameState, id: number): StruckPerson | undef
   return undefined;
 }
 
-/** A BODY ON THE SNOW THAT NEEDS COLLECTING: the player (`id` −1) or an
- * amateur (his `Amateur.id`); where it lies — its middle, and the
+/** A BODY ON THE SNOW THAT NEEDS COLLECTING: the player (`id` −1), an
+ * amateur (his `Amateur.id`) or a person on foot (his `FootPerson.key`); where it lies — its middle, and the
  * ragdoll's points (`RAGDOLL` order, x y z each) when it is on one;
  * whether dead, how crushed, 0..1; the run time it happened (−1 not
  * known: dug out of an avalanche); where the blow that did it was (null
  * when none is known); and what did it. */
 export type Casualty = {
-  who: "player" | "amateur";
+  who: "player" | "amateur" | FootDown["who"];
   id: number;
   x: number;
   y: number;
@@ -143,7 +168,8 @@ export type Casualty = {
 };
 
 /** EVERY BODY THAT NEEDS COLLECTING, now: each amateur down for good —
- * killed, injured past getting up, or dug out of an avalanche dead — and
+ * killed, injured past getting up, or dug out of an avalanche dead — each
+ * person on foot killed or injured (`foot.ts`), and
  * the player, on a run with injuries, dead or hurt too badly to ski on.
  * Pure: a query of the state, written by nothing. */
 export function casualtiesOf(state: GameState): Casualty[] {
@@ -183,6 +209,23 @@ export function casualtiesOf(state: GameState): Casualty[] {
       t: hit ? hit.t : -1,
       impact: hit ? { x: hit.x, y: hit.y, z: hit.z } : null,
       cause: hit ? "skier" : "avalanche",
+    });
+  }
+  for (const d of state.foot?.down ?? []) {
+    if (!d.dead && !d.injured) continue;
+    const b = d.thrown;
+    out.push({
+      who: d.who,
+      id: d.key,
+      x: b.x,
+      y: b.y,
+      z: b.z,
+      points: b.points,
+      dead: d.dead,
+      crush: d.crush,
+      t: d.hit.t,
+      impact: { x: d.hit.x, y: d.hit.y, z: d.hit.z },
+      cause: d.cause,
     });
   }
   return out;

@@ -10,10 +10,19 @@
 // resolved at once (`clipCrowd`, `feelBumps`, `markFall`) and then the run
 // stepped on. Photographed at the moment before, through the throw, and
 // over both bodies lying: wide, close over the amateur and from above.
+//
+// The CIVILIAN sheet (`civilian`) is the same over a person on foot of the
+// ski area's own plan (`engine/game/foot.ts`, handed in by `peopled`): a
+// grown civilian stood on open snow, the player sent at him down the fall
+// line at 60 and 90 km/h, the injuries on and off — the blow, the throw and
+// both bodies lying, his figure drawn off the engine's body (broken and
+// flattened when it hurt him, `civilians-view.ts`), the snow's blood the
+// crowd's (`crowd-gore.ts`).
 
 import {
   NEUTRAL_INPUT,
   clipCrowd,
+  footAt,
   feelBumps,
   markFall,
   placeRun,
@@ -25,6 +34,8 @@ import {
 } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
+import { civilianAt, civilianHour, civilianPlanFor } from "../game/civilian-plan.ts";
+import { peopled } from "../game/foot-call.ts";
 import { flatSpot, type Drive, type Lens, type Stage } from "./gore-scenes.ts";
 
 const still: Drive = () => NEUTRAL_INPUT;
@@ -118,7 +129,86 @@ function runInto(st: Stage, kmh: number, safe = false): void {
   );
 }
 
+/** A grown civilian of the plan stood on open, nearly level snow at `t`,
+ * nobody else of it within `room` m: his index, and the way down the fall
+ * line toward him. */
+function standingCivilian(s: GameState, room = 7): { i: number; heading: number } | null {
+  const call = s.foot!.call!;
+  const plan = civilianPlanFor(s.level);
+  const at = { x: 0, y: 0, z: 0 };
+  const there = { x: 0, y: 0, z: 0 };
+  const n = { x: 0, y: 1, z: 0 };
+  for (let i = 0; i < call.people.length; i++) {
+    const p = call.people[i];
+    if (p.route || (p.body !== "man" && p.body !== "oldMan")) continue;
+    if (!footAt(s, call, p, s.t, at)) continue;
+    if (Math.abs(at.y - s.level.groundAt(at.x, at.z)) > 0.05) continue;
+    const pose = civilianAt(plan, i, s.t, civilianHour(s.level, s.t));
+    if (pose.seat !== null || pose.activity === "lounge") continue;
+    s.level.normalAt(at.x, at.z, n);
+    if (n.y < 0.97) continue;
+    const crowded = call.people.some(
+      (q, j) =>
+        j !== i &&
+        footAt(s, call, q, s.t, there) &&
+        Math.hypot(there.x - at.x, there.z - at.z) < room,
+    );
+    if (crowded) continue;
+    return { i, heading: Math.hypot(n.x, n.z) > 1e-3 ? Math.atan2(n.x, n.z) : p.heading };
+  }
+  return null;
+}
+
+/** THE MEETING WITH A CIVILIAN: a fresh free ride with its people handed
+ * in, the player sent at `kmh` at a grown civilian of the plan — then the
+ * frames over him and the player. */
+function civilianInto(st: Stage, kmh: number, safe = false): void {
+  const s = peopled(st.fresh({ crowd: 30, ...(safe ? { safe: true } : {}) }));
+  for (const o of s.crowd!.amateurs) o.mode = "lift";
+  const pick = standingCivilian(s);
+  if (!pick) return;
+  const p = s.foot!.call!.people[pick.i];
+  const at = { x: 0, y: 0, z: 0 };
+  footAt(s, s.foot!.call!, p, s.t, at);
+  const h = pick.heading;
+  placeRun(s, {
+    x: at.x - Math.sin(h) * 1.2,
+    z: at.z - Math.cos(h) * 1.2,
+    heading: h,
+    speed: kmh / 3.6,
+  });
+  const side = h + Math.PI / 2;
+  st.shoot(s, "the moment before", planted(s.level, at, side, 8, 1.6, 45, 0.9));
+  st.until(s, (q) => (q.foot?.struck.length ?? 0) > 0, 0.5, still);
+  const hit = s.foot!.struck[0];
+  const line = hit
+    ? `${hit.killed ? "killed" : hit.injured ? "injured" : "knocked down"} · crush ${hit.crush.toFixed(2)} · given ${hit.given.toFixed(1)} m/s`
+    : "not met";
+  const him = (q: GameState) => q.foot?.down[0]?.thrown ?? at;
+  const bothOf =
+    (yaw: number, up: number): Lens =>
+    (q) => {
+      const a = playerAt(q);
+      const b = him(q);
+      const mid = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 };
+      const apart = Math.hypot(a.x - b.x, a.z - b.z);
+      return planted(q.level, mid, yaw, Math.max(6, apart * 0.9 + 4), up, 50, 0.3);
+    };
+  st.run(s, 0.05, still);
+  st.shoot(s, `blow ${line}`, (q) => planted(q.level, him(q), side, 9, 1.8, 50, 0.8));
+  st.run(s, 0.3, still);
+  st.shoot(s, "+0.35s", bothOf(side, 2));
+  st.run(s, 3.6, still);
+  st.shoot(s, "+4s both", bothOf(side, 2.6));
+  st.shoot(s, "+4s close", (q) => planted(q.level, him(q), side + 0.6, 2.6, 1.6, 45, 0.15));
+  st.shoot(s, "+4s above", (q) => planted(q.level, him(q), side + 0.2, 0.8, 3.8, 55, 0.15));
+}
+
 export const PERSON_VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
+  "civilian-60": (st) => civilianInto(st, 60),
+  "civilian-90": (st) => civilianInto(st, 90),
+  "civilian-60-safe": (st) => civilianInto(st, 60, true),
+  "civilian-90-safe": (st) => civilianInto(st, 90, true),
   "person-30": (st) => runInto(st, 30),
   "person-60": (st) => runInto(st, 60),
   "person-90": (st) => runInto(st, 90),
@@ -127,5 +217,6 @@ export const PERSON_VIEWS: Record<string, (st: Stage) => void | Promise<void>> =
 };
 
 export const PERSON_GROUPS: Record<string, readonly string[]> = {
-  person: Object.keys(PERSON_VIEWS),
+  person: Object.keys(PERSON_VIEWS).filter((v) => v.startsWith("person-")),
+  civilian: Object.keys(PERSON_VIEWS).filter((v) => v.startsWith("civilian-")),
 };

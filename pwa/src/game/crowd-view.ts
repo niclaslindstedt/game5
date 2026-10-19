@@ -133,6 +133,30 @@ const FLOOR_KEYS = [
   "ankleR",
 ] as const;
 
+const squash = new THREE.Matrix4();
+const shift = new THREE.Matrix4();
+
+/** WHERE A LYING BODY IS DRAWN, into `m`: at (`x`, `y`, `z`), its figure
+ * posed at `local` (about that point) — and a crushed one (`flat` under 1,
+ * `flatOf`) squashed toward the snow under its lowest joint, spread a
+ * little as it goes. The crowd's fallen and the civilians knocked share it. */
+export function lyingMatrix(
+  m: THREE.Matrix4,
+  local: Posed,
+  x: number,
+  y: number,
+  z: number,
+  flat: number,
+): THREE.Matrix4 {
+  if (flat >= 1) return m.makeTranslation(x, y, z);
+  let floor = Infinity;
+  for (const k of FLOOR_KEYS) floor = Math.min(floor, local[k][1]);
+  return m
+    .makeTranslation(x, y + floor, z)
+    .multiply(squash.makeScale(1 + (1 - flat) * 0.25, flat, 1 + (1 - flat) * 0.25))
+    .multiply(shift.makeTranslation(0, -floor, 0));
+}
+
 const TARGETS = CROWD_POSES.length;
 const BOARD_TARGETS = BOARD_POSES.length;
 const WIDTH = Math.max(TARGETS, BOARD_TARGETS);
@@ -251,8 +275,6 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
   };
 
   const m = new THREE.Matrix4();
-  const squash = new THREE.Matrix4();
-  const shift = new THREE.Matrix4();
   const pos = new THREE.Vector3();
   const quat = new THREE.Quaternion();
   const size = new THREE.Vector3();
@@ -286,7 +308,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
 
   const update: CrowdView["update"] = (state, eye, cull) => {
     const crowd = state.crowd;
-    if (crowd && state.gore && !gore) {
+    if ((crowd || state.foot) && state.gore && !gore) {
       gore = createCrowdGore(level, (m, name) => hazeMaterial(m, haze, name));
       group.add(gore.group);
     }
@@ -332,15 +354,7 @@ export function createCrowdView(level: Level, haze: HazeUniforms): CrowdView {
       poseCrowdFigure(a.body, lod, local, f.mesh.geometry, a.board !== null);
       // A crushed body lies flatter: squashed toward the snow under its
       // lowest joint.
-      const flat = hurt ? flatOf(hurt) : 1;
-      if (flat < 1) {
-        let floor = Infinity;
-        for (const k of FLOOR_KEYS) floor = Math.min(floor, local[k][1]);
-        m.makeTranslation(a.x, a.y + floor, a.z)
-          .multiply(squash.makeScale(1 + (1 - flat) * 0.25, flat, 1 + (1 - flat) * 0.25))
-          .multiply(shift.makeTranslation(0, -floor, 0));
-        f.mesh.setMatrixAt(0, m);
-      } else f.mesh.setMatrixAt(0, m.makeTranslation(a.x, a.y, a.z));
+      f.mesh.setMatrixAt(0, lyingMatrix(m, local, a.x, a.y, a.z, hurt ? flatOf(hurt) : 1));
       f.mesh.instanceMatrix.needsUpdate = true;
       const o = outfits[a.id];
       f.dress.setXYZW(0, o[0], o[1], o[2], o[3]);

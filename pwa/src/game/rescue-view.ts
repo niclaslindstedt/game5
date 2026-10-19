@@ -27,11 +27,14 @@
 //
 // Presentation only: it reads the states it is handed and the map, and
 // writes nothing. The machine on its skids is a solid to the ENGINE
-// (`rescue-call.ts`), never to this view.
+// (`rescue-call.ts`), never to this view — and its crew, struck at speed,
+// are bodies to it (`rescue-tracks.ts`, `engine/game/foot.ts`), drawn here
+// off the engine's thrown body as anyone on foot is.
 
 import * as THREE from "three";
 import {
   HELI,
+  crewKey,
   freshHeli,
   type CrowdBody,
   type GameState,
@@ -50,6 +53,7 @@ import {
 } from "./civilian-hits.ts";
 import { onRagdoll } from "./civilian-knock.ts";
 import { knockedPose } from "./civilian-knock-pose.ts";
+import { breakPose, footHurtOf } from "./crowd-broken.ts";
 import { freshCivilianPose, type CivilianPose } from "./civilian-plan.ts";
 import { buildPosedFigure, poseCivilianFigure } from "./civilian-shapes.ts";
 import { CROWD_LOOKS } from "./crowd-rig.ts";
@@ -558,6 +562,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       bodiesOf(u.kind).forEach((body, j) =>
         people.push({
           key: 8 * i + j,
+          foot: crewKey(i, j),
           id: 7000 + 8 * i + j,
           body,
           skis: false,
@@ -643,6 +648,9 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
         m.mesh.visible = false;
         const b = knock.rag;
         const posed = knockedPose(b.points, knock.body, [b.x, b.y, b.z]);
+        // Struck by the engine and hurt (INJURIES on): lying broken.
+        const hurt = knock.engine ? footHurtOf(state, knock.engine) : undefined;
+        if (hurt) breakPose(posed, hurt);
         poseCivilianFigure(knock.body, "near", posed, lying.geometry, EMPTY_HAND);
         lying.position.set(b.x, b.y, b.z);
         lying.visible = true;

@@ -64,4 +64,13 @@ export const PERSON_HIT = {
   /** The most injuries one collision does the player, as many blows'
    * worth as this — a body met with every part at once. */
   blows: 3,
+  /** A PERSON ON FOOT (`foot.ts`: the civilians, the rescue's and the
+   * police's crews): his reach round his middle, m, at a grown man's 1.8 m
+   * (a smaller body's by the root of his height), off skis and so narrower
+   * than an amateur's (`CROWD_SIZE`); the skier's reach round his own
+   * middle, m; and how long a person knocked and not hurt is no body to
+   * the engine, s — he lies, gets up and walks back to his routine
+   * (`pwa/src/game/civilian-knock.ts`) — before he stands where his plan
+   * has him again. */
+  foot: { radius: 0.26, reach: 0.36, back: 60 },
 } as const;

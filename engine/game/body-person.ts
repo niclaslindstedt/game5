@@ -15,6 +15,7 @@ import { PERSON_HIT } from "./defs/person-hit.ts";
 import type { BodyPart } from "./defs/anatomy.ts";
 import type { BodyHands } from "./body-steel.ts";
 import type { GameState } from "./state.ts";
+import type { StruckPerson } from "./person-hit.ts";
 
 /** His parts by the height they stand at off his boots, m (the band each
  * covers, on a rider of the medium's height), and the share of the blow
@@ -45,11 +46,18 @@ export function personGive(v: number): number {
   return G.soft + (G.hard - G.soft) * u;
 }
 
-/** THE PEOPLE MET a step ago and not yet felt, each struck on the parts
- * of him its body stood against. Whether any was. */
+/** THE PEOPLE MET a step ago and not yet felt — the crowd's amateurs and
+ * the people on foot (`foot.ts`) — each struck on the parts of him its
+ * body stood against. Whether any was. */
 export function personBlows(h: BodyHands, state: GameState): boolean {
-  const all = state.crowd?.struck;
-  if (!all) return false;
+  let any = false;
+  for (const all of [state.crowd?.struck, state.foot?.struck]) {
+    if (all && meetBlows(h, all)) any = true;
+  }
+  return any;
+}
+
+function meetBlows(h: BodyHands, all: readonly StruckPerson[]): boolean {
   let any = false;
   for (const e of all) {
     if (e.dosed) continue;

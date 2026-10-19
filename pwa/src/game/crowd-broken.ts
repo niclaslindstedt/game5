@@ -27,7 +27,13 @@
 // but alive (`injured`) has one leg broken and stirs: one hand drawn to
 // his chest and away again, his head lifting off the snow now and then.
 
-import { struckPerson, type Amateur, type GameState, type StruckPerson } from "@engine";
+import {
+  struckPerson,
+  type Amateur,
+  type FootDown,
+  type GameState,
+  type StruckPerson,
+} from "@engine";
 
 import type { Posed, V3 } from "./crowd-rig.ts";
 
@@ -283,6 +289,22 @@ export function hurtOf(state: GameState, a: Amateur): Hurt | undefined {
     down: (a.thrown?.down ?? -1) >= 0,
   };
 }
+
+/** How a person on foot the engine struck (`engine/game/foot.ts`) is
+ * hurt, as drawn — the amateur's breaks on his own number. */
+export function footHurtOf(state: GameState, d: FootDown): Hurt | undefined {
+  if (!state.gore || (!d.dead && !d.injured)) return undefined;
+  return {
+    dead: d.dead,
+    crush: d.crush,
+    seed: FOOT_SEED + d.key,
+    since: state.t - d.hit.t,
+    down: d.thrown.down >= 0,
+  };
+}
+
+/** Past every amateur's number: a person on foot's breaks are his own. */
+const FOOT_SEED = 104729;
 
 /** How much of his clothes and skin a struck amateur's blood covers, 0..1
  * (a hurt man's face first, `crowdMaterial`). */

@@ -45,7 +45,7 @@ import * as THREE from "three";
 import { LEVEL_RULES, bermProfile, regionOf, windFromOf, type Level } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
-import { glslOnly } from "./gpu-backend.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 import type { GroundFrame } from "./deform-shade.ts";
 import { regionLookOf } from "./region-look.ts";
 import { ROOM_CUT_PARS, roomCutUniforms } from "./room-cuts.ts";
@@ -61,6 +61,7 @@ import {
   SNOW_VERTEX_PLACE,
 } from "./snow-glsl.ts";
 import type { TerrainLook } from "./settings-video.ts";
+import type { GroundSpec } from "./snow-sample-tsl.ts";
 import type { TrailUniforms } from "./trail-map.ts";
 import type { DeformLook } from "./deform-field.ts";
 import { SNOW_SKIP } from "./snow-skip.ts";
@@ -512,6 +513,20 @@ function foldSurface(level: Level, out: Uint8Array): void {
   }
 }
 
+/** THE GROUND'S NODE TWIN'S INPUTS, a ground material each: the uniforms
+ * its GLSL is grafted with, which the webgpu paths' twin reads by reference
+ * (`terrain-tsl.ts`, `docs/webgpu.md` part 4). */
+export const groundSpecs = new WeakMap<THREE.Material, GroundSpec>();
+
+/** ONE LEVEL'S OWN UNIFORMS, carried by its material as
+ * `userData.groundOwn` for the twin, which reads them off the material it
+ * draws (`snow-sample-tsl.ts`): the level's centre, spacing and hole, and
+ * the deformable snow's mesh's grid and fold. */
+export type GroundOwn = Record<
+  "uLevelCentre" | "uSpacing" | "uHole" | "uGridHalf" | "uDeformMesh" | "uFocalPx",
+  THREE.IUniform
+>;
+
 export function createTerrain(
   level: Level,
   haze: HazeUniforms,
@@ -688,7 +703,19 @@ export function createTerrain(
       metalness: 0,
     });
     const name = `${cut ? "terrain-cut" : "terrain"}${summer ? "-summer" : ""}`;
-    glslOnly(material, "terrain"); // its heights are the shader's (`gpu-quarantine.ts`)
+    // Its heights are the shader's: drawn on the webgpu paths by its node
+    // twin over the same uniforms (`terrain-tsl.ts`).
+    nodeTwin(material, "terrain", "ground");
+    groundSpecs.set(material, { haze, shared, own, trail, cut, summer: !!summer });
+    const mine: GroundOwn = {
+      uLevelCentre: own.uLevelCentre,
+      uSpacing: own.uSpacing,
+      uHole: own.uHole,
+      uGridHalf: own.uGridHalf ?? shared.uGridHalf,
+      uDeformMesh: own.uDeformMesh ?? shared.uDeformMesh,
+      uFocalPx: own.uFocalPx ?? shared.uFocalPx,
+    };
+    material.userData.groundOwn = mine;
     hazeMaterial(material, haze, name, (shader) => {
       Object.assign(shader.uniforms, shared, own, trail, roomCutUniforms);
       shader.vertexShader = shader.vertexShader

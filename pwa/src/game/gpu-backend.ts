@@ -140,8 +140,8 @@ export const GPU_PORTS: readonly GpuPort[] = [
     id: "terrain",
     kind: "material",
     part: 4,
-    what: "the ground's clipmap and snow",
-    ported: false,
+    what: "the ground's clipmap and snow, drawn by its node twin",
+    ported: true,
   },
   {
     id: "forest-batch",

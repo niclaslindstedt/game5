@@ -88,28 +88,28 @@ describe("the quarantine (gpu-quarantine.ts)", () => {
     const scene = new THREE.Scene();
     const sky = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.ShaderMaterial());
     sky.name = "sky";
-    const ground = new THREE.Group();
-    ground.name = "terrain";
-    const snow = new THREE.Mesh(
+    const figure = new THREE.Group();
+    figure.name = "wingsuit";
+    const suit = new THREE.Mesh(
       new THREE.PlaneGeometry(),
-      glslOnly(new THREE.MeshStandardMaterial(), "terrain"),
+      glslOnly(new THREE.MeshStandardMaterial(), "wingsuit"),
     );
-    ground.add(snow);
+    figure.add(suit);
     const woods = glslOnly(new THREE.Mesh(new THREE.BoxGeometry()), "forest-batch");
     const lift = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
     const both = new THREE.Mesh(new THREE.BoxGeometry(), [
       new THREE.MeshBasicMaterial(),
       new THREE.RawShaderMaterial(),
     ]);
-    scene.add(sky, ground, woods, lift, both);
-    return { scene, sky, snow, woods, lift, both };
+    scene.add(sky, figure, woods, lift, both);
+    return { scene, sky, suit, woods, lift, both };
   };
 
   it("hides every GLSL-drawn object for the frame and shows it again after", () => {
-    const { scene, sky, snow, woods, lift, both } = stage();
+    const { scene, sky, suit, woods, lift, both } = stage();
     const q = createQuarantine("webgpu");
     q.hide(scene);
-    expect([sky.visible, snow.visible, woods.visible, both.visible]).toEqual([
+    expect([sky.visible, suit.visible, woods.visible, both.visible]).toEqual([
       false,
       false,
       false,
@@ -118,18 +118,18 @@ describe("the quarantine (gpu-quarantine.ts)", () => {
     expect(lift.visible).toBe(true);
     expect(q.counts()).toMatchObject({
       "shader:sky": 1,
-      "terrain:terrain": 1,
+      "wingsuit:wingsuit": 1,
       "forest-batch:scene": 1,
     });
     q.restore();
-    for (const o of [sky, snow, woods, lift, both]) expect(o.visible).toBe(true);
+    for (const o of [sky, suit, woods, lift, both]) expect(o.visible).toBe(true);
   });
 
   it("hides nothing on WebGL", () => {
-    const { scene, sky, snow } = stage();
+    const { scene, sky, suit } = stage();
     const q = createQuarantine("webgl");
     q.hide(scene);
-    expect(sky.visible && snow.visible).toBe(true);
+    expect(sky.visible && suit.visible).toBe(true);
     expect(q.counts()).toEqual({});
   });
 });

@@ -92,17 +92,19 @@ webgpu paths.
 | `haze` | material | 2 | the haze on a hazed material, with the key's extras, the shade lift and the lamps; a glow's fade. Ported |
 | `sky` | material | 3 | the dome, the far ranges and the sky's passes, each drawn by its node twin. Ported |
 | `shader` | material | 9 | every other `ShaderMaterial`: the spray first, then the clouds and the rest in their own parts |
-| `terrain` | material | 4 | the clipmap's snow |
+| `terrain` | material | 4 | the clipmap's every level, its snow, its rock and a summer's ground, drawn by its node twin. Ported |
 | `forest-batch` | material | 8 | the woods' multi-draw batch |
 | `haze-graft` | material | 11 | a `hazeMaterial` with grafted GLSL of its own (the figures' gaits, the rock's keep, the tree cards…), each drawn again in its owner's part |
 | `model-merged` | material | 12 | the merged models (the skis) |
 | `wingsuit` | material | 12 | the wingsuit figure |
 | `gore-tree` | material | 11 | the gore on a tree |
 
-On the webgpu paths after part 3, the frame draws these:
+On the webgpu paths after part 4, the frame draws these:
 
 - the sky: the dome with the sun, the moon, the stars and the Milky Way,
   the contrails and LOW's cloud shell, and the far ranges
+- the ground: the clipmap's every level, its snow, its rock and strata, a
+  summer's ground, and the deformable snow's mesh
 - the skier's body
 - the gate poles, the netting and the fences
 - the lifts, with their chairs and towers
@@ -110,8 +112,8 @@ On the webgpu paths after part 3, the frame draws these:
 - the HUD
 
 All of it is hazed and lit by the key and the sky as WebGL lights them, and
-by the lamps at night. The frame does not draw the terrain, the woods, the
-skis or the crowd. The benchmark report and the
+by the lamps at night. The frame does not draw the woods, the skis, the
+cabins or the crowd. The benchmark report and the
 developer page list what is missing on the `RENDERER` line and on the
 `SKIPPED` / `QUARANTINED` lines under it.
 
@@ -218,8 +220,9 @@ second copy.
   WebGL reads it.
 - The clouds' shadow on the key (part 10) is 1.
 - The skiers' own shadow maps (part 6) take nothing from the key.
-- A material's own share of colour through the haze (`HAZE_KEEP`, on the
-  snow and the rock) is not read, because both are hidden until their parts.
+- A material's own share of colour through the haze (`HAZE_KEEP`) is read
+  by the ground since part 4 (`hazeOver`'s `keep`). The rock's own graft
+  waits for its part (11).
 
 ## The sky (part 3)
 
@@ -272,6 +275,96 @@ needs no pass.
 `tests/sky_tsl_test.ts` holds the flags, the quarantine, the register, every
 twin built on plain Node, and the sheet against the field.
 
+## The ground (part 4)
+
+The ground's material is a `MeshStandardMaterial` with `snow-glsl.ts`
+grafted into it, so like the sky it gets a **node twin**.
+`nodeTwin(material, "terrain", "ground")` flags it, and `groundSpecs` holds
+what the twin is built over: the uniforms the graft reads (`shared`, the
+level's `own`, the trail's and the haze's), whether it cuts the rooms, and
+whether it is summer. `sky-twins-tsl.ts` answers the flag with
+`terrain-tsl.ts`'s `groundTwin`. WebGL never reads either, so its picture is
+the same to the bit.
+
+| Piece | GLSL | TSL |
+| --- | --- | --- |
+| The vertex: the grid placed round the lens, the CDLOD morph, the four exact height fetches, the rim's rise, the loose cover, the skis' clearance, the hole under the finer level, the normal | `snow-vertex-glsl.ts`, `ski-clear.ts` | `terrain-tsl.ts` |
+| What the snow is at a pixel: the ground map, the corduroy and its wear, the wind's crust and sastrugi, the ice, the rock and its share, the micro-relief, the new snow's cover | `snow-glsl.ts`, `snow-relief-glsl.ts` | `snow-sample-tsl.ts` |
+| The hashes, the noise and its gradient, the glints | `snow-noise-glsl.ts` | `snow-noise-tsl.ts` |
+| The rock's beds | `strata-glsl.ts` | `strata-tsl.ts` |
+| The snow's own light: the sky by direction, the bumps' shadows and the thin edge, the flat light, the lamps with their glints and the piste light, the sun's wrap, glitter and glare, the shade lift | `snow-sky-glsl.ts`, `snow-sun-glsl.ts`, `snow-lamps-glsl.ts` | `snow-light-tsl.ts` (`SnowLightingModel`) |
+| A summer's ground | `summer-glsl.ts` | `summer-tsl.ts` |
+| The room cut | `room-cuts.ts` | `terrain-tsl.ts`'s `inRoomCut`, as the mask |
+
+**How the twin is built:**
+
+- `GroundMaterial` is a `MeshStandardNodeMaterial`. Its `positionNode` is
+  the vertex above, and the world point and the mesh's normal go to the
+  fragment as varyings. `setupDiffuseColor` samples the snow and colours
+  it, and the roughness and the normal (off the ground map's slope, never
+  the mesh's) are assigned there too. `SnowLightingModel` extends three's
+  physical model: the sky replaces the hemisphere, and the snow's own steps
+  run after three's lights, in WebGL's order. `setupOutput` hazes it
+  through `hazeOver`, keeping the rock's own share (`HAZE_KEEP`).
+- **One level's own uniforms are read off the material drawn.** Every
+  level's material reads the same graph, so the node renderer builds the
+  program's nodes once and draws every level with them. A uniform that
+  names its own object would hand every level the first level's values,
+  and one in the render group, whose buffer is one for the whole render,
+  would hand them the last one's. So each ground material carries its
+  level's centre, spacing and hole (and the deformable snow's mesh's grid
+  and fold) as `userData.groundOwn` (`terrain.ts`), and the twin reads them
+  with `materialReference` (`snow-sample-tsl.ts`'s `ownSlot`).
+- **The renderer is told to refresh the ground every frame.** It refreshes a
+  draw's uniforms only when the material's or the mesh's own fields move,
+  and the ground's never do: its levels move by their uniforms alone. A
+  node on the material (`groundNode`, set by `groundTwin`) makes it refresh
+  every frame, as it does for any node material.
+- **The lights' nodes read the material drawn, not the twin.** The snow
+  lights its own lamps, so `groundTwin` marks the drawn material
+  `ownLamps` too. Marked on the twin alone, the scene's lamps were added
+  again and the floodlit piste at dusk was drawn about twice as bright.
+- **The lit colour is a variable before the haze reads it.** `hazeOver`
+  branches on display space. Built first inside one branch, three declared
+  the lighting's constants (`dfg`, `multiScatteringCompensation`) again in
+  the other, and the shader failed to compile.
+- **No texture read takes three's uv matrix** (`tap` and `texel` in
+  `haze-tsl.ts`). Three gives every `sample` a mat3 of its own in the
+  object's uniforms. No map here has a transform, and the ground has dozens
+  of reads, so that was 76 matrices a draw.
+- The footprints the derivatives take (the glints' cells, the corduroy's
+  and the cups' filters) are taken in uniform control flow, before the
+  branches that read them.
+
+**Stand-ins until their parts:**
+
+- Part 5: the trail map's relief in the vertex and the furrows, grooves and
+  wear per pixel; the piste tracks; the tree wells; the avalanche; the
+  deformable snow's field. The snow is drawn untouched, and the deformable
+  snow's mesh folds four cells wide, as WebGL folds it where no tool has
+  touched it. Each stand-in is named where it stands.
+- Part 6: the skiers' own shadow maps. Three's own shadow of the key is read.
+
+**What the twin binds**, counted off the generated shaders of seed 38's
+level material:
+
+| Stage | WebGPU, LOW | WebGPU, HIGH | `webgpu-gl`, HIGH (WebGL2 caps each stage at 16) |
+| --- | --- | --- | --- |
+| Vertex | 3 textures, 1 sampler | 3 textures, 1 sampler | 3 texture units |
+| Fragment | 6 textures, 4 samplers | 8 textures, 7 samplers | 8 texture units |
+
+The vertex reads the ground map (sampled), the heights and the far rim
+(both fetched by texel, with no sampler). The fragment reads the ground
+map, the track's direction map, three's BRDF table, the mountain's shade,
+the aerial-perspective atlas and the sky's table. At HIGH it also reads the
+key's shadow map (a depth texture and its comparison sampler), and the sky
+is HIGH's view table. The float maps that cannot be filtered are fetched by
+texel and take no sampler. A summer map adds its two maps.
+
+`tests/terrain_tsl_test.ts` holds the register, the flags, the specs, the
+level's own uniforms on every material, and every twin built on plain Node
+(plain, cut, deformed and in summer) with its mask and its refresh node.
+
 ## Measuring both paths
 
 Every browser lab takes `--renderer=webgl|webgpu|webgpu-gl`
@@ -309,8 +402,10 @@ lines.
 | 2 Haze and lights | 2026-10-19 | webgpu | 72 (72 before) | 89 025 | 42 programs, 29 pipelines (41, 29 before) | 505.16 (313.05 before) | 500.39 (309.02 before) | 11 passes / 38 meshes (11 / 38 before) | Every material drawn before is now hazed and lit as on WebGL, and nothing new is drawn. The submit is two mid-run frames compiling the larger hazed pipelines on SwiftShader (965 ms and 1 143 ms; the other readings are 7–8 ms) |
 | 3 Sky | 2026-10-19 | webgl | 100 | 231 882 | 51 programs | 14.63 | 6.75 | 0 / 0 | the 18 WebGL world shots (seed 38; LOW and HIGH; 12, 17.5 and 23 h; vista, far, spawn) are pixel-identical to part 2's |
 | 3 Sky | 2026-10-19 | webgpu | 75 (72 before) | 101 667 (89 025) | 48 programs, 32 pipelines (42, 29 before) | 686.38 (481.77 before) | 681.18 (477.73 before) | 10 passes / 35 meshes (11 / 38 before) | The dome, the far ranges and the sky's passes draw. The steady readings are 6–19 ms; the mean is the frames compiling the sky's pipelines on SwiftShader (one of 2 203 ms). At HIGH: 92 draws (89), 164 537 triangles (125 591), 73 programs and 48 pipelines (63, 43), 950.21 ms (497.81) with steady readings of 9–12 ms |
+| 4 Terrain and snow I | 2026-10-19 | webgl | 100 | 231 882 | 51 programs | 11.53 | 5.18 | 0 / 0 | the 24 WebGL world shots (seed 38; LOW and HIGH; 12 and 17.5 h; spawn, powder, track, far, vista, approach-90) are pixel-identical to part 3's. At HIGH: 110 draws, 686 162 triangles, 67 programs, 15.81 ms |
+| 4 Terrain and snow I | 2026-10-19 | webgpu | 80 (75 before) | 143 959 (101 667) | 50 programs, 33 pipelines (48, 32 before) | 1 205.50 (863.36 before) | 1 200.86 (857.04 before) | 10 passes / 29 meshes (10 / 35 before) | The ground draws: every clipmap level, the warm-up mesh and the deformable snow's mesh. The steady readings are 7–12 ms; the mean is two frames compiling the ground's pipelines on SwiftShader (3 607 and 3 928 ms). At HIGH: 99 draws (76), 382 157 triangles (128 069), 75 programs and 49 pipelines (73, 48), 3 918.37 ms (1 168.06) with steady readings of 8–14 ms and one compiling frame of 11 669 ms |
 
-Parts 1 to 3 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+Parts 1 to 4 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis).
 
 ## Systems ported
@@ -318,7 +413,7 @@ Parts 1 to 3 were measured with `make bench ARGS="--renderer=both --frames 60 --
 - [x] 1 Scaffolding: the seam, the device, the switch, the quarantine, the instruments, the lab flag, this ledger
 - [x] 2 Haze and lights (`haze`): the fog node, the key, the sky, the lamps, the wall, the glows as sprites
 - [x] 3 Sky (`sky-gpu`, `sky`): the dome, the night sky, the contrails, LOW's cloud shell, the far ranges, the LUT passes and the aerial volume, each as a node twin
-- [ ] 4 Terrain and snow I (`terrain`)
+- [x] 4 Terrain and snow I (`terrain`): the clipmap's vertices, the snow's sample, colour and light, the strata, summer, the room cut, each as the ground's node twin
 - [ ] 5 Trails and deform (`trail-map`, `deform`)
 - [ ] 6 Shadows (`hero-shadow`, `shadow-depth`)
 - [ ] 7 Grade and post (`grade-pass`)

@@ -55,7 +55,7 @@ import {
 } from "three/webgpu";
 
 import { LAMP_SLOTS, type HazeUniforms } from "./haze.ts";
-import { slot, standIn, type N } from "./haze-tsl.ts";
+import { slot, standIn, tap, type N } from "./haze-tsl.ts";
 import { KEY_BANDS } from "./sky-light.ts";
 import { TERRAIN_SHADOW } from "./terrain-shadow.ts";
 import { SkyLight, KeyLight } from "./world-lights.ts";
@@ -109,7 +109,7 @@ export function syncLights(s: LightSlots): void {
   if (s.piste.value !== piste) s.piste.value = piste;
 }
 
-const sample = (t: TextureNode, uv: N): N => t.sample(uv);
+const sample = (t: TextureNode, uv: N): N => tap(t, uv);
 
 /** THE MOUNTAIN'S OWN SHADOW at `world` (`TERRAIN_SHADOW_GLSL`'s `terrainLit`). */
 export function terrainLit(s: LightSlots, world: N): N {

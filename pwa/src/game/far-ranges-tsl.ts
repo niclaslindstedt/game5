@@ -18,7 +18,15 @@ import { NodeMaterial } from "three/webgpu";
 
 import { FAR_AIR, FAR_MIST_FADE } from "./far-ranges-plan.ts";
 import type { HazeUniforms } from "./haze.ts";
-import { hazeMist, hazeOver, hazeSlots, slot, type HazeFogOptions, type N } from "./haze-tsl.ts";
+import {
+  hazeMist,
+  hazeOver,
+  hazeSlots,
+  slot,
+  texel,
+  type HazeFogOptions,
+  type N,
+} from "./haze-tsl.ts";
 import { FAR_RADIUS } from "./horizon.ts";
 
 // Read untyped, as every node here is (`haze-tsl.ts`'s `N`).
@@ -45,7 +53,6 @@ const {
   positionGeometry,
   select,
   smoothstep,
-  textureLoad,
   varying,
   vec2,
   vec3,
@@ -156,7 +163,7 @@ export function farRimAt(rim: N, box: N, p: N): N {
   const cx = int(f.x.floor()).toVar();
   const cy = int(f.y.floor()).toVar();
   const t = f.sub(vec2(float(cx), float(cy)));
-  const at = (dx: number, dy: number): N => textureLoad(rim, ivec2(cx.add(dx), cy.add(dy))).r;
+  const at = (dx: number, dy: number): N => texel(rim, ivec2(cx.add(dx), cy.add(dy))).r;
   return mix(mix(at(0, 0), at(1, 0), t.x), mix(at(0, 1), at(1, 1), t.x), t.y);
 }
 

@@ -37,9 +37,9 @@
 // drawn by the GPU sky's froxel pass (`sky-atmo-tsl.ts`), read as WebGL
 // reads it — 1 wherever there is none.
 //
-// STAND-IN for what is not ported yet: a material's own share of its
-// colour through the haze (`HAZE_KEEP`: the snow, the rock) is not read —
-// both are hidden until their parts.
+// A material's own share of its colour through the haze (`HAZE_KEEP`) is
+// `hazeOver`'s `keep`: the ground's twin hands it (`terrain-tsl.ts`); the
+// rock's own graft waits for its part.
 
 import * as THREE from "three";
 import {
@@ -70,6 +70,7 @@ import {
   smoothstep,
   sqrt,
   texture,
+  textureLoad,
   uniform,
   vec2,
   vec3,
@@ -96,6 +97,14 @@ export function slot(o: { value: unknown }, type: string): N {
   node.updateType = "render";
   return node;
 }
+
+/** `t` sampled at `uv` with no uv transform. Three gives a texture's
+ * `sample` a uv matrix of its own (a mat3 in the object's uniforms, for
+ * every sample), which no map here has: every one is read straight. */
+export const tap = (t: N, uv: N): N => t.sample(uv).setUpdateMatrix(false);
+
+/** `t`'s texel at `c`, fetched straight (`tap`'s twin for `textureLoad`). */
+export const texel = (t: N, c: N): N => (textureLoad(t, c) as N).setUpdateMatrix(false);
 
 /** A 1×1 texture to stand where a slot holds none (null) yet: the node
  * renderer binds a texture whether a branch reads it or not. Half floats,
@@ -435,7 +444,13 @@ export type HazeFogOptions = { display: N; exposure: N };
 /** How a surface's haze is reckoned, where it differs from the ground's:
  * the far ranges thin the air past the map's scale and let the mist go
  * past its wall (`far-ranges.ts`). Each takes the distance and the rise. */
-export type HazeAir = { air?: (dist: N) => N; mist?: (dist: N, rise: N) => N };
+export type HazeAir = {
+  air?: (dist: N) => N;
+  mist?: (dist: N, rise: N) => N;
+  /** The share of the air a surface lets over its own colour (`HAZE_KEEP`,
+   * 1 the whole): the ground's bare rock keeps some of its own. */
+  keep?: N;
+};
 
 /**
  * THE HAZE OVER A SURFACE (`HAZE_FRAGMENT`): `base`, the surface's colour
@@ -464,7 +479,7 @@ export function hazeOver(
     .mul(pow(vec3(s.airLift), float(1).sub(a2.mul(a2))));
   const far = farColour(s, dir, 1);
   const mist = (own.mist ? own.mist(dist, ray.y) : hazeMist(s, dist, ray.y)).toVar();
-  const over = max(air, vec3(mist.mul(s.mistOpen)));
+  const over = max(air, vec3(mist.mul(s.mistOpen))).mul(own.keep ?? 1);
   const shut = mist.mul(float(1).sub(s.mistOpen));
   const shown = how.display.greaterThan(0.5);
   const into = (c: N): N => select(shown, toDisplay(c, how.exposure), c);

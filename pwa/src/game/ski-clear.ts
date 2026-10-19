@@ -34,11 +34,11 @@ export const RIVALS = 2;
 const RIVAL_REACH = 80;
 /** A ski's reach from its middle station to its ends, m, and more: the
  * rivals' loop skips a ski whose middle is further than this from a vertex. */
-const SKI_HALF = 1.3;
+export const SKI_HALF = 1.3;
 
 /** How far under the base the snow is let down, m: the base's own
  * thickness of clearance, so depth never fights at the base. */
-const CLEAR = 0.006;
+export const CLEAR = 0.006;
 
 /** The bases' lines, shared by the ground's vertex and fragment stages. */
 const SKI_LINE_PARS = /* glsl */ `

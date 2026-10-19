@@ -37,6 +37,7 @@ import {
   heliModelUrl,
   PLANE_NODES,
   planeModelUrl,
+  policeModelUrl,
   rescueModelUrl,
   armyModelUrl,
   SLED_NODES,
@@ -65,12 +66,13 @@ const PLAYER = [
 describe("the models the game ships", () => {
   const all = modelFiles(ALL_MODELS);
 
-  it("are every pair under its id, the helicopter, its air ambulance and the army's machine, the snowmobile, the piste machine, the jump plane and the player's hiker, racer and freestyle rider, man and woman", () => {
+  it("are every pair under its id, the helicopter, its air ambulance, its police machine and the army's machine, the snowmobile, the piste machine, the jump plane and the player's hiker, racer and freestyle rider, man and woman", () => {
     expect([...all].sort()).toEqual(
       [
         ...SKI_CATALOG.map((s) => `${s.id}.glb`),
         "heli.glb",
         "rescue.glb",
+        "police.glb",
         "army.glb",
         "sled.glb",
         "groomer.glb",
@@ -95,7 +97,12 @@ describe("the models the game ships", () => {
     expect(modelFiles(ALL_MODELS, "player")).toEqual(PLAYER);
     expect(modelFiles({ ...none, plane: true })).toEqual(["plane.glb"]);
     expect(modelFiles(ALL_MODELS, "plane")).toEqual(["plane.glb"]);
-    expect(modelFiles({ ...none, heli: true })).toEqual(["heli.glb", "rescue.glb", "army.glb"]);
+    expect(modelFiles({ ...none, heli: true })).toEqual([
+      "heli.glb",
+      "rescue.glb",
+      "army.glb",
+      "police.glb",
+    ]);
     expect(modelFiles({ ...none, sled: true })).toEqual(["sled.glb"]);
     expect(modelFiles({ ...none, groomer: true })).toEqual(["groomer.glb"]);
     expect(modelFiles({ ...none, skis: true })).toEqual(SKI_CATALOG.map((s) => `${s.id}.glb`));
@@ -103,6 +110,7 @@ describe("the models the game ships", () => {
     expect(modelFiles(ALL_MODELS, "heli")).toEqual(["heli.glb"]);
     expect(modelFiles(ALL_MODELS, "rescue")).toEqual(["rescue.glb"]);
     expect(modelFiles(ALL_MODELS, "army")).toEqual(["army.glb"]);
+    expect(modelFiles(ALL_MODELS, "police")).toEqual(["police.glb"]);
     expect(modelFiles(ALL_MODELS, "sled")).toEqual(["sled.glb"]);
     expect(modelFiles(ALL_MODELS, "groomer")).toEqual(["groomer.glb"]);
     expect(modelFiles(ALL_MODELS, "sources")).toHaveLength(SKI_CATALOG.length);
@@ -123,6 +131,7 @@ describe("the models the game ships", () => {
       "heli",
       "plane",
       "player",
+      "police",
       "rescue",
       "sled",
       "sources",
@@ -154,8 +163,9 @@ describe("the models the game ships", () => {
   });
 });
 
-// The heli-ski machine and its air ambulance: one airframe, one builder
-// (`rescue.py` runs `heli.py` whole and dresses it), one drawer's nodes.
+// The heli-ski machine, its air ambulance and its police machine: one
+// airframe, one builder (`rescue.py` and `police.py` run `heli.py` whole and
+// dress it), one drawer's nodes.
 for (const m of [
   { file: "heli.glb", url: heliModelUrl, builders: ["heli.py"], what: "helicopter" },
   {
@@ -163,6 +173,12 @@ for (const m of [
     url: rescueModelUrl,
     builders: ["heli.py", "rescue.py"],
     what: "air ambulance",
+  },
+  {
+    file: "police.glb",
+    url: policeModelUrl,
+    builders: ["heli.py", "police.py"],
+    what: "police helicopter",
   },
 ]) {
   describe(`the ${m.what} model`, () => {

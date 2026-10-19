@@ -7,7 +7,7 @@
 // each casualty's scoop, carry and loading is `rescue-plan.ts`'; the
 // crew's poses are `rescue-crew.ts`'). Drawn here: each helicopter
 // (`heli-view.ts` over the air ambulance's model — `MODEL_URL` is the one
-// line it is named on), its rotor turning, its lights and its landing lamp
+// line it and the police machine's are named on), its rotor turning, its lights and its landing lamp
 // after dark and its wash thrown up as it comes in and lifts; the four of
 // each — the doctor and the paramedic in the flight crew's red with a
 // reflective yoke and white helmets, two patrollers in red with the white
@@ -19,7 +19,7 @@
 // stretcher: its rails and an orange vacuum mattress moulded round him.
 //
 // A POLICE call (after a death, `police-plan.ts`) is drawn by the same
-// hands: the machine in the police livery (`police-livery.ts`), three
+// hands: the police helicopter's own model (`scripts/blender/police.py`), three
 // officers in dark blue with high-visibility vests and two patrollers, him
 // lying where he died and then bagged, and the scene they lay
 // (`police-view.ts`: the stakes, the tape, the numbered tents, the camera
@@ -63,7 +63,6 @@ import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createHeliView, type HeliView, type WashPuff } from "./heli-view.ts";
 import { coloursOf, gearOf, type Outfit } from "./outfit.ts";
 import { OFFICERS, PHOTO } from "./police-defs.ts";
-import { policeLivery } from "./police-livery.ts";
 import { freshPoliceFrame, planPolice, policeAt, type PolicePlan } from "./police-plan.ts";
 import { lyingNear, type Taken } from "./police-remains.ts";
 import { bagGeometries, createPoliceDressing, type PoliceDressing } from "./police-view.ts";
@@ -83,14 +82,17 @@ import {
   type RescueFlight,
 } from "./rescue-flight.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
-import { rescueModelUrl } from "./skier-models.ts";
+import { policeModelUrl, rescueModelUrl } from "./skier-models.ts";
 import type { SnowSampler } from "./trail-stamp.ts";
 
-/** THE AIR AMBULANCE'S MODEL (`make models`, `scripts/blender/rescue.py`):
- * the heli-ski machine's airframe in a mountain air ambulance's signal
- * yellow, its hoist over the right-hand sliding door it is loaded through.
- * The one line its file is named on. */
-const MODEL_URL = (): string | null => rescueModelUrl();
+/** EACH CALL'S MODEL (`make models`): the air ambulance's
+ * (`scripts/blender/rescue.py`, the heli-ski machine's airframe in a
+ * mountain air ambulance's signal yellow, its hoist over the right-hand
+ * sliding door it is loaded through) and the police helicopter's
+ * (`scripts/blender/police.py`, the same airframe in a police air unit's
+ * navy and chequer). The one line their files are named on. */
+const MODEL_URL = (kind: Kind): string | null =>
+  kind === "police" ? policeModelUrl() : rescueModelUrl();
 
 /** The crew's colours, by slot (`CIVILIAN_SLOT`): the flight crew's suit,
  * a reflective yoke, a white helmet; the patrol's red with the white cross. */
@@ -422,9 +424,8 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     if (units[i]) drop(units[i]);
     const heli = createHeliView(level, haze, {
       pad: false,
-      url: MODEL_URL(),
+      url: MODEL_URL(kind),
       cockpit: false,
-      ...(kind === "police" ? { livery: policeLivery } : {}),
     });
     group.add(heli.group);
     const crew: Member[] = [];

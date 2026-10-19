@@ -204,6 +204,12 @@ Materials, by name, for the drawer: the heli's (`trim` and `paint` now the yello
 
 The landed air ambulance is a machine the player can STEAL — walked up to and taken with the machine press, then flown as his own: `engine/game/steal.ts` (the generic mechanic: a SOURCE lists what it has parked and is told when one is taken, a TAKER turns the run's own machine of that kind into the taken one) and `takeHeli` in `heli.ts`. A taken machine carries its owner's `livery` and has no pilot of its own: dropped in the air it comes down unflown, set down it parks where it lands. `docs/rescue.md` § *Stolen* has the rest.
 
+## The police helicopter
+
+A third model of the same airframe, `pwa/models/police.glb`, is the police helicopter that comes after a death ([police.md](police.md)). It is built by `scripts/blender/police.py` (`make blender KIND=police`, published by `make models KIND=police`), which runs the heli's builder whole exactly as `rescue.py` does, so its frame, its nodes and their origins are the heli's and one drawer poses all three. It is packed under the heli's switch and fetched from `policeModelUrl()`. What it is drawn after, and every part it carries, is [police.md](police.md) § *The machine*.
+
+Materials, by name, for the drawer: the heli's (`trim` now the navy, `paint` and `stripe` white, `glass`, `metal`, `dark`, `rotor`, `lamp`, `lamp_green`) and `band` (the chequer's blue), `chequer` (its yellow), `mark_white` (the lettering), `turret` (the camera ball), `searchlight` (the lens, not lit) and `beacon_blue` (not lit in the model; `heli-view.ts` flashes it while the rotor turns).
+
 ## Measuring it
 
 - `npx vitest run tests/heli_test.ts`: the thrust against momentum theory, the climb with no ceiling, the hang toward the skier, the turn, the drop and the lurch, the pilot home, the boarding, the crash and the restart, the wash, and determinism.

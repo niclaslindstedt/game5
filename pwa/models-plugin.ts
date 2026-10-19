@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE MODELS EVERY BUILD PACKS: every pair of skis' game-quality glTF as
 // `models/<id>.glb`, the heli-ski helicopter's as `models/heli.glb` (and
-// its air ambulance's as `models/rescue.glb` and the army's helicopter's as
-// `models/army.glb`, under the same switch), the
+// its air ambulance's as `models/rescue.glb`, its police machine's as
+// `models/police.glb` and the army's helicopter's as `models/army.glb`,
+// under the same switch), the
 // mountain snowmobile's as `models/sled.glb`, the night's piste machine's
 // as `models/groomer.glb` and the jump plane's as `models/plane.glb`,
 // emitted into the
@@ -22,7 +23,7 @@
 //
 // A build switched back to the code-built skis (`VITE_MODEL_SKIS=0` —
 // `src/game/model-switch.ts`) packs none of them; `VITE_MODEL_HELI=0` packs
-// no helicopter and no air ambulance (`src/game/heli-view.ts` draws its code-built stand-in) and
+// no helicopter, no air ambulance and no police machine (`src/game/heli-view.ts` draws its code-built stand-in) and
 // `VITE_MODEL_SLED=0` no snowmobile (`src/game/sled-view.ts`'s stand-in)
 // and `VITE_MODEL_GROOMER=0` no piste machine (`src/game/groomer-build.ts`)
 // and `VITE_MODEL_PLANE=0` no jump plane (`src/game/plane-standin.ts`).
@@ -69,6 +70,10 @@ export const RESCUE_FILE = "rescue.glb";
  * LOD0): the military machine the wanted level sends, packed under the
  * heli's switch. */
 export const ARMY_FILE = "army.glb";
+/** The police helicopter's one file (`make blender KIND=police`'s LOD0):
+ * the heli's airframe in a police air unit's dress, packed under the
+ * heli's switch. */
+export const POLICE_FILE = "police.glb";
 
 /** The snowmobile's one file (`make blender KIND=sled`'s LOD0). */
 export const SLED_FILE = "sled.glb";
@@ -101,6 +106,7 @@ export function modelFiles(on: ModelSwitches, half?: ModelHalf): string[] {
     ...(on.heli && (!half || half === "heli") ? [HELI_FILE] : []),
     ...(on.heli && (!half || half === "rescue") ? [RESCUE_FILE] : []),
     ...(on.heli && (!half || half === "army") ? [ARMY_FILE] : []),
+    ...(on.heli && (!half || half === "police") ? [POLICE_FILE] : []),
     ...(on.sled && (!half || half === "sled") ? [SLED_FILE] : []),
     ...(on.groomer && (!half || half === "groomer") ? [GROOMER_FILE] : []),
     ...(on.plane && (!half || half === "plane") ? [PLANE_FILE] : []),
@@ -155,6 +161,18 @@ export const ARMY_SOURCES = [
   "scripts/blender/heli.py",
   "scripts/blender/army.py",
   "engine/game/defs/army-heli.ts",
+];
+
+/** WHAT THE POLICE HELICOPTER IS MADE FROM: the heli's sources (its
+ * builder is run whole) and the police builder and data module that dress
+ * it. */
+export const POLICE_SOURCES = [
+  "scripts/blender.mjs",
+  "scripts/blender/kinds/police.mjs",
+  "scripts/blender/lib.py",
+  "scripts/blender/heli.py",
+  "scripts/blender/police.py",
+  "engine/game/defs/heli.ts",
 ];
 
 /** WHAT THE SNOWMOBILE IS MADE FROM: its builder, its data module, the
@@ -212,14 +230,15 @@ export const PLAYER_SOURCES = [
 
 /** Every half's stamp in `sources.json`, and the sources it hashes: the
  * skis (`sources`, its name from when they were the only models), the
- * helicopter (`heli`), the air ambulance (`rescue`), the army's machine
- * (`army`), the snowmobile
+ * helicopter (`heli`), the air ambulance (`rescue`), the police
+ * helicopter (`police`), the army's machine (`army`), the snowmobile
  * (`sled`), the piste machine (`groomer`) and the jump plane (`plane`). */
 export const MODEL_HALVES = {
   sources: MODEL_SOURCES,
   heli: HELI_SOURCES,
   rescue: RESCUE_SOURCES,
   army: ARMY_SOURCES,
+  police: POLICE_SOURCES,
   sled: SLED_SOURCES,
   groomer: GROOMER_SOURCES,
   plane: PLANE_SOURCES,

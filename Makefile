@@ -393,12 +393,12 @@ blender:
 	npm run blender -- $(if $(KIND),--kind $(KIND),) $(if $(ID),--id $(ID),) $(ARGS)
 
 # The models the game ships: every pair of skis, the heli-ski helicopter,
-# its air ambulance and the army's utility helicopter,
+# its air ambulance, its police machine and the army's utility helicopter,
 # the mountain snowmobile, the night's piste machine and the jump plane, game quality (no
 # stills), made by Blender and published into
 # the COMMITTED pwa/models/ with a stamp of their sources a kind —
 # tests/models_test.ts fails when a model is older than what it is made
-# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=army (the army's helicopter), KIND=sled, KIND=groomer, KIND=plane or KIND=player (the player's hiker, racer and freestyle rider, man and woman) makes and publishes that kind alone. Needs
+# from. KIND=skis, KIND=heli, KIND=rescue (the air ambulance), KIND=police (the police helicopter), KIND=army (the army's helicopter), KIND=sled, KIND=groomer, KIND=plane or KIND=player (the player's hiker, racer and freestyle rider, man and woman) makes and publishes that kind alone. Needs
 # Blender (or the bpy module: scripts/bpy-blender.sh). A build draws them
 # unless switched back (VITE_MODEL_SKIS=0, VITE_MODEL_HELI=0,
 # VITE_MODEL_SLED=0, VITE_MODEL_GROOMER=0, VITE_MODEL_PLANE=0,
@@ -411,6 +411,7 @@ models:
 	$(if $(filter all heli,$(or $(KIND),all)),npm run blender -- --kind heli --quality=game --views=none,)
 	$(if $(filter all rescue,$(or $(KIND),all)),npm run blender -- --kind rescue --quality=game --views=none,)
 	$(if $(filter all army,$(or $(KIND),all)),npm run blender -- --kind army --quality=game --views=none,)
+	$(if $(filter all police,$(or $(KIND),all)),npm run blender -- --kind police --quality=game --views=none,)
 	$(if $(filter all sled,$(or $(KIND),all)),npm run blender -- --kind sled --quality=game --views=none,)
 	$(if $(filter all groomer,$(or $(KIND),all)),npm run blender -- --kind groomer --quality=game --views=none,)
 	$(if $(filter all plane,$(or $(KIND),all)),npm run blender -- --kind plane --quality=game --views=none,)

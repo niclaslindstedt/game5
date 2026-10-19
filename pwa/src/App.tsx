@@ -48,7 +48,6 @@ import {
   createGame,
   error,
   placeRun,
-  step,
   type CreateGameOptions,
   type GameMode,
   type GameState,
@@ -91,7 +90,7 @@ import { runRumble } from "./game/haptics.ts";
 import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
 import { createHudLive, feedHudLive } from "./game/hud-live.ts";
 import { deathOver } from "./game/hud-wreck.ts";
-import { noteImpact, rescueAgain } from "./game/rescue-book.ts";
+import { noteImpact, rescueAgain, stepRun } from "./game/rescue-book.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
@@ -424,7 +423,7 @@ export function App() {
     const stepOnce = (): void => {
       // ON THE TAPE'S GRID whoever is riding (`ghost.ts`), and written down.
       const input = snapInput(replays.input() ?? inputFor());
-      step(state, input);
+      stepRun(state, input);
       if (!watching(shellRef.current)) book.step(input, state.events);
       replays.step(input, state);
       xray.step(state);

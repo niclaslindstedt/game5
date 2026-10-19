@@ -22,7 +22,9 @@ import {
   generateLevel,
   heliDoor,
   placeRun,
+  standSkier,
   stealWithin,
+  throwAmateur,
   step,
   TUNING,
   type GameState,
@@ -33,6 +35,7 @@ import {
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
+import { SETTLE, stepRun } from "../game/crowd-calls.ts";
 import { bookRun, createRescueBook } from "../game/rescue-book.ts";
 import { flightAt, freshFlightFrame, planFlight } from "../game/rescue-flight.ts";
 import { BEARERS, RESCUE, freshRescueFrame, planRescue, rescueAt } from "../game/rescue-plan.ts";
@@ -496,6 +499,84 @@ const VIEWS: Record<string, (s: GameState) => void> = {
   },
 };
 
+/** AN AMATEUR DOWN HURT, CALLED FOR MID-RUN (`crowd-calls.ts`), safe for
+ * work: one of the crowd thrown where the scene is, lying still, the call
+ * made, the machine flown in, his body scooped in his own kit, and the
+ * machine taken from under them — the run stepped as the app steps it
+ * (`stepRun`), the player stood out of the way until he skis to its door. */
+async function crowdCall(): Promise<void> {
+  const s = createGame({ level, seed, region, mode: "free", sfw: true, crowd: 60, quiet: true });
+  const out = pts.find((p) => p.s >= fell.s - 140) ?? pts[0];
+  const a = s.crowd!.amateurs.find((m) => m.mode === "ski")!;
+  a.x = fell.x;
+  a.z = fell.z;
+  a.y = level.groundAt(fell.x, fell.z);
+  a.heading = fell.heading;
+  throwAmateur(a, 1, "roll");
+  a.timer = 2;
+  a.hurt = true;
+  renderer.draw(s, 1, FRAME, false);
+  await new Promise((done) => setTimeout(done, 3000));
+  let held = true;
+  /** Stepped to the run's clock `t` as the app steps it, drawn over its
+   * last `lead` s; the player held where he was put while `held`. */
+  const runTo = (t: number, lead = 1.2, input = NEUTRAL_INPUT): void => {
+    while (s.t < t) {
+      for (let i = 0; i < STEPS; i++) {
+        if (held) standSkier(s, out.x, out.z, out.heading);
+        stepRun(s, input);
+      }
+      if (s.t > t - lead) renderer.draw(s, 1, FRAME, false);
+    }
+  };
+  T0 = 0;
+  const at = { x: fell.x, y: level.groundAt(fell.x, fell.z), z: fell.z };
+  runTo(SETTLE - 1);
+  shoot(s, "down hurt", planted(at, fell.heading + 2, 3, 6, 2.4, 45, 0.2));
+  runTo(SETTLE + 0.5);
+  const call = s.rescue?.[0];
+  if (!call) {
+    shoot(s, "no call made", planted(at, fell.heading, 20, 10, 8, 50, 0));
+    return;
+  }
+  const flight = planFlight(level, call.casualties);
+  T0 = call.start;
+  const site = call.site;
+  const wide = planted(site, site.heading + 0.9, 30, 26, 9, 55, 3);
+  runTo(call.down - 10);
+  shoot(s, "inbound", wide);
+  runTo(call.down + 1);
+  shoot(s, "down", wide);
+  const tr = flight.trips[0];
+  runTo(call.start + tr.offset + 2);
+  shoot(s, "at him", planted(at, fell.heading + 2, 3, 6, 2.4, 45, 0.2));
+  runTo(call.start + tr.offset + tr.plan.at.scoop.strap + 1);
+  shoot(s, "on the board, in his kit", planted(at, fell.heading - 1, 2.2, 3.5, 2.6, 45, 0));
+  // TAKEN: skied to its door while they work, the press, flown off.
+  held = false;
+  const door = heliDoor(site);
+  const ax = door.x - site.x;
+  const az = door.z - site.z;
+  const d = Math.hypot(ax, az) || 1;
+  placeRun(s, {
+    x: door.x + (ax / d) * 1,
+    z: door.z + (az / d) * 1,
+    heading: Math.atan2(-ax, -az),
+  });
+  runTo(s.t + 0.5, 0.5);
+  shoot(s, stealWithin(s) ? "at the door: offered" : "at the door: not offered", "chase");
+  const hands = (collective: number, pitch = 0) => ({
+    ...NEUTRAL_INPUT,
+    heli: { collective, pitch, roll: 0, pedal: 0 },
+  });
+  stepRun(s, { ...hands(0), machine: true });
+  shoot(s, s.heli?.livery ? "taken" : "not taken", wide);
+  runTo(s.t + 3, 1, hands(0.85));
+  shoot(s, "away with it", "chase");
+  runTo(s.t + 3, 1, hands(0.8, 0.25));
+  shoot(s, "left standing", wide);
+}
+
 /** THE PASS: the bot skis the next run down past the rescue, the chase
  * lens behind him, a frame every two seconds. */
 function pass(s: GameState): void {
@@ -650,6 +731,7 @@ const GROUPS: Record<string, readonly string[]> = {
   second: ["second"],
   knock: ["knock", "solid"],
   steal: ["steal"],
+  crowd: ["crowd"],
   ...SLED_GROUPS,
 };
 
@@ -682,6 +764,8 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
       const s = nextRun(60);
       await new Promise((done) => setTimeout(done, 3000));
       VIEWS.steal(s);
+    } else if (v === "crowd") {
+      await crowdCall();
     } else if (v === "second") {
       second();
     } else if (v === "pass") {

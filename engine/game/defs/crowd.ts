@@ -489,13 +489,18 @@ export const CROWD = {
    * likely on a colour past him, drunk, or landing a kicker; how long he
    * lies once his body has come to rest (`crashOver`), s; and how long he
    * takes to get back up on his skis, s. Down, he is a RAGDOLL — the
-   * player's own (`ragdoll.ts`) — thrown by what put him there. */
+   * player's own (`ragdoll.ts`) — thrown by what put him there. And the
+   * share of his own falls (a roll for nothing, a landing) that leave him
+   * HURT past getting up, for the air ambulance to fetch
+   * (`crowd-hurt.ts`): about one a few minutes over a full crowd's thirty
+   * to forty falls a minute. */
   fall: {
     rate: 0.18,
     steep: 3,
     wobble: 1.4,
     lie: [1, 4] as readonly [number, number],
     rise: 1.4,
+    hurt: 1 / 80,
   },
   /** A STOP: how many a minute at a stopper's 1, how long, s; and how much
    * likelier just below a crest — a roll he has just come over, by how

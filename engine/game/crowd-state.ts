@@ -115,6 +115,9 @@ export type Amateur = {
    * and how crushed, 0..1. Absent while he is sound. */
   injured?: boolean;
   crush?: number;
+  /** FALLEN BADLY on his own (`crowd-hurt.ts`): hurt past getting up, no
+   * wound to show — the air ambulance's to fetch. Absent while he is sound. */
+  hurt?: boolean;
   /** ON A SNOWBOARD (`CROWD.board`): the foot he rides with forward, or
    * null on skis. Stood, he SITS in the snow: how far down, 0..1, and
    * whether this stop is sat (`crowd-board.ts`). */

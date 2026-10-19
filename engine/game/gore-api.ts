@@ -25,6 +25,7 @@ export {
   withRescue,
   type Evidence,
   type RescueCall,
+  type RescueCasualty,
   type RescueSite,
 } from "./rescue-call.ts";
 // A machine not his, taken (the air ambulance first): the sources, the press.

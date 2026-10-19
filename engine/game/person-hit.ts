@@ -143,7 +143,8 @@ export type Casualty = {
 };
 
 /** EVERY BODY THAT NEEDS COLLECTING, now: each amateur down for good —
- * killed, injured past getting up, or dug out of an avalanche dead — and
+ * killed, injured past getting up, fallen badly on his own
+ * (`crowd-hurt.ts`), or dug out of an avalanche dead — and
  * the player, on a run with injuries, dead or hurt too badly to ski on.
  * Pure: a query of the state, written by nothing. */
 export function casualtiesOf(state: GameState): Casualty[] {
@@ -167,7 +168,7 @@ export function casualtiesOf(state: GameState): Casualty[] {
     });
   }
   for (const a of state.crowd?.amateurs ?? []) {
-    if (!a.dead && !a.injured) continue;
+    if (!a.dead && !a.injured && !a.hurt) continue;
     if (a.buried !== undefined) continue;
     const hit = struckPerson(state, a.id);
     const b = a.thrown;
@@ -182,7 +183,7 @@ export function casualtiesOf(state: GameState): Casualty[] {
       crush: a.crush ?? 0,
       t: hit ? hit.t : -1,
       impact: hit ? { x: hit.x, y: hit.y, z: hit.z } : null,
-      cause: hit ? "skier" : "avalanche",
+      cause: hit ? "skier" : a.hurt ? (a.thrown?.cause ?? null) : "avalanche",
     });
   }
   return out;

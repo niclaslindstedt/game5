@@ -24,7 +24,14 @@
 // numbered from the point of impact, the run's last wipeout, which the app
 // notes as the run goes (`noteImpact`), down to the body.
 
-import type { Evidence, GameState, Level, RescueCall, RescueSledPlan } from "@engine";
+import type {
+  Evidence,
+  GameState,
+  Level,
+  RescueCall,
+  RescueCasualty,
+  RescueSledPlan,
+} from "@engine";
 import { planSledRescue, sledCallGone, withRescue } from "@engine";
 
 import { planPolice } from "./police-plan.ts";
@@ -32,13 +39,15 @@ import { evidenceOf, lyingAt } from "./police-scene.ts";
 import { canTake, planFlight, type Called, type RescueFlight } from "./rescue-flight.ts";
 import { fitToLand } from "./rescue-plan.ts";
 
+export { stepRun } from "./crowd-calls.ts";
+
 /** ONE CALL: the book's clock it was made at, its casualties (each's
  * `known` from the call), and its flight — or the snowmobiles' plan and
  * when each of the two was stolen, the call's clock — and, a police call,
  * its kind and the scene's evidence. */
 export type BookedRide = {
   start: number;
-  casualties: Called[];
+  casualties: (Called & Pick<RescueCasualty, "look">)[];
   flight: RescueFlight | null;
   sleds?: { plan: RescueSledPlan; taken: (number | null)[] };
   kind?: "police";
@@ -104,6 +113,18 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
     if (ride?.sleds && call.sledsTaken) ride.sleds.taken = [...call.sledsTaken];
   }
   const now = book.clock + Math.max(0, ended.t);
+  // THE CALLS MADE WHILE IT RAN, for the crowd (`crowd-calls.ts`): kept,
+  // so the runs after see them through — who they came for out of the
+  // crowd that run had, but still dressed as he was.
+  for (const r of ended.rescue ?? []) {
+    if (r.start < 0 || !r.casualties.some((c) => c.amateur !== undefined)) continue;
+    const casualties = r.casualties.map(({ amateur: _, ...c }) => ({ ...c }));
+    book.rides.push({
+      start: book.clock + r.start,
+      casualties,
+      flight: planFlight(level, casualties),
+    });
+  }
   // A MACHINE STOLEN off the snow (`steal.ts`) is gone with its thief: its
   // crew call another, sent from the moment it was taken, for every
   // casualty it came for (the police to the same scene).
@@ -111,7 +132,7 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
     if (r.stolen === undefined) continue;
     const ride = book.rides.find((b) => Math.abs(b.start - book.clock - r.start) < 1e-6);
     if (!ride) continue;
-    const casualties = ride.casualties.map((c) => ({ x: c.x, z: c.z, known: 0 }));
+    const casualties = ride.casualties.map((c) => ({ ...c, known: 0 }));
     ride.start = book.clock + r.stolen;
     ride.casualties = casualties;
     ride.flight =

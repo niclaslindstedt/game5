@@ -23,6 +23,10 @@
 //   pass     pass (ridden: the player skiing down past it on the chase
 //            lens, every two seconds)
 //   night    night (the overview and the carry at hour 21)
+//   steal    steal (the landed machine taken from under its crew)
+//   crowd    crowd (safe for work: an amateur down hurt on his own, the
+//            call made mid-run, the machine in, him scooped in his own
+//            kit, the machine taken)
 //
 // and the SKI PATROL ON SNOWMOBILES, sent where no machine can land
 // (`rescue-sleds-view.ts`; `pwa/src/tools/rescue-sleds-views.ts` finds a
@@ -66,12 +70,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (site, scoop, carry, load, lift, pass, night, plane, arrive, second, knock, steal, sleds-arrive, sleds-scene, sleds-load, sleds-tow, sleds-night, sleds-stolen); every one when left out",
+      help: "which sheets, comma-separated (site, scoop, carry, load, lift, pass, night, plane, arrive, second, knock, steal, crowd, sleds-arrive, sleds-scene, sleds-load, sleds-tow, sleds-night, sleds-stolen); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (overview, scoop, carry, carry-front, load, lift, pass, night, arrive, arrive-chase, second, knock, solid, steal, and each sleds-* sheet's own)",
+      help: "only these views, comma-separated (overview, scoop, carry, carry-front, load, lift, pass, night, arrive, arrive-chase, second, knock, solid, steal, crowd, and each sleds-* sheet's own)",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     at: {

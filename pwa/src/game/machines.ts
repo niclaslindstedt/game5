@@ -325,7 +325,8 @@ export function createMachines(
     sled.stowRack({ spec: k.spec, poles: k.poles, body: top.body, trim: top.trim });
   }
   // THE AIR AMBULANCE on the run after an injured one (`rescue-view.ts`),
-  // built with the first run that carries its injuries.
+  // built with the first run that carries its injuries — or a crowd it may
+  // be called to mid-run, injuries on or off (`crowd-calls.ts`).
   let rescue: RescueScene | null = null;
   let rescueSleds: RescueSledsScene | null = null;
   // THE AVALANCHE (`avalanche-view.ts`), built with the run's first slab.
@@ -532,7 +533,7 @@ export function createMachines(
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
       doors?.update(s);
-      if (s.gore && !rescue) {
+      if ((s.gore || (s.crowd && s.rules.heli) || s.rescue?.length) && !rescue) {
         rescue = createRescueScene(level, haze);
         group.add(rescue.group);
       }

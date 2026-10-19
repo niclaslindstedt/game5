@@ -1,7 +1,9 @@
 # A person run into
 
 What happens when the player, on a free ride, skis (or rides a board, the
-snowmobile's boards or the bike) into one of the crowd's amateurs at speed.
+snowmobile's boards or the bike) into one of the crowd's amateurs at speed —
+or into a PERSON ON FOOT: a civilian of the ski area, a man of the air
+ambulance's or the police's crew (below, *People on foot*).
 Under a brisk cruise it is still the crowd's SHOULDER — the bump, a knock
 down past a skill-scaled threshold, the player's shoulder and arm dosed
 (`crowd.ts`' `clipCrowd`, `body.ts`' `feelBumps`). Past
@@ -132,3 +134,73 @@ player alone, without the crowd, so it cannot see the meeting coming.
 Nothing of it draws from any stream (the amateur's lie-down clock is drawn
 off the crowd's own, as a knock-down always was), and there is a crowd only
 on a free ride, so no sim or determinism digest moves.
+
+## People on foot
+
+The free ride's CIVILIANS ([civilians.md](civilians.md): the lift crew, the
+patrol, the guests walking the base in ski boots, the terrace, the children
+at play) and the CREWS of the air ambulance and the police
+([rescue.md](rescue.md), [police.md](police.md)) are the same bodies to the
+skier as an amateur: `engine/game/foot.ts`, held by
+`tests/civilian_body_hits_test.ts` and printed by `make body-hits` (`--who=`
+amateur, civilian, crew, sled).
+
+- **Where they stand is the app's plan, handed in as DATA.** The civilians'
+  plan is a few thousand lines of the app's (the places off every building,
+  the roles, the routes round the base, the fires, the summer's cast); what
+  the engine needs of it is small and closed-form, so the app hands it in
+  before the first step, the way the rescue's calls are handed in
+  (`foot-call.ts`' `peopled` → `withFoot`, `CreateGameOptions.foot`,
+  `GameState.foot`): each person's place or the ROUTE he walks
+  (`engine/game/foot-route.ts`, the engine's, which the app's plan walks
+  too), his role's share out by the hour and his own keenness, and the sky
+  clock's rate the hour runs at. `footAt` is where he stands at a moment —
+  exactly where `civilianAt` draws him. A crew member is a TRACK sampled off
+  his call's own plan every quarter second (`rescue-tracks.ts`' `crewTracks`,
+  `RescueCall.crew`, `crewAt`). The ski patrol on snowmobiles
+  (`kind: "sled"`) is sampled for no tracks: its men are still the view's
+  alone. A replay's recipe carries the call (`recipeOf`), so a replay meets
+  the same people at the same places.
+- **The collision** past `PERSON_HIT.strike` is the amateur's: the exchange at
+  the two real masses (`exchangeOf`, the person's mass `CROWD_SIZE`'s), the
+  player slowed — or thrown past the crowd's own threshold — and struck on his
+  body a step later (`personBlows` reads `GameState.foot.struck` beside the
+  crowd's), the person thrown onto a ragdoll of his own the engine steps
+  (`FootDown`) and, with INJURIES on, injured, killed and crushed on the same
+  ladder. Under the strike speed the app's knock is the whole of it, as
+  before. A person on foot is narrower than a skier (`PERSON_HIT.foot`), so
+  he is met inside a skier's own reach of him.
+- **On the snowmobile** the machine strikes: its mass with its rider's
+  (`sledMass`), some 320 kg into a man of 85 — he takes nine tenths of the
+  closing speed (killed from about 40 km/h, crushed at 60), the machine a
+  fifth of it and keeps going, the rider not thrown and his body not dosed
+  (the hood and the bars take it). The amateurs on the snow are met as a
+  skier stood on the boards, as before.
+- **After the blow** a person not hurt lies until his body is still, then is
+  the app's knock again — he gets up and walks back (`civilian-knock.ts`) —
+  and is no body to the engine for `PERSON_HIT.foot.back` (60 s) before he
+  stands where his plan has him again. A hurt or dead one stays down for
+  good, one of `casualtiesOf`'s (`who`: `civilian` or `crew`, `id` his key,
+  the meeting's spot as `impact`), for the rescue and the police to collect.
+- **As drawn**: the view's knock is launched with the engine's exchange
+  (`civilian-hits.ts`' `fromEngine`: the engine's body copied each frame), so
+  the engine and the picture agree; with INJURIES on he lies broken and a
+  crushed one flatter (`crowd-broken.ts`' `footHurtOf`, `breakPose`, drawn by
+  `civilians-view.ts` and, for a crew member, `rescue-view.ts`), and the snow
+  is the crowd's (`crowd-gore.ts` reads every meeting, `allStruck`). The
+  civilians' clothes do not carry the blood the amateurs' do.
+  `make gore ARGS=--sheet=civilian` photographs it.
+
+| Run into at | A civilian or a crew member (INJURIES on) | The player | By the snowmobile |
+| --- | --- | --- | --- |
+| 30 km/h | injured, down for good | bruised: whiplash, ribs, shoulders | injured |
+| 45 km/h | injured (a child killed) | down hurt: a broken neck, a concussion, a cracked pelvis | killed |
+| 60 km/h | killed | thrown and dead: the neck, a flail chest, the belly torn | killed, crushed (0.9) |
+| 90 km/h | killed and crushed (0.84) | thrown and dead | killed, crushed through |
+
+**Not bodies to the engine yet:** the village's dog walkers (their walks wait
+at the kerbs on the traffic, and the village is walked with the skis off),
+anyone met by the player's thrown body, a piste machine or the traffic (the
+app's knock), and a person already lying — the skier passes over a body on
+the snow. A crew member struck leaves his call's work to the others as its
+plan has it: the scoop and the carry go on with the men still standing.

@@ -17,7 +17,7 @@
 //
 // Three-free and DOM-free: the suite reads it.
 
-import type { CrowdBody } from "@engine";
+import { shareOfHours, type CrowdBody, type Hours as EngineHours } from "@engine";
 
 import type { SpotKind } from "./civilian-spots.ts";
 import { FIRE_ROLES } from "./civilian-fire-roles.ts";
@@ -148,8 +148,8 @@ export type Party = {
 };
 
 /** A share of a role out at each hour, 0..1: points (hour, share) from 0
- * to 24, the share read between them. */
-export type Hours = readonly (readonly [number, number])[];
+ * to 24, the share read between them (the engine's, `foot.ts`). */
+export type Hours = EngineHours;
 
 export type Role = {
   readonly id: RoleId;
@@ -854,12 +854,5 @@ export function shareAt(hours: Hours, hour: number): number {
   return share;
 }
 
-function shareOf(hours: Hours, hour: number): number {
-  const h = ((hour % 24) + 24) % 24;
-  for (let k = 0; k + 1 < hours.length; k++) {
-    const [h0, s0] = hours[k];
-    const [h1, s1] = hours[k + 1];
-    if (h >= h0 && h <= h1) return h1 > h0 ? s0 + ((s1 - s0) * (h - h0)) / (h1 - h0) : s1;
-  }
-  return 0;
-}
+/** The engine's (`foot.ts`): who it meets as a body is who is drawn out. */
+const shareOf = shareOfHours;

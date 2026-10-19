@@ -115,6 +115,7 @@ import { enterLodge, freshAfterski, lodgesOf } from "./afterski.ts";
 import { feelBumps, markFall } from "./body.ts";
 import { freshGore } from "./gore-state.ts";
 import { copyCall, type RescueCall } from "./rescue-call.ts";
+import { meetFoot, stepFoot, withFoot, type FootCall, type FootState } from "./foot.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
 import { pisteDayOf } from "./piste-day.ts";
@@ -241,6 +242,10 @@ export type CreateGameOptions = {
    * injured (`rescue-call.ts`): their landed machines are solid to this
    * run's skier. The app's (`rescue-book.ts`); none when left out. */
   rescue?: RescueCall[];
+  /** THE PEOPLE ON FOOT the skier meets as bodies (`foot.ts`): the app's
+   * plan of the free ride's civilians, handed in as data; none when left
+   * out. */
+  foot?: FootCall;
   /** SAFE FOR WORK (`RunRules.sfw`): no collisions between skiers, no
    * afterski, no grimbear, a helicopter and a balloon that cannot crash or
    * burn. The app asks for it when the INJURIES switch is off. Off when left out. */
@@ -644,6 +649,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
     damage: options.damage ?? false,
     ...(options.gore && !options.sfw ? { gore: freshGore() } : {}),
     ...(options.rescue?.length ? { rescue: options.rescue.map(copyCall) } : {}),
+    ...(options.foot?.people.length ? withFoot<{ foot?: FootState }>({}, options.foot) : {}),
     snowDepth: depth,
     fresh: summer ? 0 : Math.max(0, options.fresh ?? piste?.fresh ?? 0),
     rivals: [],
@@ -848,6 +854,9 @@ export function step(state: GameState, input: SkierInput): GameState {
     stepCrowd(state);
     if (state.rules.contact) clipCrowd(state, events);
   }
+  // THE PEOPLE ON FOOT (`foot.ts`): the bodies down, and any run into.
+  stepFoot(state);
+  if (state.rules.contact) meetFoot(state, events);
   // THE GRIMBEAR (`grimbear.ts`), on a free ride he was dealt to.
   if (state.grimbear) stepGrimbear(state, events);
   // THE WILDLIFE (`beast-hit.ts`): the groups he puts up.

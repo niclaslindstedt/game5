@@ -48,6 +48,12 @@
 //            killed, crushed: broken, his skis off, bloodied, the smear
 //            and the pool), person-60-safe, person-90-safe (the injuries
 //            off: knocked down and up again)
+//   civilian civilian-60, civilian-90 (a grown civilian of the ski area's
+//            own plan stood on open snow, run into down the fall line: the
+//            blow, the throw, both bodies lying — his figure on the
+//            engine's body, broken and flattened, the blood on the snow),
+//            civilian-60-safe, civilian-90-safe (the injuries off: the
+//            app's knock, knocked down and up again)
 //   hud      wreck (the HUD over a fatal crash: the jolt,
 //            the readouts fading away, DIED and the dark — each frame
 //            an iframe of `pwa/gore-hud.html` at the frame's own size)
@@ -83,7 +89,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, rotor, blood, leak, pools, close, bones, cable, replay, beast, person, hud, remains); every one when left out",
+      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, rotor, blood, leak, pools, close, bones, cable, replay, beast, person, civilian, hud, remains); every one when left out",
     },
     views: {
       kind: "string",

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // WHAT A PERSON RUN INTO LEAVES ON THE SNOW — on a free ride with the
 // INJURIES switch on, every amateur the player struck hard enough to hurt
-// (`CrowdState.struck`, `engine/game/person-hit.ts`): blood thrown at the
+// (`CrowdState.struck`, `engine/game/person-hit.ts`) and every person on
+// foot — a civilian, a rescue or police crew member (`engine/game/foot.ts`): blood thrown at the
 // blow along the way he was flung and spattered back at the player, a red
 // smear under him along his slide, and a pool where he comes to rest that
 // grows as he bleeds. A body crushed past `CRUSHED` is torn too: what was
@@ -17,11 +18,20 @@
 // the engine's struck people and writes nothing; what it throws is dealt
 // off each meeting's own seed and stepped on the run's clock, so a replay
 // throws it again the same. Built the first time a run carries both a
-// crowd and its injuries, with a PRIMER standing in it (`gore-lumps.ts`'),
+// crowd (or its people on foot) and its injuries, with a PRIMER standing in it (`gore-lumps.ts`'),
 // so the blow links no program.
 
 import * as THREE from "three";
-import { createRng, RAGDOLL, type GameState, type Level, type StruckPerson } from "@engine";
+import {
+  allStruck,
+  createRng,
+  footDown,
+  RAGDOLL,
+  type GameState,
+  type Level,
+  type StruckPerson,
+  type Thrown,
+} from "@engine";
 
 import { bledBetween, CRUSHED } from "./crowd-broken.ts";
 
@@ -54,6 +64,17 @@ const ORGANS: readonly OrganKind[] = ["gobbet", "gobbet", "lung", "liver"];
 /** One person struck, as drawn: where the last smear was laid and how long
  * after the blow the pool was last run. */
 type Body = { key: string; hit: StruckPerson; sx: number; sz: number; ran: number };
+
+/** The body a meeting threw: the amateur's, or the person on foot's. */
+function thrownOf(state: GameState, hit: StruckPerson): Thrown | null | undefined {
+  if (hit.foot === undefined) return state.crowd?.amateurs[hit.amateur]?.thrown;
+  const d = footDown(state, hit.foot);
+  return d?.hit === hit ? d.thrown : null;
+}
+
+/** The view's name for a meeting: who, and when. */
+const keyOf = (hit: StruckPerson): string =>
+  `${hit.foot !== undefined ? `f${hit.foot}` : `a${hit.amateur}`}:${hit.t}`;
 
 const v1 = new THREE.Vector3();
 const v2 = new THREE.Vector3();
@@ -151,23 +172,23 @@ export function createCrowdGore(level: Level, wrap: Wrap): CrowdGore {
     }
     const dt = Math.min(0.1, state.t - lastT);
     lastT = state.t;
-    const crowd = state.crowd;
-    if (!crowd || !state.gore) return;
-    for (const hit of crowd.struck ?? []) {
+    if (!state.gore) return;
+    for (const hit of allStruck(state)) {
       if (!hit.killed && !hit.injured) continue;
-      const key = `${hit.amateur}:${hit.t}`;
+      const key = keyOf(hit);
       if (bodies.has(key)) continue;
-      const a = crowd.amateurs[hit.amateur];
-      const b = a?.thrown;
+      const b = thrownOf(state, hit);
+      const heading = b?.heading ?? 0;
       v1.set(b?.vx ?? 0, 0, b?.vz ?? 0);
-      if (v1.lengthSq() < 1e-6) v1.set(Math.sin(a?.heading ?? 0), 0, Math.cos(a?.heading ?? 0));
+      if (v1.lengthSq() < 1e-6) v1.set(Math.sin(heading), 0, Math.cos(heading));
       v1.normalize().setY(0.25).normalize();
-      burst(hit, v1.clone(), Math.floor(hit.t * 997) ^ (hit.amateur * 7919));
+      const who = hit.foot !== undefined ? 104729 + hit.foot : hit.amateur;
+      burst(hit, v1.clone(), Math.floor(hit.t * 997) ^ (who * 7919));
       bodies.set(key, { key, hit, sx: hit.x, sz: hit.z, ran: 0 });
     }
     if (dt <= 0) return;
     for (const body of bodies.values()) {
-      const b = crowd.amateurs[body.hit.amateur]?.thrown;
+      const b = thrownOf(state, body.hit);
       if (!b) continue;
       const u = state.t - body.hit.t;
       // The pool where it bleeds: his chest dead, his face alive.

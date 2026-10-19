@@ -10,7 +10,9 @@ import {
   createGame,
   feelBumps,
   markFall,
+  meetFoot,
   severityOf,
+  withFoot,
   NEUTRAL_INPUT,
   step,
   type Amateur,
@@ -120,3 +122,96 @@ export function hitRow(kmh: number, body: CrowdBody, gore: boolean, seconds = 8)
  * of the switch. */
 export const HIT_SPEEDS = [10, 20, 30, 45, 60, 90] as const;
 export const HIT_BODIES: readonly CrowdBody[] = ["man", "child"];
+
+/** WHO ON FOOT is run into (`engine/game/foot.ts`): a civilian of the
+ * plan handed in, a rescue crew member off his call's track, or a civilian
+ * met by the snowmobile the player rides. */
+export type FootWho = "civilian" | "crew" | "sled";
+
+/** A person on foot met, staged and stepped once: the player at `kmh` into
+ * him stood still just in front, on the same free ride with nobody else
+ * out — no amateur, and the person the only one handed in. */
+export function stageFoot(
+  kmh: number,
+  body: CrowdBody,
+  gore: boolean,
+  who: FootWho = "civilian",
+): { state: GameState; events: GameEvent[] } {
+  const state = createGame({
+    level: levelFor(HIT_SEED),
+    seed: HIT_SEED,
+    mode: "free",
+    quiet: true,
+    crowd: 0,
+    gore,
+  });
+  const c = state.skier;
+  const x = c.x;
+  const z = c.z + (who === "sled" ? 1.75 : 0.5);
+  const y = state.level.groundAt(x, z);
+  if (who === "crew") {
+    state.rescue = [
+      {
+        start: -30,
+        site: { x: x + 60, y: state.level.groundAt(x + 60, z), z, heading: 0, pitch: 0, roll: 0 },
+        down: -20,
+        up: 600,
+        casualties: [],
+        crew: [{ body, t0: 0, dt: 0.25, xz: [x, z, x, z] }],
+      },
+    ];
+  } else {
+    const person = { key: 7, body, x, y, z, heading: Math.PI, rx: x, rz: z, rr: 1 };
+    withFoot(state, { people: [person], rate: 0 });
+  }
+  c.heading = 0;
+  c.vx = 0;
+  c.vz = kmh / 3.6;
+  if (who === "sled") {
+    const s = state.sled!;
+    s.rider = true;
+    s.x = c.x;
+    s.z = c.z;
+    s.heading = 0;
+    s.vx = 0;
+    s.vz = kmh / 3.6;
+  }
+  const events: GameEvent[] = [];
+  meetFoot(state, events);
+  return { state, events };
+}
+
+/** ONE ROW of a person on foot run into: the meeting staged, ridden on
+ * `seconds`, and what came of it on both sides (`HitRow`'s columns; the
+ * person "up" once the engine has let him go back to his plan). */
+export function footRow(
+  kmh: number,
+  body: CrowdBody,
+  gore: boolean,
+  who: FootWho = "civilian",
+  seconds = 8,
+): HitRow {
+  const { state } = stageFoot(kmh, body, gore, who);
+  const thrown = !!state.skier.thrown;
+  const d = state.foot?.down[0];
+  if (who !== "sled") rideOn(state, seconds);
+  const b = state.skier.body;
+  const g = state.gore;
+  return {
+    kmh,
+    body,
+    gore,
+    thrown,
+    injuries: b.injuries.map((h) => `${h.kind}@${h.part}:${h.ais}`),
+    worst: Math.max(0, ...b.injuries.map((h) => h.ais)),
+    iss: severityOf(b),
+    dead: !!g && g.dead >= 0,
+    down: !!g && g.injured >= 0,
+    knocked: !!d,
+    killed: !!d?.dead,
+    injured: !!d?.injured,
+    crush: d?.crush ?? 0,
+    up: !!d && !d.dead && !d.injured && d.settled,
+    casualties: casualtiesOf(state).map((k) => `${k.who}${k.dead ? " dead" : " hurt"}`),
+  };
+}

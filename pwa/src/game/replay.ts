@@ -111,6 +111,8 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     // The air ambulances on the mountain, whose landed machines are solid —
     // as they stood at the start, before any was stolen (`steal.ts`).
     ...(state.rescue ? { rescue: state.rescue.map(({ stolen: _, ...r }) => copyCall(r)) } : {}),
+    // The people on foot it was handed (`foot-call.ts`), met as bodies.
+    ...(state.foot?.call ? { foot: state.foot.call } : {}),
     sfw: state.rules.sfw === true,
     poles: state.skier.poles,
     snowDepth: state.snowDepth,

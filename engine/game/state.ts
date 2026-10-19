@@ -937,13 +937,13 @@ export type GameState = ContestState & {
   cross?: CrossHeat;
   /** The ski cross so far, carried for the app; never read by a step. */
   bracket?: Bracket;
-  /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as this run has
-   * knocked them — on a map with pole gates; absent everywhere else. */
+  /** THE FLEX POLES of a slalom's gates (`gate-poles.ts`), as knocked. */
   gatePoles?: GamePoles;
   /** THE EDGE STAKES (`edge-stakes.ts`) knocked; absent until one is. */
   stakes?: import("./edge-stakes.ts").StakeState;
-  /** THE CROWD (`crowd.ts`): the free ride's amateurs; else absent. */
+  /** A free ride's CROWD (`crowd.ts`), THE PEOPLE ON FOOT met (`foot.ts`). */
   crowd?: CrowdState;
+  foot?: import("./foot.ts").FootState;
   /** THE PLAYER'S CHAIR LEFT ONLY BY HAND (`chair-hands.ts`): set where the
    * app asks; absent elsewhere (rivals stood off at the top), so no digest moves. */
   chairHands?: true;
@@ -973,7 +973,7 @@ export type GameState = ContestState & {
   burn?: import("./fire-burn.ts").BurnState;
   /** THE AVALANCHES (`avalanche.ts`): a free ride that asked for them. */
   avalanche?: AvalancheState;
-  /** THE WANTED LEVEL (`wanted.ts`), once an offence raised it; absent until then. */
+  /** THE WANTED LEVEL (`wanted.ts`), once an offence or the run's ask raised it. */
   wanted?: WantedState;
   /** THE GUNFIRE (`gunfire.ts`), once a gun is armed; absent until then. */
   gunfire?: GunfireState;

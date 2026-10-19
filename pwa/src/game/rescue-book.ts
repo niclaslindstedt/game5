@@ -37,6 +37,7 @@ import { sledCallGone, withRescue } from "@engine";
 import { planPolice } from "./police-plan.ts";
 import { evidenceOf, lyingAt } from "./police-scene.ts";
 import { canTake, planFlight, type Called, type RescueFlight } from "./rescue-flight.ts";
+import { withCrewTracks } from "./rescue-tracks.ts";
 import { dispatchRescue, sledCall } from "./rescue-dispatch.ts";
 
 export { stepRun } from "./crowd-calls.ts";
@@ -178,7 +179,8 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
   }
   book.rides = book.rides.filter((r) => r.start + goneOf(r) > now);
   book.clock = now;
-  return withRescue(next, callsOf(book));
+  // Each call's crew sampled for the engine, who meets them as bodies.
+  return withRescue(next, withCrewTracks(level, callsOf(book)));
 }
 
 /** The calls under way, in the clock of the run starting at `book.clock`. */

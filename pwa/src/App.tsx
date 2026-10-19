@@ -91,6 +91,7 @@ import { Hud, hasTouch, type HudFlash } from "./game/hud.tsx";
 import { createHudLive, feedHudLive } from "./game/hud-live.ts";
 import { deathOver } from "./game/hud-wreck.ts";
 import { noteImpact, rescueAgain, stepRun } from "./game/rescue-book.ts";
+import { peopled } from "./game/foot-call.ts";
 import { ResultPlate } from "./game/hud-result.tsx";
 import { contestPlateUp } from "./game/contest-board.ts";
 import { ReplayBar } from "./game/hud-replay.tsx";
@@ -303,8 +304,7 @@ export function App() {
     const raceSeed = params.seed ?? nextSeedRef.current;
     /** START AGAIN's free ride: the last one stood up, on its own map. */
     let freeAgain: CreateGameOptions | null = null;
-    /** A free ride off the start card's answers — or, where the seed will
-     * not build, the race fallback's map. */
+    /** A free ride off the start card's answers, or the race fallback's map. */
     const freeBoot = (): GameState => {
       const s = settingsRef.current;
       const seed = params.seed ?? s.ride.seed ?? FIRST_FREE_SEED;
@@ -323,7 +323,7 @@ export function App() {
     // A race a link boots into is the player's, with the player's help; the
     // one under the front door is the bot's, with every hand on.
     let state: GameState = params.free
-      ? freeBoot()
+      ? peopled(freeBoot())
       : raceOrFallback(
           raceSeed,
           params.rides ? { ...skierOf(settingsRef.current, params.mode), mode: params.mode } : null,
@@ -388,7 +388,7 @@ export function App() {
 
     /** A state on screen as the one the loop steps, nothing armed (a replay's). */
     const show = (next: GameState): void => {
-      state = next;
+      state = peopled(next); // its people on foot handed in, met as bodies
       live.length = 0;
       audio.reset();
       runRumble.reset();

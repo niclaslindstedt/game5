@@ -84,11 +84,16 @@ holds it.
 
 Like the wildlife (`beast-plan.ts`, `bird-plan.ts`), the civilians are a PLAN
 dealt off the map's seed on a salt of their own (`CIVILIAN_SALT`), never
-`state.rng`, and nothing is written to the game's state, so no digest moves.
-Where a person is and what he is doing at a moment is a PURE FUNCTION of the
-plan, the engine's clock and the map's hour (`civilianAt`). They are a free
-ride's only (`hasCivilians`: a run with the ski area's crowd on it) and are not
-solid to the skier — they stand where no skier is meant to be.
+`state.rng`, so no digest moves. Where a person is and what he is doing at a
+moment is a PURE FUNCTION of the plan, the engine's clock and the map's hour
+(`civilianAt`). They are a free ride's only (`hasCivilians`: a run with the
+ski area's crowd on it) and stand where no skier is meant to be — but a
+skier who goes there at speed meets them as BODIES: the plan's places,
+routes and hours are handed to the engine before the first step
+(`foot-call.ts`, `engine/game/foot.ts`), which strikes them as it strikes an
+amateur ([body-hits.md](body-hits.md), *People on foot*). A route is the
+engine's own (`engine/game/foot-route.ts`), so the plan and the engine walk
+it the same.
 
 ### Where: the places and their sources
 
@@ -263,10 +268,16 @@ terraces after dark — and goes with the map. `make civilians` is the lab.
 A person on foot is SOLID on a free ride. The skier (on his skis or thrown),
 the snowmobile, a piste machine, the village's cars, bus and bicycles, and a
 person already knocked all strike him (`civilian-hits.ts`), and what his body
-does about it is `civilian-knock.ts`'s, on the engine's own ragdoll. It is
-presentation only, like the rest of this page: the plan still says where he
-is, the knock is kept in the view and stepped on the engine's clock, and the
-skier is not slowed by him.
+does about it is `civilian-knock.ts`'s, on the engine's own ragdoll. Up to a
+brisk cruise (`PERSON_HIT.strike`, some 23 km/h) it is presentation only:
+the plan still says where he is, the knock is kept in the view and stepped
+on the engine's clock, and the skier is not slowed by him. Past it, from the
+skier or the snowmobile he rides, it is the ENGINE's collision of two bodies
+([body-hits.md](body-hits.md)): the skier slowed or thrown and hurt, the
+person thrown with his share — and the knock here is that body, copied off
+the engine each frame (`fromEngine`) until it lies still; then a person it
+did not hurt gets up and walks back as below, and one it hurt or killed (the
+INJURIES switch on) lies broken where he came to rest.
 
 ### What the research says
 

@@ -12,11 +12,16 @@
 // slide across carried by friction), and the rest is his body's
 // (`civilian-knock.ts`). Three-free, so the suite reads it.
 //
-// PRESENTATION ONLY, as the civilians are: the knocks are kept here, beside
-// the plan, and step the ragdoll on the engine's clock; nothing is written
-// to the game's state, so no digest moves and the hitter never notices the
-// person it went through — the skier, the machines and the traffic are the
-// engine's and keep the line the engine gives them.
+// The knocks are kept here, beside the plan, and step the ragdoll on the
+// engine's clock; nothing is written to the game's state. A blow past
+// `PERSON_HIT.strike` from the skier or the snowmobile he rides is the
+// ENGINE'S (`engine/game/foot.ts`): two bodies colliding, the skier slowed
+// or thrown by it and the person thrown with his share — and here his
+// knock is the engine's body, copied each frame (`fromEngine`) until it
+// lies still, then his own to get up from, or for good when it hurt him.
+// Everything softer, and every other hitter (the piste machines, the
+// traffic, a person knocked into the next), is this module's alone and
+// the hitter never notices the person it went through.
 
 import {
   GROOMER,
@@ -30,6 +35,8 @@ import {
   type CrowdBody,
   type GameState,
   type Level,
+  type FootDown,
+  type Thrown,
   type VehicleKind,
 } from "@engine";
 
@@ -125,6 +132,9 @@ export type Person = {
   rz: number;
   rr: number;
   at: (t: number, out: CivilianPose) => CivilianPose;
+  /** His key in the engine's people on foot (`foot.ts`), when the engine
+   * meets him as a body. */
+  foot?: number;
 };
 
 export function peopleOf(level: Level, summer = false): Person[] {
@@ -143,6 +153,7 @@ export function peopleOf(level: Level, summer = false): Person[] {
     return {
       key: i,
       id: i,
+      foot: i,
       body: c.body,
       skis: c.skis,
       rx,
@@ -197,13 +208,15 @@ export type Knocks = {
   map: Map<number, Knock>;
   t: number;
   home: Map<number, { at: number; knock: Knock }>;
+  /** The engine's people down (`fromEngine`) whose knock is its own again. */
+  released: WeakSet<FootDown>;
 };
 
 /** How long a knock over is kept in `Knocks.home`, s. */
 export const HOME_KEPT = 2;
 
 export function createKnocks(): Knocks {
-  return { map: new Map(), t: NaN, home: new Map() };
+  return { map: new Map(), t: NaN, home: new Map(), released: new WeakSet() };
 }
 
 const round = (h: Partial<Hitter>): Hitter => ({
@@ -440,6 +453,7 @@ export function updateKnocks(knocks: Knocks, state: GameState, people: readonly 
     knocks.t = t;
   }
   const span = Math.min(0.2, t - knocks.t);
+  fromEngine(knocks, state, people);
   collide(knocks, state, people, hittersOf(state, knocks, hitters), span);
   stepKnocks(knocks, state, people, Math.round(span / dt));
   if (span <= 0) knocks.t = t;
@@ -455,6 +469,7 @@ export function stepKnocks(
   for (let s = 0; s < steps; s++) {
     const at = knocks.t + (s + 1) * dt;
     for (const [key, k] of knocks.map) {
+      if (k.engine) continue;
       let home: { x: number; z: number } | null = null;
       if (k.phase === "back") {
         people[key].at(at, pose);
@@ -496,6 +511,7 @@ export function collide(
       if (ox > far || -ox > far || oz > far || -oz > far) continue;
       if (Math.hypot(ox, oz) > far) continue;
       const k = knocks.map.get(person.key);
+      if (k?.engine) continue;
       const me = personOf(person.body);
       let px: number;
       let pz: number;
@@ -577,6 +593,70 @@ export function collide(
           }
         }
       }
+    }
+  }
+}
+
+const byFoot = new WeakMap<readonly Person[], Map<number, Person>>();
+
+/** Copy `from`'s body into `to`, in place. */
+function copyBody(to: Thrown, from: Thrown): void {
+  for (let i = 0; i < from.points.length; i++) {
+    to.points[i] = from.points[i];
+    to.last[i] = from.last[i];
+  }
+  to.x = from.x;
+  to.y = from.y;
+  to.z = from.z;
+  to.vx = from.vx;
+  to.vy = from.vy;
+  to.vz = from.vz;
+  to.heading = from.heading;
+  to.still = from.still;
+  to.ground = from.ground;
+  to.touching = from.touching;
+  to.down = from.down;
+  to.t = from.t;
+}
+
+/**
+ * THE PEOPLE THE ENGINE STRUCK AS BODIES (`foot.ts`), knocked here with its
+ * exchange: each one's knock his engine body, copied this frame — flown at
+ * once, the balance never his — until it lies still, when a person it did
+ * not hurt is the knock's own to get up from and walk home.
+ */
+export function fromEngine(knocks: Knocks, state: GameState, people: readonly Person[]): void {
+  const down = state.foot?.down;
+  if (!down?.length) return;
+  let map = byFoot.get(people);
+  if (!map) {
+    map = new Map();
+    for (const p of people) if (p.foot !== undefined) map.set(p.foot, p);
+    byFoot.set(people, map);
+  }
+  for (const d of down) {
+    if (knocks.released.has(d)) continue;
+    const person = map.get(d.key);
+    if (!person) continue;
+    let k = knocks.map.get(person.key);
+    if (k?.engine !== d) {
+      const b = d.thrown;
+      k = knockOf(state, b.x, b.z, b.heading, "stand", person.skis, person.body);
+      k.phase = "down";
+      k.how = "fly";
+      k.hold = 0;
+      k.falling = true;
+      k.blow = d.hit.given;
+      k.engine = d;
+      knocks.map.set(person.key, k);
+    }
+    copyBody(k.rag, d.thrown);
+    // Lain still and not hurt: his own to get up from.
+    if (d.settled && !d.dead && !d.injured) {
+      k.engine = undefined;
+      k.t = 0;
+      k.rest = 0;
+      knocks.released.add(d);
     }
   }
 }

@@ -944,6 +944,10 @@ export type GameState = ContestState & {
   /** On a free ride THE HELICOPTER, THE SNOWMOBILE; begun on one the rest. */
   heli?: HeliState;
   sled?: SledState;
+  /** THE SNOWMOBILES HE LEFT STANDING for another (`rescue-sled.ts`: a
+   * ski patrol's machine stolen) — kept where he left them, parked, to be
+   * taken back. Absent until he takes one. */
+  sledsLeft?: SledState[];
   /** On a summer free ride that asked for one, THE DOWNHILL BIKE (`bike.ts`);
    * else absent, so no digest moves. */
   bike?: import("./bike-state.ts").BikeState;

@@ -37,6 +37,7 @@ import { deriveSled, freshContacts, rideSled } from "./sled-body.ts";
 import { depthUnder } from "./snow.ts";
 import { sledSpotOf } from "./sled-pad.ts";
 import { stepSledFire } from "./sled-fire.ts";
+import { otherSledWithin, swapSled } from "./rescue-sled.ts";
 import { SLED_FIRE } from "./defs/sled-fire.ts";
 import { derive } from "./skier.ts";
 import { windAt, type Wind } from "./wind.ts";
@@ -207,9 +208,26 @@ export function stepSled(run: GameState, input: SkierInput, events: GameEvent[])
   if (!s.rider) {
     // Taken on: the press that does it is spent on it, never read again as
     // the hop off on the same step.
-    if (input.machine && sledWithin(run)) {
-      board(run, s, events);
-      return true;
+    if (input.machine) {
+      // The nearest machine he could take: his own, or another — a ski
+      // patrol's left standing, or one he left (`rescue-sled.ts`).
+      const own = sledWithin(run);
+      const other = otherSledWithin(
+        run,
+        own ? hypot(run.skier.x - s.x, run.skier.z - s.z) : Infinity,
+      );
+      if (other) {
+        board(
+          run,
+          swapSled(run, other, (x, z, h) => parkedAt(run, x, z, h), events),
+          events,
+        );
+        return true;
+      }
+      if (own) {
+        board(run, s, events);
+        return true;
+      }
     }
     // Left to itself: it settles where it stands on its parking brake, the
     // engine idling down — stepped like any body, so a machine left in

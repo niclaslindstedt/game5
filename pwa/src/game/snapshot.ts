@@ -47,6 +47,7 @@ import {
   paraRigged,
   balloonAboard,
   sledWithin,
+  otherSledWithin,
   skipShare,
   groomerWithin,
   trenched,
@@ -519,6 +520,10 @@ export function sledOf(state: GameState): HudSled | null {
     };
   }
   const c = state.skier;
+  // A ski patrol's machine left standing, or one he left, within the
+  // press's reach (`otherSledWithin`): the press takes that one.
+  const other = otherSledWithin(state);
+  if (other) return { kind: "waiting", away: other.d, near: true };
   const away = Math.hypot(s.x - c.x, s.z - c.z);
   return away < SLED_CALL && c.thrown === null && !state.heli?.rider && !c.lift
     ? { kind: "waiting", away, near: sledWithin(state) }

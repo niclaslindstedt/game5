@@ -469,7 +469,8 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     return o;
   };
   const begin = (state: GameState): void => {
-    calls = state.rescue ?? [];
+    // The air ambulances' (the patrol's snowmobiles are `rescue-sleds-view.ts`').
+    calls = (state.rescue ?? []).filter((c) => c.kind !== "sled");
     flights = calls.map((c) => planFlight(level, c.casualties));
     people = [];
     calls.forEach((c, i) => {

@@ -44,6 +44,7 @@
 import {
   NEUTRAL_INPUT,
   TUNING,
+  copyCall,
   isGameMode,
   step,
   type CreateGameOptions,
@@ -107,8 +108,9 @@ export function recipeOf(state: GameState, mode: GameMode): CreateGameOptions {
     assist: { ...state.assist },
     damage: state.damage,
     gore: state.gore !== undefined,
-    // The air ambulances on the mountain, whose landed machines are solid.
-    ...(state.rescue ? { rescue: state.rescue } : {}),
+    // The rescues on the mountain, whose machines are solid — copied as they
+    // stood at the start, before any patrol machine was stolen.
+    ...(state.rescue ? { rescue: state.rescue.map(copyCall) } : {}),
     sfw: state.rules.sfw === true,
     poles: state.skier.poles,
     snowDepth: state.snowDepth,

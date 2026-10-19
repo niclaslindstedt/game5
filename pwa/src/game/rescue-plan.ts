@@ -153,8 +153,9 @@ function siteCost(level: Level, x: number, z: number, spot: Vec3, r: number, rel
   );
 }
 
-/** THE PATCH, its heading along the contour and its door's side. */
-function pickSite(level: Level, spot: Vec3) {
+/** A PATCH A MACHINE CAN SET DOWN ON round him — the strict search, then
+ * the relaxed one — or null: nowhere fit to land (`fitToLand`). */
+function findSite(level: Level, spot: Vec3) {
   for (const relax of [false, true]) {
     let best: { x: number; z: number; cost: number } | null = null;
     for (const r of [...RESCUE.site.radii, ...(relax ? [50, 60, 18] : [])]) {
@@ -168,6 +169,20 @@ function pickSite(level: Level, spot: Vec3) {
     }
     if (best) return best;
   }
+  return null;
+}
+
+/** WHETHER AN AIR AMBULANCE CAN SET DOWN near a skier lying at `spot`:
+ * where it cannot, the ski patrol comes on snowmobiles
+ * (`rescue-book.ts`, `planSledRescue`). */
+export function fitToLand(level: Level, spot: { x: number; z: number }): boolean {
+  return findSite(level, { x: spot.x, y: level.groundAt(spot.x, spot.z), z: spot.z }) !== null;
+}
+
+/** THE PATCH, its heading along the contour and its door's side. */
+function pickSite(level: Level, spot: Vec3) {
+  const found = findSite(level, spot);
+  if (found) return found;
   // Nowhere clear: the flattest seat round him, the fewest trunks under
   // the disc, wherever it is (a steep face in the woods has no good one).
   let flat = { x: spot.x + 30, z: spot.z, cost: Infinity };

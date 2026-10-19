@@ -24,6 +24,7 @@
 import { WebGPURenderer } from "three/webgpu";
 
 import { freshBackend, type Backend } from "./gpu-backend.ts";
+import { dressScene, type Dressing } from "./gpu-dress.ts";
 import { setSeamFactory, type RenderSeam, type SeamInfo } from "./render-seam.ts";
 
 /** The limits raised to the adapter's own. */
@@ -144,6 +145,7 @@ function gpuSeam(
   renderer.info.autoReset = false;
   const state = freshBackend(asked, running);
   state.adapter = adapter;
+  let dressing: Dressing | null = null;
   const ready = renderer.init().then(() => {
     globalThis.__SH_BACKEND__ = running;
   });
@@ -162,7 +164,15 @@ function gpuSeam(
     ready,
     state,
     maxTextureSize: () => device?.limits.maxTextureDimension2D ?? WEBGL2_TEXTURE,
-    beginFrame: () => renderer.info.reset(),
+    dress(scene, haze) {
+      dressing = dressScene(renderer, scene, haze);
+    },
+    beginFrame() {
+      renderer.info.reset();
+      dressing?.begin();
+    },
+    hazeInDisplay: (on) => dressing?.hazeInDisplay(on),
+    endFrame: () => dressing?.end(),
     info() {
       const r = renderer.info.render;
       const m = renderer.info.memory;

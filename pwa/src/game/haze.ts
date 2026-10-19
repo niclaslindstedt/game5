@@ -894,6 +894,10 @@ export function hazeMaterial<M extends THREE.Material>(
   // ported (`gpu-quarantine.ts`), under its own family if it names one. The
   // mist's wall only discards, and is not.
   if (extra && extra !== PAST_THE_WALL) material.userData.glsl ??= "haze-graft";
+  // What the node renderer reads its haze, its lights and the wall by
+  // (`gpu-dress.ts`), since it drops `onBeforeCompile`.
+  material.userData.haze = true;
+  if (extra === PAST_THE_WALL) material.userData.hazeWall = true;
   material.onBeforeCompile = (shader) => {
     bindHaze(shader, u);
     shader.vertexShader = shader.vertexShader

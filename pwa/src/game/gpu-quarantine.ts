@@ -5,9 +5,9 @@
 // WebGPURenderer turns a classic material into a node material and draws
 // it — the standard, the basic, the points — which is most of the mountain.
 // What it cannot carry is GLSL: `onBeforeCompile` is silently dropped (the
-// haze, the lamps and the sun's fade with it, which is a picture change, not
-// a hole) and a `ShaderMaterial` is drawn as a bare node material with only a
-// warning. Where the GLSL moves the geometry or makes the colour, the result
+// haze, the lamps and the sun's fade with it — drawn again in nodes by
+// `gpu-dress.ts`, so that much is no hole) and a `ShaderMaterial` is drawn
+// as a bare node material with only a warning. Where the GLSL moves the geometry or makes the colour, the result
 // is garbage on screen — the terrain without its clipmap's heights — so
 // those are HIDDEN for the frame instead:
 //

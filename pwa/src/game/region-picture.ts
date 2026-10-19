@@ -45,7 +45,22 @@ export type RegionPicture = {
 };
 
 /** What a canvas made with multisampling takes a pixel. */
-const CANVAS_SAMPLES = 4;
+export const CANVAS_SAMPLES = 4;
+
+/** Whether the frame goes STRAIGHT onto the canvas rather than through the
+ * grade's target: a neutral region, no buzz, no blaze, and the ANTIALIAS
+ * row asking for what the canvas was made with. Three tone maps and
+ * encodes before the haze only on the canvas, so this is also where the
+ * haze is mixed in display space (`haze-tsl.ts`, which asks the same). */
+export function drawsStraight(o: {
+  graded: boolean;
+  buzz: number;
+  burning: boolean;
+  samples: number;
+  canvas: number;
+}): boolean {
+  return !o.graded && o.buzz === 0 && !o.burning && o.samples === o.canvas;
+}
 
 /** The picture over `gl`, multisampled as the ANTIALIAS row `antialias`
  * reads at each frame. */
@@ -105,7 +120,7 @@ export function createRegionPicture(
     },
     draw(scene, camera, timer) {
       follow();
-      if ((!graded && buzz === 0 && !burning && samples === canvas) || !pass) {
+      if (drawsStraight({ graded, buzz, burning, samples, canvas }) || !pass) {
         gl.render(scene, camera);
         const r = gl.info.render;
         last.calls = r.calls;

@@ -21,7 +21,7 @@ export const MIN_PX = 2.5;
 
 /** A lamp carries a little further through the air than the ground lit by
  * daylight does: its share left is the air's raised to this. */
-const CARRY = 0.7;
+export const CARRY = 0.7;
 
 const UNIFORMS = /* glsl */ `
 uniform float uHaze;
@@ -47,6 +47,8 @@ export function fadeGlow<
   const reach = how.reach ?? 0;
   const key = `glow-fade:${points ? "points" : "flat"}:${reach}`;
   material.customProgramCacheKey = (): string => key;
+  // What the node renderer's copy fades by (`glow-tsl.ts`), which drops this graft.
+  material.userData.glowFade = how;
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uHaze: u.uHaze,

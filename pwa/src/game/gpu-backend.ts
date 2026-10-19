@@ -116,10 +116,17 @@ export const GPU_PORTS: readonly GpuPort[] = [
   },
   { id: "gpu-timer", kind: "pass", part: 14, what: "the GPU's timer and the fence", ported: false },
   {
-    id: "shader",
+    id: "haze",
     kind: "material",
     part: 2,
-    what: "every ShaderMaterial (the dome, the spray, the clouds…)",
+    what: "a hazed material's haze, key, shade lift and lamps; the glow's fade",
+    ported: true,
+  },
+  {
+    id: "shader",
+    kind: "material",
+    part: 3,
+    what: "every ShaderMaterial (the dome first; the spray, the clouds… in theirs)",
     ported: false,
   },
   {
@@ -139,8 +146,8 @@ export const GPU_PORTS: readonly GpuPort[] = [
   {
     id: "haze-graft",
     kind: "material",
-    part: 2,
-    what: "a hazed material with a graft of its own",
+    part: 11,
+    what: "a hazed material with a graft of its own (the figures' gaits, the rock…)",
     ported: false,
   },
   {

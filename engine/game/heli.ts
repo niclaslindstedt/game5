@@ -893,9 +893,12 @@ export function takeHeli(
 ): boolean {
   const h = run.heli;
   if (!h) return false;
+  // On its skids where the snow is under its datum: a site on a slope
+  // stands its datum on the uphill skid, and a machine let down off it
+  // would land hard.
   Object.assign(h, freshHeli(run), {
     x: at.x,
-    y: at.y,
+    y: run.level.groundAt(at.x, at.z),
     z: at.z,
     heading: at.heading,
     pitch: at.pitch,

@@ -658,6 +658,12 @@ async function sheet(group: string, views: string[]): Promise<{ frames: Frame[] 
     view = v;
     if (v === "plane") {
       await planeCrash();
+    } else if (v === "steal") {
+      // The taken machine's own view is built the first frame a run carries
+      // a call (`heli-scene.ts`): its model let in before it is taken.
+      const s = nextRun(60);
+      await new Promise((done) => setTimeout(done, 3000));
+      VIEWS.steal(s);
     } else if (v === "second") {
       second();
     } else if (v === "pass") {

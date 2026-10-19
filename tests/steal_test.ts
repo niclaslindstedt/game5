@@ -98,6 +98,8 @@ describe("the air ambulance, taken", () => {
     expect(h.mode).toBe("flown");
     expect(h.livery).toBe("rescue");
     expect(Math.hypot(h.x - call.site.x, h.z - call.site.z)).toBeLessThan(0.5);
+    // On its skids on the snow, never let down off a slope's uphill skid.
+    expect(h.y).toBeCloseTo(level.groundAt(h.x, h.z), 6);
     // Its crew leave the rotor turning: taken at speed.
     expect(h.spool).toBe(1);
     expect(s.rescue![0].stolen).toBeCloseTo(call.down + 3, 1);

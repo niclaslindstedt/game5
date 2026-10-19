@@ -100,22 +100,23 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   group.name = "helicopter";
   const home: HeliView = createHeliView(level, haze);
   /** THE MACHINE TAKEN FROM ITS OWNERS (`steal.ts`), drawn in their
-   * livery off their model, built the first time one is taken — and the
-   * view drawing the run's machine this frame. */
+   * livery off their model — built as soon as a run carries one he could
+   * take, so its model is in before he takes it — and the view drawing the
+   * run's machine this frame. */
   let taken: HeliView | null = null;
   let view = home;
   const viewFor = (state: GameState): HeliView => {
-    const livery = state.heli?.livery;
-    home.setAway(!!livery);
-    if (!livery) {
-      if (taken) taken.group.visible = false;
-      return home;
-    }
-    if (!taken) {
+    const livery = state.heli?.livery ?? (state.rescue?.length ? "rescue" : null);
+    if (livery && !taken) {
       taken = createHeliView(level, haze, { pad: false, url: LIVERY_URL[livery]() });
       group.add(taken.group);
     }
-    return taken;
+    home.setAway(!!state.heli?.livery);
+    if (!state.heli?.livery) {
+      if (taken) taken.group.visible = false;
+      return home;
+    }
+    return taken!;
   };
   const boom: Explosion = createExplosion();
   group.add(home.group, boom.group);

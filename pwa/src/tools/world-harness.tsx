@@ -977,7 +977,7 @@ window.__world = {
     renderer.setCamera("chase", true);
     const t0 = performance.now();
     for (let i = 0; i < frames; i++) frame(true);
-    renderer.gl.getContext().finish();
+    renderer.drain(); // the frames' work landed (the node renderer's fence is part 14's)
     const ms = (performance.now() - t0) / frames;
     const info = renderer.info();
     return { ms, calls: info.calls, triangles: info.triangles };

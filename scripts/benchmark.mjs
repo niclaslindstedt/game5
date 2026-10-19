@@ -24,6 +24,11 @@
 // at random every block of frames, every stop's cost fitted off the lot
 // (`picture-sweep.ts`), the table for `picture-fit.ts` printed and the
 // whole of it written to `previews/picture-sweep.json` for an agent to read.
+//
+// `--renderer` draws it on another back end (`?renderer=`, `docs/webgpu.md`):
+// webgpu or webgpu-gl, or `both` (webgl, then webgpu) and `all`, the same
+// plan on each in a browser of its own and a table of the two side by side
+// after the reports — the ledger's row (`docs/webgpu.md`) is read off it.
 
 import process from "node:process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -33,6 +38,8 @@ import { fileURLToPath } from "node:url";
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
+
+import { assertBackend, rendererArgs, rendererFlag, renderersOf } from "./lib/backend-flag.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = parseArgs(
@@ -79,6 +86,8 @@ const args = parseArgs(
       help: "print the cost table from the last --costs (or --sweep) run's JSON, running nothing",
     },
     timeout: { kind: "number", default: 3600, help: "seconds to wait for the run to finish" },
+    frames: { kind: "number", help: "time this many frames, not the plan's (?frames=, 60 up)" },
+    renderer: rendererFlag(true),
     out: { kind: "string", default: "previews/benchmark.txt", help: "where the report is written" },
     dist: {
       kind: "string",
@@ -118,13 +127,26 @@ if (!existsSync(join(dist, "index.html"))) {
 const found = await findChromium();
 if (!found) process.exit(2);
 
+const renderers = renderersOf(args.renderer, true);
+if (renderers.length > 1 && (args.costs || args.sweep)) {
+  console.error("--costs and --sweep price one back end at a time: name one --renderer");
+  process.exit(2);
+}
 const site = await serveDir(dist);
-const browser = await found.chromium.launch({
-  executablePath: found.executablePath,
-  args: args.gpu
-    ? ["--enable-gpu", "--ignore-gpu-blocklist"]
-    : ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-});
+/** A browser for back end `renderer`: SwiftShader (or the host's GPU), and
+ * what WebGPU needs here beside it (`scripts/lib/backend-flag.mjs`). */
+const launch = (renderer) =>
+  found.chromium.launch({
+    executablePath: found.executablePath,
+    args: [
+      ...(args.gpu
+        ? ["--enable-gpu", "--ignore-gpu-blocklist"]
+        : ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"]),
+      ...rendererArgs(renderer, args.gpu),
+    ],
+  });
+let renderer = renderers[0];
+let browser = await launch(renderer);
 
 /** One whole benchmark in a fresh page, drawn without `hide`; its report. */
 async function run(hide, picture = args.picture, extra = {}) {
@@ -136,6 +158,8 @@ async function run(hide, picture = args.picture, extra = {}) {
   if (args.ab) query.set("ab", "1");
   if (hide) query.set("hide", hide);
   if (picture) query.set("picture", picture);
+  if (args.frames !== undefined) query.set("frames", String(args.frames));
+  if (renderer !== "webgl") query.set("renderer", renderer);
   for (const [key, value] of Object.entries(extra)) query.set(key, value);
   const url = `${site.url}?${query}`;
   if (!args.costs && !args.sweep) {
@@ -143,6 +167,7 @@ async function run(hide, picture = args.picture, extra = {}) {
   }
   try {
     await page.goto(url);
+    await assertBackend(page, renderer, args.timeout * 1000);
     await page.waitForFunction(() => typeof globalThis.__SH_BENCH__ === "string", null, {
       timeout: args.timeout * 1000,
       polling: 1000,
@@ -345,11 +370,73 @@ async function sweepList() {
   );
 }
 
-const text = args.sweep
-  ? await sweepList()
-  : args.costs
-    ? await priceList()
-    : await run(args.hide ?? "", args.picture, args.views ? { view: args.views } : {});
+/** THE BACK ENDS SIDE BY SIDE, off their reports: the frame, the draws, the
+ * pipelines and what each drew without — the ledger's row (`docs/webgpu.md`). */
+function sideBySide(reports) {
+  const num = (re, text) => {
+    const m = re.exec(text);
+    return m ? Number(m[1].replace(/[^\d.]/g, "")) : NaN;
+  };
+  const rows = [
+    ["wall ms", (t) => num(/^\s+wall\s+([\d.]+) ms/m, t).toFixed(2)],
+    ["render ms (cpu)", (t) => num(/^\s+render\s+([\d.]+) ms/m, t).toFixed(2)],
+    ["submit ms", (t) => num(/^\s+submit\s+([\d.]+) ms/m, t).toFixed(2)],
+    [
+      "card ms",
+      (t) => (/^\s+card\s/m.test(t) ? num(/^\s+card\s+([\d.]+) ms/m, t).toFixed(3) : "—"),
+    ],
+    ["draw calls", (t) => String(num(/^\s+draw calls\s+([\d\s\u2009]+)$/m, t))],
+    ["triangles", (t) => String(num(/^\s+triangles\s+([\d\s\u2009]+)$/m, t))],
+    ["programs", (t) => String(num(/^\s+programs\s+([\d\s\u2009]+)$/m, t))],
+    ["pipelines", (t) => String(num(/ (\d+) pipelines/, t) || "—")],
+    ["passes skipped", (t) => String(/^\s+SKIPPED (.*)$/m.exec(t)?.[1].split(" · ").length ?? 0)],
+    [
+      "meshes hidden",
+      (t) =>
+        String(
+          (/^\s+QUARANTINED (.*)$/m.exec(t)?.[1] ?? "")
+            .split(" · ")
+            .reduce((a, part) => a + (Number(/×(\d+)$/.exec(part)?.[1]) || 0), 0),
+        ),
+    ],
+  ];
+  const width = 18;
+  const out = [
+    `THE BACK ENDS SIDE BY SIDE — ${args.width}×${args.height}${args.video ? `, ${args.video}` : ""}${args.gpu ? ", the host's GPU" : ", SwiftShader: structure, not a phone's ms"}`,
+    `  ${"".padEnd(width)}${reports.map(([r]) => r.padStart(12)).join("")}`,
+  ];
+  for (const [label, read] of rows) {
+    out.push(`  ${label.padEnd(width)}${reports.map(([, t]) => read(t).padStart(12)).join("")}`);
+  }
+  for (const [r, t] of reports) {
+    for (const line of t.split("\n").filter((l) => /^\s+(SKIPPED|QUARANTINED) /.test(l)))
+      out.push(`  ${r}: ${line.trim()}`);
+  }
+  return out.join("\n");
+}
+
+let text;
+if (args.sweep) text = await sweepList();
+else if (args.costs) text = await priceList();
+else {
+  const reports = [];
+  for (const r of renderers) {
+    if (r !== renderer) {
+      await browser.close();
+      renderer = r;
+      browser = await launch(r);
+    }
+    const report = await run(args.hide ?? "", args.picture, args.views ? { view: args.views } : {});
+    if (report === null) break;
+    reports.push([r, report]);
+  }
+  text =
+    reports.length < renderers.length
+      ? null
+      : renderers.length === 1
+        ? reports[0][1]
+        : [...reports.map(([r, t]) => `── ${r} ──\n${t}`), "", sideBySide(reports)].join("\n\n");
+}
 await browser.close();
 site.close();
 if (text === null) process.exit(1);

@@ -32,8 +32,16 @@ import {
   type FlyState,
 } from "./free-fly.ts";
 import { smoothFps } from "./frame-rate.ts";
+import type { BackendState } from "./gpu-backend.ts";
 import type { DevRenderer, WorldRenderer } from "./renderer-api.ts";
 import type { Settings } from "./settings.ts";
+
+/** The back end's line on the overlay: its name, and how much it draws without. */
+const backendOf = (b: BackendState): { backend: string; skipped: number; hidden: number } => ({
+  backend: b.running,
+  skipped: b.skipped.length,
+  hidden: Object.values(b.quarantined).reduce((a, n) => a + n, 0),
+});
 
 /** Lines of the engine's output the overlay keeps on screen. */
 const LOG_LINES = 8;
@@ -129,7 +137,7 @@ export function createDevTools(world: DevWorld): DevTools {
       return {
         fps: on.fps ? fps : null,
         frameMs,
-        cost: on.cost ? { ...renderer.cost(), simMs } : null,
+        cost: on.cost ? { ...renderer.cost(), simMs, ...backendOf(renderer.backend()) } : null,
         physics: on.physics ? physicsOf(state) : null,
         log: on.log
           ? recentOutput()

@@ -221,7 +221,12 @@ function fakeRun(frames = 120): BenchmarkRun {
       tags: { "": { frames: 100, ms: 470 }, forest: { frames: 10, ms: 40 } },
     },
     hidden: [],
-    machine: { cores: 8, clockMs: 0.1, gpu: "a graphics card" },
+    machine: {
+      cores: 8,
+      clockMs: 0.1,
+      gpu: "a graphics card",
+      renderer: ["RENDERER webgpu", "  SKIPPED trail-map"],
+    },
     step: 1 / 60,
     frames,
   };
@@ -233,6 +238,8 @@ describe("the report (benchmark-report.ts)", () => {
     expect(text).toMatch(/^BENCHMARK — SEED 39 · 4 skis · 1280×720 @ 1x/);
     expect(text).toContain("INDEX 119");
     expect(text).toContain("MACHINE 8 cores · 0.10 ms clock · a graphics card");
+    // ...and the back end that drew it, with what it drew without.
+    expect(text).toContain("RENDERER webgpu\n  SKIPPED trail-map");
     expect(text).toContain("PICTURE resolution ");
     expect(text).toContain(`PINNED  seed ${BENCHMARK.seed}`);
     expect(text).toContain("WHERE THE FRAME WENT, MEANED OVER 120 FRAMES");

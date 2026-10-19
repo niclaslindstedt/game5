@@ -154,7 +154,15 @@ export type DebugSnapshot = {
   fps: number | null;
   frameMs: number;
   /** The renderer's own bill for the last frame, and the engine's steps. */
-  cost: (FrameCost & { simMs: number }) | null;
+  cost:
+    | (FrameCost & {
+        simMs: number;
+        /** The back end that drew it, the passes it skipped, the meshes it hid. */
+        backend: string;
+        skipped: number;
+        hidden: number;
+      })
+    | null;
   physics: PhysicsRead | null;
   /** The engine's last lines of output (`output-bridge.ts`). */
   log: string[] | null;

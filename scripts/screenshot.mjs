@@ -80,7 +80,9 @@
 //                    snow cloud it raises, the skier at it.
 //   window.__SH_READY__ === true
 //     set by the app once a race's frame has been drawn. This tool waits for
-//     it (30 s, then a clear error).
+//     it (`--timeout`, then a clear error) — and, `--renderer` (webgl,
+//     webgpu, webgpu-gl: `?renderer=`, `docs/webgpu.md`), for the back end
+//     asked for to be the one that drew (`scripts/lib/backend-flag.mjs`).
 //
 //   node scripts/screenshot.mjs                          # the race at 10 s
 //   node scripts/screenshot.mjs --scene grid             # on the lights
@@ -109,6 +111,8 @@ import { SUMMER_SURFACES } from "./lib/summer-shots.mjs";
 import { WINGSUIT_SURFACES } from "./lib/wingsuit-shots.mjs";
 import { DRESS, RIDER_SURFACES } from "./lib/rider-shots.mjs";
 import { holdThumbs } from "./lib/hold-thumbs.mjs";
+import { VIEWPORTS } from "./lib/shot-viewports.mjs";
+import { assertBackend, rendererArgs, rendererFlag, renderersOf } from "./lib/backend-flag.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "pwa", "dist");
@@ -585,32 +589,6 @@ const SURFACES = {
   },
 };
 
-/** The reference viewports — and the phone is a TOUCHSCREEN, not a narrow
- * desktop window: the HUD's thumb zones and the splash's TAP ask the device
- * what it is. */
-const VIEWPORTS = {
-  desktop: { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 },
-  phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true },
-  landscape: { viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true },
-  // THE PHONE THE GAME IS HELD AT, as it really is: a current notched phone
-  // on its side, its insets emulated (the notch's 59 px on both long edges,
-  // the home bar's 21 under) — so every `env(safe-area-inset-*)` the cards
-  // pad by is paid for in the picture. Full-screen (the store app, an
-  // installed PWA), and under the browser's own bar along the top.
-  iphone: {
-    viewport: { width: 852, height: 393 },
-    deviceScaleFactor: 3,
-    hasTouch: true,
-    insets: { top: 0, left: 59, right: 59, bottom: 21 },
-  },
-  "iphone-browser": {
-    viewport: { width: 852, height: 340 },
-    deviceScaleFactor: 3,
-    hasTouch: true,
-    insets: { top: 0, left: 59, right: 59, bottom: 21 },
-  },
-};
-
 const args = parseArgs(
   process.argv.slice(2),
   {
@@ -698,9 +676,10 @@ const args = parseArgs(
       help: `${Object.keys(VIEWPORTS).join(", ")} or all`,
     },
     timeout: { kind: "number", default: 45, help: "seconds to wait for the frame" },
+    renderer: rendererFlag(),
   },
   "usage: node scripts/screenshot.mjs [--scene name | --surface name] [--seed n] [--t s] [--pose x,z,h,v] [--hold kmh,… --move m --hold-for s] " +
-    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--skijump] [--slopestyle] [--halfpipe] [--moguls] [--aerials] [--plan code] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s]",
+    "[--camera rung] [--video tier] [--weather kind] [--hour h] [--region id] [--grade id] [--update] [--tricks] [--downhill] [--superg] [--gs] [--skicross] [--speedski] [--skijump] [--slopestyle] [--halfpipe] [--moguls] [--aerials] [--plan code] [--skis id] [--run2] [--no-poles] [--viewport v] [--timeout s] [--renderer b]",
 );
 const viewports =
   args.viewport === "all" ? Object.keys(VIEWPORTS) : String(args.viewport).split(",");
@@ -721,10 +700,15 @@ mkdirSync(outDir, { recursive: true });
 const site = await serveDir(dist);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  args: [
+    "--use-gl=angle",
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 console.log(
-  `screenshots — seed ${args.seed}, ${viewports.join("+")}, serving ${dist} at ${site.url}`,
+  `screenshots — seed ${args.seed}, ${viewports.join("+")}, ${args.renderer}, serving ${dist} at ${site.url}`,
 );
 
 let failures = 0;
@@ -754,8 +738,10 @@ async function capture(name, params, viewportName, surface) {
       for (const [k, v] of Object.entries(items)) globalThis.localStorage.setItem(k, v);
     }, surface.storage);
   }
-  const url = `${site.url}?${new URLSearchParams(params)}`;
-  const file = join(outDir, `shot-${name}-${viewportName}.png`);
+  const asked = { ...params, ...(args.renderer !== "webgl" ? { renderer: args.renderer } : {}) };
+  const url = `${site.url}?${new URLSearchParams(asked)}`;
+  const tag = args.renderer !== "webgl" ? `-${args.renderer}` : "";
+  const file = join(outDir, `shot-${name}${tag}-${viewportName}.png`);
   try {
     if (surface?.prime) {
       // A surface that needs something done in the game first: a race stood
@@ -832,8 +818,9 @@ async function capture(name, params, viewportName, surface) {
     }
     // The same patience as the waits: a card over a software-rendered race at
     // twice the pixels can take longer than the default to hand a frame over.
+    if (!surface) await assertBackend(page, args.renderer, args.timeout * 1000);
     await page.screenshot({ path: file, timeout: args.timeout * 1000 });
-    console.log(`previews/shot-${name}-${viewportName}.png  ← ${url}`);
+    console.log(`previews/shot-${name}${tag}-${viewportName}.png  ← ${url}`);
     // A CARD THAT OUTGREW THE VIEWPORT PHOTOGRAPHS PERFECTLY — its last
     // press just sits below the fold — so the overrun is measured and said.
     // A card scrolling WHOLE is a fault (its head goes with it); a page's

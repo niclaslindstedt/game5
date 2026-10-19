@@ -21,6 +21,7 @@
 
 import * as THREE from "three";
 
+import { glslOnly } from "./gpu-backend.ts";
 import { arm, disarm, hookMultiDraw } from "./multi-draw.ts";
 
 /** The two lists the batch draws: the picture's and the shadow map's. */
@@ -289,6 +290,9 @@ export function createTreeBatch(
   mesh.customDepthMaterial = depth;
   mesh.frustumCulled = false;
   mesh.perObjectFrustumCulled = false;
+  // Drawn through WebGL's own multi-draw (`multi-draw.ts`): hidden on the
+  // webgpu paths until the woods are ported (`gpu-quarantine.ts`).
+  glslOnly(mesh, "forest-batch");
   mesh.sortObjects = false;
   drawn._multiDrawCount = 0;
   // For the instruments: what a frame submits (`scene-tally.ts`), and the

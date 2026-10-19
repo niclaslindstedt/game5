@@ -249,6 +249,10 @@ export type Machine = {
   clockMs: number;
   /** What the driver calls itself, or "" where the browser withholds it. */
   gpu: string;
+  /** THE BACK END that drew the run and what it drew without
+   * (`gpu-backend.ts`'s `backendLines`); none from a build before there was
+   * a choice. */
+  renderer: string[];
 };
 
 /** How much of a driver name is kept, characters: the part that names the
@@ -256,7 +260,7 @@ export type Machine = {
 export const GPU_NAME_CAP = 128;
 
 export function noMachine(): Machine {
-  return { cores: 0, clockMs: 0, gpu: "" };
+  return { cores: 0, clockMs: 0, gpu: "", renderer: [] };
 }
 
 /** One subsystem's share of the scene. */
@@ -490,6 +494,7 @@ export function benchmarkReport(run: BenchmarkRun): string {
     machine.gpu,
   ].filter((bit) => bit !== "");
   if (bits.length > 0) out.push(`MACHINE ${bits.join(" · ")}`);
+  out.push(...machine.renderer);
   out.push("");
   out.push(`PICTURE ${run.picture.map((r) => `${r.label} ${r.value}`).join(" · ")}`);
   out.push(`PINNED  ${run.plan.map((r) => `${r.label} ${r.value}`).join(" · ")}`);

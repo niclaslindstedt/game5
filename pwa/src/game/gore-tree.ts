@@ -16,6 +16,7 @@
 import * as THREE from "three";
 import { regionOf, type GameState, type Level, type TreeDef } from "@engine";
 
+import { glslOnly } from "./gpu-backend.ts";
 import { regionLookOf } from "./region-look.ts";
 import { summerShown } from "./season-look.ts";
 import { graftGirth } from "./tree-mesh.ts";
@@ -115,6 +116,7 @@ export function createBloodTrees(
       }),
       "gore-tree",
     );
+    glslOnly(material, "gore-tree"); // thickened and blooded below (`gpu-quarantine.ts`)
     const haze = material.onBeforeCompile.bind(material);
     material.customProgramCacheKey = (): string => "haze:gore-tree";
     material.onBeforeCompile = (shader, renderer) => {

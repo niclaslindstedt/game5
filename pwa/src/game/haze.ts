@@ -890,6 +890,10 @@ export function hazeMaterial<M extends THREE.Material>(
 ): M {
   const key = extra ? `haze:${name}` : "haze";
   material.customProgramCacheKey = (): string => key;
+  // A graft of its own reshapes or repaints: hidden on the webgpu paths until
+  // ported (`gpu-quarantine.ts`), under its own family if it names one. The
+  // mist's wall only discards, and is not.
+  if (extra && extra !== PAST_THE_WALL) material.userData.glsl ??= "haze-graft";
   material.onBeforeCompile = (shader) => {
     bindHaze(shader, u);
     shader.vertexShader = shader.vertexShader

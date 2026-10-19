@@ -33,6 +33,7 @@ export function DebugOverlay({ snap }: { snap: DebugSnapshot }) {
           <div>
             {cost.programs} programs · {cost.geometries} geometries · {cost.textures} textures
           </div>
+          <div>{STRINGS.devBackendLine(cost.backend, cost.skipped, cost.hidden)}</div>
         </div>
       )}
       {physics && (

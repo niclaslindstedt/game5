@@ -496,6 +496,19 @@ const SURFACES = {
     wait: ".hud-buzz",
     settle: 1500,
   },
+  // THE WANTED LEVEL (`wanted.ts`, `?wanted=N`): three stars solid while
+  // the army still has him fixed, and five flashing once they only search
+  // where he was last seen — the survival timer beside them both.
+  wanted: {
+    params: { start: "free", wanted: "3", t: "5", shot: "1" },
+    wait: ".hud-wanted",
+    settle: 1500,
+  },
+  "wanted-search": {
+    params: { start: "free", wanted: "5", t: "16", shot: "1" },
+    wait: ".hud-wanted",
+    settle: 1500,
+  },
   // THE FREE RIDE'S PARAMOTOR (`para.ts`, `?para=1`): on the summit with
   // the wing held overhead, skiing off under it as it flies, and in the air
   // on the pre-roll's hands (`paraPilot`), the engine run up.

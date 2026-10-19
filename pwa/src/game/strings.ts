@@ -41,6 +41,7 @@ import { GROOMER_STRINGS } from "./strings-groomer.ts";
 import { TRAFFIC_STRINGS } from "./strings-traffic.ts";
 import { WILD_STRINGS } from "./strings-wild.ts";
 import { FIRE_STRINGS } from "./strings-fire.ts";
+import { WANTED_STRINGS } from "./strings-wanted.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
 import { FREESTYLE_STRINGS } from "./strings-freestyle.ts";
 import { SKI_JUMP_STRINGS } from "./strings-skijump.ts";
@@ -155,6 +156,7 @@ export const STRINGS = {
   ...GROOMER_STRINGS,
   ...TRAFFIC_STRINGS,
   ...WILD_STRINGS,
+  ...WANTED_STRINGS,
   ...FIRE_STRINGS,
   ...FREESTYLE_STRINGS,
   ...SKI_JUMP_STRINGS,

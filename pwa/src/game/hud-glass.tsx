@@ -9,6 +9,15 @@ import type { BodyPart, DeathCause, InjuryKind } from "@engine";
 import type { AgainAt } from "./free-ride.ts";
 import type { Wreck } from "./hud-wreck.ts";
 import { STRINGS } from "./strings.ts";
+import { loadSurvival } from "./survival-book.ts";
+import type { WantedTile } from "./wanted-tile.ts";
+
+/** The hunt's line on an ended run's card: how long he lasted against the
+ * best (`survival-book.ts`) — none on a run the army never hunted. */
+function survivedLine(tile: WantedTile | null | undefined): string | undefined {
+  if (!tile) return undefined;
+  return STRINGS.survivedLine(tile.survived, Math.max(loadSurvival().best, tile.survived));
+}
 
 /** THE DEATH CARD: the picture going dark, the word over it, what killed
  * him under it, and where the new rider starts (`againAt`). */
@@ -17,12 +26,15 @@ export function DeathCard({
   cause,
   again,
   offer,
+  survived,
 }: {
   wreck: Wreck;
   cause: DeathCause;
   again: AgainAt;
   /** The crash's replay, offered in small print under the words. */
   offer?: ComponentChildren;
+  /** The army's hunt he died in (`wanted-tile.ts`), if any. */
+  survived?: WantedTile | null;
 }): JSX.Element {
   return (
     <WreckCard
@@ -31,6 +43,29 @@ export function DeathCard({
       line={STRINGS.diedOf[cause]}
       again={STRINGS.diedAgain[again]}
       offer={offer}
+      hunt={survivedLine(survived)}
+    />
+  );
+}
+
+/** THE ARREST CARD (`wanted.ts`, SAFE FOR WORK): the army took him in —
+ * the picture going dark, the word, how long he lasted, a new rider. */
+export function ArrestedCard({
+  wreck,
+  again,
+  survived,
+}: {
+  wreck: Wreck;
+  again: AgainAt;
+  survived: WantedTile | null;
+}): JSX.Element {
+  return (
+    <WreckCard
+      wreck={wreck}
+      word={STRINGS.arrestedWord}
+      line={STRINGS.arrestedLine}
+      again={STRINGS.diedAgain[again]}
+      hunt={survivedLine(survived)}
     />
   );
 }
@@ -63,12 +98,15 @@ function WreckCard({
   line,
   again,
   offer,
+  hunt,
 }: {
   wreck: Wreck;
   word: string;
   line: string;
   again: string;
   offer?: ComponentChildren;
+  /** The hunt's line, survived against the best — or none. */
+  hunt?: string;
 }): JSX.Element {
   return (
     <div
@@ -80,6 +118,7 @@ function WreckCard({
       <div class="hud-death-words" style={{ opacity: String(wreck.word) }}>
         <span class="hud-death-word">{word}</span>
         <span class="hud-death-cause">{line}</span>
+        {hunt && <span class="hud-death-hunt">{hunt}</span>}
         <span class="hud-death-again">{again}</span>
         {offer}
       </div>

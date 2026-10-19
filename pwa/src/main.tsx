@@ -9,6 +9,7 @@ import "./maps.css";
 import "./dev.css";
 import "./body.css";
 import "./wreck.css";
+import "./wanted.css";
 import "./heli.css";
 import "./sled.css";
 import "./bike.css";

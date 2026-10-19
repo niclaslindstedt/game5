@@ -123,6 +123,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   skiJump: { kind: "skiJump", t: 40, stage: "touch", speed: 29, distance: 126 },
   net: { kind: "net", t: 40, speed: 8, x: 0, z: 0 },
   grimbear: { kind: "grimbear", t: 40, phase: "burst", x: 0, z: 0 },
+  wanted: { kind: "wanted", t: 40, change: "raised", stars: 2, cause: "stole-ambulance" },
   avalanche: {
     kind: "avalanche",
     t: 40,
@@ -251,7 +252,8 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
  * get up has nothing more to say than the fall that did it; a ski jump's
  * moments are heard in the events beside them (the take-off's `air`, the
  * touch's `land`); a machine taken from its owners is heard in its own
- * boarding (the `heli` event's `board` beside it). */
+ * boarding (the `heli` event's `board` beside it); and the wanted level's
+ * stars are read, not heard — the army is heard by its own machines and guns. */
 const SILENT_KINDS: GameEvent["kind"][] = [
   "air",
   "stuck",
@@ -264,6 +266,7 @@ const SILENT_KINDS: GameEvent["kind"][] = [
   "struck",
   "skiJump",
   "steal",
+  "wanted",
 ];
 
 /** The ceiling a context at 16 kHz holds a cutoff under. */

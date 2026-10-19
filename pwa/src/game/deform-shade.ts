@@ -8,10 +8,14 @@
 //
 // Presentation only: it reads the field, the trail map, the ground's slope
 // and the sun, and writes nothing back.
+//
+// On the node renderer (the webgpu paths, `docs/webgpu.md` part 5) the pass
+// is drawn by its node twin (`trail-map-tsl.ts`) into three's own target.
 
 import * as THREE from "three";
 
 import { DEFORM_MARCH_GLSL } from "./deform-glsl.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 import { TRAIL_GLSL, type TrailUniforms } from "./trail-map.ts";
 
 /** The ground's gradient map and its frame (`terrain.ts`'s): the march
@@ -24,6 +28,8 @@ export type GroundFrame = Record<
 export type DeformShade = {
   /** The field with its shade in alpha: what the ground reads. */
   readonly texture: THREE.Texture;
+  /** The pass, with its node twin (`nodeTwin`). */
+  readonly material: THREE.ShaderMaterial;
   /** March every cell of the field as it now stands. */
   draw(gl: THREE.WebGLRenderer): void;
   dispose(): void;
@@ -62,8 +68,9 @@ export function createDeformShade(
   trail: TrailUniforms,
   ground: GroundFrame,
   sun: { value: THREE.Vector3 },
+  node = false,
 ): DeformShade {
-  const target = new THREE.WebGLRenderTarget(size, size, {
+  const options: THREE.RenderTargetOptions = {
     type: THREE.HalfFloatType,
     format: THREE.RGBAFormat,
     minFilter: THREE.LinearFilter,
@@ -73,7 +80,11 @@ export function createDeformShade(
     depthBuffer: false,
     stencilBuffer: false,
     generateMipmaps: false,
-  });
+  };
+  // Three's own target on the node renderer, typed as the one it is drawn by.
+  const target = node
+    ? (new THREE.RenderTarget(size, size, options) as THREE.WebGLRenderTarget)
+    : new THREE.WebGLRenderTarget(size, size, options);
   target.texture.colorSpace = THREE.NoColorSpace;
   // The trail map's own uniforms, live, but the field read as uploaded.
   const material = new THREE.ShaderMaterial({
@@ -84,13 +95,17 @@ export function createDeformShade(
     depthWrite: false,
     blending: THREE.NoBlending,
   });
+  nodeTwin(material, "deform", "deform-shade");
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
   mesh.frustumCulled = false;
   const scene = new THREE.Scene();
   scene.add(mesh);
-  const camera = new THREE.Camera();
+  // The node renderer updates the lens it draws through: one with a
+  // projection. WebGL's draw reads none.
+  const camera = node ? new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1) : new THREE.Camera();
   return {
     texture: target.texture,
+    material,
     draw(gl) {
       const was = gl.getRenderTarget();
       gl.setRenderTarget(target);

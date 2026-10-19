@@ -69,9 +69,9 @@ export const GPU_PORTS: readonly GpuPort[] = [
     kind: "pass",
     part: 5,
     what: "the trail maps' stamps and fill",
-    ported: false,
+    ported: true,
   },
-  { id: "deform", kind: "pass", part: 5, what: "the deformable snow's field", ported: false },
+  { id: "deform", kind: "pass", part: 5, what: "the deformable snow's field", ported: true },
   {
     id: "hero-shadow",
     kind: "pass",

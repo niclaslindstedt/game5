@@ -53,9 +53,17 @@
 // its comb, as a machine ridden over the corduroy does, and a groomer over a
 // belt's track wipes it whole. `uBelted` is 1 once a belt has been laid.
 // Nothing new is kept: the same four bytes a texel.
+//
+// ON THE NODE RENDERER (the webgpu paths, `docs/webgpu.md` part 5) the
+// passes are the same ShaderMaterials over the same uniforms, flagged with
+// their node twins (`nodeTwin`, drawn by `trail-map-tsl.ts`), and the maps
+// are three's own `RenderTarget`s. The twins lay a map out as WebGL does —
+// a world point's texel is the one a read at its uv finds — so the ground
+// reads one layout on every back end.
 
 import * as THREE from "three";
 
+import { nodeTwin } from "./gpu-backend.ts";
 import { FRESH_LOOK, recentre, TRAIL, type Stamp } from "./trail-stamp.ts";
 import { skiClearUniforms, type SkiClearUniforms } from "./ski-clear.ts";
 
@@ -201,6 +209,9 @@ float trailRelief(vec2 p) {
 
 export type TrailMap = {
   uniforms: TrailUniforms;
+  /** The maps' own passes: the furrow's stamp, the swath's, the window's
+   * copy and the new snow's fill — each with its node twin (`nodeTwin`). */
+  readonly passes: readonly THREE.ShaderMaterial[];
   /** Draw these stamps; follow the player at (px, pz). */
   update(renderer: THREE.WebGLRenderer, stamps: readonly Stamp[], px: number, pz: number): void;
   /** Let `metres` of new snow settle into every trail: troughs shallower,
@@ -218,10 +229,15 @@ export type TrailMap = {
 
 /** The deformable snow's stand-in while there is none. */
 const NO_DEFORM = new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat);
+// Wrapped as the field is, so the node renderer's sampler fits both.
+NO_DEFORM.wrapS = THREE.RepeatWrapping;
+NO_DEFORM.wrapT = THREE.RepeatWrapping;
 NO_DEFORM.needsUpdate = true;
 
-function target(size: number): THREE.WebGLRenderTarget {
-  return new THREE.WebGLRenderTarget(size, size, {
+/** A map: three's own target on the node renderer (`node`), typed as the
+ * one the passes are drawn with. */
+function target(size: number, node: boolean): THREE.WebGLRenderTarget {
+  const options: THREE.RenderTargetOptions = {
     type: THREE.UnsignedByteType,
     format: THREE.RGBAFormat,
     minFilter: THREE.LinearFilter,
@@ -231,7 +247,10 @@ function target(size: number): THREE.WebGLRenderTarget {
     depthBuffer: false,
     stencilBuffer: false,
     generateMipmaps: false,
-  });
+  };
+  return node
+    ? (new THREE.RenderTarget(size, size, options) as THREE.WebGLRenderTarget)
+    : new THREE.WebGLRenderTarget(size, size, options);
 }
 
 const STAMP_VERTEX = /* glsl */ `
@@ -353,10 +372,11 @@ void main() {
 }
 `;
 
-export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap {
-  const coarse = target(options.coarseSize);
-  let fine = target(options.fineSize);
-  let spare = target(options.fineSize);
+/** `node`: the maps are drawn by three's node renderer (`render-seam.ts`). */
+export function createTrailMap(mapSize: number, options: TrailOptions, node = false): TrailMap {
+  const coarse = target(options.coarseSize, node);
+  let fine = target(options.fineSize, node);
+  let spare = target(options.fineSize, node);
   const span = options.fineSpan;
   const fineTexel = span / options.fineSize;
   const coarseTexel = mapSize / options.coarseSize;
@@ -415,6 +435,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     depthTest: false,
     depthWrite: false,
   });
+  nodeTwin(stampMaterial, "trail-map", "trail-stamp");
   // THE SWATH PASS: the same quads, written whole.
   const groomMaterial = new THREE.ShaderMaterial({
     uniforms: stampMaterial.uniforms,
@@ -424,6 +445,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     depthTest: false,
     depthWrite: false,
   });
+  nodeTwin(groomMaterial, "trail-map", "trail-groom");
   const stampMesh = new THREE.Mesh(quad, stampMaterial);
   stampMesh.frustumCulled = false;
   const stampScene = new THREE.Scene();
@@ -449,6 +471,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     depthTest: false,
     depthWrite: false,
   });
+  nodeTwin(copyMaterial, "trail-map", "trail-copy");
   const copyMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copyMaterial);
   copyMesh.frustumCulled = false;
   const copyScene = new THREE.Scene();
@@ -474,6 +497,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
     depthTest: false,
     depthWrite: false,
   });
+  nodeTwin(fillMaterial, "trail-map", "trail-fill");
   const fillMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fillMaterial);
   fillMesh.frustumCulled = false;
   const fillScene = new THREE.Scene();
@@ -579,6 +603,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions): TrailMap
 
   return {
     uniforms,
+    passes: [stampMaterial, groomMaterial, copyMaterial, fillMaterial],
     update(renderer, stamps, px, pz) {
       follow(renderer, px, pz);
       const o = uniforms.uFineOrigin.value;

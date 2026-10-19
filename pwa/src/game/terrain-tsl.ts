@@ -12,7 +12,8 @@
 //   mountains past the map's edge (`rimRise`), the loose cover over the
 //   powder, kept under the skiers' bases (`skiClear`) and sunk under the
 //   finer level (`uHole`). The deformable snow's own mesh folds where no
-//   tool has touched it, as on WebGL.
+//   tool has touched it, and where its cells are finer than the eye
+//   needs, as on WebGL.
 //   THE FRAGMENT: what the snow is (`snow-sample-tsl.ts`), its colour and
 //   roughness, its normal off the ground map's slope (never the mesh's),
 //   lit by its own model (`snow-light-tsl.ts`) and hazed as `HAZE_FRAGMENT`
@@ -22,10 +23,11 @@
 //   THE ROOMS: the cutting twin throws away the snow inside a room built or
 //   a pit dug (`room-cuts.ts`), as its mask.
 //
-// STAND-INS until part 5: the trail map's relief in the vertex and the
-// furrows per pixel, the tree wells, the avalanche, the deformable snow's
-// field (`deformTouched`: untouched, so its mesh folds) — each named where
-// it stands.
+// THE MARKS (part 5): the trail map's relief lowers the vertex (a tent over
+// the fine map close in, the coarse map further out, the deformable snow's
+// field on its own mesh), the tree wells sink it and the avalanche's bed
+// and debris move it; the furrows, the grooves, the other skiers' lines,
+// the wells and the slide are shaded per pixel (`snow-sample-tsl.ts`).
 
 import * as THREE from "three";
 import * as TSL from "three/tsl";
@@ -46,6 +48,7 @@ import {
   type SnowState,
 } from "./snow-sample-tsl.ts";
 import { summerColour, summerSample, summerSlots } from "./summer-tsl.ts";
+import { DEFORM_FINE_PX } from "./snow-vertex-glsl.ts";
 import { LOOSE } from "./trail-stamp.ts";
 
 const {
@@ -55,6 +58,7 @@ const {
   Loop,
   abs,
   all,
+  cameraPosition,
   cameraViewMatrix,
   clamp,
   diffuseColor,
@@ -63,6 +67,7 @@ const {
   float,
   greaterThanEqual,
   ivec2,
+  length,
   lessThanEqual,
   max,
   min,
@@ -70,6 +75,7 @@ const {
   mod,
   normalize,
   positionGeometry,
+  smoothstep,
   varyingProperty,
   vec2,
   vec3,
@@ -83,6 +89,20 @@ const NO_RIM = (() => {
   t.needsUpdate = true;
   return t;
 })();
+
+/** `deformTouched`: whether a tool has touched the deformable snow over a
+ * block of its cells — `n` × `n` taps from `from` cells past `p`, `step`
+ * cells apart; 1 when any has. */
+function deformTouched(s: GroundSlots, p: N, from: number, step: number, n: number): N {
+  let most: N = float(0);
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      const at = p.add(vec2(i * step + from, j * step + from).mul(s.spacing));
+      most = max(most, s.vertex.trail.deformAt(at).y);
+    }
+  }
+  return clamp(most.mul(4), 0, 1);
+}
 
 /** `heightTexel` / `groundHeight`: the generator's ground at plan `p`,
  * bilinear between four exact fetches, and the rim's rise past the edge. */
@@ -201,22 +221,94 @@ class GroundMaterial extends MeshStandardNodeMaterial {
       const morph = clamp(edge.sub(0.72).div(0.2), 0, 1).mul(float(1).sub(s.deformMesh));
       const xz = s.levelCentre.add(local).sub(mod(grid, 2).mul(s.spacing).mul(morph)).toVar();
       const cellV = s.spacing.toVar();
-      // THE DEFORMABLE SNOW'S MESH: part 5's field is not read yet, so no
-      // tool has touched it and every cell folds four wide.
+      // THE DEFORMABLE SNOW'S MESH THINNED WHERE IT HAS NOTHING TO SHOW
+      // (`SNOW_VERTEX_PLACE`): folded four wide where no tool has touched
+      // it, and where one has, kept until a cell is under
+      // `DEFORM_FINE_PX` pixels.
       If(s.deformMesh.greaterThan(0.5).and(s.focalPx.greaterThan(0)), () => {
-        const e = grid.sub(mod(grid, 2));
-        xz.subAssign(mod(grid, 2).add(mod(e, 4)).mul(s.spacing));
-        cellV.assign(s.spacing.mul(4));
+        const e = grid.sub(mod(grid, 2)).toVar();
+        const q = e.sub(mod(e, 4));
+        const xzE = s.levelCentre.add(e.sub(s.gridHalf).mul(s.spacing)).toVar();
+        const xzQ = s.levelCentre.add(q.sub(s.gridHalf).mul(s.spacing)).toVar();
+        const pxAt = (at: N): N =>
+          s.spacing
+            .mul(s.focalPx)
+            .div(
+              max(
+                length(
+                  vec3(at.x, groundHeight(s, rimSlot.tex, rimBox, at), at.y).sub(cameraPosition),
+                ),
+                0.01,
+              ),
+            );
+        const fine = DEFORM_FINE_PX;
+        const fold1 = max(
+          float(1).sub(deformTouched(s, xzE, 0.5, 1, 2)),
+          clamp(
+            float(fine)
+              .sub(pxAt(xzE))
+              .div(fine / 2),
+            0,
+            1,
+          ),
+        ).toVar();
+        const fold2 = max(
+          float(1).sub(deformTouched(s, xzQ, 0.5, 1.5, 3)),
+          clamp(
+            float(fine / 2)
+              .sub(pxAt(xzQ))
+              .div(fine / 4),
+            0,
+            1,
+          ),
+        ).toVar();
+        xz.subAssign(mod(grid, 2).mul(fold1).add(mod(e, 4).mul(fold2)).mul(s.spacing));
+        cellV.assign(s.spacing.mul(fold1.add(1).add(fold2.mul(2))));
       });
-      // PART 5: the trail map's relief (`uTrailCoarse`, `trailRelief`), the
-      // tree wells (`wellDepth`) and the avalanche (`slideAt`): nought.
+      // THE FURROW, low-passed to what the mesh can carry here: a tent over
+      // the fine map close in, the coarse map further out — a function of
+      // the distance, so two levels meeting at a vertex agree.
+      const trail = s.vertex.trail;
+      const snowR = max(s.baseSpacing, length(xz.sub(cameraPosition.xz)).div(s.reliefHalf)).toVar();
+      const ct = tap(trail.coarse.tex, xz.div(trail.mapSize)).level(0).rg.mul(trail.scale).toVar();
+      const relief = ct.x
+        .negate()
+        .add(ct.y.mul(float(1).sub(clamp(ct.x.div(0.03), 0, 1))))
+        .toVar();
+      const nearW = float(1)
+        .sub(smoothstep(0.35, 0.7, snowR))
+        .toVar();
+      If(nearW.greaterThan(0), () => {
+        const fineRelief = float(0).toVar();
+        for (let i = -1; i <= 1; i++) {
+          for (let j = -1; j <= 1; j++) {
+            const w = (i === 0 ? 0.5 : 0.25) * (j === 0 ? 0.5 : 0.25);
+            fineRelief.addAssign(trail.relief(xz.add(vec2(i, j).mul(snowR))).mul(w));
+          }
+        }
+        relief.assign(mix(relief, fineRelief, nearW));
+      });
+      // ON THE DEFORMABLE SNOW'S MESH: the field itself, a vertex a cell.
+      If(s.deformMesh.greaterThan(0.5), () => {
+        const dwv = trail.deformWeight(xz).toVar();
+        If(dwv.greaterThan(0), () => {
+          relief.assign(mix(relief, trail.relief(xz), dwv));
+        });
+      });
       const g = tap(s.ground, xz.sub(s.origin).add(s.cell.mul(0.5)).div(s.count.mul(s.cell)))
         .level(0)
         .toVar();
       const packedV = max(g.b, 0);
+      // THE TREE WELLS (`tree-wells.ts`) and THE AVALANCHE
+      // (`avalanche-glsl.ts`): its bed below, its debris above.
       const y = groundHeight(s, rimSlot.tex, rimBox, xz)
+        .add(relief)
         .add(float(LOOSE).mul(float(1).sub(packedV)))
+        .sub(s.vertex.well(xz))
+        .add(s.vertex.slide.at(xz))
         .add(rimSlot.keep)
+        .add(trail.keep())
+        .add(s.vertex.slide.keep)
         .toVar();
       y.assign(skiClear(s.spec.trail, xz, y, cellV));
       If(s.hole.w.greaterThan(0.5), () => {

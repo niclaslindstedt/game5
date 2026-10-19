@@ -186,7 +186,9 @@ export function createDeformSnow(look: DeformTier, uniforms: TrailUniforms): Def
     },
     bind(gl, ground, sun) {
       shade?.dispose();
-      shade = createDeformShade(size, texture, uniforms, ground, sun);
+      // `gl` is three's node renderer typed as WebGL's on the webgpu paths.
+      const node = (gl as { isWebGLRenderer?: boolean }).isWebGLRenderer !== true;
+      shade = createDeformShade(size, texture, uniforms, ground, sun, node);
       drawn = gl;
       uniforms.uDeform.value = shade.texture;
       shade.draw(gl);

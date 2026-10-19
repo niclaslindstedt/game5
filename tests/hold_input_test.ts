@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { createGame, placeRun, step } from "@engine";
+import { createGame, flipLean, placeRun, step } from "@engine";
 
 import { heldRide, holdInput, rideHold } from "../pwa/src/game/hold-input.ts";
 import { flatLevel } from "./support/synthetic.ts";
@@ -49,6 +49,21 @@ describe("a held ride", () => {
     expect(state.skier.speed * 3.6).toBeGreaterThan(30);
     // The synthetic strip falls toward +z: heading 0.
     expect(Math.abs(state.skier.heading)).toBeLessThan(0.2);
+  });
+
+  it("flips the way he is stood: no lean on the snow, the engine's loop in the air", () => {
+    const state = slope();
+    // Stood across the fall line, as a pose square to a kicker stands him:
+    // the flip keeps that heading where every other move turns downhill.
+    placeRun(state, { x: 2000, z: 600, heading: 1.2, speed: 1 });
+    rideHold(state, { kmh: 30, move: "flip", seconds: 0.5 }, () => {});
+    expect(Math.abs(state.skier.heading - 1.2)).toBeLessThan(0.15);
+    // On the snow a held lean is marked as made and throws nothing.
+    expect(holdInput(state, 30, 1.2, "flip", 0.5).lean).toBe(0);
+    placeRun(state, { x: 2000, z: 600, heading: 0, speed: 18, height: 1.2, vy: 8.5 });
+    step(state, holdInput(state, 65, 0, "flip", 0));
+    expect(state.skier.airborne).toBe(true);
+    expect(holdInput(state, 65, 0, "flip", 0.3).lean).toBe(flipLean(state, 1, 1));
   });
 
   it("rides a link's hold once, on the first frame, and nothing without one", () => {

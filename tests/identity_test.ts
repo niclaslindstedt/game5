@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// ONE IDENTITY MANIFEST (OSS_GAME_SPEC §35.6): the name, the URLs and the
+// ONE IDENTITY MANIFEST: the name, the URLs and the
 // colours live in `pwa/src/identity.ts`, and every surface that cannot
 // import it — the static HTML head, the SEO files under `pwa/public/`, the
 // icon generator, the package manifests, the README's play link — restates
@@ -17,7 +17,8 @@
 // AND THE SITE IS NOT INDEXED. The web deploy carries no crawlable
 // description of itself — no meta description, no canonical, no Open Graph
 // or Twitter card, no JSON-LD, no prerendered body copy, no sitemap and no
-// `llms.txt` — and says so in `robots.txt` and in every page's `noindex`.
+// `llms.txt` — and says so in every page's `noindex`, which `robots.txt`
+// lets a crawler in to read.
 // That is a decision, not an omission, so it is held here: a discovery tag
 // or a crawler file added back fails these tests rather than shipping
 // quietly.
@@ -140,11 +141,13 @@ describe("the discovery files (pwa/public)", () => {
     expect(read("pwa/public/CNAME").trim()).toBe(new URL(SITE_URL).host);
   });
 
-  it("robots.txt disallows everything and advertises no sitemap", () => {
+  it("robots.txt lets a crawler in to read the noindex, and advertises no sitemap", () => {
+    // A crawler barred at the door never fetches the page, so it never sees
+    // the `noindex` — and can still list a URL it already knows.
     const robots = read("pwa/public/robots.txt");
-    expect(robots).toMatch(/^Disallow: \/\s*$/m);
+    expect(robots).toMatch(/^Allow: \/\s*$/m);
+    expect(robots).not.toMatch(/^Disallow: \/\s*$/m);
     expect(robots).not.toContain("Sitemap:");
-    expect(robots).not.toMatch(/^Allow: \//m);
   });
 
   it("ships no crawler index of the site", () => {

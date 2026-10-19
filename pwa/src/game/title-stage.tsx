@@ -26,6 +26,7 @@ import plateUrl from "../title/title-plate.json?url";
 import type { TitlePlate } from "../title/plates.ts";
 import { backdropHeld } from "./backdrop-hold.ts";
 import type { TitleRenderer } from "./title-renderer.ts";
+import { appOutput } from "../output-bridge.ts";
 
 async function bitmapOf(url: string): Promise<ImageBitmap> {
   const blob = await (await fetch(url)).blob();
@@ -81,7 +82,7 @@ export function TitleStage({
     const observer = new ResizeObserver(fit);
     const fail = (e: unknown): void => {
       if (!alive) return;
-      console.warn(`title stage: ${e instanceof Error ? e.message : String(e)}`);
+      appOutput("warn", `title stage: ${e instanceof Error ? e.message : String(e)}`);
       setFailed(true);
       readyRef.current();
     };

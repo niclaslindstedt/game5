@@ -300,7 +300,7 @@ permanent.
   more than one country and sky; which map a run is on; the picks kept;
   the words. Every row rebuilt and held to its digest, course, grade, day,
   loop and figures, its course inside its rule's band, is
-  `tests/support/race-maps.ts`'s `holdRaceMaps(discipline)` — called once
+  `tests/support/race_maps_tests.ts`'s `holdRaceMaps(discipline)` — called once
   a discipline, a FILE a discipline (`race_maps_test.ts` the slalom's,
   `race_maps_downhill_test.ts` the downhill's), because nine builds are
   about fifty seconds and the suite keeps a file under a minute. A new

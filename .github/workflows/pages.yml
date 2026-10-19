@@ -159,9 +159,9 @@ jobs:
           # `ignorePaths`) so each channel's own worker serves its pages.
           VITE_PWA_IGNORE_PATHS: ${{ matrix.slot == 'root' && '/preview/,/branch/' || '' }}
           # THE MODELLED SKIS (committed in pwa/models/) are
-          # drawn unless a repository variable switches them back — `make
+          # drawn unless a repository secret switches them back — `make
           # ci-models MODELS=off`, no commit needed; unset is on.
-          VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
+          VITE_MODEL_SKIS: ${{ secrets.VITE_MODEL_SKIS }}
 
       - name: Upload the ${{ matrix.slot }} slot
         uses: actions/upload-artifact@v7

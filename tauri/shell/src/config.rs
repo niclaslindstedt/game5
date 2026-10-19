@@ -31,19 +31,20 @@ pub const APP_SCHEME: &str = "game";
 /// changing this word later orphans every save on the machine.
 pub const APP_HOST: &str = "localhost";
 
-/// The website this game is published at — `SITE_URL` in
+/// The game's page on the publisher's app site — `APPS_PAGE_URL` in
 /// `pwa/src/identity.ts`, which `tests/tauri_test.ts` holds it to.
 ///
 /// The window never goes there: it serves the copy bundled inside the app. It
 /// is here because the HELP menu has to send a stuck player somewhere, and
 /// every one of its rows opens in the player's own browser
-/// (`menu::Target::Link`).
-pub const SITE_URL: &str = "https://game5.niclaslindstedt.se";
+/// (`menu::Target::Link`). Not the web edition: a packaged build names neither
+/// the website nor the source, the same pages the store listing names.
+pub const APPS_PAGE_URL: &str = "https://apps.agilator.se/fall-line";
 
-/// One page of the website, as an absolute URL. `path` is rooted (`"/"`,
-/// `"/privacy/"`), so the domain is spelled once.
+/// One page under the app's page, as an absolute URL. `path` is rooted
+/// (`"/"`, `"/privacy/"`), so the address is spelled once.
 pub fn site_link(path: &str) -> String {
-    format!("{}{path}", SITE_URL.trim_end_matches('/'))
+    format!("{}{path}", APPS_PAGE_URL.trim_end_matches('/'))
 }
 
 /// THE MENU BAR SPEAKING TO THE PAGE — the event a menu row's word arrives on.

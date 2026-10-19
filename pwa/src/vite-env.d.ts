@@ -8,3 +8,7 @@ declare const __BUILD_LABEL__: string;
 /** Short commit sha of the build, or "dev" when git was unavailable —
  * the main menu's version stamp links to it on GitHub. */
 declare const __COMMIT_SHA__: string;
+/** The source repository (`REPO_URL` in identity.ts) on the website, and ""
+ * in a packaged build — which links nothing back to the source, so the build
+ * label and the version stamp print plain there. */
+declare const __SOURCE_URL__: string;

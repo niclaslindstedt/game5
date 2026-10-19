@@ -10,7 +10,7 @@
 // written as the map writes them — never a brand, a lift, a piste or a
 // race.
 //
-// game-spec:allow-large-file: a data table, one row a real face; it grows
+// guidelines:allow-large-file: a data table, one row a real face; it grows
 // with every face imported and holds no logic beyond the two transforms.
 
 /** The map's side, m. */

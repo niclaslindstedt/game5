@@ -11,6 +11,7 @@ import { defineConfig, loadEnv } from "vite";
 import { gameModels } from "./models-plugin.ts";
 import { modelSwitch } from "./src/game/model-switch.ts";
 import { appPwa } from "./pwa-plugin.ts";
+import { REPO_URL } from "./src/identity.ts";
 
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -24,6 +25,16 @@ const ignorePaths = (process.env.VITE_PWA_IGNORE_PATHS ?? "")
   .split(",")
   .map((p) => p.trim())
   .filter(Boolean);
+
+// Is this build going INSIDE a store shell — the phone app or the desktop app —
+// rather than onto the web? Both shells' `bundle-web.mjs` pass it. A packaged
+// build carries no link back to the source and no word of the website: the
+// build label prints plain (`__SOURCE_URL__` is empty, so the repository URL is
+// never in the bundle), and the website's own pages — its privacy and support
+// pages and its CNAME — are left out (`appPwa`'s `shellBuild`). The shells send
+// a player to the game's page on apps.agilator.se instead, and their bundle
+// scripts refuse a bundle that names the source or the site.
+const shellBuild = process.env.VITE_SHELL_BUILD === "on";
 
 // Build identity for the HUD's build label and the update toast.
 const commit =
@@ -66,14 +77,10 @@ export default defineConfig(({ mode }) => {
   return {
     base,
     envDir,
-    // The lazy renderer carries three.js and every procedural builder (the
-    // riders and the loom their outfits are cut on, the trees, the
-    // wildlife, the marks) in a 715 kB chunk by design. Keep Vite's
-    // warning just above that measured envelope. It is
-    // the ONLY thing watching bundle size: what keeps three.js off the
-    // first-render path is the dynamic import of `renderer.ts` in `App.tsx`
-    // and nothing else (spec-conformance §23.9).
-    build: { chunkSizeWarningLimit: 725 },
+    // No size budgets, by owner decision; this only keeps Vite's own warning
+    // quiet. What keeps three.js off the first-render path is the dynamic
+    // import of `renderer.ts` in `App.tsx`.
+    build: { chunkSizeWarningLimit: 100_000 },
     resolve: {
       alias: {
         "@engine": here("../engine/index.ts"),
@@ -83,6 +90,7 @@ export default defineConfig(({ mode }) => {
       __APP_VERSION__: JSON.stringify(appVersion),
       __BUILD_LABEL__: JSON.stringify(buildLabel),
       __COMMIT_SHA__: JSON.stringify(commit),
+      __SOURCE_URL__: JSON.stringify(shellBuild ? "" : REPO_URL),
     },
     // `appPwa` only applies on build, so dev keeps registering no worker (the
     // app passes `enabled: !import.meta.env.DEV` to `usePwaUpdate`).
@@ -97,7 +105,7 @@ export default defineConfig(({ mode }) => {
       preact(),
       tailwindcss(),
       gameModels(models, here("..")),
-      appPwa({ base, version, ignorePaths }),
+      appPwa({ base, version, ignorePaths, shellBuild }),
     ],
   };
 });

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-# Update every version string the project ships to match the given tag
-# (OSS_GAME_SPEC §10.3): the root package.json, every workspace package.json, the
+# Update every version string the project ships to match the given tag:
+# the root package.json, every workspace package.json, the
 # lockfile, and the engine's embedded version constant.
 set -euo pipefail
 

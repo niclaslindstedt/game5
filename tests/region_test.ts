@@ -265,7 +265,7 @@ describe("a region is a kind of country, never a place", () => {
         sources(path, out);
       } else if (
         /\.(ts|tsx|mjs|md)$/.test(name) &&
-        !/CHANGELOG|OSS_GAME_SPEC|LICENSE|region_test|identity_test|real-face-crops\.mjs|real-faces-index\.ts|strings-ranges\.ts/.test(
+        !/CHANGELOG|LICENSE|region_test|identity_test|real-face-crops\.mjs|real-faces-index\.ts|strings-ranges\.ts/.test(
           name,
         )
       ) {

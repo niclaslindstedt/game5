@@ -5,17 +5,21 @@
 // is what makes the app self-contained: the game runs entirely on-device,
 // offline, and updates only when a new build ships to the store.
 //
-// The website build is a plain `vite build` at base `/` (the default), which
-// is exactly what a localhost origin wants; only its output is zipped, and no
-// website source is changed for the app.
+// The website build is a `vite build` at base `/` (the default), which is
+// exactly what a localhost origin wants; only its output is zipped, and no
+// website source is changed for the app. It is built with VITE_SHELL_BUILD=on,
+// which leaves the service worker, every link back to the source and the
+// website out of it (pwa/vite.config.ts), and a dist/ that still carries any
+// of them is refused before it is zipped (scripts/lib/no-source.mjs) — so `--skip-build` over a plain
+// website build fails rather than shipping one.
 //
 // Usage:
 //   node scripts/bundle-web.mjs                # build the site, then zip dist/
 //   node scripts/bundle-web.mjs --skip-build   # re-zip an existing dist/
 //
 // The zip is a build artifact (gitignored). Generate it before `eas build`
-// (the native workflow and the `bundle` npm script do this for you); a
-// `.easignore` keeps it in the EAS upload despite the .gitignore entry.
+// (the native workflow and the `bundle` npm script do this for you); the
+// root `.easignore` keeps it in the EAS upload despite the .gitignore entry.
 
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -23,6 +27,8 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { zipSync } from "fflate";
+
+import { refuseSourceLinks } from "../../scripts/lib/no-source.mjs";
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_DIR = resolve(APP_DIR, "..");
@@ -46,7 +52,10 @@ if (!skipBuild) {
     shell: WINDOWS,
     // The shell serves the site at the origin root; a deploy-slot base left
     // in the environment would emit URLs the local server has nothing at.
-    env: { ...process.env, VITE_BASE: "/", VITE_PWA_IGNORE_PATHS: "" },
+    //
+    // VITE_SHELL_BUILD: this is the phone app, which links nothing back to the
+    // source and names none of the website.
+    env: { ...process.env, VITE_BASE: "/", VITE_PWA_IGNORE_PATHS: "", VITE_SHELL_BUILD: "on" },
   });
 }
 
@@ -80,6 +89,8 @@ const count = Object.keys(files).length;
 if (count === 0 || !files["index.html"]) {
   throw new Error(`dist/ has no index.html (${count} files) — the website build looks empty.`);
 }
+
+refuseSourceLinks(DIST_DIR);
 
 // Deterministic zip: pin every entry to the ZIP epoch (1980-01-01) so the
 // artifact is reproducible and doesn't drift by build time.

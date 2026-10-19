@@ -34,7 +34,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import { DISCIPLINES, SLALOM } from "@engine";
 
-import { REPO_URL } from "../identity.ts";
 import { Glyph } from "./menu-glyphs.tsx";
 import { NO_HOLD, holdWait, tickHold, type HoldState } from "./menu-hold.ts";
 import { DEV_HOLD_MS, racesOpen } from "./settings.ts";
@@ -44,12 +43,21 @@ import type { MenuPage } from "./url-params.ts";
 
 /** The build, bottom right, linking to the exact commit it was cut from. A
  * build with no commit behind it says so and links nowhere — a dead link is
- * worse than an honest label. */
+ * worse than an honest label. A packaged build names its commit but links
+ * nowhere either: it carries no link back to the source (`__SOURCE_URL__` is
+ * empty there). */
 function VersionStamp() {
   const label = `v${__APP_VERSION__}`;
   const sha = __COMMIT_SHA__;
   if (!sha || sha === "dev") {
     return <span class="menu-version menu-version-dev">{label} · dev</span>;
+  }
+  if (!__SOURCE_URL__) {
+    return (
+      <span class="menu-version">
+        {label} · {sha}
+      </span>
+    );
   }
   return (
     <a
@@ -58,7 +66,7 @@ function VersionStamp() {
       // step off a slab onto a link out of the game.
       data-nav-skip
       tabIndex={-1}
-      href={`${REPO_URL}/commit/${sha}`}
+      href={`${__SOURCE_URL__}/commit/${sha}`}
       target="_blank"
       rel="noreferrer noopener"
       title="Open this build's commit on GitHub"

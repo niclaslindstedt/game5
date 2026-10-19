@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// ONE SOURCE OF TRUTH FOR AGENT GUIDANCE (OSS_GAME_SPEC §7.1, §21.2): every
+// ONE SOURCE OF TRUTH FOR AGENT GUIDANCE: every
 // tool-specific guidance file is a SYMLINK onto AGENTS.md, and every
 // tool-specific skills directory a symlink onto .agents/skills. A checkout
 // on a platform without symlink support, or an editor that "helpfully"

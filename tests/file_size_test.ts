@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE 1000-LINE CAP (OSS_GAME_SPEC §20.5): no non-test source file may run
+// THE 1000-LINE CAP: no non-test source file may run
 // past a thousand physical lines — `wc -l`'s count, nothing cleverer,
 // because the rule is a size smell and a smell has to be trivial to
 // measure. Test files are exempt (their size is the subject's), and a file
-// may declare itself exempt with the §20.5.1 marker in its first twenty
-// lines, `game-spec:allow-large-file: <reason>`, where the reason is
-// non-empty or the marker is nothing.
+// may declare itself exempt with a marker in its first twenty lines,
+// `guidelines:allow-large-file: <reason>`, where the reason is non-empty or
+// the marker is nothing. The exemption is a debt rather than a licence: a
+// marked file is split the next time it is touched.
 //
 // Two things this holds beyond the cap itself: a marker with no reason is
 // refused, and a marker on a file that is UNDER the cap is refused too — a
@@ -18,9 +19,9 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
 const CAP = 1000;
-const MARKER = /game-spec:allow-large-file:(.*)$/;
+const MARKER = /guidelines:allow-large-file:(.*)$/;
 
-/** The stem shape §20.2 gives a test file. */
+/** The stem shape of a test file. */
 const TEST_STEM = /_?[Tt]ests?$/;
 
 function walk(dir: string, out: string[]): void {
@@ -62,7 +63,7 @@ function exemption(text: string): string | null {
   return null;
 }
 
-describe("the 1000-line cap (§20.5)", () => {
+describe("the 1000-line cap", () => {
   const files = sources();
 
   it("has sources to measure", () => {

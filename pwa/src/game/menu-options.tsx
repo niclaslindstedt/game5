@@ -80,6 +80,7 @@ import {
   type VideoSettings,
 } from "./settings-video.ts";
 import { STRINGS } from "./strings.ts";
+import { APPS_PAGE_URL } from "../identity.ts";
 
 /** The word for a stop on any of the picture's ladders — one vocabulary for
  * every row, so LOW means the same thing wherever it is read. */
@@ -541,6 +542,18 @@ export function OptionsPage({
         >
           {STRINGS.optRestore}
         </button>
+        {/* THE PRIVACY POLICY, on the game's page on the publisher's app site
+          — the one the store listing names — opened outside the game (the
+          browser's new tab; the phone and desktop apps hand it to the system
+          browser), since every build carries it, the store ones included. */}
+        <a
+          class="opt-reset opt-privacy"
+          href={`${APPS_PAGE_URL}privacy/`}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          {STRINGS.optPrivacy}
+        </a>
       </MenuBody>
       <Caption hint={hint} />
     </div>

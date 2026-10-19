@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { APP_DESCRIPTION, APP_NAME, BRAND_COLOR, SITE_URL } from "../pwa/src/identity.ts";
+import { APP_DESCRIPTION, APP_NAME, APPS_PAGE_URL, BRAND_COLOR } from "../pwa/src/identity.ts";
 import {
   SHELL_COMMAND,
   SHELL_COMMANDS,
@@ -77,7 +77,16 @@ describe("the desktop app's names", () => {
   it("name the executable, the user-data folder and the Cargo binary alike", () => {
     expect(rustConst(rustConfig, "APP_DIR_NAME")).toBe(config.mainBinaryName);
     expect(appManifest).toContain(`name = "${config.mainBinaryName}"`);
-    expect(config.identifier.endsWith(`.${config.mainBinaryName}`)).toBe(true);
+  });
+
+  // The identifier is a deployment fact (APP_BUNDLE_ID, merged in by
+  // tauri/scripts/package.mjs); what is committed is the PHONE build's
+  // development fallback, so the two builds are one id in development too.
+  it("commit the phone build's development identifier", () => {
+    const phoneDevId = /const DEV_BUNDLE_ID = "([^"]+)"/.exec(
+      readFileSync(path.join(ROOT, "native", "app.config.js"), "utf8"),
+    )?.[1];
+    expect(config.identifier).toBe(phoneDevId);
   });
 
   // The window is painted with this before the page has drawn anything, so a
@@ -177,10 +186,14 @@ describe("the macOS menu bar", () => {
     expect([...sent].sort()).toEqual([...SHELL_COMMANDS].sort());
   });
 
-  it("sends the player to the same website identity.ts names", () => {
+  it("sends the player to the app's page identity.ts names, never the web edition", () => {
     // The Help menu is the one part of the shell that points OUT, and the two
-    // pages it offers are the two a store listing has to name as well.
-    expect(rustConst(rustConfig, "SITE_URL")).toBe(SITE_URL.replace(/\/$/, ""));
+    // pages it offers are the two a store listing has to name as well. They
+    // are the app site's: a packaged build names neither the website nor the
+    // source.
+    expect(rustConst(rustConfig, "APPS_PAGE_URL")).toBe(APPS_PAGE_URL.replace(/\/$/, ""));
+    expect(rustConfig).not.toMatch(/niclaslindstedt/i);
+    expect(rustMenu).not.toMatch(/niclaslindstedt/i);
     expect(rustMenu).toContain('Target::Link("/privacy/")');
     expect(rustMenu).toContain('Target::Link("/support/")');
   });

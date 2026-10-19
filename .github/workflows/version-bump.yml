@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 name: version-bump
 
-# THE ONE WAY A RELEASE STARTS (OSS_GAME_SPEC §10.3): a maintainer dispatches
+# THE ONE WAY A RELEASE STARTS: a maintainer dispatches
 # this, and nothing else in the repository cuts a version.
 #
 # The spec's reference `version-bump` is a small, read-only workflow that

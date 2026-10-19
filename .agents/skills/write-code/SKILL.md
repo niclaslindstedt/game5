@@ -194,8 +194,8 @@ Make targets are the definition of green CI enforces).
 
 ## File size
 
-- Non-test source files stay under **1000 physical lines** (§20.5 of
-  `OSS_GAME_SPEC.md`); `tests/file_size_test.ts` holds the cap. Past it, split
+- Non-test source files stay under **1000 physical lines**;
+  `tests/file_size_test.ts` holds the cap. Past it, split
   by concern — sibling modules, extracted helpers — rather than relaxing it.
   A file that big is nearly always doing more than one thing (the skier's
   forces are already six files: `skier.ts` the body, `suspension.ts` the
@@ -209,8 +209,8 @@ Make targets are the definition of green CI enforces).
 ## Tests
 
 - **Tests live in the root `tests/` directory, never inline in source.** One
-  file per topic, named `<topic>_test.ts` — the `_test` suffix is mandated by
-  OSS_GAME_SPEC §20.2. Runner: vitest via `make test`;
+  file per topic, named `<topic>_test.ts` — the `_test` suffix is the
+  convention the suite and `tests/file_size_test.ts` both read. Runner: vitest via `make test`;
   the include pattern (`tests/**/*_test.ts`) is in `vitest.config.ts`.
 - **No DOM, no browser, plain Node** — that is the actual line, not "engine
   only". A `pwa/` module whose whole import graph is DOM-free is fair game and

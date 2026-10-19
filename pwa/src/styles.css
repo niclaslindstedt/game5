@@ -2703,6 +2703,16 @@ canvas {
   outline: none;
 }
 
+/* The privacy policy's link under RESTORE DEFAULTS: the same small print,
+   without the dashed frame of a button that changes something. */
+.opt-privacy {
+  display: block;
+  border-style: solid;
+  border-color: transparent;
+  text-align: center;
+  text-decoration: none;
+}
+
 /* A phone held UPRIGHT: one column, and the chrome between the groups given
    back. The ROWS keep their height — the arrows are the thumb targets. */
 @media (max-width: 30rem) {

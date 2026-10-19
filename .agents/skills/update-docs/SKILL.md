@@ -5,7 +5,7 @@ description: "Use when docs/ may be stale. Discovers commits since the last docs
 
 # Updating the docs
 
-**Governing spec sections:** §11.1 (`docs/` — real prose, no stubs, resolving cross-links), §21.5 (mandated because `docs/` is drift-prone).
+**What it holds `docs/` to:** real prose, no stubs, cross-links that resolve — `docs/` is drift-prone, which is why this skill exists.
 
 The `docs/` pages describe the engine, the skier and snow model, the generator's rules, the sim harness, the app shell, the audio and the deploy plumbing. Each has concrete source files it must agree with; this skill re-syncs them.
 
@@ -55,7 +55,7 @@ The `docs/` pages describe the engine, the skier and snow model, the generator's
 | `pwa/src/identity.ts`, `pwa/public/*` | `docs/configuration.md` |
 | `tauri/**`, `native/**` | `docs/platforms.md`, `docs/configuration.md` (the environment rows) |
 | Error-shaped changes (new failure modes, new tooling) | `docs/troubleshooting.md` |
-| `OSS_GAME_SPEC.md`, or a verdict under one of its chapters | `docs/spec-conformance.md` — the `sync-game-spec` skill re-dates it |
+| A rule the repository knowingly falls short of, or one it now meets | `docs/conformance.md` — one dated row per topic |
 
 ## Update checklist
 

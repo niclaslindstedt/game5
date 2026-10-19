@@ -39,7 +39,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let about = AboutMetadata {
         name: Some(fallline_shell::config::WINDOW_TITLE.into()),
         version: Some(env!("CARGO_PKG_VERSION").into()),
-        website: Some(fallline_shell::config::SITE_URL.into()),
+        website: Some(fallline_shell::config::APPS_PAGE_URL.into()),
         ..Default::default()
     };
 

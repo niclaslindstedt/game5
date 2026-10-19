@@ -12,7 +12,7 @@ Two rules hold, and they are the whole design:
 - **Nothing in `engine/` may learn this shell exists.** The one file of `pwa/`
   that does is [`pwa/src/shell-host.ts`](../pwa/src/shell-host.ts).
 - **A feature the shell needs is a feature the website needs first.** The shell
-  adds reach, never a rule (OSS_GAME_SPEC §33).
+  adds reach, never a rule.
 
 See [`docs/platforms.md`](../docs/platforms.md) for where this sits.
 
@@ -145,6 +145,8 @@ make native-android     # run on an Android device/emulator
 make native-iphone      # a REAL iPhone over USB: bundle, sign, install, launch
 ```
 
+CI's `native` job runs the typecheck and `expo-doctor` on every push (`.github/workflows/ci.yml`).
+
 `make native-iphone ARGS="--device 'my iPhone'"` picks between several;
 `ARGS="--skip-bundle"` reuses the packed site.
 
@@ -174,7 +176,7 @@ missing before a first submission.
   lands, the listing is typed into App Store Connect and the Play Console by
   hand — `RELEASING.md` lists what they ask for.
 - **No app records, no credentials.** `eas.json`'s `ascAppId` and
-  `appleTeamId` are empty because the records do not exist yet, and every
+  `appleTeamId` are absent because the records do not exist yet, and every
   credential is read from the environment (`.env.example` documents each one,
   where to get it and what shape it is). This repository is public: nothing
   personal and nothing secret is committed here, not even as a default a

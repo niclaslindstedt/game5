@@ -98,15 +98,19 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - run: make lint
+      # Every dependency's licence against the fleet's allow-list, off the
+      # lockfiles.
+      - name: Dependency licence check (make licences)
+        run: make licences
 
   # The production build (`tsc --noEmit` across both projects, then vite).
   build:
     runs-on: ubuntu-latest
     env:
       # THE MODELLED SKIS (committed in pwa/models/) are
-      # drawn unless a repository variable switches them back — `make
+      # drawn unless a repository secret switches them back — `make
       # ci-models MODELS=off`, no commit needed; unset is on.
-      VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
+      VITE_MODEL_SKIS: ${{ secrets.VITE_MODEL_SKIS }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -134,7 +138,7 @@ jobs:
             | bash -s -- 1.7.7 /usr/local/bin
       - run: make actionlint
 
-  # OSS_GAME_SPEC §7.1 / §21.2: every tool-specific guidance file is a
+  # Every tool-specific guidance file is a
   # SYMLINK onto AGENTS.md, and every tool-specific skills directory a symlink
   # onto .agents/skills. A checkout on a platform without symlink support, or
   # an editor that "helpfully" dereferences one, turns a single source of
@@ -167,6 +171,27 @@ jobs:
           check .windsurfrules AGENTS.md
           check .github/copilot-instructions.md ../AGENTS.md
           exit $fail
+
+  # The store app (native/) is a separate npm project with its own lockfile,
+  # so no job above installs or checks it. Its own tsc, then expo-doctor:
+  # Expo's check that the tree matches the SDK (the versions it pins, the
+  # config and its plugins, no duplicate native modules) — what an EAS build
+  # would otherwise find out after spending a build credit.
+  native:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: native/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx --yes expo-doctor
 
   changeset:
     # Enforces that every PR touching user-visible code drops a

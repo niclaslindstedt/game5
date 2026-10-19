@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-# Conventional-commit message lint (OSS_GAME_SPEC §8.1/§16). Install once with
+# Conventional-commit message lint. Install once with
 # `make hooks`. Merge commits and fixups pass through untouched.
 set -euo pipefail
 

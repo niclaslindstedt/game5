@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE DEPENDENCY DIRECTION, walked — OSS_GAME_SPEC §23.7's "enforce
-// direction with a test, not with discipline". The arrows AGENTS.md states
-// are read off the REAL import graph here: every `import`/`export … from`
+// THE DEPENDENCY DIRECTION, walked — enforced with a test, not with
+// discipline. The arrows AGENTS.md states are read off the REAL import graph here: every `import`/`export … from`
 // in engine/, pwa/src/, scripts/ and tests/, resolved to the role it lands
 // in, and held to the four rules:
 //
@@ -165,6 +164,17 @@ const SHELL_SEAM = new Set<string>([
   "native/src/injected.ts",
   "native/src/navigation.ts",
   "native/src/rumble.ts",
+  // The store listing's RULES — categories, the age-rating answers, the field
+  // limits. It lives under `native/` because that is the shell it describes,
+  // and `tests/store_listing_test.ts` checks it from the root suite for the
+  // same reason the pairs above are checked from both ends: an answer that
+  // drifts from the build is silent until a reviewer finds it. It qualifies
+  // for the seam on the same terms — types and one literal, importing nothing.
+  "native/store/listing.mts",
+  // The committed SKELETON of the listing's words. The real copy.mts is
+  // gitignored, so this is what a fresh clone compiles and what the suite
+  // reads to check Apple's field limits are respected by the shape.
+  "native/store/copy.example.mts",
 ]);
 
 describe("the dependency direction (§23.7)", () => {

@@ -77,6 +77,7 @@ import { gearLift } from "./ski-gear.ts";
 import { boardInputOf, boardOf, easeDrop, easeFakie, easeFree } from "./board-input.ts";
 import { outfitKey } from "./dress.ts";
 import { createFigureHandOff, createSkier } from "./skier-figure.ts";
+import { packOf } from "./skier-dress.ts";
 import { createSkierSpring, restSkierSpring, stepSkierSpring } from "./skier-pose.ts";
 import { ragdollPose, type BodyFrame } from "./skier-ragdoll.ts";
 import { flightRead } from "./skier-flight.ts";
@@ -149,6 +150,7 @@ export function createBoardModel(
   // THE RIDER, and everything he stands in hung in his group: riding it is
   // the body frame; thrown, his trunk's — so the board goes where he does.
   const figure = createSkier(style.skier, wrap);
+  const pack = packOf(style.skier);
   root.add(figure.group);
   // HIS BODY apart from what he stands in, so the worn lenses (TIPS, HELMET)
   // hide the one and keep the deck, the bindings and the boots under them —
@@ -532,6 +534,7 @@ export function createBoardModel(
             towing: seatEase.towing,
             y: BOARD_SEAT_Y,
             cabin,
+            pack,
           };
           bp = boardLiftPose(input, seat);
           bp = { ...bp, pose: easeLimbs(limbs, bp.pose, dt) };

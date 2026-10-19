@@ -175,7 +175,7 @@ const ready = (async () => {
   renderer.draw(first, 1, FRAME);
   run = deathRun();
   renderer.draw(run.next, 1, FRAME, false);
-  // The police livery's model loaded before any frame wants it.
+  // The police helicopter's model loaded before any frame wants it.
   await new Promise((done) => setTimeout(done, 4000));
   await renderer.shadeSettled();
   const p = run.plan;

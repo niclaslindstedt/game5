@@ -62,6 +62,7 @@ describe("the model registry", () => {
       "Helicopter",
       "Air ambulance",
       "Army helicopter",
+      "Police helicopter",
       "Snowmobile",
       "Piste machine",
       "Jump plane",

@@ -30,7 +30,11 @@
 // (`models/rescue.glb`, `make models KIND=rescue`: the same airframe in a
 // mountain rescue service's yellow, with a hoist, a searchlight and the
 // wire cutters) carries the same `HELI_NODES` and is packed under the same
-// switch, fetched from `rescueModelUrl()`. So are the snowmobile
+// switch, fetched from `rescueModelUrl()`, and so does its POLICE machine
+// (`models/police.glb`, `make models KIND=police`: the same airframe in
+// dark navy with a blue and yellow chequer, POLICE on its sides and belly,
+// a camera turret under the chin, a searchlight and blue beacons), fetched
+// from `policeModelUrl()`. So are the snowmobile
 // (`sledModelUrl`, `VITE_MODEL_SLED`) and the night's piste machine
 // (`groomerModelUrl`, `VITE_MODEL_GROOMER`) and the jump plane
 // (`planeModelUrl`, `VITE_MODEL_PLANE`), each fetched by its drawer.
@@ -159,6 +163,14 @@ export function rescueModelUrl(): string | null {
  * (`VITE_MODEL_HELI=0`) and the build packs none. */
 export function armyModelUrl(): string | null {
   return MODELS.heli ? `${String(ENV.BASE_URL ?? "/")}models/army.glb` : null;
+}
+
+/** Where this build serves the police helicopter's glTF (the heli's
+ * airframe dressed for a police air unit, the same `HELI_NODES`), or `null`
+ * when the helicopter is switched off (`VITE_MODEL_HELI=0`) and the build
+ * packs none of them. */
+export function policeModelUrl(): string | null {
+  return MODELS.heli ? `${String(ENV.BASE_URL ?? "/")}models/police.glb` : null;
 }
 
 const loaded: { skis: Map<SkiId, GLTF> } = { skis: new Map() };

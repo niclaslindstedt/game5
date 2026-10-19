@@ -57,20 +57,37 @@ On the seeds the suite plans, the scene keeps the machine on the snow **4–6 mi
 
 - **Booked** (`rescue-book.ts`): `App.tsx` notes each step's `wipeout` as the run's point of impact (`noteImpact`). When a run ends dead, `bookRun` reads the evidence off it (`evidenceOf`: the impact, `gore.smears`, `gore.torn`, the skis in `skier.thrown`) and books a police call at where he lay. That call carries `kind: "police"` and the evidence.
 - **Its own machine:** a police call never takes a second casualty, and an injury near it calls an ambulance of its own.
-- **Stolen** (`engine/game/steal.ts`): a landed police machine is offered to the machine press at its door exactly as the ambulance is, and taken in its own livery (`HeliLivery` `"police"`, drawn by `heli-scene.ts` off the same look). Its officers freeze where they stood, and the next run sends another police machine to the same scene with the same evidence.
+- **Stolen** (`engine/game/steal.ts`): a landed police machine is offered to the machine press at its door exactly as the ambulance is, and taken in its own livery (`HeliLivery` `"police"`, drawn by `heli-scene.ts` off the police model). Its officers freeze where they stood, and the next run sends another police machine to the same scene with the same evidence.
 - **Kept and cleared** as the ambulance's calls are: from run to run on the book's clock, until its machine has gone, and every call when the map changes. A replay carries it in its recipe.
 
-## The livery
+## The machine
 
-The machine is the air ambulance's model re-coloured in code (`police-livery.ts`, through `heli-view.ts`'s `HeliLook.livery`):
+The police helicopter is a Blender model of its own, `pwa/models/police.glb`: the heli-ski machine's airframe and nodes (`scripts/blender/police.py` runs `heli.py`'s builder whole, as the air ambulance's `rescue.py` does), dressed and equipped as a police air unit's machine. `rescue-view.ts` (the call) and `heli-scene.ts` (the machine stolen) both draw it through `policeModelUrl()`; with the helicopter models switched off (`VITE_MODEL_HELI=0`) every machine is the code's stand-in.
 
-- **The skin** dark blue.
-- **The cowling, the fins and the blade tips** white, with a white cheat line.
-- **A chequer of blue and fluorescent yellow** along the band low on the cabin and up the boom. The model has no texture coordinates, so the chequer is cut in the shader off the model's own frame.
+What the research says police machines of the light single- and twin-engine classes look like, in Europe and North America:
 
-The police machine's own Blender model is a later part.
+- **Colours for being seen and known.** The bodies are dark blue, white, or yellow and dark blue, with POLICE (or the word in the country's language) large on the sides and often across the belly, to be read from the ground. Many carry the blue and fluorescent yellow high-visibility chequer the forces' cars carry, in a band along the lower cabin and the boom.
+- **The camera turret.** A gyro-stabilised ball under the nose or the chin, turning a full circle, carrying a daylight camera with a long zoom and a thermal imager behind small flat windows.
+- **The searchlight.** A high-powered steerable searchlight, low on the airframe; on the smaller classes under the right rear seat, so that a bank to the left does not put the skid in its beam. It can be slaved to the camera.
+- **The loudspeaker.** A speaker on the belly to talk to people on the ground.
+- **The lights.** Blue strobes or beacons on the belly and the tail beside the red anti-collision lights.
+
+The model, after it (the generic word only — no force's name, crest or registration):
+
+- **The skin** dark navy; **the cowling, the fins and the blade tips** white; **a white cheat line** over the band.
+- **The band** low along the cabin and sweeping up onto the boom, ending square short of the nose: two rows of blue and fluorescent yellow cells, 0.27 m long and 0.15 m tall, from behind the chin to where the boom grows too slim for them. The cells are fields on the skin traced into the mesh, so they are crisp at any distance and need no texture.
+- **POLICE** in white, 0.27 m tall on each side of the cabin's back above the band (reading towards the nose from either side), and 0.5 m tall along the belly, reading from below — Blender's built-in face, laid onto the skin.
+- **The camera turret** under the chin, right of the lower wire cutter: a ball 0.32 m across on a stub, two windows looking ahead and a little down.
+- **The searchlight** low on the right under the rear seat, its lens not lit, so the drawer can switch it on.
+- **Two blue beacons** (`beacon_blue`), on the belly behind the cabin and on the boom's top ahead of the fin, not lit in the model; `heli-view.ts` double-flashes them while the rotor turns.
+- **The loudspeaker** on the belly, left of the centre line, behind the cabin's floor.
+- **The wire cutters** as the air ambulance's. No hoist, no ski basket.
+
+It is 15,806 triangles at LOD0 (the heli's budget is 16,000) and 6,400 at LOD1.
 
 ## Sources
+
+- The police machine's equipment and look: a light helicopter maker's police-version brochure (the camera turret, the searchlight's place under the right rear seat, the belly speaker); a trade magazine's survey of police mission equipment; a national police air service's published photographs of its fleet.
 
 - Which piste accidents the police record: a statistics release of an alpine safety board with the police (2022); a parliamentary answer of an interior ministry on alpine police accident records (2017).
 - Police and prosecutor investigations of skier deaths, and helicopter long-line recovery: news reports from several mountain regions.

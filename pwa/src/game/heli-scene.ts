@@ -25,10 +25,9 @@ import { shelterAt, shelterOff } from "./shelter.ts";
 import { createExplosion, type Explosion } from "./explosion.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createHeliView, type HeliLook, type HeliView, type WashPuff } from "./heli-view.ts";
-import { policeLivery } from "./police-livery.ts";
 import type { Perch } from "./skier-dangle.ts";
 import { createHeliPerch } from "./ride-perch.ts";
-import { rescueModelUrl } from "./skier-models.ts";
+import { policeModelUrl, rescueModelUrl } from "./skier-models.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
 import type { SnowProps } from "./snowpack.ts";
@@ -74,10 +73,10 @@ export type HeliScene = {
 };
 
 /** Each owner's look, by the livery a taken machine is drawn in: its
- * model, and the police's colours laid over the ambulance's airframe. */
+ * model, the air ambulance's or the police helicopter's. */
 const LIVERY_LOOK: Record<HeliLivery, () => HeliLook> = {
   rescue: () => ({ pad: false, url: rescueModelUrl() }),
-  police: () => ({ pad: false, url: rescueModelUrl(), livery: policeLivery }),
+  police: () => ({ pad: false, url: policeModelUrl() }),
 };
 
 /** How long the drop's lens is held after the push, s, and how long its

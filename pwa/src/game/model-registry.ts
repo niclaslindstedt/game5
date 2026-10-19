@@ -109,6 +109,24 @@ export const MODEL_REGISTRY: readonly ModelRow[] = [
       "and the lights; the code's stand-in has the same nodes",
   },
   {
+    asset: "Police helicopter",
+    ids: ["police"],
+    source: "blender",
+    code: ["pwa/src/game/heli-view.ts"],
+    drawnBy: "pwa/src/game/heli-view.ts",
+    blender: {
+      builder: "scripts/blender/police.py",
+      files: ["police.glb"],
+      pattern: "police.glb",
+      switch: "VITE_MODEL_HELI",
+    },
+    note:
+      "the police helicopter that comes after a death: the heli's airframe and nodes (its " +
+      "builder run whole) in dark navy with a blue and fluorescent yellow chequer under a white " +
+      "cheat line, POLICE on both sides and the belly, a camera turret under the chin, a " +
+      "searchlight, blue beacons, a loudspeaker and wire cutters",
+  },
+  {
     asset: "Snowmobile",
     ids: ["sled"],
     source: "blender",

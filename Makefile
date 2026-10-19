@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn gunfire gunfire-table army water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
+.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn gunfire gunfire-table army army-flight water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
 
 build:
 	npm run build
@@ -1204,14 +1204,16 @@ gunfire:
 # (its model `make models KIND=army`) landed on a real mountain from eight
 # bearings, close up, its doors open with the gunners on their guns and a
 # section sat in the doorways, its section out on the snow, and in flight
-# by day and at dusk with a man on the fast rope; and every soldier's pose
+# by day and at dusk with a man on the fast rope; the army IN THE GAME
+# hunting the bot at two and four stars and chasing him in the stolen air
+# ambulance (the hunt sheet, run on the real engine); and every soldier's pose
 # from the front, the side and behind at the chase camera's range, the door
 # gunner at each aim and the three cuts. Through the game's own renderer.
 # One contact sheet a view, previews/army-<view>.png, and every frame
 # alone. Its own one-off bundle from pwa/army-preview.html (never
 # deployed); needs a Chromium like `world`.
-# ARGS="--sheet=soldiers", "--views=doors,flight-dusk", "--poses=aim,kneel",
-# "--smock=whites".
+# ARGS="--sheet=soldiers", "--sheet=hunt", "--views=doors,flight-dusk",
+# "--poses=aim,kneel", "--smock=whites".
 army:
 	npm run army -- $(if $(SEED),--seed=$(SEED),) $(if $(REGION),--region=$(REGION),) $(ARGS)
 
@@ -1223,6 +1225,17 @@ army:
 # --trials=80", "--up=40", "--json=previews/gunfire-table.json".
 gunfire-table:
 	npm run gunfire-table -- $(ARGS)
+
+# THE ARMY'S FLIGHT TABLE: the army's helicopters hunting a man on a real
+# map off the real engine, pure Node — a row a star and a quarry (the bot
+# skiing away; him in the stolen helicopter flown corner to corner): when
+# the first machine came in and was on station, the slant range held while
+# he was seen, the share of the time seen, the rounds fired and in him, his
+# death or his machine downed, and the least height over the snow and the
+# crowns with the steps under the floor (always 0). ARGS="--stars=2,4",
+# "--quarry=heli", "--seconds=180", "--sfw", "--json=previews/army-flight.json".
+army-flight:
+	npm run army-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
 # THE WATER LAB: the lakes and the streams through the game's own renderer,
 # on a map with placeholder water laid on it — the valley lake and the tarn

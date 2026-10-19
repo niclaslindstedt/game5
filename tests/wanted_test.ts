@@ -29,7 +29,14 @@ import {
 import { flatLevel } from "./support/synthetic.ts";
 
 function ride(extra: { wanted?: number; sfw?: boolean } = {}): GameState {
-  return createGame({ level: flatLevel(), mode: "free", quiet: true, crowd: 0, ...extra });
+  return createGame({
+    level: flatLevel(),
+    mode: "free",
+    quiet: true,
+    crowd: 0,
+    army: false,
+    ...extra,
+  });
 }
 
 /** Run `seconds` standing still, collecting the wanted events. */

@@ -14,21 +14,33 @@
 //   * FLIGHT — the machine in the air over the slope, the rotors turning,
 //     the doors open and the gunner on his gun: `flight-day` and
 //     `flight-dusk` (under `?dusk=`'s hour, the lights on);
+//   * HUNT — the army IN THE GAME: a hunted free ride stood up and run on
+//     the real engine (`army.ts` flying, `gunfire.ts` firing) with the bot
+//     skiing — `hunt-2` (two stars, warning fire), `hunt-4` (four, two
+//     machines, aimed fire) — and `hunt-heli`, the man in the stolen air
+//     ambulance flown away corner to corner by the bot's hands, chased; each
+//     drawn as the run draws it (`army-air-view.ts`), from behind him at
+//     the machine after him, from beside the machine's door, and wide;
 //   * SOLDIERS — every pose of every figure (`SOLDIER_POSES`) from the
 //     front, the side and behind at the chase camera's range, a row a pose:
 //     `ski`, `foot`, `rocket`, and `gunner` (sat at his door gun in the
 //     machine); `lods` (the three cuts side by side, near and far).
 //
-// Nothing in the game spawns these yet: the lab stands them itself
-// (`DevRenderer.stage`). It exposes `window.__army.sheet(group, views)`,
+// Every sheet but the hunt stands its pieces itself (`DevRenderer.stage`). It exposes `window.__army.sheet(group, views)`,
 // which shoots one group's views, lays them out as a contact sheet and
 // hands back every frame.
 
 import * as THREE from "three";
 import {
+  armyHelis,
+  botInput,
   createGame,
   generateLevel,
+  pilotInput,
   placeRun,
+  quarryOf,
+  setWanted,
+  step,
   trackPointAt,
   withSky,
   type GameState,
@@ -72,6 +84,7 @@ type Frame = { view: string; label: string; caption: string; png: string };
 const GROUPS = {
   heli: ["turntable", "close", "doors", "squad"],
   flight: ["flight-day", "flight-dusk"],
+  hunt: ["hunt-2", "hunt-4", "hunt-heli"],
   soldiers: ["ski", "foot", "rocket", "gunner", "lods"],
 } as const;
 
@@ -264,14 +277,14 @@ let frames: Frame[] = [];
 let view = "";
 let sky = "";
 
-function shoot(label: string, pose: LensPose, note = ""): void {
+function shoot(label: string, pose: LensPose, note = "", of: GameState = state): void {
   renderer.setOverride(pose);
-  renderer.draw(state, 1, STILL, true);
+  renderer.draw(of, 1, STILL, true);
   const info = gl.info;
   info.autoReset = false;
   info.reset();
   const t0 = performance.now();
-  renderer.draw(state, 1, STILL, true);
+  renderer.draw(of, 1, STILL, true);
   gl.getContext().finish();
   const ms = performance.now() - t0;
   const calls = info.render.calls;
@@ -490,7 +503,120 @@ function lods(): void {
   shoot("at 40 m", round(c, H, 0.15, 40, 3, 45), note);
 }
 
+// ── the hunt ─────────────────────────────────────────────────────────────
+
+/** THE CORNERS of the map the stolen machine is flown through. */
+const corners = (() => {
+  const m = level.size * 0.2;
+  const s = level.size - m;
+  return [
+    { x: m, z: m },
+    { x: s, z: m },
+    { x: s, z: s },
+    { x: m, z: s },
+  ];
+})();
+
+/** A HUNTED FREE RIDE run on the real engine: `stars` raised at the
+ * start (in the stolen air ambulance, lifted off its pad first, with
+ * `heli`), the bot skiing or flying him away, stepped to each of `at` s
+ * and photographed there — the frame before drawn a fifth of a second
+ * earlier, so the muzzles' flashes and the tracers since are in it. */
+async function hunt(stars: number, heli: boolean, at: number[]): Promise<void> {
+  clear();
+  const run = createGame({
+    level,
+    seed,
+    region,
+    mode: "free",
+    crowd: 0,
+    quiet: true,
+    gore: true,
+    heli,
+  });
+  let leg = 0;
+  const drive = () => {
+    const h = run.heli;
+    if (heli && h?.rider && h.mode !== "wreck") {
+      const c = corners[leg % corners.length];
+      if (Math.hypot(c.x - h.x, c.z - h.z) < 150) leg++;
+      return pilotInput(run, { x: c.x, z: c.z, height: 200 });
+    }
+    return botInput(run);
+  };
+  if (heli) {
+    run.heli!.livery = "rescue";
+    for (let i = 0; i < 6 * 120; i++)
+      step(run, pilotInput(run, { x: run.heli!.x, z: run.heli!.z, height: 90 }));
+  }
+  setWanted(run, stars);
+  const t0 = run.t;
+  await renderer.load(run);
+  for (const t of at) {
+    while (run.t - t0 < t - 0.2) step(run, drive());
+    renderer.draw(run, 1, STILL);
+    // The machines' models come in over the loader: a moment for them.
+    if (t === at[0]) await new Promise((r) => setTimeout(r, 2500));
+    while (run.t - t0 < t) step(run, drive());
+    const q = quarryOf(run);
+    const machines = armyHelis(run).filter((h) => h.phase === "hunt" || h.phase === "fall");
+    const g = run.gunfire;
+    const note = `${(run.t - t0).toFixed(0)} s · ${run.wanted?.stars ?? 0}★ · ${machines.length} up · ${g?.fired ?? 0} rounds, ${g?.hits ?? 0} in him`;
+    const me = new THREE.Vector3(q.x, q.y + (heli ? 2 : 1.4), q.z);
+    if (!machines.length) {
+      shoot(`${t} s`, round(me, run.skier.heading, Math.PI, 9, 3, 55), note, run);
+      continue;
+    }
+    // The nearest machine after him.
+    let h = machines[0];
+    for (const m of machines)
+      if (Math.hypot(m.x - q.x, m.z - q.z) < Math.hypot(h.x - q.x, h.z - q.z)) h = m;
+    const hm = new THREE.Vector3(h.x, h.y + 2, h.z);
+    const way = new THREE.Vector3().subVectors(hm, me);
+    const flat = Math.max(1, Math.hypot(way.x, way.z));
+    // Behind him, looking past him up at it — the chase camera turned on it.
+    const toward = way.clone().normalize();
+    const back = new THREE.Vector3(
+      me.x - (way.x / flat) * 9,
+      me.y + 1.2,
+      me.z - (way.z / flat) * 9,
+    );
+    shoot(
+      `${t} s, behind him at it`,
+      look(back, me.clone().addScaledVector(toward, 30), 62),
+      note,
+      run,
+    );
+    // Beside the machine, its inward door and gunner toward the lens.
+    const side = h.dir;
+    const rx = Math.cos(h.heading) * side;
+    const rz = -Math.sin(h.heading) * side;
+    const door = new THREE.Vector3(
+      h.x + rx * 20 - Math.sin(h.heading) * 6,
+      h.y + 4,
+      h.z + rz * 20 - Math.cos(h.heading) * 6,
+    );
+    shoot(
+      `${t} s, its door`,
+      look(door, new THREE.Vector3(h.x + rx * 1.2, h.y + 1.4, h.z + rz * 1.2), 45),
+      note,
+      run,
+    );
+    // Wide: him and every machine.
+    const mid = me.clone().lerp(hm, 0.5);
+    const wide = new THREE.Vector3(
+      mid.x - (way.z / flat) * flat * 0.9,
+      mid.y + flat * 0.25,
+      mid.z + (way.x / flat) * flat * 0.9,
+    );
+    shoot(`${t} s, wide`, look(wide, mid, 50), note, run);
+  }
+}
+
 const VIEWS: Record<string, () => void | Promise<void>> = {
+  "hunt-2": () => hunt(2, false, [32, 40, 50]),
+  "hunt-4": () => hunt(4, false, [32, 40, 50]),
+  "hunt-heli": () => hunt(3, true, [26, 32, 38]),
   turntable,
   close,
   doors,
@@ -512,6 +638,9 @@ const COLS: Record<string, number> = {
   squad: 2,
   "flight-day": 2,
   "flight-dusk": 2,
+  "hunt-2": 3,
+  "hunt-4": 3,
+  "hunt-heli": 3,
   ski: 3,
   foot: 3,
   rocket: 3,

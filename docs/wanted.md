@@ -59,7 +59,7 @@ Every `lookEvery` (0.25 s) each pursuer looks. He sees the man if he is near eno
 
 Out of every pursuer's sight for `WANTED.lose` seconds (12, 18, 25, 32 and 40 s for one to five stars) and the stars are dropped: the hunt ends `escaped`, the survival timer stops, and a `lost` event says so. `WANTED.searchRadius` is the circle round `lastSeen` the pursuers comb while they look for him.
 
-Until pursuers exist on the map, the only sight is the fix: a hunt raised with nobody out flashes after ten seconds and is lost after the search time.
+The army's helicopters ([`army.md`](army.md#in-flight)) are called in from the map's edge as soon as a star asks for them, and **the search's clock does not run until the first of them has reached it**: the stars flash once the fix runs out, but a hunt nobody has yet flown is not lost. With the machines kept home (`CreateGameOptions.army: false`, how this page's tests run), the only sight is the fix: a hunt flashes after ten seconds and is lost after the search time.
 
 ## What each star sends
 
@@ -86,7 +86,7 @@ From two stars the army also comes **up the mountain from the valley** in waves 
 | 4 | 45 | 50 | 2, 2, 2, 0, 16 | 5, 4, 3, 1, 40 |
 | 5 | 30 | 40 | 3, 2, 2, 1, 24 | 6, 6, 4, 3, 64 |
 
-All of this is data the later parts read; nothing moves on the map in this part.
+The helicopters and their door gunners fly ([`army.md`](army.md#in-flight)); the rest of the roster and the ground waves are data the later parts read.
 
 ## How a hunt ends
 
@@ -119,5 +119,5 @@ The death card and the arrest card carry the hunt's line, SURVIVED against the B
 ## Not yet
 
 - The woods do not block sight, and the night does not shorten it.
-- Nothing moves on the map yet: the helicopters, the soldiers, the vehicles, the balloons and the paramotors are the later parts', and they write `pursuers`.
+- Of the roster only the helicopters and their door gunners move on the map ([`army.md`](army.md#in-flight)), and they write `pursuers`; the soldiers, the vehicles, the balloons and the paramotors are the later parts'.
 - An arrest does not yet hold the skier still; the soldier who makes it will.

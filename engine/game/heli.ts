@@ -747,6 +747,14 @@ function crash(run: GameState, h: HeliState, events: GameEvent[], speed: number)
   h.controls = { ...DOWN };
 }
 
+/** RAMMED: the run's machine meets another in the air (`army.ts`) and
+ * crashes as it would into the snow. */
+export function crashHeli(run: GameState, events: GameEvent[]): void {
+  const h = run.heli;
+  if (!h || h.mode === "wreck") return;
+  crash(run, h, events, hypot3(h.vx, h.vy, h.vz));
+}
+
 /** Set down home on the pad: the pilot shuts down. */
 function park(run: GameState, h: HeliState, events: GameEvent[]): void {
   h.mode = "parked";

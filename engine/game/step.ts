@@ -94,6 +94,7 @@ import { freshWild, stepWild } from "./beast-hit.ts";
 import { freshAvalanche, stepAvalanche } from "./avalanche.ts";
 import { setWanted, stepWanted } from "./wanted.ts";
 import { stepGunfire } from "./gunfire.ts";
+import { freshArmy, stepArmy } from "./army.ts";
 import { freshMishaps, type MishapAsk } from "./mishaps.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
 import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
@@ -390,6 +391,9 @@ export type CreateGameOptions = {
    * at this many stars, 1..5 — a link's `?wanted=N`. None when left out
    * (an offence raises it). Ignored by every other mode. */
   wanted?: number;
+  /** THE ARMY'S MACHINES (`army.ts`): false keeps them home, so a hunt is
+   * the wanted level alone — its own tests and labs. Sent when left out. */
+  army?: boolean;
   /** TRICK RAMPS down every piste of a FREE RIDE's ski area
    * (`trick-ramps.ts`), laid over the map off no stream. None when left
    * out, and never in summer. Ignored by every other mode. */
@@ -782,6 +786,7 @@ export function createGame(options: CreateGameOptions = {}): GameState {
   // THE AVALANCHES (`avalanche.ts`), on a free ride that asked for them.
   if (rules.avalanche) state.avalanche = freshAvalanche(state);
   // THE WANTED LEVEL (`wanted.ts`), on a free ride begun hunted.
+  if (options.army === false) state.army = { ...freshArmy(state), home: true };
   if (free && options.wanted && options.wanted > 0) setWanted(state, options.wanted);
   if (free && options.mishaps) state.mishaps = freshMishaps(seed, options.mishaps);
   // THE PISTE MACHINES (`groomer.ts`), out working the runs after dark.
@@ -865,6 +870,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   if (state.avalanche) stepAvalanche(state, events, input);
   // THE WANTED LEVEL (`wanted.ts`), once an offence raised it.
   if (state.wanted) stepWanted(state, events);
+  // THE ARMY'S HELICOPTERS (`army.ts`), once the hunt sends them.
+  if (state.wanted) stepArmy(state, events);
   // THE GUNFIRE (`gunfire.ts`), once a gun is armed.
   if (state.gunfire) stepGunfire(state, events);
   // THE BODY (`body.ts`): what a shoulder into a rival or an amateur did.

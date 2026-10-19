@@ -32,8 +32,9 @@ import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { AvalancheEvent, AvalancheState } from "./avalanche-state.ts";
-import type { WantedEvent, WantedState } from "./wanted-state.ts";
-import type { GunfireEvent, GunfireState } from "./gunfire-state.ts";
+import type { WantedState } from "./wanted-state.ts";
+import type { GunfireState } from "./gunfire-state.ts";
+import type { ArmyState, HuntEvent } from "./army-state.ts";
 import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
 import type { TrafficEvent } from "./traffic-contact.ts";
 import type { BeastEvent, WildState } from "./beast-hit.ts";
@@ -730,8 +731,7 @@ export type GameEvent =
     }
   | GrimbearEvent
   | AvalancheEvent
-  | WantedEvent
-  | GunfireEvent
+  | HuntEvent
   | AfterskiEvent
   | GroomerEvent
   | TrafficEvent
@@ -973,10 +973,10 @@ export type GameState = ContestState & {
   burn?: import("./fire-burn.ts").BurnState;
   /** THE AVALANCHES (`avalanche.ts`): a free ride that asked for them. */
   avalanche?: AvalancheState;
-  /** THE WANTED LEVEL (`wanted.ts`), once an offence or the run's ask raised it. */
+  /** THE HUNT — `wanted.ts`, `gunfire.ts`, `army.ts` — each absent until raised. */
   wanted?: WantedState;
-  /** THE GUNFIRE (`gunfire.ts`), once a gun is armed; absent until then. */
   gunfire?: GunfireState;
+  army?: ArmyState;
   /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`), asked for. */
   mishaps?: import("./mishaps.ts").MishapState;
   /** PISTE MACHINES (`groomer.ts`), their snow and the snow guns': never written. */

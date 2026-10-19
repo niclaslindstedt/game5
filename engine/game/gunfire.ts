@@ -405,6 +405,13 @@ function fireRound(state: GameState, g: GunfireState, gun: Gun, events: GameEven
     // a burst there does its work, one a metre over him flies on.
     tg.y = state.level.groundAt(tg.x, tg.z);
   }
+  // The round leaves with the platform's way (a door gun in a machine
+  // circling at 30 m/s), so the lead is taken on the target's way RELATIVE
+  // to the gun's — what an aerial gunner is taught to allow for his own
+  // speed. A shooter standing still leads on the target's alone.
+  tg.vx -= gun.vx;
+  tg.vy -= gun.vy;
+  tg.vz -= gun.vz;
   const aim = aimPoint(def, gun.x, gun.y, gun.z, tg, gun.el);
   let dx = aim.x - gun.x;
   let dy = aim.y - gun.y;

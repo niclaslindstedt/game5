@@ -96,3 +96,7 @@ export {
 export { bodyCentre, bodyHit, bodyPoints } from "./gunfire-body.ts";
 export { machineAt } from "./gunfire-machine.ts";
 export type * from "./gunfire-state.ts";
+// THE ARMY'S HELICOPTERS IN FLIGHT (`army.ts`): called in, flown, fought.
+export { ARMY } from "./defs/army.ts";
+export { armyFloor, armyHelis, armyPoint, armyQuat, freshArmy, stepArmy } from "./army.ts";
+export type * from "./army-state.ts";

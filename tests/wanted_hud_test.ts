@@ -21,7 +21,14 @@ import { newsFor } from "../pwa/src/game/run-news.ts";
 import { overLink, readParams } from "../pwa/src/game/url-params.ts";
 
 function ride(wanted?: number): GameState {
-  return createGame({ level: flatLevel(), mode: "free", quiet: true, crowd: 0, wanted });
+  return createGame({
+    level: flatLevel(),
+    mode: "free",
+    quiet: true,
+    crowd: 0,
+    army: false,
+    wanted,
+  });
 }
 
 function run(state: GameState, seconds: number): void {

@@ -1,8 +1,8 @@
-# The army, as drawn
+# The army
 
-The army that hunts a wanted skier ([`wanted.md`](wanted.md)) needs a machine to come in and people to fire its guns ([`gunfire.md`](gunfire.md)). **This page is how they look.** It covers the military helicopter, the winter infantry on skis and on foot, the door gunner and the anti-armour man. It says what each is drawn from and why.
+The army that hunts a wanted skier ([`wanted.md`](wanted.md)) needs a machine to come in and people to fire its guns ([`gunfire.md`](gunfire.md)). **This page is how they look and how its helicopters fly.** It covers the military helicopter, the winter infantry on skis and on foot, the door gunner and the anti-armour man, and what each is drawn from and why. Then it covers the helicopters [in flight](#in-flight): called in, hunting him and firing.
 
-Nothing in the game spawns any of them yet. The parts that fly the machine and send its section out build on what is here: the view classes, the places on the machine, and the soldiers' poses.
+The helicopters fly in the game. The soldiers are drawn, but nothing sets them down yet: the parts that send the section out build on the view classes, the places on the machine and the soldiers' poses here.
 
 | Piece | Where |
 | --- | --- |
@@ -13,8 +13,10 @@ Nothing in the game spawns any of them yet. The parts that fly the machine and s
 | The soldiers' kit (colours, rifle, launcher, skis, camouflage) | `pwa/src/game/soldier-kit.ts` |
 | The soldiers' poses | `pwa/src/game/soldier-pose.ts` |
 | The soldiers as built and drawn | `pwa/src/game/soldier-shapes.ts` (`buildSoldierFigure`, `SoldierView`) |
-| The lab | `make army` (`scripts/army-preview.mjs`, `pwa/src/tools/army-harness.ts`, `pwa/army-preview.html`) |
-| The tests | `tests/army_heli_test.ts`, `tests/soldier_test.ts`, `tests/models_test.ts`, `tests/model_registry_test.ts` |
+| The machines in flight: the call, the flight, the hunt, the guns, the ram | `engine/game/army.ts`, its numbers `engine/game/defs/army.ts` (`ARMY`), its state `engine/game/army-state.ts` (`GameState.army`) |
+| The machines in flight as drawn and heard | `pwa/src/game/army-air-view.ts` (held by `machines.ts`), `pwa/src/game/audio/army-bed.ts` |
+| The labs | `make army` (`scripts/army-preview.mjs`, `pwa/src/tools/army-harness.ts`, `pwa/army-preview.html`), `make army-flight` (`scripts/army-flight.mjs`) |
+| The tests | `tests/army_heli_test.ts`, `tests/soldier_test.ts`, `tests/army_test.ts`, `tests/models_test.ts`, `tests/model_registry_test.ts` |
 
 ## The helicopter
 
@@ -130,6 +132,105 @@ The weapons are placed after the body is posed, so they follow the hands:
 | --- | --- |
 | `heli` | `turntable` (eight bearings round it landed), `close` (the door gun and its gunner, the doorway, the nose, the tail rotor, the skids, the rope bar), `doors` (both doors open, the gunners on their guns, a section in the doorways), `squad` (landed, its section out on the snow round it) |
 | `flight` | `flight-day`, `flight-dusk`: in the air over the slope, the rotors turning, the gunner on his gun, a man on the fast rope |
+| `hunt` | the army in the game, a hunted free ride run on the real engine with the bot: `hunt-2` (two stars, warning fire), `hunt-4` (four stars, two machines, aimed fire), `hunt-heli` (him in the stolen air ambulance, chased); each from behind him at the machine after him, beside its door, and wide |
 | `soldiers` | `ski`, `foot`, `rocket` (every pose from the front, the side and behind at the chase camera's range), `gunner` (sat at his gun at each aim), `lods` (the three cuts) |
 
 Pass `--poses=aim,kneel` to shoot a few poses and `--smock=whites` for plain whites. Each sheet is `previews/army-<view>.png`, and every frame is also written alone.
+
+## In flight
+
+`engine/game/army.ts` flies the machines the wanted level's roster asks for (`rosterOf(stars).helicopters`: one at one to three stars, two at four, three at five). Its numbers are `ARMY` in `engine/game/defs/army.ts`, and its state is `GameState.army`. That state is absent until a hunt asks for a machine, so a run nobody hunts moves no digest. Every draw it makes (the bearing they come in on, the way each one circles) comes off a stream of its own, seeded off the run, never `state.rng`.
+
+**How a door gunner's helicopter hunts.** A gun on a pintle in a side door bears square out of the side. So the crew fly a **pylon turn**: a steady circle round the target, at a height and radius that keep the man square out of the gunner's door, with the machine banked into the circle so the inside door looks down at him. Door gunners qualify against targets from about 150 to 800 m, from the hover and moving at about 70 knots.
+
+The game's circle is 220 m across the ground at 70 m over him, flown at 30 m/s. That puts the gun about 230 m off him, inside the gun's best band, and banks the machine about 23° (tan φ = v²/(g·r)).
+
+A target that **runs** (a stolen helicopter at speed) cannot be circled. The machine sits in **echelon** off his tail quarter instead, 140 m behind and 90 m out to the gun's side, and flies his speed. The gun, yawed toward the nose, bears on him there.
+
+**The call.** When the roster asks for more machines than are out, each is called. After the crew's scramble (`ARMY.respond`, 10 s, the next ones 7 s apart) it comes in at the **map's edge**:
+
+- `inset` m inside the edge;
+- on a bearing from the map's middle toward where he was when the hunt began, give or take `drift`, each machine called with it spread either side;
+- 150 m over the snow and already at its cruise.
+
+A machine lost is called again. **Until the first machine has reached the search, the search's clock does not run**: the stars flash, but a hunt nobody has yet flown is not lost.
+
+**The flight** is a point flown with a pilot's limits rather than the player's rotor physics, which is built for one machine on one state:
+
+- the velocity it wants: round its circle, at its place in echelon, or out to the edge;
+- the acceleration that asks for, no more than the disc leant 34° gives (g·tan of it), smoothed over 0.6 s so the bank rolls in rather than snaps;
+- its attitude read off that acceleration as a helicopter's is: leant into it, the nose hung down at speed;
+- its height kept 30 m over the highest snow it reads seven seconds ahead, climbing at up to 10 m/s and sinking at up to 12;
+- a cruise of 62 m/s (the class's 225 km/h), and a dash of 72 m/s to keep station on a fleeing machine;
+- **a hard floor**: its skid datum is never let under 12 m over the highest snow under its disc, nor under 4 m over any crown the disc sweeps, whatever its station asks.
+
+Two machines out keep 120 m apart (`separate`).
+
+**The hunt.** Where a pursuer sees him, the machine circles him with the gunner's door inward. Its nose is turned along the circle, so he is square out of the door. Out of every pursuer's sight it **searches**: it circles where he was last seen (`WantedState.lastSeen`), wider (half the star's search radius), higher and slower. When the hunt is over (the stars lost, he dead or taken in) it turns for the edge, climbs, and is gone 150 m past it.
+
+**The guns.** The roster's door gunners are shared out a machine at a time, two to a machine, the inward door first.
+
+- Each door slides open within 1.4 km of him.
+- Each manned gun is turned onto him at a man's pace, where its arc lets it.
+- It fires whenever its door is open and he is within 650 m and in its gunner's sight (`seesQuarry` from the gun).
+
+Every burst goes through the gunfire layer (`armGun`, `fireAt`) under the wanted level's rules of fire: none at one star, warning fire at two, aimed from three, and never aimed with SAFE FOR WORK on. The gunfire's aim leads him by his way relative to the gun's own, as a gunner allows for his machine's speed. A stolen helicopter is shot down through the gunfire's machine damage and its own crash.
+
+**The pursuers.** Every machine hunting and every gunner in an open door is written into `WantedState.pursuers` each step (ids from `ARMY.ids.pursuer`), so the wanted level's sight test sees through their eyes.
+
+**A ram.** His stolen machine's disc into one of theirs brings theirs down: the discs within 2.5 m of each other's height, or the cabins within 6 m. Theirs spins down with its tail gone and burns where it lands for two minutes. His crashes by its own rules (`heli.ts`' `crashHeli`), and bringing one down is an offence (`downed-helicopter`). With SAFE FOR WORK on nothing is struck: his machine is put back outside their disc.
+
+`CreateGameOptions.army: false` keeps the machines home, so a hunt is the wanted level alone. The wanted level's own tests run that way.
+
+**Events.** One `army` event, its `change` saying what happened: `called`, `arrived`, `leaving`, `gone`, `rammed`, `down`. A ram is heard as the blades meeting, and the wreck as the helicopter's explosion (`route.ts`).
+
+### As drawn and heard
+
+`army-air-view.ts` draws every machine out with `createArmyHeliView`, where the engine has it this frame, carried on its way by the share of a step the picture is past the state.
+
+- The rotor turns at its spool.
+- The doors slide open as it engages.
+- Each manned gun turns where the engine aims it, and the door gunner sits at it, posed to that aim by `gunnerPosed`.
+- The beacons flash and the navigation lights burn while the rotor turns.
+- A machine rammed out of the air goes up where it lands on the game's explosion, and its wreck burns.
+
+The camera is the run's own.
+
+`audio/army-bed.ts` hears each machine as the free ride's helicopter is heard (`heli-voice.ts`, one rack a machine, up to three): from the skier's head, falling off with distance and losing its top to the air, pitched by the Doppler shift of its closing speed and panned across his heading. Over that it lays the class's own voice. Four blades at its own rpm give a lower, heavier blade passage, with the thump half as loud again. Its twin turbines whine a little lower, and the second layer is a second turbine a few cents off the first, so the two beat against each other.
+
+### The labs
+
+`make army-flight` is pure Node and takes tens of seconds. On a real map (seed 38) it runs each star against two quarries: the bot skiing away, and him in the stolen helicopter, flown corner to corner by the bot's hands. Each row gives:
+
+- when the first machine came in, and when it was on station;
+- the slant range held while he was seen, and the share of the time he was seen;
+- the rounds fired and the rounds in him;
+- when he died or his machine was brought down;
+- the least height over the snow and over the crowns, and the steps under the floor (always 0).
+
+A run of `make army-flight ARGS="--seconds=120"`:
+
+Seed 38, 120 s a hunt, INJURIES on.
+
+| Quarry | Stars | Machines | In, s | On station, s | Range p10 / med / p90, m | Seen | Rounds | In him | Dead, s | Downed, s | Least over snow, m | Over crowns, m | Under floor |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 1 | 1 | 10 | 27 | 242 / 250 / 266 | 93% | 264 | 0 | — | — | 32.9 | 20.4 | 0 |
+| skier | 2 | 1 | 10 | 27 | 241 / 249 / 266 | 93% | 288 | 4 | 101 | — | 32.9 | 20.4 | 0 |
+| skier | 3 | 1 | 10 | 27 | 203 / 246 / 253 | 93% | 129 | 1 | 59 | — | 34.3 | 20.2 | 0 |
+| skier | 4 | 2 | 10 | 27 | 189 / 398 / 822 | 93% | 61 | 2 | 37 | — | 92.8 | 75.7 | 0 |
+| skier | 5 | 3 | 10 | 27 | 245 / 253 / 332 | 93% | 688 | 12 | 88 | — | 28.7 | 12.5 | 0 |
+| heli | 1 | 1 | 10 | 20 | 166 / 166 / 218 | 100% | 59 | 0 | 61 | 61 | 105.3 | 90.7 | 0 |
+| heli | 2 | 1 | 10 | 20 | 166 / 166 / 218 | 100% | 143 | 0 | 61 | 61 | 105.3 | 90.7 | 0 |
+| heli | 3 | 1 | 10 | 20 | 164 / 176 / 287 | 100% | 46 | 2 | 35 | 35 | 146.8 | 131.4 | 0 |
+| heli | 4 | 2 | 10 | 20 | 165 / 1318 / 1804 | 100% | 46 | 2 | 35 | 35 | 146.8 | 131.4 | 0 |
+| heli | 5 | 3 | 10 | 20 | 166 / 762 / 1756 | 100% | 64 | 1 | 35 | 35 | 147.3 | 131.4 | 0 |
+
+The stolen helicopter at one and two stars comes down at 61 s with no round in it: the lab's pilot (the bot's hands, flown corner to corner) flies it into the mountain, not the army. The machines' least height over the snow and the crowns is the floor at work; the wide ranges of the stolen helicopter's four- and five-star rows are taken after it is down, while the machines fly home.
+
+The army lab's `hunt` sheet (`make army ARGS="--sheet=hunt"`) photographs the same hunts through the game's own renderer.
+
+### Not yet
+
+- The machines do not land, and nothing comes down the rope: the section on the ground is the next part's.
+- They cannot be shot down; a ram is the one way to bring one down.
+- The woods do not hide him from them.

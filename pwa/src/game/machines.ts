@@ -77,6 +77,7 @@ import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
 import { createSledFireView, type SledFireView } from "./sled-fire-view.ts";
 import { createGunfireView, type GunfireView } from "./gunfire-view.ts";
+import { createArmyAirView, type ArmyAirView } from "./army-air-view.ts";
 import type { Blaze } from "./camera-blast.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
 import { drawnAs } from "./ski-looks.ts";
@@ -341,6 +342,9 @@ export function createMachines(
   let sledFire: SledFireView | null = null;
   // THE ARMY'S GUNS (`gunfire-view.ts`), built the first time a gun is armed.
   let gunfire: GunfireView | null = null;
+  // THE ARMY'S HELICOPTERS (`army-air-view.ts`), built the first time one flies.
+  let army: ArmyAirView | null = null;
+  let armyPace = 1;
   let blastLensed = false;
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
@@ -423,6 +427,12 @@ export function createMachines(
         group.add(gunfire.group);
       }
       gunfire?.frame(s, alpha, dt, simDt, cloud, fx.snowAt);
+      if (!army && s.army && s.army.helis.some((h) => h.phase !== "due")) {
+        army = createArmyAirView(haze);
+        army.setPace(armyPace);
+        group.add(army.group);
+      }
+      army?.frame(s, alpha, dt, simDt);
       heli?.frame(s, alpha, dt, player, rung, flying, cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
       plane?.frame(s, alpha, dt, rung, flying, aspect, cloud, fx.snowAt);
@@ -595,6 +605,7 @@ export function createMachines(
       burn?.lamps(lit, floods);
       sledFire?.lamps(lit, eye, floods);
       gunfire?.lamps(lit, eye, floods);
+      army?.lamps(lit, eye);
       rescue?.lamps(lit, floods);
       rescueSleds?.lamps(lit, eye, floods);
       plane?.lamps(lit, floods);
@@ -679,9 +690,11 @@ export function createMachines(
       const withHull = hull ? [...out, hull] : out;
       return over ? [...withHull, over] : withHull;
     },
-    setPace(pace) {
-      heli?.setPace(pace);
-      hover?.setPace(pace);
+    setPace(next) {
+      armyPace = next;
+      army?.setPace(next);
+      heli?.setPace(next);
+      hover?.setPace(next);
     },
     slideLift: (x, z) => slide?.liftAt(x, z) ?? 0,
     exitPace: () => exitCut?.pace() ?? 1,
@@ -716,6 +729,7 @@ export function createMachines(
       burn?.dispose();
       sledFire?.dispose();
       gunfire?.dispose();
+      army?.dispose();
     },
   };
 }

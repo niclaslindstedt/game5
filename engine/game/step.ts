@@ -448,8 +448,9 @@ export function rulesFor(options: CreateGameOptions, level: Level): RunRules {
     // ...and its fires ridden into (`fire-burn.ts`): the same.
     ...(base.fires ? { fires: true } : {}),
     // ...and its slopes' avalanches (`avalanche.ts`): the free ride's alone,
-    // and only when asked for.
-    ...(base.avalanche && options.avalanche && !summer ? { avalanche: true } : {}),
+    // only when asked for, and never SAFE FOR WORK — a burial is a death on
+    // every run, wounds or none.
+    ...(base.avalanche && options.avalanche && !summer && !options.sfw ? { avalanche: true } : {}),
     // ...and its weather moving over the ride (`front.ts`): the same.
     ...(base.front && options.front && !summer ? { front: true } : {}),
     // ...and its edges held at speed (`speedHoldOf`): the free ride's alone.

@@ -186,16 +186,16 @@ export const RULES: StoreRules = {
 
     advisory: {
       violenceCartoonOrFantasy: "NONE",
-      // INFREQUENT_OR_MILD. The App Store build is the phone app, and the
-      // phone app carries none of the game's gore (pwa/src/game/edition.ts,
-      // set by native/scripts/bundle-web.mjs for every profile): no wound is
-      // shown, nobody dies, and the INJURIES, X-RAY CAM and DAMAGE HUD rows
-      // are not in OPTIONS. What is left is a skiing game's falls: a skier
-      // who meets a trunk, a rock or the snow too hard is thrown and tumbles
-      // (the ragdoll), then stands up again at the reset. The same build plays
-      // safe for work throughout (`RunRules.sfw`): no skier knocks another
-      // down, and no machine crashes or burns.
-      violenceRealistic: "INFREQUENT_OR_MILD",
+      // NONE. The App Store build is the phone app, and the phone app
+      // carries none of the game's gore (pwa/src/game/edition.ts, set by
+      // native/scripts/bundle-web.mjs for every profile): no wound is shown,
+      // nobody dies, and the INJURIES, X-RAY CAM and DAMAGE HUD rows are not
+      // in OPTIONS. It plays safe for work throughout (`RunRules.sfw`): no
+      // skier knocks another down, no machine crashes or burns, and no slope
+      // slides. What is left is a skiing game's wipeout — the skier tumbles
+      // in the snow and is stood back on the piste, unhurt — which harms
+      // nobody.
+      violenceRealistic: "NONE",
       // NONE. The graphic half — a fatal crash drawn as gore, the X-ray cam
       // of the fatal fall — is the website's and the desktop app's alone;
       // the phone build never carries it (see above).
@@ -208,12 +208,11 @@ export const RULES: StoreRules = {
       matureOrSuggestiveThemes: "NONE",
       sexualContentOrNudity: "NONE",
       sexualContentGraphicAndNudity: "NONE",
-      // INFREQUENT_OR_MILD. The phone build keeps the afterski lodge's doors
-      // shut (`RunRules.sfw`), so the player's skier never drinks; but one of
-      // the free ride's crowd groups is a few skiers down from the hut, who
-      // sway and wander as they ski (engine/game/defs/crowd.ts). A mild
-      // reference at most, answered as one.
-      alcoholTobaccoOrDrugUseOrReferences: "INFREQUENT_OR_MILD",
+      // NONE. The phone build plays safe for work (`RunRules.sfw`): the
+      // afterski lodge's doors stay shut and it is never offered as a start,
+      // and nobody in the crowd is down from the hut (crowd.ts). Nothing in
+      // it shows or names a drink.
+      alcoholTobaccoOrDrugUseOrReferences: "NONE",
       // NONE. The HUD's anatomy plate names injuries by body part and grades
       // them (defs/anatomy.ts) as a game readout; nothing advises on, or
       // simulates, treating anyone.

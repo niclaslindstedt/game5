@@ -1,7 +1,7 @@
 // SAFE FOR WORK (`RunRules.sfw`, the INJURIES switch off): nobody collides
 // with anybody, the afterski's doors stay shut, the helicopter is flown
-// through a steadying hand and cannot crash, and the hot air balloon never
-// catches fire and cannot crash.
+// through a steadying hand and cannot crash, the hot air balloon never
+// catches fire and cannot crash, and nobody in the crowd is down from the hut.
 
 import { describe, expect, it } from "vitest";
 import {
@@ -52,6 +52,31 @@ describe("safe for work (RunRules.sfw)", () => {
     // A race's field leans on nobody either.
     const race = createGame({ level, quiet: true, sfw: true });
     expect(race.rules.contact).toBe(false);
+  });
+
+  it("lets no slope slide: a burial is a death, wounds or none", () => {
+    const sfw = createGame({
+      level,
+      mode: "free",
+      crowd: 0,
+      quiet: true,
+      sfw: true,
+      avalanche: true,
+    });
+    expect(sfw.rules.avalanche).toBeUndefined();
+    const plain = createGame({ level, mode: "free", crowd: 0, quiet: true, avalanche: true });
+    expect(plain.rules.avalanche).toBe(true);
+  });
+
+  it("sends nobody down from the hut: no drunk skier in the crowd, alone or in a group", () => {
+    const drunks = (s: GameState): number =>
+      (s.crowd?.amateurs ?? []).filter((a) => a.kind === "drunk").length +
+      (s.crowd?.groups ?? []).filter((g) => g.kind === "drunks").length;
+    const plain = createGame({ level, mode: "free", crowd: 200, quiet: true });
+    expect(drunks(plain)).toBeGreaterThan(0);
+    const sfw = createGame({ level, mode: "free", crowd: 200, quiet: true, sfw: true });
+    expect(sfw.crowd?.amateurs.length).toBe(plain.crowd?.amateurs.length);
+    expect(drunks(sfw)).toBe(0);
   });
 
   it("never begins a ride inside a lodge, and the start card's ask is dropped", () => {

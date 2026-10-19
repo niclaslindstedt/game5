@@ -288,8 +288,11 @@ export function createCrowd(state: GameState, count: number): void {
   state.crowd = crowd;
   if (net.runs.length === 0) return;
   const total = Math.min(CROWD.most, Math.max(0, Math.round(count)));
+  // SAFE FOR WORK (`RunRules.sfw`): nobody down from the hut, in a group or
+  // alone.
+  const sober = state.rules.sfw === true;
   while (crowd.amateurs.length < total) {
-    const kind = pickGroup(rng);
+    const kind = pickGroup(rng, sober);
     const def = CROWD_GROUPS[kind];
     const follow = Math.min(rng.int(def.count[0], def.count[1]), total - crowd.amateurs.length - 1);
     const g: CrowdGroup = {
@@ -302,7 +305,7 @@ export function createCrowd(state: GameState, count: number): void {
       next: -1,
     };
     const index = crowd.groups.length;
-    const lead = rng.pick(def.lead);
+    const lead = rng.pick(sober ? def.lead.filter((k) => k !== "drunk") : def.lead);
     for (let k = 0; k <= follow; k++) {
       // A family's children come first after the parent, so there is one.
       const who = k === 0 ? lead : kind === "family" && k === 1 ? "kid" : rng.pick(def.follow);

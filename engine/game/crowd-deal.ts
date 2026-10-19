@@ -122,9 +122,10 @@ export function freshAmateur(
   };
 }
 
-/** A group kind, by weight. */
-export function pickGroup(rng: Rng): GroupKind {
-  const kinds = Object.keys(CROWD_GROUPS) as GroupKind[];
+/** A group kind, by weight — never the party down from the hut on a run
+ * that is safe for work (`sober`, `RunRules.sfw`). */
+export function pickGroup(rng: Rng, sober = false): GroupKind {
+  const kinds = (Object.keys(CROWD_GROUPS) as GroupKind[]).filter((k) => !sober || k !== "drunks");
   let total = 0;
   for (const k of kinds) total += CROWD_GROUPS[k].weight;
   let at = rng.next() * total;

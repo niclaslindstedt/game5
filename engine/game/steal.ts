@@ -134,9 +134,11 @@ const RESCUE_SOURCE: StealSource = {
 };
 
 /** THE OFFENCE each livery is: what taking it raises the wanted level by
- * (`wanted.ts`). A livery added (the police's) is a row here. */
-const OFFENCE: Record<HeliLivery, WantedCause> = {
+ * (`wanted.ts`). Keyed by the livery's name, the police's row ready before
+ * its livery lands; a livery with no row raises nothing. */
+const OFFENCE: Readonly<Record<string, WantedCause>> = {
   rescue: "stole-ambulance",
+  police: "stole-police",
 };
 
 /** EVERY SOURCE, in the order the press looks at them. A machine added to
@@ -195,6 +197,7 @@ export function stepSteal(
     z: p.z,
   });
   // ...and the army is called: THE WANTED LEVEL (`wanted.ts`).
-  raiseHeat(run, OFFENCE[p.livery]);
+  const offence = OFFENCE[p.livery];
+  if (offence) raiseHeat(run, offence);
   return true;
 }

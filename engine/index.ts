@@ -67,6 +67,7 @@ export * from "./mapgen/index.ts";
 export { jibAt, jibLength, stepJib } from "./game/jib.ts";
 export { lowestRope, ropeOver, ropeSide, stepCable } from "./game/cable.ts";
 export { CABLE } from "./game/defs/cable.ts";
+export { GORE } from "./game/defs/gore.ts";
 export {
   SLOPE_JUDGING,
   jibDifficulty,

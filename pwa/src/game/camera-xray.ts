@@ -140,7 +140,7 @@ export function frameXray(
   let fov: number;
   if (shot.kind === "body") {
     ({ arm, height, fov } = side ?? XRAY_LENS.body);
-  } else if (shot.kind === "shred") {
+  } else if (shot.kind === "shred" || shot.kind === "impact") {
     ({ arm, height, fov } = side ?? XRAY_LENS.shred);
   } else {
     const look =

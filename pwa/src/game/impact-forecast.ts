@@ -47,7 +47,13 @@ export const FORECAST = {
    * taken as the blow's: a rope's wire goes through a hand, an arm and the
    * waist a step or two apart, and the shot is the waist. */
   worst: 0.05,
+  /** Seconds read on past a blow he dies of for the strike that comes with
+   * it (`Strike`): a trunk breaks bones a step or two before his body is
+   * smashed on it. */
+  strikeAfter: 0.15,
 } as const;
+
+const STRIKE_AFTER = Math.round(FORECAST.strikeAfter / TUNING.dt);
 
 /** A blow seen coming: how many seconds off, the part it lands on, the
  * bones it breaks (none: an organ, a ligament, a wound) and whether it
@@ -71,7 +77,55 @@ export type Forecast = {
    * the director's at all — the crash's own lens (`camera-crash.ts`) holds
    * on the machine going up and never goes after him. */
   wrecked: boolean;
+  /** Whether he is CRUSHED on a solid (`gore-smash.ts`: a trunk, a mast, a
+   * lift's tower, bare rock) or SLICED by a lift's rope (`cable-cut.ts`) —
+   * the strikes the IMPACT CAM is shot for with the X-ray switch off — and
+   * how far off, where and which way he is going. */
+  strike?: Strike;
 };
+
+/** A body met by a solid or a rope too fast to hold together: what, how
+ * many seconds off, where (world, m), his way then (world, m/s) and, for
+ * a solid, its middle. */
+export type Strike = {
+  kind: "crush" | "slice";
+  in: number;
+  at: { x: number; y: number; z: number };
+  way: { x: number; y: number; z: number };
+  solid?: { x: number; z: number };
+};
+
+/** A strike as a step finds it, before it is put off the run as it stands. */
+type Struck = Omit<Strike, "in">;
+
+/** His way and his middle before a step: a thrown body's, or on his skis. */
+const wayOf = (s: GameState): { x: number; y: number; z: number } => {
+  const b = s.skier.thrown;
+  return b ? { x: b.vx, y: b.vy, z: b.vz } : { x: s.skier.vx, y: s.skier.vy, z: s.skier.vz };
+};
+const middleOf = (s: GameState): { x: number; y: number; z: number } => {
+  const b = s.skier.thrown;
+  return b ? { x: b.x, y: b.y, z: b.z } : { x: s.skier.x, y: s.skier.y + 1, z: s.skier.z };
+};
+
+/** THE STRIKE IN ONE STEP: a point of him smeared on a solid this step (a
+ * smear more than `smears`), or the rope's cut heard; `way` is his way
+ * before the step. */
+function struckIn(
+  run: GameState,
+  smears: number,
+  way: { x: number; y: number; z: number },
+): Struck | null {
+  const g = run.gore;
+  if (!g) return null;
+  if (g.smears.length > smears) {
+    const m = g.smears[smears];
+    return { kind: "crush", at: { x: m.x, y: m.y, z: m.z }, way, solid: { x: m.cx, z: m.cz } };
+  }
+  for (const e of run.events)
+    if (e.kind === "grind" && e.phase === "cut") return { kind: "slice", at: middleOf(run), way };
+  return null;
+}
 
 /** The deaths that TAKE A BODY APART rather than break it: under a piste
  * machine, into a helicopter's rotor. (Blown off its skid is the crash's
@@ -211,16 +265,25 @@ export function forecast(
   const run = forkRun(state);
   const steps = Math.round(horizon / TUNING.dt);
   const worst = Math.round(FORECAST.worst / TUNING.dt);
-  for (let i = 1; i <= steps; i++) {
+  let strike: Strike | undefined;
+  /** One step on, the strike in it kept (the first). */
+  const on = (i: number): void => {
+    const smears = run.gore?.smears.length ?? 0;
+    const way = wayOf(run);
     step(run, input);
+    const s = strike ? null : struckIn(run, smears, way);
+    if (s) strike = { ...s, in: i * TUNING.dt };
+  };
+  for (let i = 1; i <= steps; i++) {
+    on(i);
     let found = worse(run.events, null);
     if (found) {
       const first = i;
       // On through the tumble for whether he dies of it — and through the
       // wounds the same blow does a step or two on for its worst.
       for (let j = 0; j < Math.round(FORECAST.after / TUNING.dt); j++) {
-        if (j >= worst && diesOf(run)) break;
-        step(run, input);
+        if (j >= worst && diesOf(run) && (strike || j >= STRIKE_AFTER)) break;
+        on(first + j + 1);
         if (j < worst && found.tear) found = worse(run.events, found)!;
       }
       return {
@@ -230,6 +293,7 @@ export function forecast(
         mangled: mangled(run),
         cause: run.gore?.cause ?? null,
         wrecked: wrecked(run),
+        ...(strike ? { strike } : {}),
       };
     }
     if (run.progress.finished) break;
@@ -261,18 +325,25 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
    * the step it lands on. */
   let found: Found | null = null;
   let at = 0;
+  /** The strike found in the read, and the step it comes on. */
+  let strike: Struck | null = null;
+  let struckAt = 0;
   const dies = diesOf;
   const verdict = (state: GameState, fatal: boolean): Forecast => {
-    const f = {
+    const f: Forecast = {
       ...found!,
       in: Math.max(0, (at - state.tick) * TUNING.dt),
       fatal,
       mangled: !!run && mangled(run),
       cause: run?.gore?.cause ?? null,
       wrecked: !!run && wrecked(run),
+      ...(strike
+        ? { strike: { ...strike, in: Math.max(0, (struckAt - state.tick) * TUNING.dt) } }
+        : {}),
     };
     run = null;
     found = null;
+    strike = null;
     return f;
   };
   return {
@@ -283,15 +354,23 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
         input = { ...held };
         left = Math.round(horizon / TUNING.dt);
         found = null;
+        strike = null;
       }
       const most = found ? FORECAST.afterPer : per;
       for (let i = 0; i < most && left > 0; i++, left--) {
+        const smears = run.gore?.smears.length ?? 0;
+        const way = wayOf(run);
         step(run, input!);
+        if (!strike) {
+          strike = struckIn(run, smears, way);
+          if (strike) struckAt = run.tick;
+        }
         const settled = !!found && run.tick - at >= Math.round(FORECAST.worst / TUNING.dt);
         if (found) {
           // The same blow's worse wounds a step or two on (`FORECAST.worst`).
           if (!settled && found.tear) found = worse(run.events, found);
-          if (settled && dies(run)) return verdict(state, true);
+          if (settled && dies(run) && (strike || run.tick - at >= STRIKE_AFTER))
+            return verdict(state, true);
           continue;
         }
         found = worse(run.events, null);
@@ -310,6 +389,7 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
     drop() {
       run = null;
       found = null;
+      strike = null;
     },
   };
 }

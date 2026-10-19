@@ -346,3 +346,96 @@ describe("skipping the X-ray cam", () => {
     expect(c.press(SKIP.within + 0.4)).toBe(false);
   });
 });
+
+describe("the impact cam (crushed or sliced, the X-ray switch off)", () => {
+  const strike = (inS: number) => ({
+    kind: "crush" as const,
+    in: inS,
+    at: { x: 1, y: 2, z: 3 },
+    way: { x: 0, y: 0, z: 30 },
+    solid: { x: 1, z: 3.3 },
+  });
+  const crushed = (inS: number): Forecast => ({ ...femur, in: inS, strike: strike(inS) });
+  /** Frames and steps as the X-ray switch off runs them. */
+  function ride(d: ReturnType<typeof createXrayDirector>, s: Fake, wall: number, f = () => {}) {
+    let look = d.frame(as(s), WALL);
+    for (let w = 0; w < wall; w += WALL) {
+      s.t += WALL * look.rate;
+      f();
+      d.step(as(s), false);
+      s.events = [];
+      look = d.frame(as(s), WALL);
+    }
+    return look;
+  }
+
+  it("shoots nothing but a strike with the switch off", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    d.step(as(s), false);
+    d.seen({ ...femur, in: 0.05 }, as(s), false);
+    expect(ride(d, s, 0.5).active).toBe(false);
+    // Nor a blow the read ahead missed, however he is dying of it.
+    s.gore = { dead: -1, mortal: 0 };
+    s.events.push({ kind: "injury", t: s.t, part: "thighL", injury: "brokenFemur", ais: 3 });
+    d.step(as(s), false);
+    s.events = [];
+    expect(d.frame(as(s), WALL).active).toBe(false);
+  });
+
+  it("waits for the lead, then cuts to the strike and lands on the lead's last frame", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    d.step(as(s), false);
+    // Seen well ahead: kept, not yet cut to.
+    d.seen(crushed(0.7), as(s), false);
+    let look = d.frame(as(s), WALL);
+    expect(look.active).toBe(false);
+    // At its own pace until the lead comes due...
+    while (!look.active && s.t < 0.7) {
+      s.t += WALL;
+      d.step(as(s), false);
+      look = d.frame(as(s), WALL);
+    }
+    expect(look).toMatchObject({ kind: "impact", xray: 0, shot: { kind: "impact" } });
+    expect(0.7 - s.t).toBeLessThanOrEqual(XRAY.impact.lead + 1e-9);
+    expect(0.7 - s.t).toBeGreaterThan(XRAY.impact.lead - 2 * WALL);
+    // ...then slowed evenly onto it a lead's wall seconds on.
+    let wall = 0;
+    while (s.t < 0.7 - 1e-3 && wall < 3) {
+      s.t += WALL * look.rate;
+      wall += WALL;
+      d.step(as(s), false);
+      look = d.frame(as(s), WALL);
+    }
+    expect(wall).toBeGreaterThan(XRAY.impact.leadWall - 0.1);
+    expect(wall).toBeLessThan(XRAY.impact.leadWall + 0.1);
+    expect(look.rate).toBeLessThan(XRAY.impact.slow * 1.3);
+  });
+
+  it("holds the strike slowed, then goes home and lets go", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    s.gore = { dead: -1, mortal: 0 };
+    d.step(as(s), false);
+    d.seen(crushed(XRAY.impact.lead), as(s), false);
+    let look = ride(d, s, XRAY.impact.leadWall);
+    expect(look.shot?.kind).toBe("impact");
+    // The smash on the solid lands it.
+    s.events.push({ kind: "gore", t: s.t, what: "open", piece: "chest", x: 1, y: 2, z: 3 });
+    look = ride(d, s, XRAY.impact.hold - 0.2);
+    expect(look.shot?.kind).toBe("impact");
+    expect(look.rate).toBeLessThan(XRAY.impact.slow * 1.3);
+    look = ride(d, s, 0.5);
+    expect(look.shot?.kind).toBe("body");
+    expect(ride(d, s, XRAY.back + 1).active).toBe(false);
+  });
+
+  it("is the x-ray's, as before, with the switch on", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    d.step(as(s));
+    d.seen(crushed(0.3), as(s));
+    expect(d.frame(as(s), WALL)).toMatchObject({ active: true, kind: "xray" });
+  });
+});

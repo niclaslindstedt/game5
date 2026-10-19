@@ -29,6 +29,7 @@ import {
 import { deathOver, diedOf } from "../game/hud-wreck.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, withPreset } from "../game/settings-video.ts";
+import { DEFAULT_KEYS } from "../game/settings-input.ts";
 import { createXrayRun, dying } from "../game/xray-run.ts";
 import type { XrayLook, XrayShot } from "../game/xray-shots.ts";
 import { acrossRope } from "./gore-cable-scenes.ts";
@@ -38,6 +39,7 @@ import {
   loneTree,
   ontoSnow,
   ontoTop,
+  skiAt,
   skiAtTree,
   type Fresh,
   type Stage,
@@ -67,6 +69,8 @@ const most = Number(params.get("most") ?? 18);
 /** How many times a death is stood up again as the app does it (a new run
  * on the same map, the same renderer and cam) and the scene died again. */
 const again = Number(params.get("again") ?? 0);
+/** The X-RAY CAM switch: off (`xray=0`), the IMPACT cam alone. */
+const glass = params.get("xray") !== "0";
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 canvas.style.width = `${width}px`;
@@ -139,6 +143,22 @@ function dropped(height: number): Scene {
 const SCENES: Record<string, () => Scene> = {
   /** Skied at a lone trunk at 108 km/h: the limbs go. */
   "trunk-fast": () => ({ s: skiAtTree(stage, 30, 30).s }),
+  /** Skied at a steel upright — a lamp's pole, a lift's tower — at 115 km/h. */
+  post: () => {
+    const all = solidsOf(level);
+    // Standing alone on open snow: nothing else solid near it (a station's
+    // hall is a forest of posts).
+    const alone = (u: (typeof all)[number]) =>
+      all.every((o) => o === u || Math.hypot(o.x - u.x, o.z - u.z) > 15);
+    const post = all
+      .filter((u) => u.stuff === "steel" && u.radius >= 0.12 && u.height > 5 && alone(u))
+      .find((u) => {
+        const n = { x: 0, y: 1, z: 0 };
+        level.normalAt(u.x, u.z, n);
+        return n.y > 0.9 && treesNear(level, u.x, u.z, 14, []).length === 0;
+      });
+    return { s: post ? skiAt(stage, post, 32, 9).s : fresh() };
+  },
   /** Flown head first into a trunk at 90 km/h: the head torn off. */
   head: () => ({ s: intoTree(stage, "head", 25).s }),
   /** Thrown flat on his side at 100 km/h, sliding on: the limbs torn off
@@ -299,10 +319,14 @@ async function sheet(name: string): Promise<{ frames: Frame[] }> {
   renderer.draw(state, 1, 1 / 60);
   await new Promise((r) => setTimeout(r, 300));
   let look: XrayLook | null = null;
-  const xray = createXrayRun((l) => {
-    look = l;
-    renderer.setXray(l);
-  });
+  const xray = createXrayRun(
+    (l) => {
+      look = l;
+      renderer.setXray(l);
+    },
+    undefined,
+    () => ({ keys: DEFAULT_KEYS, xray: glass }),
+  );
   const frames: Frame[] = [];
   const WALL = 1 / 60;
   let acc = 0;
@@ -359,7 +383,7 @@ async function lay(name: string, note: string, frames: Frame[]): Promise<{ frame
   const th = Math.round(height * scale);
   sheetEl.style.gridTemplateColumns = `repeat(${cols}, ${tw}px)`;
   const header = document.createElement("header");
-  header.textContent = `X-RAY — ${name} — seed ${seed} — every ${every} s of wall\n${note}`;
+  header.textContent = `${glass ? "X-RAY" : "IMPACT"} — ${name} — seed ${seed} — every ${every} s of wall\n${note}`;
   header.style.whiteSpace = "pre-wrap";
   const cells: HTMLElement[] = [header];
   for (const fr of frames) {

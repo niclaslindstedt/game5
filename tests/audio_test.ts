@@ -262,8 +262,6 @@ const SILENT_KINDS: GameEvent["kind"][] = [
   "injury",
   "death",
   "injured",
-  // A person run into is heard through its bump and the wipeout.
-  "struck",
   "skiJump",
   "steal",
   "wanted",
@@ -328,6 +326,26 @@ describe("the bank and the route (bank.ts, route.ts)", () => {
       EVERY_EVENT_BY_KIND.finish,
     ];
     expect(soundsForStep(step).map((s) => s.id)).toEqual(["checkpoint", "finish"]);
+  });
+
+  it("hears a person run into as a body, crushed when he dies of it, over the shoulder", () => {
+    const struck = EVERY_EVENT_BY_KIND.struck;
+    const alive = { ...struck, killed: false, injured: true, crush: 0 };
+    const slow = soundForEvent({ ...alive, speed: 8 })!;
+    const fast = soundForEvent({ ...alive, speed: 22 })!;
+    expect(slow.id).toBe("struck_body");
+    expect(fast.shape!.gain!).toBeGreaterThan(slow.shape!.gain!);
+    expect(fast.shape!.pitch!).toBeLessThan(slow.shape!.pitch!);
+    // The injuries off: nobody killed, a body met all the same.
+    expect(soundForEvent({ ...alive, injured: false, speed: 25 })!.id).toBe("struck_body");
+    expect(soundForEvent(struck)!.id).toBe("struck_crush");
+    // A child is a lighter body: higher.
+    const child = soundForEvent({ ...alive, speed: 8, height: 1.18 })!;
+    expect(child.shape!.pitch!).toBeGreaterThan(slow.shape!.pitch!);
+    // The bump the same step brings is the same blow said smaller.
+    const bump: GameEvent = { kind: "bump", t: 9, rival: -1, speed: 20, amateur: 3 };
+    expect(soundsForStep([bump, struck]).map((s) => s.id)).toEqual(["struck_crush"]);
+    expect(soundsForStep([bump]).map((s) => s.id)).toEqual(["bump"]);
   });
 
   it("shapes a one-shot by the seat it is heard from, filters and all", () => {

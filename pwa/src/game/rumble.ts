@@ -79,6 +79,10 @@ const LAND_FULL = 12;
 /** Closing speed at which a trunk met is as big as it ever gets, m/s. */
 const HIT_FULL = 20;
 
+/** The change of speed a person run into is felt at full strength from,
+ * m/s — half the closing speed of a man met at 70 km/h. */
+const STRUCK_FULL = 10;
+
 /** The closing speed on a gate pole felt at full strength, m/s. */
 const POLE_FULL = 12;
 
@@ -177,6 +181,14 @@ export function rumbleForEvent(event: GameEvent): Rumble | null {
     case "beast": {
       const hard = ramp(event.taken, 0.5, HIT_FULL);
       return { ms: (event.killed ? 120 : 70) + 140 * hard, strength: 0.4 + 0.55 * hard };
+    }
+
+    // A PERSON RUN INTO (`person-hit.ts`): a body of his own weight — as
+    // hard as the speed it took off him, one run clean through a beat
+    // longer. Thrown, the wipeout beside it plays.
+    case "struck": {
+      const hard = ramp(event.taken, 1, STRUCK_FULL);
+      return { ms: (event.killed ? 120 : 80) + 120 * hard, strength: 0.55 + 0.45 * hard };
     }
 
     // THE GRIMBEAR'S PAW glancing off him on a miss: a short shove, the

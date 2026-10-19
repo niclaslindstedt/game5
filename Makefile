@@ -1072,9 +1072,9 @@ police:
 
 # THE GORE LAB: a body torn apart on a run with the INJURIES switch on —
 # skied into a trunk, flown into one head first, thrown onto the snow, onto
-# his feet, onto a tree's top or a post's, caught by the grimbear — frame by
-# frame through the game's own renderer, with the blood spurting on the
-# beat and the snow red under him. One contact sheet a group,
+# his feet, onto a tree's top or a post's, caught by the grimbear, running
+# into a person (`--sheet=person`) — frame by frame through the game's own
+# renderer, with the blood spurting on the beat and the snow red under him. One contact sheet a group,
 # previews/gore-<group>.png, and every frame alone. Its own one-off bundle
 # from pwa/gore-preview.html (never deployed); needs a Chromium like
 # `world`. ARGS="--sheet=trunk,blood", "--views=spray".

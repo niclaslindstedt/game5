@@ -71,6 +71,46 @@ Restated in our own words, as the numbers it gave:
   held down; the amateur gets up, and the player's body is a readout that a
   reset mends, as everywhere else.
 
+## What it looks, sounds and feels like
+
+The app's half (`pwa/src/game/crowd-broken.ts`, `crowd-gore.ts`,
+`audio/person-bank.ts`, `rumble.ts`), judged with `make gore
+ARGS=--sheet=person` (30, 60 and 90 km/h into a grown man with INJURIES on,
+60 and 90 with them off). What the research on blunt trauma and the sound
+of a body hit says, in our own words:
+
+- **A body broken by blunt force lies wrong where it broke.** A broken
+  thigh lies shorter than the other leg with the foot turned out onto its
+  outside edge (the thigh's muscles pull the ends past each other); a
+  broken shin or forearm is bent where no joint is; a broken neck lets the
+  head lie at an angle a neck never turns to; a stove-in chest lies flatter
+  than a living one.
+- **Most of a blunt blow bleeds inside.** The deaths on record are of the
+  head and the chest, often with little to see outside; the blood on the
+  snow is a face cut and a nose and mouth bleeding at a hurt man, and only a
+  body torn open by a far worse blow sheds litres.
+- **A hit to the body sounds deep and hollow** — mostly thud, little crack,
+  built in layers that play as one: a low boom for the weight, a short
+  transient for the meeting, the breath knocked out of a chest, and only for
+  a bad blow the snap and crunch of bone, kept sparing.
+
+What the game makes of it, INJURIES on (with them off, none of it: he is
+knocked down and gets up):
+
+| | Hurt (alive) | Killed | Crushed (`crush` past 0.45, some 80 km/h) |
+| --- | --- | --- | --- |
+| How he lies (`breakPose`) | on his ragdoll, never getting up: one shin off its knee, his skis off his boots; he stirs — a hand drawn to his chest, his head lifting | both legs broken (a shin across the snow, a thigh short with its foot turned out), both forearms off their elbows, an arm off its shoulder, the head off the neck; still | the same, the trunk drawn flatter (`flatOf`, to 58 % at the full) |
+| His clothes (`bloodOf`) | his face and hair bloodied | soaked in patches | soaked through |
+| The snow (`crowd-gore.ts`, `bleedOf`) | a spatter at the blow; a cupful by his face | a spray along his fling and back at the player, a red smear down his slide, a pool growing to half a litre and more | litres, with his flesh and splintered ribs thrown out at the blow |
+| Heard (`route.ts`) | `struck_body` — a deep thud of a man's weight, a fleshy slap, the nylon, the breath knocked out | `struck_crush` — lower and longer, three snaps of ribs and a crunch, a wet settle, no breath | the same, fuller |
+| Felt (`rumble.ts`) | a body's blow, harder than a shoulder by the speed it took off the player | a beat longer | the same |
+
+The breaks are dealt off a hash of the amateur and come on over the blow's
+first fifth of a second, so a replay lies him the same; everything thrown is
+dealt off the meeting's own seed. The X-ray and impact cams do not cut to a
+person struck: their read ahead (`impact-forecast.ts`) steps a copy of the
+player alone, without the crowd, so it cannot see the meeting coming.
+
 ## For the rescue and the police
 
 - **`casualtiesOf(state)`** — every body on the snow that needs collecting,

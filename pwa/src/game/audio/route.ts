@@ -21,7 +21,7 @@
 // is the groomer's and every trunk a middling living one — the sound the
 // bank had before it knew.
 
-import { BEAST_HIT, type GameEvent, type JumpLanding, type Level } from "@engine";
+import { BEAST_HIT, PERSON_HIT, type GameEvent, type JumpLanding, type Level } from "@engine";
 
 import type { PlayShape } from "@niclaslindstedt/oss-game-framework/audio/types";
 
@@ -125,6 +125,8 @@ const HEARD_NEAR = 4;
 
 /** Closing speeds that separate a brush with a trunk from a wreck, m/s. */
 const HIT_FULL = 20;
+/** The closing speed a person run into is heard at full from, m/s. */
+const STRUCK_FULL = 25;
 
 /** THE CRASH'S CLOSING SPEED at which the blast is as big as it gets,
  * m/s, and the share of it the gentlest crash is still worth — a helicopter
@@ -363,6 +365,36 @@ export function soundForEvent(
       return {
         id: "beast_knock",
         shape: { gain: 0.7 + 0.5 * hard, pitch: 1.3 - 0.5 * big, stretch: 0.9 + 0.4 * big },
+      };
+    }
+
+    // A PERSON RUN INTO (`person-hit.ts`, `person-bank.ts`): a body of a
+    // man's weight met — heavier, lower and longer the faster the two
+    // closed; one killed (the injuries on) is run clean through, his ribs
+    // going. The shoulder's `bump` in the same step is this blow said
+    // smaller and is left out (`soundsForStep`); thrown, the wipeout's
+    // tumble follows it.
+    case "struck": {
+      const hard = ramp(event.speed, PERSON_HIT.strike, STRUCK_FULL);
+      const small = ramp(1.8 - event.height, 0, 0.7);
+      if (event.killed || event.crush > 0) {
+        const smash = Math.max(hard, event.crush);
+        return {
+          id: "struck_crush",
+          shape: {
+            gain: 0.85 + 0.35 * smash,
+            pitch: 1 - 0.15 * smash + 0.2 * small,
+            stretch: 0.9 + 0.3 * smash,
+          },
+        };
+      }
+      return {
+        id: "struck_body",
+        shape: {
+          gain: 0.7 + 0.5 * hard,
+          pitch: 1.05 - 0.2 * hard + 0.25 * small,
+          stretch: 0.9 + 0.35 * hard,
+        },
       };
     }
 
@@ -832,16 +864,18 @@ export function soundForEvent(
  * step is simultaneous, so two events that make the same sound in one step
  * would be one sound at twice the level. And the flag outranks the lap it
  * closes — the last lap's chime under the finish phrase is the same news
- * said twice. */
+ * said twice — as a person struck outranks the shoulder it came with. */
 export function soundsForStep(
   list: readonly GameEvent[],
   contactOf: (event: GameEvent) => Contact = () => ({}),
 ): { id: string; shape?: PlayShape }[] {
   const finishing = list.some((e) => e.kind === "finish");
+  const struck = list.some((e) => e.kind === "struck");
   const played = new Set<string>();
   const out: { id: string; shape?: PlayShape }[] = [];
   for (const event of list) {
     if (finishing && event.kind === "lap") continue;
+    if (struck && event.kind === "bump") continue;
     const hit = soundForEvent(event, contactOf(event));
     if (!hit || played.has(hit.id)) continue;
     played.add(hit.id);

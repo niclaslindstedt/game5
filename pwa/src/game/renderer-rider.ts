@@ -26,6 +26,7 @@ import {
   type Stamp,
   type TrailPen,
 } from "./trail-stamp.ts";
+import { createKeep, type SkiKeep } from "./trail-skis.ts";
 
 export type Rider = {
   model: SkisModel;
@@ -36,6 +37,8 @@ export type Rider = {
   kit: string;
   track: PoseTrack;
   pen: TrailPen;
+  /** Where each ski's stroke is (`trail-skis.ts`). */
+  feet: SkiKeep;
   drawn: Pose;
   /** The drawn furrow's depth past the physics' own, smoothed, m. */
   sink: number;
@@ -61,6 +64,7 @@ export function freshRider(model: SkisModel, spec: SkiSpec, kit: string): Rider 
     kit,
     track: createTrack(),
     pen: createPen(16),
+    feet: createKeep(),
     drawn: { x: 0, y: 0, z: 0, q: { x: 0, y: 0, z: 0, w: 1 } },
     sink: 0,
     wasAirborne: false,

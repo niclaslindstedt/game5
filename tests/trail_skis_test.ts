@@ -17,14 +17,16 @@ import {
 } from "@engine";
 
 import { gaitOf } from "../pwa/src/game/skier-gait.ts";
-import { drawnContacts, LIFT_OFF } from "../pwa/src/game/trail-skis.ts";
+import { createKeep, DRIFT_MOST, drawnContacts, LIFT_OFF } from "../pwa/src/game/trail-skis.ts";
 import { flatLevel } from "./support/synthetic.ts";
 
 const FLAT = flatLevel({ packed: 1 });
+/** Powder, where a skater holds a steady pace and his V a steady angle. */
+const POWDER = flatLevel({ packed: 0 });
 
-function stage(spec: SkiSpec = SKIS, speed = 4): GameState {
-  const state = createGame({ level: FLAT, spec, rivals: 0, countdown: 0, quiet: true });
-  placeRun(state, { x: FLAT.size / 2, z: 400, heading: 0, speed });
+function stage(spec: SkiSpec = SKIS, speed = 4, level = FLAT): GameState {
+  const state = createGame({ level, spec, rivals: 0, countdown: 0, quiet: true });
+  placeRun(state, { x: level.size / 2, z: 400, heading: 0, speed });
   return state;
 }
 
@@ -68,16 +70,60 @@ describe("the skis' footprint as drawn", () => {
       const gait = gaitOf(k);
       const feet = drawnContacts(k);
       for (let n = 0; n < 2; n++) {
+        if (gait.lift[n] <= LIFT_OFF) continue;
+        lifted++;
         const side = n === 0 ? -1 : 1;
-        const up = gait.lift[n] > LIFT_OFF;
-        for (const c of feet.filter((f) => f.side === side)) {
-          const engine = k.contacts.find((e) => e.side === side && e.station === c.station)!;
-          expect(c.touching).toBe(engine.touching && !up);
-        }
-        if (up) lifted++;
+        for (const c of feet.filter((f) => f.side === side)) expect(c.touching).toBe(false);
       }
     }
     expect(lifted).toBeGreaterThan(20);
+  });
+
+  it("cuts each skating stroke straight along its ski, never far from the ski drawn", () => {
+    const state = stage(SKIS, 3.5, POWDER);
+    const keep = createKeep();
+    // Each stroke's binding positions, a stroke a list, by ski.
+    const strokes: { side: number; yaw: number; points: [number, number][] }[] = [];
+    const open: ((typeof strokes)[number] | null)[] = [null, null];
+    for (let i = 0; i < 120 * 8; i++) {
+      step(state, { steer: 0, tuck: 1, brake: 0, lean: 0, reset: false });
+      const k = state.skier;
+      const pen = drawnContacts(k, keep, []);
+      const drawn = drawnContacts(k, undefined, []);
+      for (let n = 0; n < 2; n++) {
+        const side = n === 0 ? -1 : 1;
+        const mid = pen.findIndex((c) => c.side === side && c.station === "mid");
+        if (!pen[mid].touching) {
+          open[n] = null;
+          continue;
+        }
+        expect(
+          Math.hypot(pen[mid].x - drawn[mid].x, pen[mid].z - drawn[mid].z),
+        ).toBeLessThanOrEqual(DRIFT_MOST + 1e-9);
+        if (!open[n]) {
+          open[n] = { side, yaw: skiYaw(k, side) + k.heading, points: [] };
+          strokes.push(open[n]!);
+        }
+        open[n]!.points.push([pen[mid].x, pen[mid].z]);
+      }
+    }
+    // Past the first strides, while the skate comes in.
+    const long = strokes.slice(2).filter((s) => s.points.length > 60);
+    expect(long.length).toBeGreaterThan(4);
+    for (const s of long) {
+      // Every point on the chord from its first to its last: straight.
+      const [x0, z0] = s.points[0];
+      const [x1, z1] = s.points[s.points.length - 1];
+      const len = Math.hypot(x1 - x0, z1 - z0);
+      expect(len).toBeGreaterThan(1);
+      for (const [x, z] of s.points) {
+        expect(Math.abs((x - x0) * (z1 - z0) - (z - z0) * (x1 - x0)) / len).toBeLessThan(0.03);
+      }
+      // ...and that chord angled off his way as the ski is.
+      expect(Math.abs(Math.atan2(x1 - x0, z1 - z0) - s.yaw)).toBeLessThan(0.08);
+    }
+    // The strokes alternate, each angled off the way he goes.
+    expect(new Set(long.map((s) => s.side)).size).toBe(2);
   });
 
   it("stands a straight-running pair where the engine's stations are", () => {

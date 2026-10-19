@@ -94,8 +94,9 @@ export function stepDown(state: GameState, net: CrowdNet, a: Amateur): void {
   a.vx = b.vx;
   a.vz = b.vz;
   // Held by an avalanche — carried, or under its debris until he is dug
-  // out (`avalanche-rescue.ts`) — or dug out dead: he does not get up.
-  if (a.buried !== undefined || a.dead) return;
+  // out (`avalanche-rescue.ts`) — or dug out dead, or run into and hurt
+  // past getting up (`person-hit.ts`): he does not get up.
+  if (a.buried !== undefined || a.dead || a.injured) return;
   if (!crashOver(b)) return;
   a.timer -= dt;
   if (a.timer > 0) return;

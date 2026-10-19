@@ -147,12 +147,12 @@ export type GoreView = {
   leave(model: GoreModel): void;
   /** Every body left lying gone. */
   clearRemains(): void;
+  /** The bodies left lying (`police-remains.ts` hides one the police bag). */
+  remains(): readonly Remains[];
   /** HELD ASIDE while a replay of `of` is watched over the same model
    * (`gore-replay.ts`), or shown again: out of sight but for the dead other
-   * runs left lying — his own death the replay draws again — and with it
-   * all it hangs on his skin (the stumps, the opened trunk, the bone out
-   * through it) and the soak of his clothes, which the replay's body wears
-   * as its own; given back as they were when shown again. */
+   * runs left lying, with all it hangs on his skin (the stumps, the opened
+   * trunk, the bone) and his clothes' soak, which the replay's body wears. */
   hold(on: boolean, model: GoreModel, of?: GameState | null): void;
   /** How a piece torn off whole has moved since it tore (its world now
    * over its world then), for the X-ray's bones in it; null if not flying. */
@@ -971,6 +971,7 @@ export function createGoreView(
     group,
     leave,
     clearRemains,
+    remains: () => remains,
     hold,
     setPace: (k) => blood.setPace((pace = k)),
     update(state, model, simDt, dt, veil) {

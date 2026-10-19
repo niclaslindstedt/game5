@@ -14,6 +14,12 @@
 // steel that throws him (`crash.ts`'s `wipeoutCause`). A thrown body is
 // held out of it too.
 //
+// A call is an air ambulance unless it says otherwise: a run that ended
+// DEAD calls the POLICE (`kind: "police"`, `docs/police.md`), whose machine
+// sits on the same skids and is the same solid — its `evidence` (where he
+// struck, what he left on the snow, where he lay) is the app's to draw and
+// never read here.
+//
 // A run that asked for none never reaches it, so no digest moves, and
 // nothing is drawn from the stream.
 
@@ -37,6 +43,16 @@ export type RescueSite = {
   roll: number;
 };
 
+/** ONE ITEM OF EVIDENCE at a fatal accident's scene, on the snow (m,
+ * world): where he struck (`impact`), blood a smash left on a solid
+ * (`blood`), a piece of him torn off (`piece`), a ski that went on without
+ * him (`ski`), and the body (`body`). */
+export type Evidence = {
+  what: "impact" | "blood" | "piece" | "ski" | "body";
+  x: number;
+  z: number;
+};
+
 /** ONE AIR AMBULANCE called to the mountain, as a run sees it: the run's
  * clock its flight began at (its plan's 0 — negative when it set off on an
  * earlier run), where it sits, the run's clocks it touches down and lifts
@@ -48,11 +64,11 @@ export type RescueCall = {
   down: number;
   up: number;
   casualties: { x: number; z: number; known: number }[];
-  /** WHO COMES: the air ambulance (left out — every call before the
-   * snowmobiles), or the ski patrol on two snowmobiles where there is
-   * nowhere to set a machine down (`rescue-sled.ts`; `site`, `down` and
-   * `up` then unread). */
-  kind?: "heli" | "sled";
+  /** WHO COMES: the air ambulance (left out), the ski patrol on two
+   * snowmobiles where there is nowhere to set a machine down
+   * (`rescue-sled.ts`; `site`, `down` and `up` then unread), or, after a
+   * death, the police. */
+  kind?: "heli" | "sled" | "police";
   /** The rescue by snowmobile, planned off the map (`rescue-sled-route.ts`):
    * read-only, shared between the runs that carry the call. */
   sleds?: RescueSledPlan;
@@ -62,6 +78,9 @@ export type RescueCall = {
   /** The run's clock the machine was TAKEN at by the skier (`steal.ts`),
    * from which it no longer stands there — absent while it is its crew's. */
   stolen?: number;
+  /** The scene's evidence, numbered from the impact to the body, which
+   * only a police call carries. */
+  evidence?: Evidence[];
 };
 
 /** A call copied whole, so a run never shares one with its caller. */
@@ -76,6 +95,7 @@ export function copyCall(r: RescueCall): RescueCall {
     ...(r.sleds ? { sleds: r.sleds } : {}),
     ...(r.sledsTaken ? { sledsTaken: [...r.sledsTaken] } : {}),
     ...(r.stolen !== undefined ? { stolen: r.stolen } : {}),
+    ...(r.evidence ? { evidence: r.evidence.map((e) => ({ ...e })) } : {}),
   };
 }
 

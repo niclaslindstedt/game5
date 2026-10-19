@@ -67,7 +67,7 @@ const Q = RESCUE.scoop;
 const F = RESCUE.flight;
 
 /** The door's middle on the snow, a step out from the skin. */
-function doorStep(plan: RescuePlan, out = 1.4): P2 {
+export function doorStep(plan: RescuePlan, out = 1.4): P2 {
   const mid = plan.cabin;
   const off = RESCUE.door.skin + out;
   return { x: mid.x + plan.out.x * off, z: mid.z + plan.out.z * off };
@@ -151,9 +151,13 @@ function leadOf(plan: RescuePlan): FlightTrip["lead"] {
 }
 
 /** THE CALL to `casualties` (the first at the call's 0), the machine set
- * down for the first. */
-export function planFlight(level: Level, casualties: readonly Called[]): RescueFlight {
-  const first = planRescue(level, casualties[0]);
+ * down for the first — off a cordon's ring (`avoid`) where one is given. */
+export function planFlight(
+  level: Level,
+  casualties: readonly Called[],
+  avoid: readonly P2[] | null = null,
+): RescueFlight {
+  const first = planRescue(level, casualties[0], null, avoid);
   const site: RescueSite = { ...first.site };
   delete (site as Partial<RescuePlan["site"]>).side;
   const trips: FlightTrip[] = [];
@@ -242,7 +246,11 @@ function leadStart(o: P2, h: number, slots: readonly P2[]): number {
 }
 
 /** Where a man is in the cabin, sat behind the door: his step out of it. */
-function inCabin(flight: RescueFlight, plan: RescuePlan, j: number): Vec3 & { heading: number } {
+export function inCabin(
+  flight: RescueFlight,
+  plan: RescuePlan,
+  j: number,
+): Vec3 & { heading: number } {
   const q = fromEuler(flight.site.heading, flight.site.pitch, flight.site.roll);
   const w = rotate(q, {
     x: RESCUE.door.skin - 0.35,

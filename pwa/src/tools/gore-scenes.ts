@@ -34,7 +34,8 @@ import type { LensPose } from "../game/camera-rigs.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 
 export type Fresh =
-  boolean | { grimbear?: boolean; groomer?: boolean; heli?: boolean; safe?: boolean };
+  | boolean
+  | { grimbear?: boolean; groomer?: boolean; heli?: boolean; safe?: boolean; crowd?: number };
 export type Lens = CameraRung | LensPose | ((state: GameState) => LensPose);
 export type Drive = (state: GameState) => SkierInput;
 
@@ -42,7 +43,8 @@ export type Stage = {
   level: Level;
   /** A free ride with the injuries on — the grimbear hunting, the piste
    * machines out or the skier on the helicopter's skid, if asked; or with
-   * them off (`safe`). */
+   * them off (`safe`); `crowd` amateurs out on the ski area (none unless
+   * asked). */
   fresh(ask?: Fresh): GameState;
   run(state: GameState, seconds: number, drive?: Drive): void;
   until(state: GameState, test: (s: GameState) => boolean, limit: number, drive?: Drive): boolean;

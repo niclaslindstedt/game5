@@ -28,6 +28,9 @@ export type Thrown = {
    * his spine has turned in all since, rad — the tumble, counted. */
   heading: number;
   tumble: number;
+  /** Where he was thrown from — his centre of gravity the moment he left
+   * the skis, m (the player's, `throwRider`). */
+  from?: { x: number; y: number; z: number };
   /** The body's points (`RAGDOLL` order), x y z each, world frame, m, and
    * where they were a step ago — the velocity is the difference. */
   points: number[];

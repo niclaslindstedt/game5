@@ -121,20 +121,20 @@ export function turnBasis(turn: SkyTurn, out: number[] = []): number[] {
 /** THE GALACTIC FRAME in celestial coordinates, at the real angles: the
  * north galactic pole 63° off the celestial one, the centre in the band 90°
  * from it, the third axis closing the set. */
-const GAL_POLE = [-0.86767, -0.19807, 0.45598] as const;
+export const GAL_POLE = [-0.86767, -0.19807, 0.45598] as const;
 export const GAL_CENTRE = [-0.054878, -0.873439, -0.483831] as const;
-const GAL_SIDE = [0.494103, -0.444829, 0.746987] as const;
+export const GAL_SIDE = [0.494103, -0.444829, 0.746987] as const;
 
 const vec3 = (v: readonly number[]): string => `vec3(${v.map((n) => n.toFixed(6)).join(", ")})`;
 
 /** The band's colours, linear: the cold blue-white of the arms' unresolved
  * stars, and the core reddened by the dust it is seen through. */
-const GALAXY_ARM = [0.27, 0.37, 0.69] as const;
-const GALAXY_CORE = [0.69, 0.46, 0.24] as const;
+export const GALAXY_ARM = [0.27, 0.37, 0.69] as const;
+export const GALAXY_CORE = [0.69, 0.46, 0.24] as const;
 
 /** How much band there is at all — the one number to move when the Milky
  * Way is too much or not enough (`make sky`'s night columns). */
-const BAND_GAIN = 0.6;
+export const BAND_GAIN = 0.6;
 
 /** THE SKY'S CENSUS: the stars brighter than magnitude m over the whole
  * sky number about 10^(a + b·m) — a score brighter than the first
@@ -154,10 +154,10 @@ export const STAR_GAIN = 0.18;
 /** The band's field WRAPS round the galaxy's longitude, a whole number of
  * noise cells to the turn, or the arc tangent's cut rules a line down the
  * sky; across the band nothing comes back, so that pitch is free. */
-const CLUMP_CELLS = 28;
-const DUST_CELLS = 16;
-const CLUMP_ACROSS = 12.35;
-const DUST_ACROSS = 6.83;
+export const CLUMP_CELLS = 28;
+export const DUST_CELLS = 16;
+export const CLUMP_ACROSS = 12.35;
+export const DUST_ACROSS = 6.83;
 
 /** THE NIGHT SKY AS GLSL. One function is left behind, `nightSky(sky, up,
  * glare, stars, galaxy, time)`: the ray in celestial coordinates, its world

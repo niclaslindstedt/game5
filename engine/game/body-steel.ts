@@ -23,7 +23,7 @@ export type BodyHands = {
   blow(part: BodyPart, v: number, against: number, tree: boolean, share?: number): number;
   /** The g of a stop at `v` m/s over `give` m (`body.ts`' `blowOf`). */
   blowOf(v: number, give: number): number;
-  offer(g: number, part: BodyPart, source: ImpactSource): void;
+  offer(g: number, part: BodyPart, source: ImpactSource, rival?: number, amateur?: number): void;
   pointBlow(
     i: number,
     v: number,

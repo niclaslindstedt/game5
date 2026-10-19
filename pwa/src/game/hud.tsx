@@ -68,9 +68,10 @@ import { STRINGS } from "./strings.ts";
 import { boundLabel, type KeyBindings } from "./settings-input.ts";
 import { wreckOf } from "./hud-wreck.ts";
 import type { AgainAt } from "./free-ride.ts";
-import { DeathCard, InjuredCard } from "./hud-glass.tsx";
+import { ArrestedCard, DeathCard, InjuredCard } from "./hud-glass.tsx";
 import { UpdateButton } from "./update-button.tsx";
 import { WindMeter } from "./hud-wind.tsx";
+import { WantedStars } from "./hud-wanted.tsx";
 import { HeliReadout } from "./hud-heli.tsx";
 import { SledReadout } from "./hud-sled.tsx";
 import { BikeReadout } from "./hud-bike.tsx";
@@ -241,26 +242,36 @@ export function Hud({
   // where his injuries are drawn at all.
   const died = replaying ? null : snap.died;
   const injured = replaying ? null : snap.injured;
-  // Buried by an avalanche, the card comes up whatever the switch says.
+  // Buried by an avalanche, the card comes up whatever the switch says —
+  // and taken in by the army (`wanted.ts`), which only SAFE FOR WORK does.
   const buried = died?.cause === "smothered";
+  const arrested = replaying ? null : snap.arrested;
   const wreck =
-    injuries || buried
+    injuries || buried || arrested !== null
       ? wreckOf(
           injuries ? snap.body.blow : null,
-          died?.since ?? null,
+          died?.since ?? arrested,
           injuries ? (injured?.since ?? null) : null,
           restartAfter,
         )
       : null;
   // THE CRASH OFFERED AGAIN (`hud-replay-offer.tsx`): small print under a
   // card's words, else a chip in the corner under the presses.
-  const onCard = wreck !== null && (died !== null || injured !== null);
+  const onCard = wreck !== null && (died !== null || injured !== null || arrested !== null);
   const replay = offer && (
     <ReplayOffer {...offer} touch={touch} place={onCard ? "card" : "corner"} />
   );
   const card =
     wreck && died ? (
-      <DeathCard wreck={wreck} cause={died.cause} again={again} offer={replay} />
+      <DeathCard
+        wreck={wreck}
+        cause={died.cause}
+        again={again}
+        offer={replay}
+        survived={snap.wanted}
+      />
+    ) : wreck && arrested !== null ? (
+      <ArrestedCard wreck={wreck} again={again} survived={snap.wanted} />
     ) : wreck && injured ? (
       <InjuredCard wreck={wreck} injury={injured} offer={replay} />
     ) : null;
@@ -541,6 +552,7 @@ export function Hud({
       <div class="hud-topright">
         <Minimap map={snap.minimap} dark={snap.dark} onPause={onPause} />
         <HudActions onReset={onReset} onCamera={onCamera} lit={lit} />
+        {snap.wanted && <WantedStars tile={snap.wanted} />}
         {cornerOffer}
       </div>
 

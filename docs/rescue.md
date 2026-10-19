@@ -90,6 +90,8 @@ A machine on its skids can be TAKEN by the player (`engine/game/steal.ts`). Resc
 
 ## How it is triggered and cleared
 
+A run that ends **dead** books no ambulance: it calls the police ([police.md](police.md)), a machine of its own that never takes a second casualty.
+
 - **Triggered:** `App.tsx`'s new run goes through `rescueAgain`, which books a call when the run before ended with `gore.injured ≥ 0`, at where he lay (his ragdoll's hips, or else where he stood). `rescue-view.ts` draws every call the run carries.
 - **Cleared:** a call lasts until its machine is gone, whatever runs come after.
 

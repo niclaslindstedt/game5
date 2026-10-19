@@ -112,6 +112,15 @@ describe("the air ambulance, taken", () => {
     expect(stealWithin(s)).toBeNull();
   });
 
+  it("calls the army: the theft raises the wanted level to two stars (`wanted.ts`)", () => {
+    const { s, events } = stolen();
+    expect(s.wanted?.stars).toBe(2);
+    expect(s.wanted?.cause).toBe("stole-ambulance");
+    expect(events.some((e) => e.kind === "wanted" && e.change === "raised" && e.stars === 2)).toBe(
+      true,
+    );
+  });
+
   it("flies like his own, and let go in the air comes down unflown", () => {
     const { s } = stolen();
     fly(s, 6, hands({ collective: 0.9 }));
@@ -176,5 +185,46 @@ describe("the air ambulance, taken", () => {
     // A new machine, sent from the moment of the theft: a minute ago.
     expect(after[0].start).toBeCloseTo(-60, 6);
     expect(after[0].casualties[0]).toMatchObject({ x: fell.x, z: fell.z, known: 0 });
+  });
+});
+
+describe("the police helicopter, taken", () => {
+  /** The call the run after a death is handed. */
+  const police: RescueCall = (() => {
+    const ended = fresh();
+    standSkier(ended, fell.x, fell.z, fell.heading);
+    ended.t = 5;
+    ended.gore!.dead = 0;
+    return bookRun(createRescueBook(), ended, fresh()).rescue![0];
+  })();
+
+  it("is a police call, taken in its own livery", () => {
+    expect(police.kind).toBe("police");
+    const s = fresh();
+    s.rescue = [{ ...police, site: { ...police.site } }];
+    s.t = police.down + 3;
+    const door = heliDoor(police.site);
+    standSkier(s, door.x, door.z, 0);
+    expect(stealWithin(s)!.livery).toBe("police");
+    const events = fly(s, 1 / 120, ask({ machine: true }));
+    expect(s.heli!.livery).toBe("police");
+    expect(s.rescue![0].stolen).toBeDefined();
+    expect(events.some((e) => e.kind === "steal" && e.livery === "police")).toBe(true);
+  });
+
+  it("has another police machine sent to the same scene", () => {
+    const book = createRescueBook();
+    const ended = fresh();
+    standSkier(ended, fell.x, fell.z, fell.heading);
+    ended.t = 5;
+    ended.gore!.dead = 0;
+    const run = bookRun(book, ended, fresh());
+    run.rescue![0].stolen = run.rescue![0].down + 3;
+    run.t = run.rescue![0].down + 10;
+    const next = bookRun(book, run, fresh());
+    expect(next.rescue!.length).toBe(1);
+    expect(next.rescue![0].kind).toBe("police");
+    expect(next.rescue![0].evidence!.length).toBe(police.evidence!.length);
+    expect(next.rescue![0].stolen).toBeUndefined();
   });
 });

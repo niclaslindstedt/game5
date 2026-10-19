@@ -42,7 +42,16 @@ export function sceneKey(options: CreateGameOptions, outfit: string): string {
 }
 
 /** The options a run is skied on rather than its world is built off. */
-const RUN_ONLY = new Set(["spec", "assist", "poles", "gore", "grimbear", "mishaps", "level"]);
+const RUN_ONLY = new Set([
+  "spec",
+  "assist",
+  "poles",
+  "gore",
+  "grimbear",
+  "mishaps",
+  "wanted",
+  "level",
+]);
 
 export type FreeStage = {
   /** The free ride's start, rider or gear card is up for `options`: stage

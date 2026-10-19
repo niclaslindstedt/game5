@@ -27,6 +27,7 @@ import * as THREE from "three";
 import type { CrowdBody } from "@engine";
 
 import { CROWD_PALETTE, DRESS_SLOT } from "./crowd-dress.ts";
+import { GORE_COLOURS } from "./gore-shapes.ts";
 import {
   CROWD_LOOKS,
   crowdTargets,
@@ -599,12 +600,17 @@ export function crowdTriangles(body: CrowdBody, lod: CrowdLod, board = false): n
 export function crowdMaterial(haze: HazeUniforms): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const palette = { value: CROWD_PALETTE.map((hex) => new THREE.Color(hex)) };
+  // A struck amateur's blood (`aDress2.w`, `crowd-broken.ts`' `bloodOf`):
+  // the colour the player's own wounds are drawn in.
+  const blood = { value: new THREE.Color(GORE_COLOURS.blood) };
   return hazeMaterial(material, haze, "crowd", (shader) => {
     shader.uniforms.uCrowdPalette = palette;
+    shader.uniforms.uCrowdBlood = blood;
     shader.vertexShader = `attribute float aSlot;
 attribute vec4 aDress;
 attribute vec4 aDress2;
 uniform vec3 uCrowdPalette[${CROWD_PALETTE.length}];
+uniform vec3 uCrowdBlood;
 ${shader.vertexShader}`.replace(
       "#include <color_vertex>",
       `#include <color_vertex>
@@ -613,6 +619,12 @@ ${shader.vertexShader}`.replace(
 \t\tfloat k = aSlot < 1.5 ? aDress.x : aSlot < 2.5 ? aDress.y : aSlot < 3.5 ? aDress.z
 \t\t\t: aSlot < 4.5 ? aDress.w : aSlot < 5.5 ? aDress2.x : aSlot < 6.5 ? aDress2.y : aDress2.z;
 \t\tvColor.rgb = uCrowdPalette[int(k + 0.5)] * color.rgb;
+\t}
+\tif (aDress2.w > 0.0) {
+\t\tfloat h = fract(sin(float(gl_VertexID) * 12.9898) * 43758.5453);
+\t\tfloat face = aSlot > 5.5 || (aSlot > 2.5 && aSlot < 3.5) ? 1.0 : 0.0;
+\t\tfloat soak = step(1.0 - aDress2.w * (0.7 + 1.6 * face), h);
+\t\tvColor.rgb = mix(vColor.rgb, uCrowdBlood * (0.45 + 0.55 * fract(h * 7.31)), 0.92 * soak);
 \t}
 #endif`,
     );

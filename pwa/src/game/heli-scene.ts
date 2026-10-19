@@ -24,7 +24,8 @@ import { blendLens, type LensPose, type Vec3 } from "./camera-rigs.ts";
 import { shelterAt, shelterOff } from "./shelter.ts";
 import { createExplosion, type Explosion } from "./explosion.ts";
 import type { HazeUniforms } from "./haze.ts";
-import { createHeliView, type HeliView, type WashPuff } from "./heli-view.ts";
+import { createHeliView, type HeliLook, type HeliView, type WashPuff } from "./heli-view.ts";
+import { policeLivery } from "./police-livery.ts";
 import type { Perch } from "./skier-dangle.ts";
 import { createHeliPerch } from "./ride-perch.ts";
 import { rescueModelUrl } from "./skier-models.ts";
@@ -72,8 +73,12 @@ export type HeliScene = {
   dispose(): void;
 };
 
-/** Each owner's model, by the livery a taken machine is drawn in. */
-const LIVERY_URL: Record<HeliLivery, () => string | null> = { rescue: rescueModelUrl };
+/** Each owner's look, by the livery a taken machine is drawn in: its
+ * model, and the police's colours laid over the ambulance's airframe. */
+const LIVERY_LOOK: Record<HeliLivery, () => HeliLook> = {
+  rescue: () => ({ pad: false, url: rescueModelUrl() }),
+  police: () => ({ pad: false, url: rescueModelUrl(), livery: policeLivery }),
+};
 
 /** How long the drop's lens is held after the push, s, and how long its
  * look takes to come round onto him; how long the lens takes to fly onto
@@ -103,20 +108,27 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
    * livery off their model — built as soon as a run carries one he could
    * take, so its model is in before he takes it — and the view drawing the
    * run's machine this frame. */
-  let taken: HeliView | null = null;
+  const takenBy = new Map<HeliLivery, HeliView>();
   let view = home;
+  const lookOf = (livery: HeliLivery): HeliView => {
+    let v = takenBy.get(livery);
+    if (!v) {
+      v = createHeliView(level, haze, LIVERY_LOOK[livery]());
+      v.group.visible = false;
+      takenBy.set(livery, v);
+      group.add(v.group);
+    }
+    return v;
+  };
   const viewFor = (state: GameState): HeliView => {
-    const livery = state.heli?.livery ?? (state.rescue?.length ? "rescue" : null);
-    if (livery && !taken) {
-      taken = createHeliView(level, haze, { pad: false, url: LIVERY_URL[livery]() });
-      group.add(taken.group);
-    }
-    home.setAway(!!state.heli?.livery);
-    if (!state.heli?.livery) {
-      if (taken) taken.group.visible = false;
-      return home;
-    }
-    return taken!;
+    for (const r of state.rescue ?? []) lookOf(r.kind === "police" ? "police" : "rescue");
+    const livery = state.heli?.livery;
+    home.setAway(!!livery);
+    for (const [k, v] of takenBy) if (k !== livery) v.group.visible = false;
+    if (!livery) return home;
+    const taken = lookOf(livery);
+    taken.group.visible = true;
+    return taken;
   };
   const boom: Explosion = createExplosion();
   group.add(home.group, boom.group);
@@ -276,7 +288,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
     },
     setPace(pace) {
       home.setPace(pace);
-      taken?.setPace(pace);
+      for (const v of takenBy.values()) v.setPace(pace);
     },
     dusk(lit) {
       boom.dusk(lit);
@@ -304,7 +316,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
     perch: createHeliPerch(),
     dispose() {
       home.dispose();
-      taken?.dispose();
+      for (const v of takenBy.values()) v.dispose();
       boom.dispose();
     },
   };

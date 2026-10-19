@@ -123,6 +123,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   skiJump: { kind: "skiJump", t: 40, stage: "touch", speed: 29, distance: 126 },
   net: { kind: "net", t: 40, speed: 8, x: 0, z: 0 },
   grimbear: { kind: "grimbear", t: 40, phase: "burst", x: 0, z: 0 },
+  wanted: { kind: "wanted", t: 40, change: "raised", stars: 2, cause: "stole-ambulance" },
   avalanche: {
     kind: "avalanche",
     t: 40,
@@ -163,6 +164,22 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
     thrown: true,
     killed: true,
     crush: 0.6,
+  },
+  struck: {
+    kind: "struck",
+    t: 9,
+    amateur: 3,
+    x: 1,
+    y: 1,
+    z: 2,
+    speed: 20,
+    taken: 10,
+    given: 11,
+    height: 1.8,
+    thrown: true,
+    killed: true,
+    injured: false,
+    crush: 0.3,
   },
   traffic: { kind: "traffic", t: 40, phase: "strike", vehicle: "hatch", x: 0, z: 0, speed: 5 },
   air: { kind: "air", t: 1, vy: 4, speed: 20 },
@@ -235,7 +252,8 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
  * get up has nothing more to say than the fall that did it; a ski jump's
  * moments are heard in the events beside them (the take-off's `air`, the
  * touch's `land`); a machine taken from its owners is heard in its own
- * boarding (the `heli` event's `board` beside it). */
+ * boarding (the `heli` event's `board` beside it); and the wanted level's
+ * stars are read, not heard — the army is heard by its own machines and guns. */
 const SILENT_KINDS: GameEvent["kind"][] = [
   "air",
   "stuck",
@@ -246,6 +264,7 @@ const SILENT_KINDS: GameEvent["kind"][] = [
   "injured",
   "skiJump",
   "steal",
+  "wanted",
 ];
 
 /** The ceiling a context at 16 kHz holds a cutoff under. */
@@ -307,6 +326,26 @@ describe("the bank and the route (bank.ts, route.ts)", () => {
       EVERY_EVENT_BY_KIND.finish,
     ];
     expect(soundsForStep(step).map((s) => s.id)).toEqual(["checkpoint", "finish"]);
+  });
+
+  it("hears a person run into as a body, crushed when he dies of it, over the shoulder", () => {
+    const struck = EVERY_EVENT_BY_KIND.struck;
+    const alive = { ...struck, killed: false, injured: true, crush: 0 };
+    const slow = soundForEvent({ ...alive, speed: 8 })!;
+    const fast = soundForEvent({ ...alive, speed: 22 })!;
+    expect(slow.id).toBe("struck_body");
+    expect(fast.shape!.gain!).toBeGreaterThan(slow.shape!.gain!);
+    expect(fast.shape!.pitch!).toBeLessThan(slow.shape!.pitch!);
+    // The injuries off: nobody killed, a body met all the same.
+    expect(soundForEvent({ ...alive, injured: false, speed: 25 })!.id).toBe("struck_body");
+    expect(soundForEvent(struck)!.id).toBe("struck_crush");
+    // A child is a lighter body: higher.
+    const child = soundForEvent({ ...alive, speed: 8, height: 1.18 })!;
+    expect(child.shape!.pitch!).toBeGreaterThan(slow.shape!.pitch!);
+    // The bump the same step brings is the same blow said smaller.
+    const bump: GameEvent = { kind: "bump", t: 9, rival: -1, speed: 20, amateur: 3 };
+    expect(soundsForStep([bump, struck]).map((s) => s.id)).toEqual(["struck_crush"]);
+    expect(soundsForStep([bump]).map((s) => s.id)).toEqual(["bump"]);
   });
 
   it("shapes a one-shot by the seat it is heard from, filters and all", () => {

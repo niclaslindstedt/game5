@@ -13,6 +13,8 @@
 //   night   the deep trench under the headlamp
 //   kinds   what cut it: skis, a snowboard and a snowmobile, on the groomer
 //           and in powder, from above and close
+//   skate   skating and poling on the flat: the V's diagonal strokes each
+//           ski leaves, on the groomer and in powder
 //   rider   the rider in his own track: skis and a snowboard in deep powder,
 //           and a board at a crawl, beside him and from the chase lens
 //
@@ -47,12 +49,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (bands, low, night, kinds, speed, rider); every one when left out",
+      help: "which sheets, comma-separated (bands, low, night, kinds, speed, skate, rider); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (groomed, powder, deep, groomed-low, powder-low, deep-low, deep-night, skis-groomed, board-groomed, sled-groomed, skis-powder, board-powder, sled-powder, speed-powder, speed-deep, rider-skis-deep, rider-board-powder, rider-board-deep, rider-board-crawl)",
+      help: "only these views, comma-separated (groomed, powder, deep, groomed-low, powder-low, deep-low, deep-night, skis-groomed, board-groomed, sled-groomed, skis-powder, board-powder, sled-powder, speed-powder, speed-deep, skate-groomed, skate-powder, rider-skis-deep, rider-board-powder, rider-board-deep, rider-board-crawl)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

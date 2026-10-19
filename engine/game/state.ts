@@ -32,9 +32,11 @@ import type { LiftRide, TunnelRide } from "./ride-state.ts";
 import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { AvalancheEvent, AvalancheState } from "./avalanche-state.ts";
+import type { WantedEvent, WantedState } from "./wanted-state.ts";
 import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
 import type { TrafficEvent } from "./traffic-contact.ts";
 import type { BeastEvent, WildState } from "./beast-hit.ts";
+import type { StruckEvent } from "./person-hit.ts";
 import type { PisteDay } from "./piste-day.ts";
 import type { Bracket, CrossHeat } from "./cross-bracket.ts";
 import type { ContestState } from "./contest-state.ts";
@@ -727,10 +729,12 @@ export type GameEvent =
     }
   | GrimbearEvent
   | AvalancheEvent
+  | WantedEvent
   | AfterskiEvent
   | GroomerEvent
   | TrafficEvent
   | BeastEvent
+  | StruckEvent
   | GoreEvent
   /** The skier is bogged in deep powder (`trench.ts`): work out or reset. */
   | { kind: "stuck"; t: number; well?: true }
@@ -939,18 +943,14 @@ export type GameState = ContestState & {
   /** THE CROWD (`crowd.ts`): the free ride's amateurs; else absent. */
   crowd?: CrowdState;
   /** THE PLAYER'S CHAIR LEFT ONLY BY HAND (`chair-hands.ts`): set where the
-   * app asks for it, absent everywhere else — the labs, the suite and every
-   * rival stood off at the top as ever, so no digest moves. */
+   * app asks; absent elsewhere (rivals stood off at the top), so no digest moves. */
   chairHands?: true;
-  /** On a free ride THE HELICOPTER, THE SNOWMOBILE; begun on one the rest. */
+  /** On a free ride THE HELICOPTER, THE SNOWMOBILE (and those he LEFT for a
+   * patrol's, `rescue-sled.ts`); begun on one the rest. On a summer free
+   * ride that asked for one, THE DOWNHILL BIKE (`bike.ts`); else absent. */
   heli?: HeliState;
   sled?: SledState;
-  /** THE SNOWMOBILES HE LEFT STANDING for another (`rescue-sled.ts`: a
-   * ski patrol's machine stolen) — kept where he left them, parked, to be
-   * taken back. Absent until he takes one. */
   sledsLeft?: SledState[];
-  /** On a summer free ride that asked for one, THE DOWNHILL BIKE (`bike.ts`);
-   * else absent, so no digest moves. */
   bike?: import("./bike-state.ts").BikeState;
   para?: import("./para-state.ts").ParaState;
   balloon?: import("./balloon-state.ts").BalloonState;
@@ -973,6 +973,9 @@ export type GameState = ContestState & {
   burn?: import("./fire-burn.ts").BurnState;
   /** THE AVALANCHES (`avalanche.ts`): a free ride that asked for them. */
   avalanche?: AvalancheState;
+  /** THE WANTED LEVEL (`wanted.ts`): the army hunting him, once an offence
+   * (`raiseHeat`) or the run's ask raised it; absent until then. */
+  wanted?: WantedState;
   /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`): a free ride whose
    * player asked for them. */
   mishaps?: import("./mishaps.ts").MishapState;

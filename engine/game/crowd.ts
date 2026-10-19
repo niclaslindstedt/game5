@@ -55,6 +55,8 @@ import {
   type LiftRuns,
 } from "./crowd-lift.ts";
 import { crashLimit, throwRider } from "./crash.ts";
+import { PERSON_HIT } from "./defs/person-hit.ts";
+import { strikePerson } from "./person-hit.ts";
 import { standApart } from "./crowd-apart.ts";
 import { stepDown, throwAmateur } from "./crowd-down.ts";
 import { boardFallSide, sitFor, stepSit } from "./crowd-board.ts";
@@ -865,6 +867,22 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
       a.z += pz;
       const closing = (c.vx - a.vx) * nx + (c.vz - a.vz) * nz;
       if (closing <= 0) continue;
+      const rider = c.spec.skierMass;
+      const taken = closing * (shoulderShare(rider, ma) / shoulderShare(MEDIUM_RIDER.mass, ma));
+      const throws = taken >= CROWD.floors * crashLimit(c, "treeShoulder");
+      const fell = nx * Math.cos(a.heading) - nz * Math.sin(a.heading) >= 0 ? 1 : -1;
+      // FAST, it is two bodies colliding (`person-hit.ts`), both thrown.
+      if (closing >= PERSON_HIT.strike && a.mode !== "down") {
+        const hit = strikePerson(state, events, a, nx, nz, closing, throws);
+        a.speed = hypot(hit.amateur.x, hit.amateur.z);
+        fallDown(a, crowd.rng, fell, "skier", hit.amateur.x, hit.amateur.z, hit.amateur.y);
+        if (c.bumpCooldown <= 0) {
+          c.bumpCooldown = B.cooldown;
+          events.push({ kind: "bump", t: state.t, rival: -1, speed: closing, amateur: a.id });
+        }
+        if (throws) throwRider(state, "skier", hit.player, events);
+        return;
+      }
       const j = ((1 + CROWD.restitution) * closing) / (1 / mp + 1 / ma);
       const v0 = { x: c.vx, y: c.vy, z: c.vz };
       c.vx -= (j / mp) * nx;
@@ -876,19 +894,14 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
       // The thresholds are stated against the medium rider: a heavier one
       // lands harder on the amateur and takes less of it himself
       // (`shoulderShare`, by the riders' weights).
-      const rider = c.spec.skierMass;
       const dealt = closing * (shoulderShare(ma, rider) / shoulderShare(ma, MEDIUM_RIDER.mass));
-      const taken = closing * (shoulderShare(rider, ma) / shoulderShare(MEDIUM_RIDER.mass, ma));
       const knock = CROWD.knock[0] + (CROWD.knock[1] - CROWD.knock[0]) * a.knobs.skill;
-      if (dealt >= knock && a.mode !== "down") {
-        const right = nx * Math.cos(a.heading) - nz * Math.sin(a.heading);
-        fallDown(a, crowd.rng, right >= 0 ? 1 : -1, "skier", vx, vz);
-      }
+      if (dealt >= knock && a.mode !== "down") fallDown(a, crowd.rng, fell, "skier", vx, vz);
       if (closing >= B.speed && c.bumpCooldown <= 0) {
         c.bumpCooldown = B.cooldown;
         events.push({ kind: "bump", t: state.t, rival: -1, speed: closing, amateur: a.id });
       }
-      if (taken >= CROWD.floors * crashLimit(c, "treeShoulder")) {
+      if (throws) {
         throwRider(state, "skier", v0, events);
         return;
       }

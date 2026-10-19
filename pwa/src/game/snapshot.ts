@@ -29,6 +29,7 @@ import {
 } from "./plane-hud.ts";
 import {
   airflowAt,
+  arrestedOf,
   bearingToNext,
   fieldOrder,
   gradeOf,
@@ -88,6 +89,7 @@ import { halfpipeOf, type HalfpipeHud } from "./halfpipe-run.ts";
 import { mogulsOf, type MogulsHud } from "./moguls-run.ts";
 import { aerialsOf, type AerialsHud } from "./aerials-run.ts";
 import { comboTile, freeTile, type TrickTile } from "./trick-tile.ts";
+import { wantedTile, type WantedTile } from "./wanted-tile.ts";
 import {
   challengeRows,
   challengeTile,
@@ -339,6 +341,12 @@ export type HudSnapshot = {
   face: string | null;
   /** THE WIND METER beside the speed (`windOf`). */
   wind: HudWind;
+  /** THE WANTED LEVEL (`wanted-tile.ts`): the stars and the survival
+   * timer, on a run the army hunts; else null. */
+  wanted: WantedTile | null;
+  /** Seconds since the army took him in (SAFE FOR WORK's end of a hunt,
+   * `arrestedOf`), or null. */
+  arrested: number | null;
   /** THE HELICOPTER (`heliOf`): its readouts while he rides it, the way to
    * it while it waits for him, or null. */
   heli: HudHeli | null;
@@ -594,7 +602,7 @@ export function heliOf(state: GameState): HudHeli | null {
   const c = state.skier;
   // At the door of a machine that is not his (`steal.ts`): the press takes it.
   const taken = stealWithin(state);
-  if (taken?.kind === "heli" && taken.livery === "rescue")
+  if (taken?.kind === "heli" && taken.livery !== "patrol")
     return {
       kind: "waiting",
       pad: Math.hypot(taken.door.x - c.x, taken.door.z - c.z),
@@ -847,6 +855,8 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     region: regionOf(state.level).id,
     face: state.level.face ?? null,
     wind: windOf(state),
+    wanted: wantedTile(state),
+    arrested: arrestedOf(state),
     // In a balloon's basket, the plane's door or the sky under it, no
     // machine on the snow calls him.
     heli: aloft ? null : heliOf(state),

@@ -41,6 +41,7 @@ import { GROOMER_STRINGS } from "./strings-groomer.ts";
 import { TRAFFIC_STRINGS } from "./strings-traffic.ts";
 import { WILD_STRINGS } from "./strings-wild.ts";
 import { FIRE_STRINGS } from "./strings-fire.ts";
+import { WANTED_STRINGS } from "./strings-wanted.ts";
 import { SLALOM_STRINGS } from "./strings-slalom.ts";
 import { FREESTYLE_STRINGS } from "./strings-freestyle.ts";
 import { SKI_JUMP_STRINGS } from "./strings-skijump.ts";
@@ -155,6 +156,7 @@ export const STRINGS = {
   ...GROOMER_STRINGS,
   ...TRAFFIC_STRINGS,
   ...WILD_STRINGS,
+  ...WANTED_STRINGS,
   ...FIRE_STRINGS,
   ...FREESTYLE_STRINGS,
   ...SKI_JUMP_STRINGS,
@@ -434,13 +436,14 @@ export const STRINGS = {
     touch ? "TAP TO FLY" : `${key} OR CLICK TO FLY`,
   /** Stood at the door of somebody else's (`steal.ts`): whose, and how to
    * take it. */
-  heliOwned: { rescue: "AIR AMBULANCE" } as const,
+  heliOwned: { rescue: "AIR AMBULANCE", police: "POLICE HELICOPTER" } as const,
   heliSteal: (touch: boolean, key: string): string =>
     touch ? "TAP TO STEAL" : `${key} OR CLICK TO STEAL`,
   /** A machine taken from its owners (`steal.ts`), by whose it was. */
   newsSteal: {
     rescue: "STOLE THE AIR AMBULANCE!",
     patrol: "STOLE THE SKI PATROL'S SNOWMOBILE!",
+    police: "STOLE THE POLICE HELICOPTER!",
   } as const,
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
   newsTunnel: "WIND TUNNEL! HOLD ON",

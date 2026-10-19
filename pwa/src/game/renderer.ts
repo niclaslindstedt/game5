@@ -68,6 +68,7 @@ import { createRideMemory, liftCut, stepRideLook } from "./camera-lift.ts";
 import { createGazeRig } from "./lift-gaze.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createMachines, type Machines } from "./machines.ts";
+import { bagRemains, remainsAt } from "./police-remains.ts";
 import {
   chooseBackend,
   readBackend,
@@ -146,6 +147,7 @@ import { paintAhead } from "./paint-ahead.ts";
 import * as ahead from "./world-prime.ts";
 import { createPeopleView, type CrowdView } from "./spectators.ts";
 import { loadModels as loadSkierModels } from "./skier-models.ts";
+import { createKeep, drawnContacts } from "./trail-skis.ts";
 import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
 import { quietThree } from "./three-console.ts";
 
@@ -216,7 +218,7 @@ export function createWorldRenderer(
     scene,
     shadowLook(),
     FAR * 0.9,
-    native ? gl : null,
+    native || passOn("sky-gpu") ? gl : null,
     !native,
   );
   seam.dress(scene, env.haze); // the node renderer's haze and lights (`gpu-dress.ts`)
@@ -579,6 +581,7 @@ export function createWorldRenderer(
         for (const r of riders) {
           r.track = createTrack();
           r.pen = createPen(16);
+          r.feet = createKeep();
           r.bodyPen = createPen(1);
           r.body = createBodyTrack();
         }
@@ -630,7 +633,7 @@ export function createWorldRenderer(
         deform.begin(i, skier, stamps); // his stamps and the spray's takes, for the hole
         if ((stepped > 0 || lastTick < 0) && TRAIL_LOOK[video.trails].stamp && !summer()) {
           stampsOf(
-            skier.contacts,
+            drawnContacts(skier, r.feet),
             r.pen,
             level.packedAt,
             nominalLoad,
@@ -670,6 +673,7 @@ export function createWorldRenderer(
       if (state.gore && !gore) addGore(level, riders[0].model);
       gore?.setPace(pace);
       gore?.update(state, riders[0].model, simDt, dt, hurt.veil());
+      if (gore && machines) bagRemains(gore.remains(), machines.police(remainsAt(gore.remains())));
       lastTick = state.tick;
       // The ghost is posed and drawn, and nothing more: no furrow, no spray.
       ghost?.draw(ghostRun?.level === level ? ghostRun : null, alpha);

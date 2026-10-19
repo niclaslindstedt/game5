@@ -36,6 +36,7 @@ import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-vi
 import { BEAST_GROUPS, BEAST_VIEWS, labBeasts } from "./gore-beast-scenes.ts";
 import { BONE_GROUPS, BONE_VIEWS } from "./gore-bone-scenes.ts";
 import { CABLE_GROUPS, CABLE_VIEWS } from "./gore-cable-scenes.ts";
+import { PERSON_GROUPS, PERSON_VIEWS } from "./gore-person-scenes.ts";
 import {
   GROUPS as SCENE_GROUPS,
   HUD_GROUPS,
@@ -46,8 +47,14 @@ import {
   type Stage,
 } from "./gore-scenes.ts";
 
-const VIEWS = { ...SCENE_VIEWS, ...BONE_VIEWS, ...CABLE_VIEWS, ...BEAST_VIEWS };
-const GROUPS = { ...SCENE_GROUPS, ...BONE_GROUPS, ...CABLE_GROUPS, ...BEAST_GROUPS };
+const VIEWS = { ...SCENE_VIEWS, ...BONE_VIEWS, ...CABLE_VIEWS, ...BEAST_VIEWS, ...PERSON_VIEWS };
+const GROUPS = {
+  ...SCENE_GROUPS,
+  ...BONE_GROUPS,
+  ...CABLE_GROUPS,
+  ...BEAST_GROUPS,
+  ...PERSON_GROUPS,
+};
 
 type Frame = { view: string; label: string; caption: string; png: string };
 
@@ -122,7 +129,7 @@ function fresh(ask: Fresh = false): GameState {
     mode: "free",
     gore: !o.safe,
     ...(o.safe ? { sfw: true } : {}),
-    crowd: 0,
+    crowd: o.crowd ?? 0,
     quiet: true,
     ...(grimbear ? { grimbear: "hunt" as const } : {}),
     ...(o.groomer ? { groomer: "on" as const } : {}),

@@ -151,6 +151,37 @@ describe("what an event is worth in the hands (pwa/src/game/rumble.ts)", () => {
     expect(wreck.ms).toBeLessThan(RUMBLE.longest);
   });
 
+  it("feels a person run into as a body, harder than his shoulder, longer killed", () => {
+    const struck = {
+      kind: "struck" as const,
+      t: 1,
+      amateur: 0,
+      x: 0,
+      y: 0,
+      z: 0,
+      height: 1.8,
+      thrown: true,
+      injured: true,
+      killed: false,
+      crush: 0,
+    };
+    const slow = rumbleForEvent({ ...struck, speed: 8, taken: 4, given: 4 })!;
+    const fast = rumbleForEvent({ ...struck, speed: 25, taken: 12, given: 12 })!;
+    const dead = rumbleForEvent({
+      ...struck,
+      speed: 25,
+      taken: 12,
+      given: 12,
+      killed: true,
+      injured: false,
+    })!;
+    const bump = rumbleForEvent({ kind: "bump", t: 1, rival: -1, speed: 8 })!;
+    expect(fast.strength).toBeGreaterThan(slow.strength);
+    expect(slow.strength).toBeGreaterThan(bump.strength);
+    expect(dead.ms).toBeGreaterThan(fast.ms);
+    expect(dead.ms).toBeLessThan(RUMBLE.longest);
+  });
+
   it("gives rolling over the whole of what the motor has, and nothing else reaches it", () => {
     expect(ROLL_OVER).toEqual({ ms: RUMBLE.longest, strength: 1 });
     const felt: Rumble[] = [];

@@ -43,3 +43,28 @@ export { fireStrike, stepBurn, type BurnState } from "./fire-burn.ts";
 export { sledBallAt, sledFireFlux } from "./sled-fire.ts";
 export { SLED_FIRE } from "./defs/sled-fire.ts";
 export { FIRE_BURN, FIRE_KINDS, FIRE_LAYOUT, type FireDef, type FireKind } from "./defs/fires.ts";
+// THE WANTED LEVEL (`wanted.ts`): the army hunting a skier who stole a
+// helicopter — its numbers, its state and its hook (`raiseHeat`).
+export {
+  WANTED,
+  type GroundWaves,
+  type PursuerKind,
+  type WantedCause,
+  type WantedRoster,
+  type WaveMix,
+} from "./defs/wanted.ts";
+export {
+  arrestSkier,
+  arrestedOf,
+  freshWanted,
+  groundWave,
+  quarryOf,
+  raiseHeat,
+  rosterOf,
+  seesQuarry,
+  setWanted,
+  stepWanted,
+  survivedOf,
+  wavesSent,
+} from "./wanted.ts";
+export type { Pursuer, WantedEnd, WantedEvent, WantedState } from "./wanted-state.ts";

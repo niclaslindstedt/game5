@@ -43,6 +43,8 @@ The roster climbs the way a real military response is escalated: first find and 
 | `stole-snowmobile` | ½ | 2 stars |
 | `hit-soldier` | ½ | 1 star |
 
+Taking the landed air ambulance (`steal.ts`'s `stepSteal`) calls it with `stole-ambulance`, through the livery's row of `OFFENCE` there; the police helicopter, when it can be taken, is a row beside it (`stole-police`).
+
 An offence also fixes him for `WANTED.fix` (10 s): the theft is reported, and the army knows where he is.
 
 `setWanted(state, n)` sets the stars exactly. It is how a link's `?wanted=N` and `CreateGameOptions.wanted` start a free ride already hunted, and `setWanted(state, 0)` drops them.

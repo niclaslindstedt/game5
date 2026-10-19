@@ -112,6 +112,15 @@ describe("the air ambulance, taken", () => {
     expect(stealWithin(s)).toBeNull();
   });
 
+  it("calls the army: the theft raises the wanted level to two stars (`wanted.ts`)", () => {
+    const { s, events } = stolen();
+    expect(s.wanted?.stars).toBe(2);
+    expect(s.wanted?.cause).toBe("stole-ambulance");
+    expect(events.some((e) => e.kind === "wanted" && e.change === "raised" && e.stars === 2)).toBe(
+      true,
+    );
+  });
+
   it("flies like his own, and let go in the air comes down unflown", () => {
     const { s } = stolen();
     fly(s, 6, hands({ collective: 0.9 }));

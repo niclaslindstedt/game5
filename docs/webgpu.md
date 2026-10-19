@@ -78,7 +78,7 @@ webgpu paths.
 
 | Row | Kind | Part | What it is |
 | --- | --- | --- | --- |
-| `sky-gpu` | pass | 3 | the sky's LUT passes |
+| `sky-gpu` | pass | 3 | the sky's LUT passes. Ported |
 | `clouds` | pass | 10 | the cloud shadow, slab and volume |
 | `trail-map` | pass | 5 | the stamps rasterised into the trail maps |
 | `deform` | pass | 5 | the deform field |
@@ -90,7 +90,8 @@ webgpu paths.
 | `trail-overlay` | pass | 14 | the trail overlay |
 | `gpu-timer` | pass | 14 | the timer queries |
 | `haze` | material | 2 | the haze on a hazed material, with the key's extras, the shade lift and the lamps; a glow's fade. Ported |
-| `shader` | material | 3 | any `ShaderMaterial`: the dome first, then the spray, the clouds and the rest in their own parts |
+| `sky` | material | 3 | the dome, the far ranges and the sky's passes, each drawn by its node twin. Ported |
+| `shader` | material | 9 | every other `ShaderMaterial`: the spray first, then the clouds and the rest in their own parts |
 | `terrain` | material | 4 | the clipmap's snow |
 | `forest-batch` | material | 8 | the woods' multi-draw batch |
 | `haze-graft` | material | 11 | a `hazeMaterial` with grafted GLSL of its own (the figures' gaits, the rock's keep, the tree cards…), each drawn again in its owner's part |
@@ -98,8 +99,10 @@ webgpu paths.
 | `wingsuit` | material | 12 | the wingsuit figure |
 | `gore-tree` | material | 11 | the gore on a tree |
 
-On the webgpu paths after part 2, the frame draws these:
+On the webgpu paths after part 3, the frame draws these:
 
+- the sky: the dome with the sun, the moon, the stars and the Milky Way,
+  the contrails and LOW's cloud shell, and the far ranges
 - the skier's body
 - the gate poles, the netting and the fences
 - the lifts, with their chairs and towers
@@ -107,8 +110,8 @@ On the webgpu paths after part 2, the frame draws these:
 - the HUD
 
 All of it is hazed and lit by the key and the sky as WebGL lights them, and
-by the lamps at night. The frame does not draw the sky (it is black), the
-terrain, the woods, the skis or the crowd. The benchmark report and the
+by the lamps at night. The frame does not draw the terrain, the woods, the
+skis or the crowd. The benchmark report and the
 developer page list what is missing on the `RENDERER` line and on the
 `SKIPPED` / `QUARANTINED` lines under it.
 
@@ -197,8 +200,12 @@ second copy.
   LOW and on HIGH. The haze matches WebGL's to a few levels at every
   distance. A lit surface is still about 8–15 levels lower in blue on the
   webgpu paths, near and far alike, and part 1's frame was lower by the
-  same amount. That gap is in the lighting (the fit below, and the
-  environment the node renderer lights with), not in the haze.
+  same amount. Part 3 shows the gap is not in the lighting either: the
+  dome is lit by nothing, and its sky is still 8–11 levels lower in blue
+  (and 3–5 in green) at noon, on LOW's table and on HIGH's passes alike
+  (seed 38's vista, rows 30–100). The node ACES fit accounts for under one
+  level of it, and brightens. What is left sits after the twin's linear
+  colour: the output pass or the canvas. That is part 7's to find.
 
 - **Three's NODE ACES fit is not quite its GLSL one.** The node fit also
   multiplies the `0.432951` by `0.983729`, so the node canvas is a hair
@@ -207,13 +214,63 @@ second copy.
 
 **Stand-ins until their parts:**
 
-- The aerial-perspective volume (`aerialShade`, part 3) is 1. That is the
-  haze as the LOW sky draws it. The GPU sky's passes are skipped, so the
-  webgpu paths' sky is the LOW grid until part 3.
+- The aerial-perspective volume (`aerialShade`) is read since part 3, as
+  WebGL reads it.
 - The clouds' shadow on the key (part 10) is 1.
 - The skiers' own shadow maps (part 6) take nothing from the key.
 - A material's own share of colour through the haze (`HAZE_KEEP`, on the
   snow and the rock) is not read, because both are hidden until their parts.
+
+## The sky (part 3)
+
+The node renderer would draw a `ShaderMaterial` as a bare node material, so
+the sky's materials get **node twins**. `nodeTwin(material, "sky", kind)`
+(`gpu-backend.ts`) flags a ShaderMaterial with the twin it takes and puts
+it in the `sky` family, which the quarantine lets through. `gpu-dress.ts`'s
+`fromMaterial` hook asks `sky-twins-tsl.ts` first. It answers with the
+twin, made once a material over that material's OWN `uniforms` (read by
+reference, as the haze's slots are) and copying its pipeline state (side,
+depth, blending, polygon offset). WebGL never reads the flag, so its
+picture is the same to the bit.
+
+| Twin | ShaderMaterial | TSL |
+| --- | --- | --- |
+| `dome` | `sky-dome.ts` | `sky-dome-tsl.ts`, with `night-sky-tsl.ts` (the stars, the Milky Way, the moon), `cloud-shell-tsl.ts` and `contrail-tsl.ts` |
+| `far` | `far-ranges.ts` (the rings and the disc) | `far-ranges-tsl.ts` |
+| `trans`, `ms`, `view`, `froxel` | `sky-gpu.ts`'s passes | `sky-atmo-tsl.ts` |
+
+**The GPU sky's passes run on the node renderer** through the same
+`gl.render` of the same quads. Their targets are three's `RenderTarget`
+there, and three samples a target the WebGPU way on both of its back
+ends, so every table is laid out as WebGL lays it. HIGH's aerial volume is
+read by the haze's `aerialShade`, as on WebGL. LOW's sky (`sky-table.ts`)
+needs no pass.
+
+**What the twins do differently, and why:**
+
+- A define changed after the first draw does not rebuild a node pipeline.
+  So `PLAIN_SKY` is read off the material's defines each frame
+  (`onRenderUpdate`), not compiled in.
+- WebGL tone maps the dome and the far ranges in their own shaders. On the
+  node renderer the output pass does it, and the far ranges' haze is mixed
+  in display space through the fog node's own `hazeOver`, as part 2's
+  materials are.
+- **The cloud noise is a 2D sheet**, not a 3D texture. SwiftShader's Dawn
+  refuses every write into a 3D texture, and then refuses every frame.
+  `noiseAtlas` lays the slices out in a grid, each with a one-texel
+  border wrapped off its opposite edge, so the sampler's own filter
+  repeats as the 3D one does. The depth is filtered between two slices
+  by hand.
+- LOW's cloud shell is every tier's on the webgpu paths until the clouds'
+  passes are ported (part 10). MEDIUM's slab and HIGH's volume are
+  pictures drawn before the frame, and those passes are skipped. So a deck
+  that WebGL's volume closes over the whole sky (OVERCAST at HIGH) can
+  leave a strip of sky at the top of the frame on the webgpu paths, and
+  how it reads at HIGH depends on the cells drawn before it in `make sky`'s
+  sheet. At LOW the overcast matches WebGL's.
+
+`tests/sky_tsl_test.ts` holds the flags, the quarantine, the register, every
+twin built on plain Node, and the sheet against the field.
 
 ## Measuring both paths
 
@@ -223,8 +280,9 @@ parameter, the Chromium switches that back end needs, and a check
 (`assertBackend`) that fails the lab when the page drew on a different back
 end than the one asked for. `make bench ARGS="--renderer=both"` runs the
 benchmark on each back end and closes with the two side by side. The labs
-that take the flag are `make bench`, `make screenshots`, `make world` and
-`make profile`. `make profile`'s WebGL meter counts nothing on the webgpu
+that take the flag are `make bench`, `make screenshots`, `make world`,
+`make sky` and `make profile`. `make sky` times the GPU sky's passes on
+WebGL only. `make profile`'s WebGL meter counts nothing on the webgpu
 paths until part 14.
 
 **WebGPU in a headless container** needs more than the obvious switches. With
@@ -247,18 +305,19 @@ lines.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 Scaffolding | 2026-10-19 | webgl | 100 | 231 677 | 51 programs | 12.47 | 5.83 | 0 / 0 | the WebGL race shot is pixel-identical to main's |
 | 1 Scaffolding | 2026-10-19 | webgpu | 72 | 89 025 | 41 programs, 29 pipelines | 270.38 | 266.35 | 11 passes / 38 meshes | SwiftShader's Vulkan. The submit includes the first pipelines' compiles. The webgl wall ms is the readPixels fence's and is not comparable |
-
 | 2 Haze and lights | 2026-10-19 | webgl | 100 | 231 677 | 51 programs | 12.04 | 5.48 | 0 / 0 | the WebGL world shots (spawn, far) are pixel-identical to part 1's |
 | 2 Haze and lights | 2026-10-19 | webgpu | 72 (72 before) | 89 025 | 42 programs, 29 pipelines (41, 29 before) | 505.16 (313.05 before) | 500.39 (309.02 before) | 11 passes / 38 meshes (11 / 38 before) | Every material drawn before is now hazed and lit as on WebGL, and nothing new is drawn. The submit is two mid-run frames compiling the larger hazed pipelines on SwiftShader (965 ms and 1 143 ms; the other readings are 7–8 ms) |
+| 3 Sky | 2026-10-19 | webgl | 100 | 231 882 | 51 programs | 14.63 | 6.75 | 0 / 0 | the 18 WebGL world shots (seed 38; LOW and HIGH; 12, 17.5 and 23 h; vista, far, spawn) are pixel-identical to part 2's |
+| 3 Sky | 2026-10-19 | webgpu | 75 (72 before) | 101 667 (89 025) | 48 programs, 32 pipelines (42, 29 before) | 686.38 (481.77 before) | 681.18 (477.73 before) | 10 passes / 35 meshes (11 / 38 before) | The dome, the far ranges and the sky's passes draw. The steady readings are 6–19 ms; the mean is the frames compiling the sky's pipelines on SwiftShader (one of 2 203 ms). At HIGH: 92 draws (89), 164 537 triangles (125 591), 73 programs and 48 pipelines (63, 43), 950.21 ms (497.81) with steady readings of 9–12 ms |
 
-Part 1 and part 2 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+Parts 1 to 3 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis).
 
 ## Systems ported
 
 - [x] 1 Scaffolding: the seam, the device, the switch, the quarantine, the instruments, the lab flag, this ledger
 - [x] 2 Haze and lights (`haze`): the fog node, the key, the sky, the lamps, the wall, the glows as sprites
-- [ ] 3 Sky (`sky-gpu`)
+- [x] 3 Sky (`sky-gpu`, `sky`): the dome, the night sky, the contrails, LOW's cloud shell, the far ranges, the LUT passes and the aerial volume, each as a node twin
 - [ ] 4 Terrain and snow I (`terrain`)
 - [ ] 5 Trails and deform (`trail-map`, `deform`)
 - [ ] 6 Shadows (`hero-shadow`, `shadow-depth`)

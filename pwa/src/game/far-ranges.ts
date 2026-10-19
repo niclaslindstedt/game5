@@ -28,6 +28,7 @@ import * as THREE from "three";
 import type { Level } from "@engine";
 import { regionOf } from "@engine";
 
+import { nodeTwin } from "./gpu-backend.ts";
 import { FAR_RADIUS } from "./horizon.ts";
 import { HAZE_FRAGMENT, SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import { dealtGrid, farFrame, type FarFrame, type FarGrid } from "./far-ranges-field.ts";
@@ -209,6 +210,7 @@ export function createFarRanges(haze: HazeUniforms): FarRanges {
       depthWrite: !backdrop,
       depthTest: true,
     });
+    nodeTwin(m, "sky", "far"); // the webgpu paths' (`far-ranges-tsl.ts`)
     if (!backdrop) {
       // Behind the clipmap wherever both stand.
       m.polygonOffset = true;

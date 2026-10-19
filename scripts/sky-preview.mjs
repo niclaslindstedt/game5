@@ -69,6 +69,7 @@
 //   node scripts/sky-preview.mjs --sheet=timelapse --view=antisun --step=20
 //   node scripts/sky-preview.mjs --sheet=timelapse --clock --step=5   # the run's own clock
 //   node scripts/sky-preview.mjs --sheet=tiers --json=previews/sky-tiers-before.json
+//   node scripts/sky-preview.mjs --renderer=webgpu   # on the WebGPU path (docs/webgpu.md)
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -78,6 +79,8 @@ import process from "node:process";
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
+
+import { assertBackend, rendererArgs, rendererFlag, renderersOf } from "./lib/backend-flag.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".sky-preview");
@@ -135,8 +138,9 @@ const args = parseArgs(
     height: { kind: "number", default: 180, help: "one cell's height, px" },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 1200, help: "how long the whole run may take, s" },
+    renderer: rendererFlag(),
   },
-  "usage: node scripts/sky-preview.mjs [--sheet=weathers|timelapse|tiers|skytier|far|clouds|cloudlapse|sunclouds|cloudshadow|cloudmotion|lowdeck|moon] [--seed=n] [--hours=a,b] [--weathers=a,b] [--view=vista] [--json=f] [--compare=f] [--skip-build]",
+  "usage: node scripts/sky-preview.mjs [--sheet=weathers|timelapse|tiers|skytier|far|clouds|cloudlapse|sunclouds|cloudshadow|cloudmotion|lowdeck|moon] [--seed=n] [--hours=a,b] [--weathers=a,b] [--view=vista] [--json=f] [--compare=f] [--skip-build] [--renderer=b]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -164,7 +168,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 
@@ -194,12 +203,14 @@ const query = new URLSearchParams({
   rate: String(args.rate),
   maps: args.maps,
   far: args["no-far"] ? "0" : "1",
+  ...(args.renderer !== "webgl" ? { renderer: args.renderer } : {}),
 }).toString();
 console.log(`sky — seed ${args.seed}, ${args.sheet}, ${args.view}, ${args.quality} quality`);
 const t0 = Date.now();
 await page.goto(`${server.url}sky-preview.html?${query}`);
 await page.waitForFunction("window.__sky !== undefined");
 await page.evaluate("window.__sky.ready");
+await assertBackend(page, args.renderer);
 if (crashed) process.exit(1);
 const drawn = await page.evaluate(() => globalThis.__sky.sheet());
 if (crashed) process.exit(1);
@@ -209,7 +220,8 @@ const sheetPart =
   (args.front ? "-front" : "") +
   (args["no-far"] ? "-nofar" : "");
 const viewPart = args.view === "chase" ? "" : `-${args.view}`;
-const out = join(outDir, `sky-${args.seed}${sheetPart}${viewPart}.png`);
+const rendererPart = args.renderer !== "webgl" ? `-${args.renderer}` : "";
+const out = join(outDir, `sky-${args.seed}${sheetPart}${viewPart}${rendererPart}.png`);
 await page.locator("#sheet").screenshot({ path: out });
 console.log(
   `${out.replace(`${root}/`, "")}  ${drawn.rows}×${drawn.cols}: ${drawn.note}  (${((Date.now() - t0) / 1000).toFixed(0)} s)`,

@@ -18,10 +18,17 @@
 // Half-float targets: a WebGL2 context that cannot render into them (no
 // `EXT_color_buffer_float` or `_half_float`) draws the LOW sky at every
 // stop — the game never asks for more than the machine has.
+//
+// ON THE NODE RENDERER (the webgpu paths, `docs/webgpu.md` part 3) the
+// passes are the same ShaderMaterials over the same uniforms, flagged with
+// their node twins (`nodeTwin`), which the renderer's library draws in
+// their place (`sky-atmo-tsl.ts`); the targets are three's own
+// `RenderTarget`, which every node back end renders into half floats.
 
 import * as THREE from "three";
 import type { Heightfield } from "@engine";
 
+import { nodeTwin } from "./gpu-backend.ts";
 import type { HazeUniforms } from "./haze.ts";
 import {
   FROXEL_ATLAS,
@@ -80,8 +87,8 @@ export function gpuSkyAvailable(gl: THREE.WebGLRenderer): boolean {
   );
 }
 
-function target(w: number, h: number): THREE.WebGLRenderTarget {
-  const rt = new THREE.WebGLRenderTarget(w, h, {
+function target(w: number, h: number, node: boolean): THREE.WebGLRenderTarget {
+  const options: THREE.RenderTargetOptions = {
     type: THREE.HalfFloatType,
     format: THREE.RGBAFormat,
     minFilter: THREE.LinearFilter,
@@ -91,17 +98,22 @@ function target(w: number, h: number): THREE.WebGLRenderTarget {
     depthBuffer: false,
     stencilBuffer: false,
     generateMipmaps: false,
-  });
+  };
+  // The node renderer's own target, typed as the one `gl` is typed to take.
+  const rt = node
+    ? (new THREE.RenderTarget(w, h, options) as THREE.WebGLRenderTarget)
+    : new THREE.WebGLRenderTarget(w, h, options);
   rt.texture.colorSpace = THREE.NoColorSpace;
   return rt;
 }
 
 function pass(
+  twin: string,
   fragmentShader: string,
   uniforms: Record<string, THREE.IUniform>,
   defines: Record<string, number> = {},
 ): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
+  const m = new THREE.ShaderMaterial({
     vertexShader: QUAD_VERTEX,
     fragmentShader,
     uniforms,
@@ -110,6 +122,7 @@ function pass(
     depthWrite: false,
     blending: THREE.NoBlending,
   });
+  return nodeTwin(m, "sky", twin);
 }
 
 /** The ground as a texture of heights, m, ≤ 512 texels a side, and its
@@ -134,8 +147,17 @@ function groundTexture(g: Heightfield): { tex: THREE.DataTexture; box: THREE.Vec
   };
 }
 
-export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms): SkyGpu {
-  const able = gl !== null && gpuSkyAvailable(gl);
+/** `node`: `gl` is the node renderer typed as WebGL's (`render-seam.ts`),
+ * which renders into half floats on every back end it has. */
+export function createSkyGpu(
+  gl: THREE.WebGLRenderer | null,
+  haze: HazeUniforms,
+  node = false,
+): SkyGpu {
+  const able = gl !== null && (node || gpuSkyAvailable(gl));
+  /** The node renderer draws nothing before its device is made. */
+  const drawable = (): boolean =>
+    !node || (gl as unknown as { initialized?: boolean }).initialized === true;
   let asked: Tier = "low";
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -184,7 +206,7 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
     uGroundBox: { value: new THREE.Vector4(0, 0, 1, 1) },
     uGroundOn: { value: new THREE.Vector4(0, 0, 0, 0) },
   };
-  const apMat = pass(FROXEL_FRAGMENT, apU);
+  const apMat = pass("froxel", FROXEL_FRAGMENT, apU);
   let ground: THREE.DataTexture | null = null;
   const tint: Rgb = [1, 1, 1];
 
@@ -198,12 +220,12 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
 
   function buildTables(): void {
     const t = SKY_TABLES;
-    trans = target(t.trans.width, t.trans.height);
-    ms = target(t.ms.size, t.ms.size);
-    const tm = pass(TRANS_FRAGMENT, {});
+    trans = target(t.trans.width, t.trans.height, node);
+    ms = target(t.ms.size, t.ms.size, node);
+    const tm = pass("trans", TRANS_FRAGMENT, {});
     draw(tm, trans);
     tables.uTrans.value = trans.texture;
-    const mm = pass(MS_FRAGMENT, tables);
+    const mm = pass("ms", MS_FRAGMENT, tables);
     draw(mm, ms);
     tables.uMs.value = ms.texture;
     tm.dispose();
@@ -219,8 +241,8 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       return;
     view?.dispose();
     viewMat?.dispose();
-    view = target(w, h);
-    viewMat = pass(VIEW_FRAGMENT, viewU, { STEPS: look.steps });
+    view = target(w, h, node);
+    viewMat = pass("view", VIEW_FRAGMENT, viewU, { STEPS: look.steps });
     viewU.uSize.value.set(w, h);
     drawn.elevation = NaN;
   }
@@ -259,7 +281,7 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       // still going, and the air's volume is let go half way.
       const lidded = look.cloud.lid > 0;
       const lidHalf = look.cloud.lid >= 0.5;
-      if (!gl || !want.lut) {
+      if (!gl || !want.lut || !drawable()) {
         showGrid();
         haze.uHazeTint.value.set(1, 1, 1);
         haze.uApOn.value.x = 0;
@@ -308,7 +330,7 @@ export function createSkyGpu(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       // THE AERIAL-PERSPECTIVE VOLUME, the lens's own, every frame.
       const air = want.froxels && !lidHalf && look.sun.y > -0.05;
       if (air && (lens as THREE.PerspectiveCamera).isPerspectiveCamera) {
-        if (!ap) ap = target(FROXEL_ATLAS.width, FROXEL_ATLAS.height);
+        if (!ap) ap = target(FROXEL_ATLAS.width, FROXEL_ATLAS.height, node);
         lens.updateMatrixWorld();
         const vp = haze.uApViewProj.value;
         vp.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse);

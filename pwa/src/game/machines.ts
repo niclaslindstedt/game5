@@ -63,6 +63,7 @@ import { createBasketWalk } from "./ride-perch.ts";
 import { skydiveShapeOf } from "./skier-skydive.ts";
 import { wingsuitShapeOf } from "./skier-wingsuit.ts";
 import { createHoverScene, type HoverScene } from "./wingsuit-hover.ts";
+import type { Taken } from "./police-remains.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createPatrolView, patrolShown, type PatrolView } from "./patrol-view.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
@@ -116,6 +117,9 @@ export type Machines = {
   /** THE HELICOPTER'S LENS, flown in from the skier's `ladder` and back
    * out to it (`heli-scene.ts`), or null while the ladder has it whole. */
   lens(ladder: LensPose, dt: number): LensPose | null;
+  /** THE POLICE'S CASUALTIES this frame (`police-remains.ts`), told where
+   * the dead are left lying (`spots`), whom the call then draws not. */
+  police(spots: readonly { x: number; z: number }[]): readonly Taken[];
   /** Whether his own figure is drawn under the lens `lens` handed back:
    * not while the skydive looks out of his own eyes. */
   figureShown(): boolean;
@@ -602,6 +606,7 @@ export function createMachines(
       if (x) ownLook = exitEyes;
       return x ?? h ?? c ?? p;
     },
+    police: (spots) => rescue?.police(spots) ?? [],
     figureShown: () => !ownLook,
     blaze: (planted) => sledFire?.blaze(!planted || blastLensed) ?? null,
     ladder(pose, s, screen = 16 / 9) {

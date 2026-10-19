@@ -79,6 +79,7 @@ export function pairViews(make: () => GoreView): GoreViews {
       replay?.clear(model);
     },
     clearRemains: () => run.clearRemains(),
+    remains: () => run.remains(),
     flown: (piece, out) => active().flown(piece, out),
     dispose() {
       run.dispose();

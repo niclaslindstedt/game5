@@ -116,7 +116,7 @@ const RESCUE_SOURCE: StealSource = {
       if (r.stolen !== undefined || state.t < r.down || state.t >= r.up) continue;
       out.push({
         kind: "heli",
-        livery: "rescue",
+        livery: r.kind === "police" ? "police" : "rescue",
         from: "rescue",
         index: i,
         ...r.site,

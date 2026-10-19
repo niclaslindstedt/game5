@@ -436,11 +436,14 @@ export const STRINGS = {
     touch ? "TAP TO FLY" : `${key} OR CLICK TO FLY`,
   /** Stood at the door of somebody else's (`steal.ts`): whose, and how to
    * take it. */
-  heliOwned: { rescue: "AIR AMBULANCE" } as const,
+  heliOwned: { rescue: "AIR AMBULANCE", police: "POLICE HELICOPTER" } as const,
   heliSteal: (touch: boolean, key: string): string =>
     touch ? "TAP TO STEAL" : `${key} OR CLICK TO STEAL`,
   /** A machine taken from its owners (`steal.ts`), by whose it was. */
-  newsSteal: { rescue: "STOLE THE AIR AMBULANCE!" } as const,
+  newsSteal: {
+    rescue: "STOLE THE AIR AMBULANCE!",
+    police: "STOLE THE POLICE HELICOPTER!",
+  } as const,
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
   newsTunnel: "WIND TUNNEL! HOLD ON",
   /** Taken onto a lift on a free ride (`lift-ride.ts`). */

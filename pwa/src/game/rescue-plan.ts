@@ -104,10 +104,36 @@ function headingAt(
   return { heading, ahead: (to.x * f.x + to.z * f.z) / d };
 }
 
-/** A patch's cost to land on, or null where it cannot be landed on. */
-function siteCost(level: Level, x: number, z: number, spot: Vec3, r: number, relax: boolean) {
+/** Whether the disc at (x, z), `room` m past its rim, reaches into the
+ * convex polygon `ring` (a police cordon, `police-scene.ts`). */
+function overRing(x: number, z: number, ring: readonly P2[], room: number): boolean {
+  let left = 0;
+  let right = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % ring.length];
+    if (toSegment(x, z, { ...a, y: 0 }, { ...b, y: 0 }) < R + room) return true;
+    // Inside a convex ring: on the same side of every edge.
+    if ((b.x - a.x) * (z - a.z) - (b.z - a.z) * (x - a.x) < 0) right++;
+    else left++;
+  }
+  return ring.length > 2 && (left === 0 || right === 0);
+}
+
+/** A patch's cost to land on, or null where it cannot be landed on — off
+ * `avoid` (a cordon's ring) by the disc and some, where one is given. */
+function siteCost(
+  level: Level,
+  x: number,
+  z: number,
+  spot: Vec3,
+  r: number,
+  relax: boolean,
+  avoid: readonly P2[] | null,
+) {
   const edge = R + 6;
   if (x < edge || z < edge || x > level.size - edge || z > level.size - edge) return null;
+  if (avoid && overRing(x, z, avoid, relax ? 1 : 3)) return null;
   const y = level.groundAt(x, z);
   const n = { x: 0, y: 1, z: 0 };
   level.normalAt(x, z, n);
@@ -153,16 +179,18 @@ function siteCost(level: Level, x: number, z: number, spot: Vec3, r: number, rel
   );
 }
 
-/** THE PATCH, its heading along the contour and its door's side. */
-function pickSite(level: Level, spot: Vec3) {
+/** THE PATCH, its heading along the contour and its door's side — the
+ * rings searched reaching further out past a cordon (`avoid`). */
+function pickSite(level: Level, spot: Vec3, avoid: readonly P2[] | null) {
+  const far = avoid ? [50, 60, 70, 80, 95, 110] : [];
   for (const relax of [false, true]) {
     let best: { x: number; z: number; cost: number } | null = null;
-    for (const r of [...RESCUE.site.radii, ...(relax ? [50, 60, 18] : [])]) {
+    for (const r of [...RESCUE.site.radii, ...(relax ? [50, 60, 18] : []), ...far]) {
       for (let k = 0; k < 24; k++) {
         const a = (k / 24) * Math.PI * 2;
         const x = spot.x + Math.sin(a) * r;
         const z = spot.z + Math.cos(a) * r;
-        const cost = siteCost(level, x, z, spot, r, relax);
+        const cost = siteCost(level, x, z, spot, r, relax, avoid);
         if (cost !== null && (!best || cost < best.cost)) best = { x, z, cost };
       }
     }
@@ -239,18 +267,20 @@ export function aroundNose(site: RescuePlan["site"], c: P2): P2 | null {
 
 /** THE PLAN for a skier found INJURED lying at `spot` — to a machine it
  * picks a patch for, or to one already sat at `landed` (a second casualty
- * for an air ambulance still on the snow, `rescue-flight.ts`). */
+ * for an air ambulance still on the snow, `rescue-flight.ts`) — its patch
+ * kept off a cordon's ring (`avoid`) where one is given. */
 export function planRescue(
   level: Level,
   spot: { x: number; z: number },
   landed: Omit<RescuePlan["site"], "side"> | null = null,
+  avoid: readonly P2[] | null = null,
 ): RescuePlan {
   const sy = level.groundAt(spot.x, spot.z);
   const c: Vec3 = { x: spot.x, y: sy, z: spot.z };
   let site: RescuePlan["site"];
   if (landed) site = { ...landed, side: 1 };
   else {
-    const best = pickSite(level, c);
+    const best = pickSite(level, c, avoid);
     const heading = headingAt(level, best.x, best.z, c).heading;
     const sit = seated(level, best.x, best.z, heading);
     site = { x: best.x, y: sit.y, z: best.z, heading, pitch: sit.pitch, roll: sit.roll, side: 1 };

@@ -53,6 +53,7 @@ import {
 import { skyLookAt, type Dir, type SkyLook } from "./sky.ts";
 import { createTerrainShade } from "./terrain-shade.ts";
 import { createViewCull, type ViewCull } from "./view-cull.ts";
+import { SkyLight, KeyLight } from "./world-lights.ts";
 
 /** Where the key light is parked along the sun, m (it is directional; the
  * distance only has to clear anything that casts). */
@@ -238,6 +239,8 @@ export function createEnvironment(
   shadowLook: ShadowLook,
   domeRadius: number,
   gl: THREE.WebGLRenderer | null = null,
+  /** Drawn by the node renderer (`render-seam.ts`), whose shadow keeps its own map. */
+  node = false,
 ): Environment {
   const haze = createHazeUniforms();
   const gpu = createSkyGpu(gl, haze);
@@ -250,10 +253,12 @@ export function createEnvironment(
   const ranges = createFarRanges(haze);
   scene.add(ranges.group);
 
-  const hemi = new THREE.HemisphereLight(0x88aaff, 0xffffff, 1);
+  // Classes of their own, so the node renderer can hang its nodes on them
+  // (`world-lights.ts`); on WebGL they are three's two lights.
+  const hemi = new SkyLight(haze, 0x88aaff, 0xffffff, 1);
   scene.add(hemi);
 
-  const sun = new THREE.DirectionalLight(0xffffff, 3);
+  const sun = new KeyLight(haze, 0xffffff, 3);
   const cam = sun.shadow.camera;
   cam.near = 1;
   cam.far = KEY_DISTANCE * 2;
@@ -285,10 +290,15 @@ export function createEnvironment(
     haze.uShadowFade.value.w = outer;
     if (size > 0 && sun.shadow.mapSize.x !== size) {
       sun.shadow.mapSize.set(size, size);
-      // Three allocates the map on first use at the size it finds; a map
+      // WebGL allocates the map on first use at the size it finds; a map
       // already standing at another size has to go for the new one to come.
-      sun.shadow.map?.dispose();
-      sun.shadow.map = null;
+      // The node renderer's shadow resizes its own map to `mapSize` and
+      // keeps drawing into the one it made: disposed under it, every frame
+      // after is refused by the device.
+      if (!node) {
+        sun.shadow.map?.dispose();
+        sun.shadow.map = null;
+      }
     }
   };
   setShadow(shadowLook);

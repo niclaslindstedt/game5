@@ -87,7 +87,7 @@ import {
   sample,
   sampleBody,
 } from "./interp.ts";
-import { createRegionPicture } from "./region-picture.ts";
+import { CANVAS_SAMPLES, createRegionPicture } from "./region-picture.ts";
 import { createAfterskiView } from "./afterski-view.ts";
 import { hideSlices, runsOf, thrownEffects, type Rider } from "./renderer-rider.ts";
 import { createInstruments } from "./renderer-instruments.ts";
@@ -204,7 +204,7 @@ export function createWorldRenderer(
   // THE REGION'S GRADE (R21, `region-picture.ts`): the frame through it or straight on.
   const picture = passOn("grade-pass")
     ? createRegionPicture(gl, () => video.antialias)
-    : directPicture(seam);
+    : directPicture(seam, () => video.antialias, video.antialias !== "off" ? CANVAS_SAMPLES : 0);
   const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
   scene.add(lens.camera);
@@ -212,7 +212,14 @@ export function createWorldRenderer(
   const replayCam = createWatchCamera(() => (level && clear ? { level, clear } : null));
   const broadcast = createJumpBroadcast(); // a ski jump's director (`camera-skijump.ts`)
   let watched: ReplayView | null = null;
-  const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9, native ? gl : null);
+  const env: Environment = createEnvironment(
+    scene,
+    shadowLook(),
+    FAR * 0.9,
+    native ? gl : null,
+    !native,
+  );
+  seam.dress(scene, env.haze); // the node renderer's haze and lights (`gpu-dress.ts`)
   env.setDistance(video.distance);
   env.setSky(video.sky);
   env.setHorizon(video.horizon);
@@ -819,6 +826,7 @@ export function createWorldRenderer(
         if (!native) quarantine.hide(drawn); // what the node renderer cannot draw yet
         picture.draw(drawn, room?.camera ?? lens.camera, timer);
         quarantine.restore();
+        seam.endFrame();
         timer.pop();
         gl.shadowMap.autoUpdate = autoShadow;
         for (const o of hid) o.visible = true;

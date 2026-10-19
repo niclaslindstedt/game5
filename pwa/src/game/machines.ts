@@ -541,7 +541,7 @@ export function createMachines(
       rescue?.frame(s, dt, fx.cloud, fx.snowAt);
       // THE SKI PATROL on snowmobiles where no machine could land
       // (`rescue-sleds-view.ts`), built with the air ambulance's.
-      if (s.gore && !rescueSleds) {
+      if ((s.gore || (s.crowd && s.rules.heli) || s.rescue?.length) && !rescueSleds) {
         rescueSleds = createRescueSledsScene(level, haze);
         group.add(rescueSleds.group);
       }

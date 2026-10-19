@@ -79,6 +79,8 @@ type Grid = {
   fn: number;
   fine: number;
   marks: Uint8Array;
+  /** Each goal set's tree of ways (`treeTo`), by its name and room. */
+  trees: Map<string, Int32Array>;
 };
 
 const grids = new WeakMap<Level, Grid>();
@@ -104,7 +106,7 @@ function gridOf(level: Level): Grid {
     stamp(marks, fn, fine, t.x, t.z, t.radius + K.route.room, 2);
     stamp(marks, fn, fine, t.x, t.z, t.radius + K.route.tight, 1);
   }
-  g = { n, cell, y, packed, fn, fine, marks };
+  g = { n, cell, y, packed, fn, fine, marks, trees: new Map() };
   grids.set(level, g);
   return g;
 }
@@ -190,33 +192,37 @@ function snap(level: Level, g: Grid, x: number, z: number, bit: number): number 
 }
 
 /**
- * THE CHEAPEST WAY over the grid from (x, z) to the first of `targets`
- * reached (each a cell), as world points from (x, z) to that cell —
- * or null where none is reached. `bit` is the room kept.
+ * THE WAYS TO A SET OF GOALS from every cell at once: Dijkstra grown out
+ * from the goals over the whole grid (a way's cost is the same driven
+ * either way), each cell keeping the next cell on its cheapest way to the
+ * nearest goal — the goal itself −1, a cell with no way −2. Built once a
+ * goal set and a room (the base and the posts are the same on every call),
+ * so a call's way up and way down are walks down the tree, not searches.
  */
-function search(
+function treeTo(
   level: Level,
   g: Grid,
-  from: number,
-  targets: ReadonlySet<number>,
+  name: string,
+  goals: readonly number[],
   bit: number,
-): number[] | null {
+): Int32Array {
+  const key = `${name}:${bit}`;
+  const seen = g.trees.get(key);
+  if (seen) return seen;
   const N = g.n * g.n;
   const cost = new Float64Array(N).fill(Infinity);
-  const prev = new Int32Array(N).fill(-1);
+  const next = new Int32Array(N).fill(-2);
   const done = new Uint8Array(N);
   const heap = new Heap();
-  cost[from] = 0;
-  heap.push(from, 0);
+  for (const k of goals) {
+    cost[k] = 0;
+    next[k] = -1;
+    heap.push(k, 0);
+  }
   while (heap.size) {
     const k = heap.pop();
     if (done[k]) continue;
     done[k] = 1;
-    if (targets.has(k)) {
-      const path: number[] = [];
-      for (let at = k; at >= 0; at = prev[at]) path.push(at);
-      return path.reverse();
-    }
     const i = k % g.n;
     const j = (k - i) / g.n;
     const x = i * g.cell;
@@ -238,13 +244,17 @@ function search(
       const c = cost[k] + len * (1 + K.route.grade * grade * grade) * (1 - K.route.piste * piste);
       if (c < cost[nk]) {
         cost[nk] = c;
-        prev[nk] = k;
+        next[nk] = k;
         heap.push(nk, c);
       }
     }
   }
-  return null;
+  g.trees.set(key, next);
+  return next;
 }
+
+/** How many cells ahead a way is pulled straight at the most. */
+const PULL = 24;
 
 /** A grid path as world points, pulled straight wherever the line between
  * two of them stays open and on a grade a machine drives. */
@@ -259,7 +269,9 @@ function pull(
   let a = 0;
   while (a < pts.length - 1) {
     let b = a + 1;
-    for (let c = pts.length - 1; c > a + 1; c--) {
+    // Looked along no further than `PULL` cells: a way is pulled in legs,
+    // never searched end to end from every corner.
+    for (let c = Math.min(pts.length - 1, a + PULL); c > a + 1; c--) {
       if (straight(level, g, pts[a], pts[c], bit)) {
         b = c;
         break;
@@ -425,26 +437,40 @@ function posts(level: Level): { x: number; z: number }[] {
   return out.map((p) => ({ x: p.x, z: p.z }));
 }
 
-/** A way searched from (x, z) to the cheapest of `goals`, as points from
- * (x, z) to that goal — or null. */
+/** The way from (x, z) to the cheapest of `goals` (named, for its tree),
+ * as points from (x, z) to that goal — or null. */
 function wayTo(
   level: Level,
   g: Grid,
   from: { x: number; z: number },
+  name: string,
   goals: readonly { x: number; z: number }[],
   bit: number,
 ): { x: number; z: number }[] | null {
   const start = snap(level, g, from.x, from.z, bit);
   if (start < 0) return null;
-  const targets = new Set<number>();
+  const targets: number[] = [];
   for (const p of goals) {
     const k = snap(level, g, p.x, p.z, bit);
-    if (k >= 0) targets.add(k);
+    if (k >= 0 && !targets.includes(k)) targets.push(k);
   }
-  if (!targets.size) return null;
-  const path = search(level, g, start, targets, bit);
-  if (!path) return null;
+  if (!targets.length) return null;
+  const tree = treeTo(level, g, name, targets, bit);
+  if (tree[start] === -2) return null;
+  const path: number[] = [];
+  for (let k = start; k >= 0; k = tree[k]) path.push(k);
   return [from, ...pull(level, g, path, bit)];
+}
+
+/** Every way to the bottom and up from the patrol's posts, built ahead —
+ * for a host to call while nothing else is asked of it, so the first call
+ * mid-run does not wait on them. */
+export function warmSledRoutes(level: Level): void {
+  const g = gridOf(level);
+  for (const bit of [2, 1]) {
+    wayTo(level, g, sledSpotOf(level), "up", posts(level), bit);
+    wayTo(level, g, posts(level)[0], "down", [sledSpotOf(level)], bit);
+  }
 }
 
 /**
@@ -478,10 +504,10 @@ export function planSledRescue(
   }
   if (!at) return null;
   for (const bit of [2, 1]) {
-    const upWay = wayTo(level, g, at.w, posts(level), bit);
+    const upWay = wayTo(level, g, at.w, "up", posts(level), bit);
     const downStart = { x: at.a.x + at.f.x * 10, z: at.a.z + at.f.z * 10 };
     const lead = clearAt(g, downStart.x, downStart.z, bit) ? downStart : at.a;
-    const downWay = wayTo(level, g, lead, [base], bit);
+    const downWay = wayTo(level, g, lead, "down", [base], bit);
     if (!upWay || !downWay) continue;
     return assemble(level, at, upWay.reverse(), downWay, base);
   }

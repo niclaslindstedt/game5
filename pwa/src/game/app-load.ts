@@ -36,6 +36,7 @@ import {
   error,
   loadRealFace,
   realFaceLoaded,
+  warmSledRoutes,
   type GameMode,
   type GameState,
   type CreateGameOptions,
@@ -69,7 +70,15 @@ import "./drawn-solids.ts";
  * attempt is about ten seconds on a worker, the snow and the woods a couple
  * each; the last two are the GPU's shaders, a guess for one that compiles
  * them in the background (a software renderer takes a minute and more). */
-const TYPICAL_MS = { level: 10000, scene: 2500, forest: 1500, lifts: 3000, groom: 4000, warm: 500 };
+const TYPICAL_MS = {
+  level: 10000,
+  scene: 2500,
+  forest: 1500,
+  lifts: 3000,
+  groom: 4000,
+  patrol: 1000,
+  warm: 500,
+};
 
 /** The renderer's stages, in the order a load passes them. */
 const STAGES: readonly BuildStage[] = ["snow", "forest", "lifts", "groom"];
@@ -243,6 +252,20 @@ export function loadPlanSteps(world: LoadWorld, plan: LoadPlan): LoadStep[] {
       typicalMs: TYPICAL_MS.groom,
       run: () => building("groom"),
       waiting: () => scene === "pending",
+    },
+    {
+      // THE PATROL'S WAYS over the mountain (`warmSledRoutes`), searched
+      // once here on a free ride with a crowd that can fall, so the first
+      // amateur down out of a helicopter's reach does not stall a frame.
+      id: "patrol",
+      label: STRINGS.loadWarm,
+      detail: () => STRINGS.loadWarmDetail,
+      typicalMs: TYPICAL_MS.patrol,
+      run: () => {
+        const s = world.current();
+        if (s.crowd && s.rules.heli) warmSledRoutes(s.level);
+        return false;
+      },
     },
     {
       id: "warm",

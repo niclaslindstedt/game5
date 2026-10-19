@@ -102,6 +102,7 @@ describe("the run's wounds and its replay's, drawn apart (gore-replay.ts)", () =
     clear: () => void log.push(`${name}:clear`),
     leave: () => void log.push(`${name}:leave`),
     clearRemains: () => {},
+    remains: () => [],
     hold: (on, _model, of) => {
       log.push(`${name}:hold:${on}`);
       held.push(of ?? null);

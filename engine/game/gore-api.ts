@@ -23,6 +23,7 @@ export {
   copyCall,
   rescueBoxes,
   withRescue,
+  type Evidence,
   type RescueCall,
   type RescueSite,
 } from "./rescue-call.ts";

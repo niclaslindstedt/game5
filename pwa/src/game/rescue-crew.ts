@@ -85,6 +85,9 @@ export const CREW_POSES = [
   "tendPull",
   "pushNear",
   "pushFar",
+  "shoot",
+  "shootLow",
+  "bend",
 ] as const;
 export type CrewTarget = (typeof CREW_POSES)[number];
 
@@ -148,6 +151,52 @@ function faceKneel(y: number, z: number, pitch: number, hipY: number, hipZ: numb
   return key;
 }
 
+/** THE POLICE'S OWN POSES (`police-plan.ts`): a camera held up to the eye
+ * stood (`shoot`) and crouched over a marker (`shootLow`), and bent over
+ * to drive a stake into the snow (`bend`). Where the camera is between the
+ * two hands, the reference man's own frame, m — the flash's place. */
+export const CAMERA_AT = {
+  high: { y: 1.56, z: 0.26 },
+  low: { y: 0.98, z: 0.4 },
+} as const;
+
+function shootKey(low: boolean): Key {
+  const key = copy(STOOD);
+  const c = low ? CAMERA_AT.low : CAMERA_AT.high;
+  if (low) {
+    // On his heels in a squat, the camera held out and down at the marker.
+    key.hipY = 0.56;
+    key.hipZ = -0.18;
+    key.pitch = 0.55;
+    key.nod = 0.35;
+    key.feet = [v(-0.17, ANKLE, 0.12), v(0.17, ANKLE, 0.02)];
+    key.kneesOut = 0.4;
+  } else {
+    key.pitch = 0.02;
+    key.nod = -0.05;
+  }
+  key.hands = [v(-0.08, c.y, c.z - 0.04), v(0.08, c.y, c.z - 0.04)];
+  key.elbowsOut = 0.5;
+  return key;
+}
+
+function bendKey(): Key {
+  const key = copy(STOOD);
+  key.hipY = 0.86;
+  key.hipZ = -0.12;
+  key.pitch = 1.05;
+  key.nod = 0.2;
+  key.feet = [v(-0.17, ANKLE, -0.05), v(0.17, ANKLE, 0.12)];
+  key.hands = [v(-0.06, 0.32, 0.5), v(0.06, 0.42, 0.5)];
+  return key;
+}
+
+const OWN: Record<"shoot" | "shootLow" | "bend", Key> = {
+  shoot: shootKey(false),
+  shootLow: shootKey(true),
+  bend: bendKey(),
+};
+
 const FACE: Record<keyof typeof FACE_HANDS, Key> = {
   tendNear: faceKneel(FACE_HANDS.tendNear.y, FACE_HANDS.tendNear.z, 1.0, 0.52, -0.05),
   tendPull: faceKneel(FACE_HANDS.tendPull.y, FACE_HANDS.tendPull.z, 0.45, 0.55, -0.1),
@@ -185,6 +234,7 @@ export function strideKey(q: 0 | 1 | 2 | 3, hand: Hand): Key {
 export function crewKey(target: CrewTarget | "stand"): Key {
   if (target === "stand") return STOOD;
   if (target in FACE) return FACE[target as keyof typeof FACE];
+  if (target in OWN) return OWN[target as keyof typeof OWN];
   const hand = /L/.test(target) ? "L" : "R";
   if (target.startsWith("kneel")) return kneel(hand);
   if (target.startsWith("hold")) return holding(STOOD, hand);
@@ -224,6 +274,11 @@ export type CrewMove = {
   face?: number;
   work?: FaceKind;
   reach?: number;
+  /** The camera up (0 not … 1 at the eye) and how far he is crouched over
+   * the work with it (0 stood … 1 squatting); bent over a stake (0 … 1). */
+  shoot?: number;
+  low?: number;
+  bend?: number;
 };
 
 const AT = Object.fromEntries(CREW_POSES.map((k, i) => [k, i])) as Record<CrewTarget, number>;
@@ -264,6 +319,17 @@ export function crewDials(m: CrewMove, out: Float32Array): Float32Array {
       m.work === "push" ? (["pushNear", "pushFar"] as const) : (["tendNear", "tendPull"] as const);
     out[AT[a]] += face * (1 - r);
     out[AT[b]] += face * r;
+  }
+  // The police's own, whole bodies over whatever else is left of him.
+  const shoot = Math.max(0, Math.min(1, m.shoot ?? 0));
+  const bend = Math.max(0, Math.min(1, m.bend ?? 0)) * (1 - shoot);
+  const own = shoot + bend;
+  if (own > 0) {
+    for (let i = 0; i < out.length; i++) out[i] *= 1 - own;
+    const low = Math.max(0, Math.min(1, m.low ?? 0));
+    out[AT.shoot] += shoot * (1 - low);
+    out[AT.shootLow] += shoot * low;
+    out[AT.bend] += bend;
   }
   return out;
 }

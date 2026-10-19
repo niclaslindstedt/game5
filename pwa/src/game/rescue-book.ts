@@ -13,15 +13,30 @@
 // new run is handed its calls in its own clock (`RescueCall`, which the
 // engine reads to hold the skier out of a landed machine and the view
 // draws). DOM-free and three-free; the app keeps one book (`rescueAgain`).
+//
+// A run that ends DEAD (`GoreState.dead`) calls the POLICE instead
+// (`police-plan.ts`): a machine of its own, never sharing a casualty, its
+// call carrying the scene's evidence (`police-scene.ts`' `evidenceOf`) —
+// numbered from the point of impact, the run's last wipeout, which the app
+// notes as the run goes (`noteImpact`), down to the body.
 
-import type { GameState, Level, RescueCall } from "@engine";
-import { RAGDOLL, withRescue } from "@engine";
+import type { Evidence, GameState, Level, RescueCall } from "@engine";
+import { withRescue } from "@engine";
 
+import { planPolice } from "./police-plan.ts";
+import { evidenceOf, lyingAt } from "./police-scene.ts";
 import { canTake, planFlight, type Called, type RescueFlight } from "./rescue-flight.ts";
 
 /** ONE CALL: the book's clock it was made at, its casualties (each's
- * `known` from the call), its flight. */
-export type BookedRide = { start: number; casualties: Called[]; flight: RescueFlight };
+ * `known` from the call), its flight — and, a police call, its kind and
+ * the scene's evidence. */
+export type BookedRide = {
+  start: number;
+  casualties: Called[];
+  flight: RescueFlight;
+  kind?: "police";
+  evidence?: Evidence[];
+};
 
 export type RescueBook = {
   /** The map the calls are on (a new map clears them). */
@@ -37,13 +52,20 @@ export function createRescueBook(): RescueBook {
 
 /** Where he lay as a run ended: his hips off his thrown body, else where
  * he was. */
-export function spotOf(s: GameState): { x: number; z: number } {
-  const P = s.skier.thrown?.points;
-  if (!P) return { x: s.skier.x, z: s.skier.z };
-  const a = 3 * RAGDOLL.hipL;
-  const b = 3 * RAGDOLL.hipR;
-  return { x: (P[a] + P[b]) / 2, z: (P[a + 2] + P[b + 2]) / 2 };
+export const spotOf = lyingAt;
+
+/** THE POINT OF IMPACT of every run under way: its last wipeout, where it
+ * was seen (`noteImpact`, after every step), read when it ends. */
+const impacts = new WeakMap<GameState, { x: number; z: number }>();
+
+/** Note this step's wipeout, if it had one, as the run's point of impact. */
+export function noteImpact(state: GameState): void {
+  for (const e of state.events) if (e.kind === "wipeout") impacts.set(state, { x: e.x, z: e.z });
 }
+
+/** The point of impact noted for a run, or null. */
+export const impactOf = (state: GameState): { x: number; z: number } | null =>
+  impacts.get(state) ?? null;
 
 /** Whether two maps are the same mountain (a restart may stand a map up
  * afresh off the same seed). */
@@ -66,7 +88,7 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
   const now = book.clock + Math.max(0, ended.t);
   // A MACHINE STOLEN off the snow (`steal.ts`) is gone with its thief: its
   // crew call another, sent from the moment it was taken, for every
-  // casualty it came for.
+  // casualty it came for (the police to the same scene).
   for (const r of ended.rescue ?? []) {
     if (r.stolen === undefined) continue;
     const ride = book.rides.find((b) => Math.abs(b.start - book.clock - r.start) < 1e-6);
@@ -74,11 +96,22 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
     const casualties = ride.casualties.map((c) => ({ x: c.x, z: c.z, known: 0 }));
     ride.start = book.clock + r.stolen;
     ride.casualties = casualties;
-    ride.flight = planFlight(level, casualties);
+    ride.flight =
+      ride.kind === "police"
+        ? planPolice(level, { x: casualties[0].x, z: casualties[0].z, evidence: ride.evidence ?? [] })
+            .flight
+        : planFlight(level, casualties);
   }
-  if (ended.gore && ended.gore.injured >= 0) {
+  if (ended.gore && ended.gore.dead >= 0) {
+    // DEAD: the police, to a scene of their own.
     const at = spotOf(ended);
-    const ride = book.rides.find((r) => canTake(r.flight, at.x, at.z, now - r.start));
+    const evidence = evidenceOf(ended, at, impactOf(ended));
+    const casualties = [{ x: at.x, z: at.z, known: 0 }];
+    const flight = planPolice(level, { ...at, evidence }).flight;
+    book.rides.push({ start: now, casualties, flight, kind: "police", evidence });
+  } else if (ended.gore && ended.gore.injured >= 0) {
+    const at = spotOf(ended);
+    const ride = book.rides.find((r) => !r.kind && canTake(r.flight, at.x, at.z, now - r.start));
     if (ride) {
       ride.casualties.push({ x: at.x, z: at.z, known: now - ride.start });
       ride.flight = planFlight(level, ride.casualties);
@@ -103,6 +136,7 @@ export function callsOf(book: RescueBook): RescueCall[] {
       down: start + r.flight.down,
       up: start + r.flight.lift,
       casualties: r.casualties.map((c) => ({ ...c })),
+      ...(r.kind ? { kind: r.kind, evidence: (r.evidence ?? []).map((e) => ({ ...e })) } : {}),
     };
   });
 }

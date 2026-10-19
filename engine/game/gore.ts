@@ -742,9 +742,11 @@ export function diesOf(state: GameState, iss: number): boolean {
 function mortality(state: GameState, g: GoreState, events: GameEvent[]): void {
   const body = state.skier.body;
   if (g.mortal < 0) {
-    if (body.injuries.some((h) => h.ais >= GORE.mortalAis)) mortalBy(state, g, "trauma");
-    else if (severityOf(body) >= GORE.mortalIss) mortalBy(state, g, "trauma");
-    else if (diesOf(state, severityOf(body))) mortalBy(state, g, "trauma");
+    // Wounded by gunfire (`gunfire.ts`), the trauma is the shots'.
+    const by = body.injuries.some((h) => INJURIES[h.kind].mech === "pierce") ? "shot" : "trauma";
+    if (body.injuries.some((h) => h.ais >= GORE.mortalAis)) mortalBy(state, g, by);
+    else if (severityOf(body) >= GORE.mortalIss) mortalBy(state, g, by);
+    else if (diesOf(state, severityOf(body))) mortalBy(state, g, by);
     else if (body.injuries.some((h) => h.kind === "airwayBurn")) mortalBy(state, g, "fire");
     else if (state.skier.thrown?.cause === "maul") mortalBy(state, g, "maul");
   }
@@ -789,7 +791,10 @@ export function bleedsOf(state: GameState): Bleed[] {
     const since = Math.max(0, state.t - h.t);
     let o = 0;
     let i = 0;
-    if ((h.energy ?? 1) >= B.split && def.mech === "blunt" && !def.organs) {
+    // A blunt blow far past its even chance splits the skin; a round or a
+    // fragment always opens it.
+    const open = ((h.energy ?? 1) >= B.split && def.mech === "blunt") || def.mech === "pierce";
+    if (open && !def.organs) {
       o = B.out[ais] * (h.part === "head" ? B.head : 1) * 0.5 ** (since / B.clot);
     } else if (def.organs) {
       i = B.organ[ais] * 0.5 ** (since / B.seal);

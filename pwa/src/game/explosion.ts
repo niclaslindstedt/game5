@@ -104,6 +104,10 @@ export type ExplosionLook = {
   };
   scorch: number;
   melt: boolean;
+  /** The flash's light: its share of the helicopter's, and how fast its
+   * glow after the white-hot instant fades, /s — a warhead's burst is a
+   * blink beside a fuel tank's. */
+  flash?: { share: number; fade: number };
 };
 
 /** A fireball to light: its diameter, m, and its life, s (`fireballOf`) —
@@ -356,6 +360,7 @@ export function glowTexture(): THREE.Texture {
 export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
   let POOL_: ExplosionLook["pool"] = look.pool ?? POOL;
   let scorchR = look.scorch ?? SCORCH.radius;
+  const FLASH = look.flash ?? { share: 1, fade: 1.1 };
   const group = new THREE.Group();
   group.name = "explosion";
   const random = makeRandom(0xb00a);
@@ -800,7 +805,9 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
       // ball.
       flashAge += dt;
       flash.intensity =
-        flashAge < 4 ? 3000 * Math.exp(-flashAge * 7) + 1800 * Math.exp(-flashAge * 1.1) : 0;
+        flashAge < 4
+          ? FLASH.share * (3000 * Math.exp(-flashAge * 7) + 1800 * Math.exp(-flashAge * FLASH.fade))
+          : 0;
       for (const b of balls) stepBall(b, dt, clock, smokeAt, random);
       if (scorchAt) {
         if (scorchAge === 0) {

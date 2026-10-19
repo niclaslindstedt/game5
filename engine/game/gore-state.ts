@@ -37,7 +37,7 @@ export type GoreOpen = (typeof GORE_OPEN)[number];
  * (an injury severity of 50 and more), burned in a wreck's fireball, the
  * grimbear, a piste machine's tracks and tiller run over him, a crashed
  * helicopter's blast, a turning rotor fallen into, his air run out under
- * an avalanche's debris (`smothered`). */
+ * an avalanche's debris (`smothered`), shot by the army (`gunfire.ts`). */
 export type DeathCause =
   | "head"
   | "crush"
@@ -51,7 +51,8 @@ export type DeathCause =
   | "machine"
   | "blast"
   | "rotor"
-  | "smothered";
+  | "smothered"
+  | "shot";
 
 /** ONE PIECE TORN OFF: which, when, and where its end at the body was and
  * how it was going at that moment (world frame, m and m/s) — the drawing

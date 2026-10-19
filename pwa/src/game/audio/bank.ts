@@ -22,6 +22,7 @@ import { AFTERSKI_BANK } from "./afterski-bank.ts";
 import { DOOR_BANK } from "./door-bank.ts";
 import { TOWN_BANK } from "./town-bank.ts";
 import { FIRE_BANK } from "./fire-bank.ts";
+import { GUNFIRE_BANK } from "./gunfire-bank.ts";
 import { RESCUE_BANK } from "./rescue-bank.ts";
 import { BIRD_BANK } from "./bird-bank.ts";
 import { CONTACT_BANK } from "./contact-bank.ts";
@@ -782,6 +783,7 @@ export const RUN_BANK: SoundBank = {
   // A SKIER SET ALIGHT (`fire-bank.ts`): his clothes catching, and the burn
   // out.
   ...FIRE_BANK,
+  ...GUNFIRE_BANK,
   // A SKI JUMP (`jump-bank.ts`): the start signal, off the bar, the
   // take-off, the landing's slap and the telemark.
   ...JUMP_BANK,

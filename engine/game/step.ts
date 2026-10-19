@@ -93,6 +93,7 @@ import { freshGrimbear, stepGrimbear, type GrimbearAsk } from "./grimbear.ts";
 import { freshWild, stepWild } from "./beast-hit.ts";
 import { freshAvalanche, stepAvalanche } from "./avalanche.ts";
 import { setWanted, stepWanted } from "./wanted.ts";
+import { stepGunfire } from "./gunfire.ts";
 import { freshMishaps, type MishapAsk } from "./mishaps.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
 import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
@@ -855,6 +856,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   if (state.avalanche) stepAvalanche(state, events, input);
   // THE WANTED LEVEL (`wanted.ts`), once an offence raised it.
   if (state.wanted) stepWanted(state, events);
+  // THE GUNFIRE (`gunfire.ts`), once a gun is armed.
+  if (state.gunfire) stepGunfire(state, events);
   // THE BODY (`body.ts`): what a shoulder into a rival or an amateur did.
   if (state.rules.contact) feelBumps(state, events);
   // THE G METER bills a blow only once someone went down on it.

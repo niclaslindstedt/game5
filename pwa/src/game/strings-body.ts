@@ -9,7 +9,7 @@
 // these are the words. They say WHAT is hurt, plainly — a torn ligament, a
 // broken bone, a bruised kidney — and nothing about how it looks.
 
-import type { BodyPart, DeathCause, InjuryKind } from "@engine";
+import type { BodyPart, DeathCause, InjuryKind, WOUNDS } from "@engine";
 
 import type { AgainAt } from "./free-ride.ts";
 
@@ -20,6 +20,42 @@ export function sideWord(part: BodyPart): string {
   if (part.endsWith("R")) return "RIGHT ";
   return "";
 }
+
+/** THE GUNSHOT WOUNDS' lines (`defs/wounds.ts`). */
+const WOUND_WORDS = {
+  grazedScalp: () => "GRAZED SCALP",
+  shotHead: () => "GUNSHOT TO THE HEAD",
+  shotNeck: () => "GUNSHOT WOUND TO THE NECK",
+  shotNeckVessel: () => "NECK ARTERY SHOT THROUGH",
+  shotNeckCord: () => "SPINAL CORD SHOT THROUGH",
+  shotChest: () => "GUNSHOT WOUND TO THE CHEST",
+  shotChestBleed: () => "CHEST FILLING WITH BLOOD",
+  shotHeart: () => "SHOT THROUGH THE HEART",
+  shotBack: () => "SHOT IN THE BACK",
+  shotSpine: () => "SPINE SHOT THROUGH",
+  shotSpinalCord: () => "SPINAL CORD SHOT THROUGH",
+  shotBelly: () => "GUNSHOT WOUND TO THE BELLY",
+  shotLiver: () => "LIVER SHOT THROUGH",
+  shotBellyVessel: () => "MAIN ARTERY SHOT THROUGH",
+  shotHip: () => "GUNSHOT WOUND TO THE HIP",
+  shotPelvis: () => "PELVIS SHATTERED BY A ROUND",
+  shotIliac: () => "PELVIC ARTERY SHOT THROUGH",
+  shotShoulder: (s: string) => `SHOT IN THE ${s}SHOULDER`,
+  shotShoulderBone: (s: string) => `${s}SHOULDER SHATTERED BY A ROUND`,
+  shotArm: (s: string) => `SHOT IN THE ${s}ARM`,
+  shotHumerus: (s: string) => `${s}UPPER ARM SHATTERED BY A ROUND`,
+  shotHand: (s: string) => `SHOT IN THE ${s}HAND`,
+  shotHandBones: (s: string) => `${s}HAND SHATTERED BY A ROUND`,
+  shotThigh: (s: string) => `SHOT IN THE ${s}THIGH`,
+  shotFemur: (s: string) => `${s}THIGH BONE SHATTERED BY A ROUND`,
+  shotFemoral: (s: string) => `${s}THIGH ARTERY SHOT THROUGH`,
+  shotKnee: (s: string) => `SHOT IN THE ${s}KNEE`,
+  shotKneecap: (s: string) => `${s}KNEECAP SHATTERED BY A ROUND`,
+  shotShin: (s: string) => `SHOT IN THE ${s}SHIN`,
+  shotTibia: (s: string) => `${s}SHIN SHATTERED BY A ROUND`,
+  shotFoot: (s: string) => `SHOT IN THE ${s}FOOT`,
+  shotFootBones: (s: string) => `${s}FOOT SHATTERED BY A ROUND`,
+} satisfies Record<keyof typeof WOUNDS, (side: string) => string>;
 
 /** Every injury's line, the side handed in as `sideWord` says it. */
 const INJURY_WORDS: Record<InjuryKind, (side: string) => string> = {
@@ -112,6 +148,7 @@ const INJURY_WORDS: Record<InjuryKind, (side: string) => string> = {
   plateauFracture: (s) => `BROKEN ${s}KNEE`,
   brokenHipSocket: () => "BROKEN HIP SOCKET",
   femurDriven: (s) => `BROKEN ${s}THIGH BONE`,
+  ...WOUND_WORDS,
   burntFace: () => "BURNT FACE",
   facialBurns: () => "BURNS TO THE FACE",
   deepFacialBurns: () => "DEEP BURNS TO THE FACE",
@@ -197,6 +234,7 @@ export const BODY_STRINGS = {
     blast: "BLOWN APART",
     rotor: "SHREDDED BY THE ROTOR",
     smothered: "SMOTHERED UNDER THE DEBRIS",
+    shot: "SHOT DEAD",
   } satisfies Record<DeathCause, string>,
   /** Where the next rider stands (`free-ride.ts`'s `againAt`). */
   diedAgain: {

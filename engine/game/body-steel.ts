@@ -11,7 +11,8 @@ import { BIKE_TANGLE } from "./defs/bike-tangle.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { facingOf } from "./body-torso.ts";
 import { RAGDOLL as R } from "./ragdoll-points.ts";
-import type { BodyPart, Facing } from "./defs/anatomy.ts";
+import type { BodyPart, Facing, Mechanism } from "./defs/anatomy.ts";
+import { MISHAPS } from "./defs/mishaps.ts";
 import type { GameState, ImpactSource, Thrown } from "./state.ts";
 
 const I = TUNING.injury;
@@ -20,6 +21,8 @@ const I = TUNING.injury;
  * meter's offer, and one ragdoll point's blow. */
 export type BodyHands = {
   strike(part: BodyPart, g: number, face?: Facing | null): void;
+  /** A dose of a mechanism (not a blow) on a part. */
+  charge(part: BodyPart, mech: Mechanism, d: number): void;
   blow(part: BodyPart, v: number, against: number, tree: boolean, share?: number): number;
   /** The g of a stop at `v` m/s over `give` m (`body.ts`' `blowOf`). */
   blowOf(v: number, give: number): number;
@@ -128,4 +131,15 @@ export function bikeBlows(h: BodyHands, state: GameState, b: Thrown): void {
       h.pointBlow(k.point, k.v, give, true, facingOf(k.nx, k.ny, k.nz), way, b.points, "bike");
     }
   }
+}
+
+/** A HARD OPENING (`mishaps.ts`): the canopy's load at `g` through the
+ * harness — the head whipped on the neck and a load down the spine, past
+ * `MISHAPS.hard.hurt`. */
+export function hardOpening(h: BodyHands, g: number): void {
+  const H = MISHAPS.hard;
+  if (g <= H.hurt) return;
+  h.strike("neck", g * H.neck);
+  h.charge("back", "load", g * H.back);
+  h.offer(g, "neck", "snow");
 }

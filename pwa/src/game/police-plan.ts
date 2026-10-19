@@ -11,23 +11,28 @@
 // out — the scene lead, the marker officer, the photographer — and, in
 // order:
 //
-// 1. THE SURVEY: the lead and the marker officer walk the scene from the
-//    impact to the body, slowly, and stand at him a while.
-// 2. THE CORDON: the lead walks to the stake nearest her, drives it in,
-//    and runs the tape stake to stake round the whole scene and back to the
+// 1. THE SURVEY: the lead and the marker officer walk the line between
+//    the impact and the body, slowly, from whichever end is the nearer walk
+//    from the door, and stand at the other end a moment.
+// 2. THE CORDON: the lead walks to the first stake (the shortest walk from
+//    her and, tied off, to where the recovery starts), drives it in, and
+//    runs the tape stake to stake round the whole scene and back to the
 //    first, where she ties it off — the tape run out as she walks.
 // 3. THE MARKERS: the marker officer kneels at every item of evidence in
 //    its number's order, from the impact down to the body, and stands a
 //    numbered tent at each.
-// 4. THE PHOTOGRAPHS: the photographer walks to the cordon's four corners
-//    outside it and shoots the scene whole from each, then — as each
-//    marker is stood — a mid-range shot of it stood and a close-up crouched
-//    over it, two exposures each, every one with a flash.
-// 5. THE RECOVERY: once the photographs are done, the three board, two ski
-//    patrollers come down to the door, and the lead, the marker officer and
-//    the two carry him out in a body bag as the ambulance's crew carry a
-//    casualty (`rescue-plan.ts`'s trip, its scoop and its carry), the
-//    machine lifts and is gone — and the cordon and the markers with it.
+// 4. THE PHOTOGRAPHS: the photographer walks briskly to the cordon's four
+//    corners outside it and shoots the scene whole from each, then — as the
+//    markers are stood — a mid-range shot of each pair and a close-up
+//    crouched over each, two exposures every one, each with a flash.
+// 5. THE RECOVERY: once the last exposure is taken (the photographer walks
+//    back aboard as it starts), two ski patrollers carry the body bag in
+//    down the hill (`police-carry.ts`), the marker officer takes its front,
+//    and the lead, the marker officer and the two roll him into it and
+//    carry him out as the ambulance's crew carry a casualty
+//    (`rescue-plan.ts`'s trip, its scoop and its carry, at a body bag's
+//    pace), the machine lifts and is gone — and the cordon and the markers
+//    with it. Landing to lift-off is two and a half to four minutes.
 //
 // Nobody walks through the body or the machine: every way walked is
 // routed round both (`police-scene.ts`' `route`). `tests/police_plan_test.ts`
@@ -36,6 +41,15 @@
 import { HELI, type Evidence, type Level } from "@engine";
 
 import { CROWD_LOOKS } from "./crowd-rig.ts";
+import {
+  carriedAt,
+  carrierAt,
+  carryActs,
+  liftAt,
+  planCarryIn,
+  strideOf,
+  type CarryIn,
+} from "./police-carry.ts";
 import { OFFICERS, PHOTO, POLICE, freshCrewPose, freshSceneFrame } from "./police-defs.ts";
 import type { Act, Marker, P2, Path, SceneFrame } from "./police-defs.ts";
 import {
@@ -49,7 +63,15 @@ import {
   type Keep,
 } from "./police-scene.ts";
 import { CAMERA_AT, RESCUE_STRIDE } from "./rescue-crew.ts";
-import { RESCUE, ease, freshRescueFrame, fwdOf, wrap, type CrewPose } from "./rescue-defs.ts";
+import {
+  BEARERS,
+  RESCUE,
+  ease,
+  freshRescueFrame,
+  fwdOf,
+  wrap,
+  type CrewPose,
+} from "./rescue-defs.ts";
 import {
   doorStep,
   flightAt,
@@ -77,6 +99,8 @@ export type PolicePlan = {
   keeps: Keep[];
   acts: Act[][];
   flashes: { t: number; x: number; y: number; z: number }[];
+  /** The bag carried in by the two patrollers (`police-carry.ts`). */
+  carry: CarryIn;
   flight: RescueFlight;
   at: {
     out: number;
@@ -157,7 +181,13 @@ export function planPolice(
     ? call.evidence
     : [{ what: "body" as const, x: call.x, z: call.z }];
   const ring = ringOf(evidence);
-  const flight = planFlight(level, [{ x: call.x, z: call.z, known: 0 }], ring);
+  const flight = planFlight(
+    level,
+    [{ x: call.x, z: call.z, known: 0 }],
+    ring,
+    RESCUE.bagWalk,
+    RESCUE.bagBeside,
+  );
   const trip = flight.trips[0];
   const plan = trip.plan;
   const site = flight.site;
@@ -231,40 +261,45 @@ export function planPolice(
   const lead = out(0, 0.7);
   const mark = out(1, -0.1);
   const photo = out(2, -0.9);
-  // 1. THE SURVEY: the two from the impact to him, a pace apart.
+  // 1. THE SURVEY: the two walk the line between the impact and him, a pace
+  // apart — from whichever end is the nearer walk from the door, and stand
+  // a moment at the far end looking back along it.
   const near = (k: number): P2 =>
     clear({
       x: spot.x - axis.x * 2.4 + side.x * k,
       z: spot.z - axis.z * 2.4 + side.z * k,
     });
+  const atImpact = (k: number): P2 => clear({ x: first.x + side.x * k, z: first.z + side.z * k });
   const pair = [
     [lead, 0.7],
     [mark, -0.7],
   ] as const;
-  if (first.what !== "body") {
-    // To the impact, then together down the line to him.
-    for (const [tr, k] of pair)
-      walk(tr, clear({ x: first.x + side.x * k, z: first.z + side.z * k }), POLICE.pace, keeps);
-    const met = Math.max(lead.t, mark.t) + 3;
-    for (const [tr] of pair) until(tr, met, headingTo(first, spot));
+  const struck = first.what !== "body";
+  const up =
+    struck && route(lead, near(0.7), keeps).length + 4 < route(lead, atImpact(0.7), keeps).length;
+  const [from, to] = up ? [near, atImpact] : [atImpact, near];
+  const [fromP, toP] = up ? [spot, first] : [first, spot];
+  if (struck) {
+    for (const [tr, k] of pair) walk(tr, from(k), POLICE.pace, keeps);
+    const met = Math.max(lead.t, mark.t) + 2;
+    for (const [tr] of pair) until(tr, met, headingTo(fromP, toP));
   }
   const surveyAt = Math.max(lead.t, mark.t);
-  for (const [tr, k] of pair) walk(tr, near(k), POLICE.survey, keeps);
+  for (const [tr, k] of pair) walk(tr, to(k), POLICE.survey, keeps);
   const briefed = Math.max(lead.t, mark.t) + POLICE.brief;
-  until(lead, briefed, headingTo(lead, spot));
-  until(mark, briefed, headingTo(mark, spot));
+  for (const [tr] of pair) until(tr, briefed, headingTo(tr, up ? spot : toP));
 
-  // 2. THE CORDON: stake by stake round the ring from the one nearest her.
+  // 2. THE CORDON: stake by stake round the ring and back to the first —
+  // the one that is the shortest walk from her and, tied off, to where the
+  // recovery will start (`scoopAt`'s first moment).
+  const form = scoopAt(level, plan, 0, freshRescueFrame()).crew;
   const n = ring.length;
   const stakes: number[] = new Array<number>(n).fill(Infinity);
   const spans = ring.map(() => ({ t0: Infinity, t1: Infinity }));
+  const cost = (p: P2): number =>
+    Math.hypot(p.x - lead.x, p.z - lead.z) + Math.hypot(p.x - form[0].x, p.z - form[0].z);
   let i0 = 0;
-  for (let i = 1; i < n; i++)
-    if (
-      Math.hypot(ring[i].x - lead.x, ring[i].z - lead.z) <
-      Math.hypot(ring[i0].x - lead.x, ring[i0].z - lead.z)
-    )
-      i0 = i;
+  for (let i = 1; i < n; i++) if (cost(ring[i]) < cost(ring[i0])) i0 = i;
   const cordon = lead.t;
   const stakeAt = (i: number): P2 => ring[i % n];
   walk(lead, stakeAt(i0), POLICE.pace, keeps);
@@ -282,16 +317,20 @@ export function planPolice(
     } else still(lead, POLICE.cordon.tie, "bend", lead.heading);
   }
   const taped = lead.t;
-  // Then out of the way, outside the ring by the machine.
+  // Then out of the way, outside the ring where the recovery will start.
+  const waitBy = { x: (form[0].x + form[1].x) / 2, z: (form[0].z + form[1].z) / 2 };
   const outside = (k: number): P2 => {
     let best = ring[0];
     for (const p of ring)
-      if (Math.hypot(p.x - door.x, p.z - door.z) < Math.hypot(best.x - door.x, best.z - door.z))
+      if (
+        Math.hypot(p.x - waitBy.x, p.z - waitBy.z) <
+        Math.hypot(best.x - waitBy.x, best.z - waitBy.z)
+      )
         best = p;
     const o = unit(best.x - spot.x, best.z - spot.z);
     return clear({ x: best.x + o.x * 1.6 - o.z * k, z: best.z + o.z * 1.6 + o.x * k });
   };
-  walk(lead, outside(1.2), POLICE.pace, keeps);
+  // (She waits by the stake she tied off at, outside the ring.)
 
   // 3. THE MARKERS, in their order.
   for (let k = 0; k < markers.length; k++) {
@@ -348,54 +387,71 @@ export function planPolice(
   // Round the outside of the box: the next corner along its edge.
   for (let i = 0; i < 4; i++) {
     const cnr = corners[(c0 + i) % 4];
-    walk(photo, cnr, POLICE.pace, keeps);
+    walk(photo, cnr, POLICE.brisk, keeps);
     shoot(photo, middle, false);
   }
-  // ...then every marker as it is stood: mid-range, then close.
+  // ...then the markers as they are stood: a mid-range shot relating each
+  // pair (a marker and the next), and a close-up of each.
   for (let m = 0; m < markers.length; m++) {
-    walk(photo, spots[m].mid, POLICE.pace, keeps);
-    until(photo, Math.max(photo.t, markers[m].placed + 1.5), headingTo(photo, markers[m]));
-    shoot(photo, markers[m], false);
-    walk(photo, spots[m].close, POLICE.pace * 0.7, keeps);
+    if (m % 2 === 0) {
+      const next = markers[Math.min(m + 1, markers.length - 1)];
+      const both = { x: (markers[m].x + next.x) / 2, z: (markers[m].z + next.z) / 2 };
+      walk(photo, spots[m].mid, POLICE.brisk, keeps);
+      until(photo, Math.max(photo.t, next.placed + 1.2), headingTo(photo, both));
+      shoot(photo, both, false);
+    }
+    walk(photo, spots[m].close, POLICE.pace, keeps);
+    until(photo, Math.max(photo.t, markers[m].placed + 1.2), headingTo(photo, markers[m]));
     shoot(photo, markers[m], true);
   }
-  // 5. THE RECOVERY: the photographer aboard; the lead, the marker officer
-  // and the two patrollers (down the hill with the board) gathered where
-  // the ambulance's crew start their scoop (`scoopAt`'s first moment).
+  const shot = photo.t;
+  // 5. THE RECOVERY: the photographer back aboard (walking there as it
+  // starts); the lead, the marker officer and the two patrollers (down the
+  // hill with the bag) gathered where the ambulance's crew start their
+  // scoop (`scoopAt`'s first moment).
   const cab = (() => {
     const c = inCabin(flight, plan, 2);
     return clear({ x: c.x + plan.out.x * 1.3, z: c.z + plan.out.z * 1.3 });
   })();
   walk(photo, cab, POLICE.pace, keeps);
-  const shot = photo.t;
-  const form = scoopAt(level, plan, 0, freshRescueFrame()).crew;
   const travel = (tr: Track, j: number): number => route(tr, form[j], keeps).length / POLICE.pace;
   const recover =
     Math.max(
       lead.t + travel(lead, 0),
-      mark.t + travel(mark, 1),
-      taped + 4,
-      marked + 4,
-      shot + POLICE.board,
+      mark.t + travel(mark, 1) + 1.5,
+      taped + 1,
+      marked + 1,
+      shot + 1,
     ) + POLICE.gather;
-  const gather = (tr: Track, j: number): void => {
-    until(tr, recover - POLICE.gather - travel(tr, j), headingTo(tr, spot));
+  // The lead to her place for the roll; the marker officer to the bag's
+  // front right, there before it is carried in, to take it from the
+  // patroller who brings it.
+  const arrive = recover - POLICE.gather;
+  const gather = (tr: Track, j: number, by: number): void => {
+    until(tr, by - travel(tr, j), headingTo(tr, spot));
     walk(tr, form[j], POLICE.pace, keeps);
-    until(tr, recover, form[j].heading);
-    still(tr, 600, "stand");
+    until(tr, by, form[j].heading);
   };
-  gather(lead, 0);
-  gather(mark, 1);
+  gather(lead, 0, recover);
+  still(lead, 600, "stand");
+  gather(mark, 1, arrive - 1.5);
+  until(mark, arrive + POLICE.handover);
+  still(mark, recover - mark.t, "hold");
+  still(mark, 600, "hold");
   still(photo, POLICE.board, "stand", headingTo(photo, cab));
-  still(photo, recover + 600 - photo.t, "gone");
+  still(photo, Math.max(recover, photo.t) + 600 - photo.t, "gone");
+  // THE BAG CARRIED IN by the two patrollers, down the hill; then the front
+  // one lets go to the marker officer and steps round to his own place.
   const fall = downhill(level, form[2].x, form[2].z);
-  const patrols = [2, 3].map((j) => {
-    const to = form[j];
-    const from = clear({ x: to.x - fall.x * POLICE.patrol, z: to.z - fall.z * POLICE.patrol });
-    const len = route(from, to, keeps).length;
-    const tr = track(from, headingTo(from, to), recover - POLICE.gather - len / POLICE.pace);
-    walk(tr, to, POLICE.pace, keeps);
-    until(tr, recover, to.heading);
+  const carry = planCarryIn(plan, keeps, ring, fall, arrive, POLICE.pace, POLICE.handover, recover);
+  const patrols = carryActs(carry).map((acts, k) => {
+    const p = carrierAt(carry, k, arrive);
+    const tr: Track = { acts, x: p.x, z: p.z, heading: p.heading, t: arrive, walked: p.walked };
+    if (k === 0) {
+      until(tr, arrive + POLICE.handover);
+      walk(tr, form[2], POLICE.pace, []);
+    }
+    until(tr, recover, form[2 + k].heading);
     still(tr, 600, "stand");
     return tr;
   });
@@ -416,6 +472,7 @@ export function planPolice(
     keeps,
     acts: [lead.acts, mark.acts, patrols[0].acts, patrols[1].acts, photo.acts],
     flashes,
+    carry,
     flight,
     at: {
       out: t0,
@@ -464,6 +521,21 @@ function actAt(level: Level, acts: readonly Act[], t: number, c: CrewPose): void
     }
   }
   c.shown = true;
+  if (a.kind === "carry") {
+    const p = carrierAt(a.carry, a.k, t);
+    c.x = p.x;
+    c.z = p.z;
+    c.y = level.groundAt(p.x, p.z);
+    c.heading = p.heading;
+    c.move = {
+      rise: 1,
+      stride: strideOf(p.walked) + a.k * 0.5,
+      walking: p.walking,
+      hand: p.hand,
+      raise: 0,
+    };
+    return;
+  }
   if (a.kind === "walk") {
     const u = Math.max(0, Math.min(1, (t - a.t0) / (a.t1 - a.t0 || 1)));
     const d = u * a.path.length;
@@ -489,6 +561,7 @@ function actAt(level: Level, acts: readonly Act[], t: number, c: CrewPose): void
   const k = ease((t - a.t0) / 0.7) * ease((a.t1 - t) / 0.6);
   c.shown = a.doing !== "gone";
   c.move = { rise: 1, stride: a.walked / RESCUE_STRIDE, walking: 0, hand: null, raise: 0 };
+  if (a.doing === "hold") c.move.hand = BEARERS[1].hand;
   if (a.doing === "kneel") Object.assign(c.move, { face: k, work: "tend", reach: 0 });
   if (a.doing === "bend") c.move.bend = k;
   if (a.doing === "shoot" || a.doing === "shootLow")
@@ -521,16 +594,21 @@ export function policeAt(level: Level, plan: PolicePlan, t: number, out: PoliceF
   flightAt(level, plan.flight, t, out);
   if (t < plan.at.recover) {
     for (let j = 0; j < plan.acts.length; j++) actAt(level, plan.acts[j], t, out.crew[j]);
-  } else out.crew[PHOTO].shown = false;
+    // The bag on its frame in the patrollers' hands, and set where the
+    // scoop takes it up.
+    if (t >= plan.carry.t0) carriedAt(level, plan.carry, t, out.trips[0].stretcher);
+  } else actAt(level, plan.acts[PHOTO], t, out.crew[PHOTO]);
   const sc = out.scene;
   sc.up = t >= plan.at.out && t < plan.flight.lift;
   sc.planted.length = plan.stakes.length;
   for (let i = 0; i < plan.stakes.length; i++) sc.planted[i] = plan.stakes[i] <= t;
   sc.stakes = sc.planted.filter(Boolean).length;
   sc.tape.length = plan.spans.length;
+  sc.lift.length = plan.spans.length;
   for (let i = 0; i < plan.spans.length; i++) {
     const s = plan.spans[i];
     sc.tape[i] = t <= s.t0 ? 0 : t >= s.t1 ? 1 : (t - s.t0) / (s.t1 - s.t0);
+    sc.lift[i] = liftAt(plan.carry, i, t, POLICE.pace);
   }
   sc.markers = plan.markers.filter((m) => m.placed <= t).length;
   flashAt(plan, t, sc.flash);

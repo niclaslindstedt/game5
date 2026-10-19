@@ -138,6 +138,8 @@ export function bakeFigure(root: THREE.Object3D, wrap: Wrap): THREE.Group {
     if (list.some((m) => m.transparent)) return;
     const mats = list.map((m) => wrap(m.clone(), `remains-${m.name || mesh.name || "part"}`));
     const baked = new THREE.Mesh(bakeGeometry(mesh, origin), mats.length === 1 ? mats[0] : mats);
+    // His dressed skin, as against his skis, his poles and what lies on him.
+    baked.userData.skin = (mesh as THREE.SkinnedMesh).isSkinnedMesh === true;
     baked.castShadow = true;
     baked.receiveShadow = mesh.receiveShadow;
     group.add(baked);

@@ -3,11 +3,14 @@
 // run after a DEATH (`police-plan.ts`, drawn by `rescue-view.ts` and
 // `police-view.ts`) at every moment it has, through the game's OWN renderer.
 // A run is ended DEAD down the piste — struck at a spot (the point of
-// impact, the run's last wipeout), thrown on 22 m to where he lies, blood
-// left on the snow, an arm torn off and both skis gone on — booked as the
-// app books it (`rescue-book.ts`), and the next run is drawn with its clock
-// posed where a frame wants the scene: the rotor, the wash and the gait
-// stepped over the frames between, every sixtieth of a second.
+// impact, the run's last wipeout), thrown on 22 m to where he lies (his body
+// flung onto the snow there by the real engine and drawn until he is dead
+// and still, so he is left lying as the game leaves a dead rider —
+// `gore-view.ts`' remains — and the recovery is seen to take THAT body),
+// blood left on the snow, an arm torn off and both skis gone on — booked as
+// the app books it (`rescue-book.ts`), and the next run is drawn with its
+// clock posed where a frame wants the scene: the rotor, the wash and the
+// gait stepped over the frames between, every sixtieth of a second.
 //
 // It exposes `window.__police.sheet(group, views)`, which shoots the views
 // of one group, lays them out as a contact sheet for the driver to
@@ -16,7 +19,10 @@
 import {
   createGame,
   generateLevel,
+  NEUTRAL_INPUT,
   placeRun,
+  step,
+  TUNING,
   type GameEvent,
   type GameState,
   type LoneSki,
@@ -31,6 +37,7 @@ import { freshPoliceFrame, planPolice, policeAt, type PolicePlan } from "../game
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { bookRun, createRescueBook, noteImpact } from "../game/rescue-book.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
+import { throwAt } from "./gore-scenes.ts";
 
 type Frame = { view: string; label: string; caption: string; png: string };
 
@@ -113,19 +120,44 @@ function skiAt(p: { x: number; y: number; z: number }, side: number): LoneSki {
   };
 }
 
+/** How he died, for the sheet's header. */
+let died = "";
+
+/** HIS BODY flung onto the snow where he lies, by the engine, and drawn
+ * every frame until he is dead and has lain still a moment — the frames the
+ * renderer leaves him lying from. */
+function flung(): GameState {
+  const dead = fresh();
+  const g0 = level.groundAt(lay.x, lay.z);
+  const v = { x: Math.sin(lay.heading) * 5, y: -30, z: Math.cos(lay.heading) * 5 };
+  throwAt(dead, lay.x, lay.z, lay.heading + 0.5, "back", v, g0, 0.3);
+  const steps = Math.round(FRAME / TUNING.dt);
+  for (let f = 0; f < 60 * 14; f++) {
+    for (let i = 0; i < steps; i++) step(dead, NEUTRAL_INPUT);
+    renderer.draw(dead, 1, FRAME, false);
+    const g = dead.gore!;
+    if (g.dead >= 0 && dead.t - g.dead > 2.5) break;
+  }
+  // One frame put on the screen: the skin's bones are posed by a render, and
+  // the remains are baked off the bones the last render posed.
+  renderer.draw(dead, 1, FRAME);
+  const g = dead.gore!;
+  died = g.dead >= 0 ? `dead (${g.cause}) at ${g.dead.toFixed(1)} s` : "not dead: marked dead";
+  if (g.dead < 0) g.dead = dead.t;
+  return dead;
+}
+
 /** THE RUN THAT ENDED DEAD: struck at the impact, lying 22 m on, blood on
  * the snow, an arm off and both skis gone on — then the next run, its call
  * booked as the app books it. */
 function deathRun(): { next: GameState; plan: PolicePlan } {
-  const dead = fresh();
-  placeRun(dead, { x: lay.x, z: lay.z, heading: lay.heading });
+  renderer.clearBodies();
+  const dead = flung();
   dead.events = [
     { kind: "wipeout", t: 40, cause: "tree", speed: 24, x: hit.x, z: hit.z } as GameEvent,
   ];
   noteImpact(dead);
-  dead.t = 48;
   const g = dead.gore!;
-  g.dead = 47;
   const smear = between(0.12, 1.5);
   g.smears.push({
     what: "limb",
@@ -143,7 +175,9 @@ function deathRun(): { next: GameState; plan: PolicePlan } {
   });
   const arm = between(0.5, -2.5);
   g.torn.push({ piece: "armL", t: 40, ...arm, vx: 0, vy: 0, vz: 0, pulped: true });
-  dead.skier.thrown = fakeThrown([skiAt(between(0.7, 3), -1), skiAt(between(0.85, -1.5), 1)]);
+  const lost = [skiAt(between(0.7, 3), -1), skiAt(between(0.85, -1.5), 1)];
+  if (dead.skier.thrown) dead.skier.thrown.skis = lost;
+  else dead.skier.thrown = fakeThrown(lost);
   const next = fresh();
   const up = pts.find((p) => p.s >= lay.s - 70) ?? pts[0];
   placeRun(next, { x: up.x, z: up.z, heading: up.heading });
@@ -184,7 +218,7 @@ const ready = (async () => {
     .map(([k, v]) => `${k} ${v.toFixed(0)}`)
     .join(" · ");
   return (
-    `${p.markers.length} markers (${p.markers.map((m) => m.what).join(", ")}), ${p.ring.length} stakes; ` +
+    `${died}; ${p.markers.length} markers (${p.markers.map((m) => m.what).join(", ")}), ${p.ring.length} stakes; ` +
     `machine ${d.toFixed(0)} m off; on the snow ${(p.at.lift - p.flight.down).toFixed(0)} s\n${at}`
   );
 })();
@@ -332,18 +366,20 @@ const VIEWS: Record<string, (s: GameState, plan: PolicePlan) => void> = {
       shoot(s, `just before`, lens(eye, k, 1.2, 50));
     }
   },
-  /** THE RECOVERY: the patrollers in, him bagged, carried, loaded, gone. */
+  /** THE RECOVERY: the bag carried in, taken over, laid beside him and
+   * opened, him rolled onto it, the lid over him, carried, loaded, gone —
+   * wide, then close on him. */
   recover(s, plan) {
     const trip = plan.flight.trips[0];
     const A = trip.plan.at;
     const T = trip.offset;
+    const c = plan.carry;
+    const arrive = c.t1;
     const mid = { x: (plan.flight.site.x + lay.x) / 2, z: (plan.flight.site.z + lay.z) / 2 };
     const eye = { ...off(mid, hit.heading - 1.9, 24), up: 7 };
     for (const [label, t] of [
-      ["patrollers in", plan.at.recover - 6],
-      ["walking up", T + A.scoop.down * 0.6],
-      ["onto the bag", T + A.scoop.slide + 0.5],
-      ["bagged", T + A.scoop.stand],
+      ["bag carried in", c.t0 + (c.t1 - c.t0) * 0.6],
+      ["taken over", arrive + 0.6],
       ["carried", (T + A.carry + T + A.raise) / 2],
       ["loading", T + A.slide + 1],
       ["lift-off", plan.at.lift + 5],
@@ -351,32 +387,77 @@ const VIEWS: Record<string, (s: GameState, plan: PolicePlan) => void> = {
       poseAt(s, t, 1.2);
       shoot(s, label, lens(eye, mid, 0.5, 55));
     }
+    // Close on him: the same lens from the board's far side, a little up.
+    const sp = trip.plan.spot;
+    const h = Math.atan2(trip.plan.path.pts[1].x - sp.x, trip.plan.path.pts[1].z - sp.z);
+    const near = { ...off(sp, h + 1.25, 4.4), up: 2.5 };
+    const ca = {
+      x: sp.x + Math.sin(h + Math.PI / 2) * 0.3,
+      z: sp.z + Math.cos(h + Math.PI / 2) * 0.3,
+    };
+    for (const [label, t] of [
+      ["close: carried in", arrive - 2.5],
+      ["close: taken over", arrive + 1.2],
+      ["close: lying, crew up", T + A.scoop.turn - 0.3],
+      ["close: bag open beside", T + A.scoop.assess + 1],
+      ["close: rolled", T + A.scoop.slide + 0.6],
+      ["close: onto the bag", T + A.scoop.back + 1.2],
+      ["close: lid coming over", T + A.scoop.strap + 1.3],
+      ["close: lid down", T + A.scoop.strap + 2.6],
+      ["close: zipped", T + A.scoop.stand + 0.3],
+      ["close: lifted", T + A.carry + 0.5],
+    ] as const) {
+      poseAt(s, t, 0.4);
+      shoot(s, label, lens(near, ca, 0.2, 48));
+    }
+    // Under the tape: each span lifted over the bag where it is carried in.
+    for (const g of plan.carry.gates) {
+      const n = plan.ring.length;
+      const [p, q] = [plan.ring[g.span], plan.ring[(g.span + 1) % n]];
+      const at = { x: p.x + (q.x - p.x) * g.u, z: p.z + (q.z - p.z) * g.u };
+      const across = Math.atan2(q.x - p.x, q.z - p.z);
+      poseAt(s, g.t, 0.3);
+      shoot(
+        s,
+        `under the tape`,
+        lens({ ...off(at, across + Math.PI / 2, 7), up: 1.6 }, at, 1.1, 55),
+      );
+    }
     poseAt(s, T + A.scoop.stand + 0.5, 0.3);
-    const b = { x: lay.x, z: lay.z };
-    shoot(s, "the bag, close", lens({ ...off(b, hit.heading + 1.3, 4), up: 2 }, b, 0.1, 50));
+    const b = { x: sp.x, z: sp.z };
+    shoot(s, "the bag, close", lens({ ...off(b, h + 2.2, 2.6), up: 1.3 }, b, 0.1, 50));
   },
-  /** THE WHOLE SCENE FROM ABOVE, laid out. */
+  /** THE WHOLE SCENE FROM ABOVE, laid out: straight down over the
+   * cordon's middle, and oblique. */
   above(s, plan) {
-    // The cordon's middle and the machine, both in the frame.
     const n = plan.ring.length;
     const mid = plan.ring.reduce((a, p) => ({ x: a.x + p.x / n, z: a.z + p.z / n }), {
       x: 0,
       z: 0,
     });
-    const site = plan.flight.site;
-    const all = { x: (mid.x * 2 + site.x) / 3, z: (mid.z * 2 + site.z) / 3 };
+    let reach = 0;
+    for (const p of plan.ring) reach = Math.max(reach, Math.hypot(p.x - mid.x, p.z - mid.z));
+    const up = Math.max(24, reach * 1.6);
     for (const [label, t] of [
       ["taping", (plan.at.cordon + plan.at.taped) / 2],
       ["laid out", plan.at.recover - 2],
     ] as const) {
       poseAt(s, t, 0.8);
-      shoot(s, label, lens({ ...off(all, hit.heading + 0.4, 6), up: 70 }, all, 0, 55));
+      shoot(s, label, lens({ ...off(mid, hit.heading + 0.4, 2), up }, mid, 0, 55));
       shoot(
         s,
         `${label}, oblique`,
-        lens({ ...off(all, hit.heading + 2.4, 34), up: 22 }, all, 0, 55),
+        lens({ ...off(mid, hit.heading + 2.4, reach * 1.4), up: reach * 0.9 }, mid, 0, 55),
       );
     }
+    // From high up, as before: the scene and the machine.
+    const site = plan.flight.site;
+    const all = { x: (mid.x * 2 + site.x) / 3, z: (mid.z * 2 + site.z) / 3 };
+    shoot(
+      s,
+      "laid out, from 70 m",
+      lens({ ...off(all, hit.heading + 0.4, 6), up: 70 }, all, 0, 55),
+    );
   },
 };
 

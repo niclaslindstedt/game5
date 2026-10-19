@@ -151,13 +151,16 @@ function leadOf(plan: RescuePlan): FlightTrip["lead"] {
 }
 
 /** THE CALL to `casualties` (the first at the call's 0), the machine set
- * down for the first — off a cordon's ring (`avoid`) where one is given. */
+ * down for the first — off a cordon's ring (`avoid`) where one is given —
+ * and the first carried at `walk` m/s, his board laid `beside` m off him. */
 export function planFlight(
   level: Level,
   casualties: readonly Called[],
   avoid: readonly P2[] | null = null,
+  walk: number = RESCUE.walk,
+  beside: number = RESCUE.scoop.beside,
 ): RescueFlight {
-  const first = planRescue(level, casualties[0], null, avoid);
+  const first = planRescue(level, casualties[0], null, avoid, walk, beside);
   const site: RescueSite = { ...first.site };
   delete (site as Partial<RescuePlan["site"]>).side;
   const trips: FlightTrip[] = [];

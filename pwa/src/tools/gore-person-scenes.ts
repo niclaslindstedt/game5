@@ -26,11 +26,13 @@ import {
   feelBumps,
   markFall,
   placeRun,
+  step,
   struckPerson,
   type Amateur,
   type GameEvent,
   type GameState,
   type Level,
+  type Vec3,
 } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
@@ -129,10 +131,10 @@ function runInto(st: Stage, kmh: number, safe = false): void {
   );
 }
 
-/** A grown civilian of the plan stood on open, nearly level snow at `t`,
- * nobody else of it within `room` m: his index, and the way down the fall
- * line toward him. */
-function standingCivilian(s: GameState, room = 7): { i: number; heading: number } | null {
+/** Every civilian of the plan but a child stood at `t` on open, nearly
+ * level snow, nobody else of it within `room` m: his index, and the way
+ * down the fall line toward him. */
+function* standingCivilians(s: GameState, room = 7): Generator<{ i: number; heading: number }> {
   const call = s.foot!.call!;
   const plan = civilianPlanFor(s.level);
   const at = { x: 0, y: 0, z: 0 };
@@ -140,13 +142,13 @@ function standingCivilian(s: GameState, room = 7): { i: number; heading: number 
   const n = { x: 0, y: 1, z: 0 };
   for (let i = 0; i < call.people.length; i++) {
     const p = call.people[i];
-    if (p.route || (p.body !== "man" && p.body !== "oldMan")) continue;
+    if (p.route || p.body === "child") continue;
     if (!footAt(s, call, p, s.t, at)) continue;
     if (Math.abs(at.y - s.level.groundAt(at.x, at.z)) > 0.05) continue;
     const pose = civilianAt(plan, i, s.t, civilianHour(s.level, s.t));
     if (pose.seat !== null || pose.activity === "lounge") continue;
     s.level.normalAt(at.x, at.z, n);
-    if (n.y < 0.97) continue;
+    if (n.y < 0.95) continue;
     const crowded = call.people.some(
       (q, j) =>
         j !== i &&
@@ -154,7 +156,45 @@ function standingCivilian(s: GameState, room = 7): { i: number; heading: number 
         Math.hypot(there.x - at.x, there.z - at.z) < room,
     );
     if (crowded) continue;
-    return { i, heading: Math.hypot(n.x, n.z) > 1e-3 ? Math.atan2(n.x, n.z) : p.heading };
+    yield { i, heading: Math.hypot(n.x, n.z) > 1e-3 ? Math.atan2(n.x, n.z) : p.heading };
+  }
+}
+
+/** The skier stood 1.2 m short of civilian `i` of `s`, sent at him at `kmh`. */
+function sendAt(s: GameState, i: number, heading: number, kmh: number): Vec3 {
+  const at = { x: 0, y: 0, z: 0 };
+  footAt(s, s.foot!.call!, s.foot!.call!.people[i], s.t, at);
+  placeRun(s, {
+    x: at.x - Math.sin(heading) * 1.2,
+    z: at.z - Math.cos(heading) * 1.2,
+    heading,
+    speed: kmh / 3.6,
+  });
+  return at;
+}
+
+/** The first standing civilian a run-in at `kmh` actually meets — tried on
+ * a fresh run with the injuries on, stepped headless, since a lift's
+ * queue posts or its hut can take the skier before he reaches a man stood by
+ * them, whichever way round him he is met from. */
+function metCivilian(st: Stage, kmh: number): { i: number; heading: number } | null {
+  const fresh = () => {
+    const s = peopled(st.fresh({ crowd: 30 }));
+    for (const o of s.crowd!.amateurs) o.mode = "lift";
+    return s;
+  };
+  for (const found of standingCivilians(fresh(), 2.5)) {
+    // Down the fall line first, then round him a quarter at a time.
+    for (const turn of [0, 0.5, -0.5, 1, 0.25, -0.25]) {
+      const pick = { i: found.i, heading: found.heading + turn * Math.PI };
+      const trial = fresh();
+      sendAt(trial, pick.i, pick.heading, kmh);
+      for (let k = 0; k < 60 && !trial.foot!.struck.length; k++) step(trial, NEUTRAL_INPUT);
+      // Met square on — not grazed after a post or a hut took him first.
+      const square = (h: { foot?: number; speed: number }) =>
+        h.foot === pick.i && h.speed > (kmh / 3.6) * 0.8;
+      if (trial.foot!.struck.some(square)) return pick;
+    }
   }
   return null;
 }
@@ -165,25 +205,22 @@ function standingCivilian(s: GameState, room = 7): { i: number; heading: number 
 function civilianInto(st: Stage, kmh: number, safe = false): void {
   const s = peopled(st.fresh({ crowd: 30, ...(safe ? { safe: true } : {}) }));
   for (const o of s.crowd!.amateurs) o.mode = "lift";
-  const pick = standingCivilian(s);
-  if (!pick) return;
-  const p = s.foot!.call!.people[pick.i];
-  const at = { x: 0, y: 0, z: 0 };
-  footAt(s, s.foot!.call!, p, s.t, at);
+  const pick = metCivilian(st, kmh);
+  if (!pick) {
+    st.shoot(s, "nobody-met-on-this-map", "chase");
+    return;
+  }
   const h = pick.heading;
-  placeRun(s, {
-    x: at.x - Math.sin(h) * 1.2,
-    z: at.z - Math.cos(h) * 1.2,
-    heading: h,
-    speed: kmh / 3.6,
-  });
+  const at = sendAt(s, pick.i, h, kmh);
   const side = h + Math.PI / 2;
   st.shoot(s, "the moment before", planted(s.level, at, side, 8, 1.6, 45, 0.9));
   st.until(s, (q) => (q.foot?.struck.length ?? 0) > 0, 0.5, still);
   const hit = s.foot!.struck[0];
   const line = hit
     ? `${hit.killed ? "killed" : hit.injured ? "injured" : "knocked down"} · crush ${hit.crush.toFixed(2)} · given ${hit.given.toFixed(1)} m/s`
-    : "not met";
+    : safe
+      ? "knocked down (the app's knock)"
+      : "not met";
   const him = (q: GameState) => q.foot?.down[0]?.thrown ?? at;
   const bothOf =
     (yaw: number, up: number): Lens =>

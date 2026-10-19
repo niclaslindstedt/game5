@@ -39,6 +39,7 @@ import { stepTunnel } from "./wind-tunnel.ts";
 import { heliDown, stepHeli } from "./heli.ts";
 import { rotorStrike } from "./heli-grip.ts";
 import { stepSled } from "./sled.ts";
+import { stepSteal } from "./steal.ts";
 import { stepBike } from "./bike.ts";
 import { paraHeld, paraPress, paraRigged, stepPara } from "./para.ts";
 import { balloonAboard, balloonDown, stepBalloon } from "./balloon.ts";
@@ -141,6 +142,9 @@ export function stepRun(
   // THE PISTE MACHINES (`groomer.ts`): at their work, left, or driven —
   // and while he drives one the step is its own.
   if (stepGroomers(run, out, events)) return forgetRun(run);
+  // SOMEBODY ELSE'S MACHINE (`steal.ts`): the press at its door takes it,
+  // and the step is the taken machine's.
+  if (stepSteal(run, out, events)) return forgetRun(run);
   // THE HELICOPTER (`heli.ts`): flown, flying home or burning — and while
   // the skier sits on its skid the step is its own.
   if (stepHeli(run, out, events)) return forgetRun(run);

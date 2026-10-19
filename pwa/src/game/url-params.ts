@@ -230,6 +230,7 @@ import { readPose, type SkisPose } from "./debug-readout.ts";
 import { isHoldMove, type HoldMove } from "./hold-input.ts";
 import { bikeLookOf, type BikeLook } from "./bike-variant.ts";
 import type { CameraRung } from "./renderer-api.ts";
+import { DEVELOPER_BUILD } from "./edition.ts";
 import { RUN_CAMERAS } from "./settings.ts";
 import { readPicture, TIERS, type Tier, type VideoSettings } from "./settings-video.ts";
 
@@ -274,6 +275,26 @@ const MENU_PAGES: readonly MenuPage[] = [
   "benchHistory",
   "benchCosts",
 ];
+
+/** The cards only the developer page leads to — its own, and the races' and
+ * tricks' it lets out (`racesOpen`). */
+const DEVELOPER_PAGES: readonly MenuPage[] = [
+  "dev",
+  "benchHistory",
+  "benchCosts",
+  "play",
+  "races",
+  "freestyle",
+  "levels",
+  "tricks",
+];
+
+/** The card a link's `?menu=` opens on: one of `MENU_PAGES`, and in a build
+ * without the developer page (`edition.ts`) none of the cards it leads to. */
+function linkPage(asked: string | null): MenuPage {
+  const page = MENU_PAGES.includes(asked as MenuPage) ? (asked as MenuPage) : "root";
+  return DEVELOPER_BUILD || !DEVELOPER_PAGES.includes(page) ? page : "root";
+}
 
 /** The free ride's own cards: the WHERE steps and the start card. A link
  * to one is a free ride on its way to the skis card. */
@@ -537,7 +558,7 @@ export function readParams(search: string): UrlParams {
     poles: q.get("poles") === "0" ? false : q.get("poles") === "1" ? true : null,
 
     menu: q.get("menu") !== null,
-    page: MENU_PAGES.includes(q.get("menu") as MenuPage) ? (q.get("menu") as MenuPage) : "root",
+    page: linkPage(q.get("menu")),
     video: TIERS.includes(q.get("video") as Tier) ? (q.get("video") as Tier) : null,
     picture: readPicture(q.get("picture")),
     probe: q.get("probe") !== "0",

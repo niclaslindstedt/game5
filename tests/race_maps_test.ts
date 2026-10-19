@@ -19,7 +19,7 @@ import {
 import { mergeSettings } from "../pwa/src/game/settings.ts";
 import { STRINGS } from "../pwa/src/game/strings.ts";
 import { TRICK_MAPS } from "../pwa/src/game/trick-maps.ts";
-import { holdRaceMaps } from "./support/race-maps.ts";
+import { holdRaceMaps } from "./support/race_maps_tests.ts";
 
 const BUILT = ["slalom", "giantSlalom", "superG", "downhill", "speedSki", "skiCross"] as const;
 

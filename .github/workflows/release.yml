@@ -2,7 +2,7 @@
 name: release
 
 # THE RELEASE, END TO END. Normally CALLED by version-bump.yml — the one
-# entry point a maintainer dispatches (OSS_GAME_SPEC §10.3) — and also
+# entry point a maintainer dispatches — and also
 # dispatchable on its own as the break-glass, with the same `bump` input.
 #
 # What it does, in order: derive the semver bump from the changeset
@@ -180,9 +180,9 @@ jobs:
         run: make build
         env:
           # THE MODELLED SKIS (committed in pwa/models/) are
-          # drawn unless a repository variable switches them back — `make
+          # drawn unless a repository secret switches them back — `make
           # ci-models MODELS=off`, no commit needed; unset is on.
-          VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
+          VITE_MODEL_SKIS: ${{ secrets.VITE_MODEL_SKIS }}
       - name: make test
         run: make test
 
@@ -247,9 +247,9 @@ jobs:
       # what was tagged rather than from whatever main looks like by now.
       TAG: ${{ needs.release.outputs.tag }}
       # THE MODELLED SKIS (committed in pwa/models/) are
-      # drawn unless a repository variable switches them back — `make
+      # drawn unless a repository secret switches them back — `make
       # ci-models MODELS=off`, no commit needed; unset is on.
-      VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
+      VITE_MODEL_SKIS: ${{ secrets.VITE_MODEL_SKIS }}
       # NOTARIZATION. The bundler acts on these three only once the app is
       # signed with a real Developer ID (the `Apple signing` step below), and
       # ignores them otherwise — so an unconfigured repo still packages, it
@@ -299,12 +299,22 @@ jobs:
 
       - name: Package
         shell: bash
-        run: npm run tauri:package
+        env:
+          # THE DEPLOYMENT'S IDENTITY — the same secrets, under the same names,
+          # the phone build reads. The identifier is also where the installed
+          # app keeps its progress, so `--require-identity` refuses to
+          # package a release under the development one.
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          APP_DISPLAY_NAME: ${{ secrets.APP_DISPLAY_NAME }}
+        run: npm run tauri:package -- --require-identity
 
       - name: Package (macOS, Intel)
         if: matrix.target == 'macos'
         shell: bash
-        run: npm run tauri:package -- --target x86_64-apple-darwin --skip-web --keep
+        env:
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          APP_DISPLAY_NAME: ${{ secrets.APP_DISPLAY_NAME }}
+        run: npm run tauri:package -- --target x86_64-apple-darwin --skip-web --keep --require-identity
 
       # Whatever this platform's packager produced — a job that listed
       # filenames would silently upload nothing the day a target changed

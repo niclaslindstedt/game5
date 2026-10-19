@@ -10,8 +10,7 @@ package-lock.json
 # review, and two branches that each touch one row conflict over all of them.
 # Markdown is written by hand and kept as written: compact `| a | b |`
 # tables, and the line breaks the author meant. (This also covers
-# CHANGELOG.md, machine-written by the release workflow, and OSS_GAME_SPEC.md,
-# a verbatim copy.)
+# CHANGELOG.md, machine-written by the release workflow.)
 *.md
 # The agent router's symlinked aliases, named one by one: Prettier resolves a
 # symlink before matching this list, and the ones without an `.md` name are

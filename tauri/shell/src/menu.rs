@@ -83,10 +83,10 @@ pub enum Target {
     /// The window's own fullscreen — the shell's, because a webview cannot
     /// reach it (see [`config::SHELL_FULLSCREEN_ASK`](crate::config::SHELL_FULLSCREEN_ASK)).
     Fullscreen,
-    /// A page of the website, opened in the player's BROWSER rather than in
-    /// this window. Held as a path and joined onto
-    /// [`config::SITE_URL`](crate::config::SITE_URL) by
-    /// [`site_link`](crate::config::site_link), so the domain is written once.
+    /// A page of the app's page on the publisher's app site, opened in the
+    /// player's BROWSER rather than in this window. Held as a path and joined
+    /// onto [`config::APPS_PAGE_URL`](crate::config::APPS_PAGE_URL) by
+    /// [`site_link`](crate::config::site_link), so the address is written once.
     Link(&'static str),
 }
 

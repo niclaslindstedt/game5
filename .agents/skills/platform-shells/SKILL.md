@@ -163,11 +163,18 @@ the same split as the Rust crates, held by the same kind of test.
   `parseRumble` cannot import each other; `tests/rumble_test.ts` holds all
   three. A rename in one is a phone that silently stops buzzing.
 - **The names.** `productName` and `longDescription` in `tauri.conf.json`,
-  `WINDOW_TITLE` and `SITE_URL` in `config.rs`, and `BRAND_COLOR` (the
-  palette's `skyHigh`) as the brand background are `identity.ts` spelled again; `tests/tauri_test.ts`
+  `WINDOW_TITLE` and `APPS_PAGE_URL` in `config.rs`, and `BRAND_COLOR` as
+  the brand background are `identity.ts` spelled again; `tests/tauri_test.ts`
   holds all of them. `native/app.config.js` is the exception: it READS its
   name and palette off `identity.ts` (by regex — the shape
   `tests/identity_test.ts` holds) and restates nothing.
+- **A packaged build links nothing back to the source or the website.** Both
+  `bundle-web.mjs` build with `VITE_SHELL_BUILD=on` and refuse a webroot that
+  names `niclaslindstedt` (`scripts/lib/no-source.mjs`); the Help menu opens
+  the game's page on apps.agilator.se, never `SITE_URL` or `REPO_URL`. A link
+  added to the game must be one the shell build can do without — read it off
+  `__SOURCE_URL__` or leave it to the website. `docs/configuration.md`
+  § *The packaged apps* has the whole of it.
 - **`tauri/` is outside eslint and inside prettier**, so every generated file
   under it is named in `.prettierignore` by hand — a nested `.gitignore`
   does not save it.

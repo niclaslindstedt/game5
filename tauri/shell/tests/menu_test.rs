@@ -7,7 +7,7 @@
 //! a page command the game does not answer. All three are decidable from the
 //! table alone, so all three are decided here.
 
-use fallline_shell::config::{site_link, SITE_URL, WINDOW_TITLE};
+use fallline_shell::config::{site_link, APPS_PAGE_URL, WINDOW_TITLE};
 use fallline_shell::menu::{commands, menu_bar, target_of, Entry, Target};
 
 #[test]
@@ -88,19 +88,19 @@ fn the_page_commands_are_the_ones_the_game_answers() {
 }
 
 #[test]
-fn help_opens_the_website_and_never_this_window() {
+fn help_opens_the_apps_page_and_never_this_window() {
     for command in commands() {
         let Target::Link(path) = command.target else {
             continue;
         };
         assert!(path.starts_with('/'), "{} is not a rooted path", command.id);
-        assert!(site_link(path).starts_with(SITE_URL));
+        assert!(site_link(path).starts_with(APPS_PAGE_URL));
     }
     // The two pages a store listing has to name are reachable from inside the
     // app as well, which is where a stuck player actually is.
     assert_eq!(target_of("privacy"), Some(Target::Link("/privacy/")));
     assert_eq!(target_of("support"), Some(Target::Link("/support/")));
-    assert_eq!(site_link("/privacy/"), format!("{SITE_URL}/privacy/"));
+    assert_eq!(site_link("/privacy/"), format!("{APPS_PAGE_URL}/privacy/"));
 }
 
 #[test]

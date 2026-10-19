@@ -1,0 +1,140 @@
+{
+  "about": "Every asset Fall Line ships, where it comes from and under what licence. Every sound is synthesized, and the mountain, the trees, the wildlife, the course's marks and the skier's outfit are geometry built by code at run time; the models below are made in Blender off the game's own data. The third-party rows are the typefaces on the signs, the real mountains' heights and their ski areas, the world map and the X-ray cam's body, each under its own licence and credited as it asks. A new kind of asset, or a new generator, changes this file in the same commit.",
+  "assets": [
+    {
+      "path": "pwa/public/icons/icon.svg",
+      "source": "authored",
+      "licence": "PolyForm-Noncommercial-1.0.0",
+      "note": "The app mark, drawn by hand. scripts/generate-icons.mjs and pwa/src/game/app-mark.ts restate its geometry."
+    },
+    {
+      "path": "pwa/public/icons/*.png",
+      "source": "generated",
+      "generator": "make icons (scripts/generate-icons.mjs)",
+      "licence": "PolyForm-Noncommercial-1.0.0"
+    },
+    {
+      "path": "pwa/public/favicon.ico",
+      "source": "generated",
+      "generator": "make icons (scripts/generate-icons.mjs)",
+      "licence": "PolyForm-Noncommercial-1.0.0"
+    },
+    {
+      "path": "native/assets/*.png",
+      "source": "generated",
+      "generator": "make icons (scripts/generate-icons.mjs) — the web icons, copied in",
+      "licence": "PolyForm-Noncommercial-1.0.0",
+      "note": "The phone app's icon, splash icon and favicon."
+    },
+    {
+      "path": "tauri/src-tauri/icons/",
+      "source": "generated",
+      "generator": "tauri/scripts/icons.mjs (run by the desktop build)",
+      "licence": "PolyForm-Noncommercial-1.0.0",
+      "note": "Build output, gitignored: pwa/public/icons/ re-encoded to RGBA for the desktop app."
+    },
+    {
+      "path": "pwa/models/*.glb",
+      "source": "generated",
+      "generator": "make models (scripts/models.mjs over scripts/blender/)",
+      "licence": "PolyForm-Noncommercial-1.0.0",
+      "note": "The skis, the machines, the people and the wildlife modelled in Blender off the game's own data; sources.json stamps what each was made from."
+    },
+    {
+      "path": "pwa/src/title/*.webp",
+      "source": "generated",
+      "generator": "make title-scene (scripts/blender/, scripts/title-plates.mjs)",
+      "licence": "PolyForm-Noncommercial-1.0.0",
+      "note": "The title scene's plates, rendered in Blender off the game's own data."
+    },
+    {
+      "path": "pwa/src/game/body-model.ts",
+      "source": "generated",
+      "generator": "make hud-body (scripts/hud-body.mjs)",
+      "licence": "PolyForm-Noncommercial-1.0.0",
+      "note": "The HUD body's figure, a few hundred corners traced off the BodyParts3D body (references/anatomy/README.md); no mesh of it is kept."
+    },
+    {
+      "path": "pwa/src/game/xray-model.ts",
+      "source": "third-party",
+      "licence": "CC-BY-SA-2.1-JP",
+      "origin": "BodyParts3D, The Database Center for Life Science — https://dbarchive.biosciencedbc.jp/en/bodyparts3d/ — thinned and fitted onto the skier's rig by make xray-body (scripts/xray-body.mjs)",
+      "attribution": "BodyParts3D, (c) The Database Center for Life Science licensed under CC Attribution-Share Alike 2.1 Japan"
+    },
+    {
+      "path": "references/anatomy/skeleton-front.svg",
+      "source": "third-party",
+      "licence": "LicenseRef-Public-Domain",
+      "origin": "https://commons.wikimedia.org/wiki/File:Human_skeleton_front_en.svg — a reference drawing, not shipped in the game",
+      "attribution": null
+    },
+    {
+      "path": "pwa/src/game/fonts/sign-alpine.woff2",
+      "source": "third-party",
+      "licence": "Apache-2.0",
+      "origin": "A display typeface redistributed as its publisher serves it (the Latin subset); its licence and copyright beside it in sign-alpine.LICENSE.txt",
+      "attribution": "Copyright (c) 2010 by Font Diner, Inc DBA Sideshow"
+    },
+    {
+      "path": "pwa/src/game/fonts/sign-maritime.woff2",
+      "source": "third-party",
+      "licence": "Apache-2.0",
+      "origin": "A display typeface redistributed as its publisher serves it (the Latin subset); its licence and copyright beside it in sign-maritime.LICENSE.txt",
+      "attribution": "Copyright (c) 2010 by Font Diner, Inc"
+    },
+    {
+      "path": "pwa/src/game/fonts/sign-continental.woff2",
+      "source": "third-party",
+      "licence": "OFL-1.1",
+      "origin": "A display typeface redistributed as its publisher serves it (the Latin subset); its licence and copyright beside it in sign-continental.LICENSE.txt",
+      "attribution": "Copyright (c) 2011 by Tyler Finck"
+    },
+    {
+      "path": "pwa/src/game/fonts/sign-fell.woff2",
+      "source": "third-party",
+      "licence": "OFL-1.1",
+      "origin": "A display typeface redistributed as its publisher serves it (the Latin subset); its licence and copyright beside it in sign-fell.LICENSE.txt",
+      "attribution": "Copyright 2011 The Londrina Solid Authors"
+    },
+    {
+      "path": "engine/mapgen/real-faces/",
+      "source": "third-party",
+      "licence": "LicenseRef-Copernicus-DEM",
+      "origin": "Copernicus DEM GLO-30, baked to a file a face by make real-faces (scripts/real-faces.mjs); docs/real-faces.md",
+      "attribution": "© DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA."
+    },
+    {
+      "path": "pwa/src/game/far-faces/",
+      "source": "third-party",
+      "licence": "LicenseRef-Copernicus-DEM",
+      "origin": "Copernicus DEM GLO-90, baked to a file a face by make far-faces (scripts/far-faces.mjs); docs/far-ranges.md",
+      "attribution": "© DLR e.V. 2010–2014 and © Airbus Defence and Space GmbH 2014–2018 provided under COPERNICUS by the European Union and ESA."
+    },
+    {
+      "path": "engine/mapgen/real-hints/",
+      "source": "third-party",
+      "licence": "ODbL-1.0",
+      "origin": "OpenStreetMap — the lifts, pistes, houses, streets, woods and water round each real face, baked by make real-hints (scripts/real-hints.mjs); a derived database under the same licence (docs/real-faces.md)",
+      "attribution": "© OpenStreetMap contributors"
+    },
+    {
+      "path": "pwa/src/game/world-map-data.ts",
+      "source": "third-party",
+      "licence": "LicenseRef-Public-Domain",
+      "origin": "Natural Earth 1:50 m land, borders and lakes, simplified by make world-map (scripts/world-map.mjs)",
+      "attribution": null
+    },
+    {
+      "path": "pwa/src/game/audio/",
+      "source": "authored",
+      "licence": "PolyForm-Noncommercial-1.0.0",
+      "note": "Every sound and bed, as authored synthesis parameters. No audio file ships."
+    },
+    {
+      "path": "pwa/src/game/",
+      "source": "authored",
+      "licence": "PolyForm-Noncommercial-1.0.0",
+      "note": "The world's geometry and materials — the mountain, the snow, the trees, the wildlife, the buildings, the skier and his outfit, the sky — built as geometry and shaders by this code at run time."
+    }
+  ]
+}

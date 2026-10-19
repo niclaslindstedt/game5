@@ -80,6 +80,8 @@ import {
   type VideoSettings,
 } from "./settings-video.ts";
 import { STRINGS } from "./strings.ts";
+import { APPS_PAGE_URL } from "../apps-page.ts";
+import { GORE_BUILD } from "./edition.ts";
 
 /** The word for a stop on any of the picture's ladders — one vocabulary for
  * every row, so LOW means the same thing wherever it is read. */
@@ -371,37 +373,43 @@ export function OptionsPage({
                 onPick={(id) => onSettings({ ...settings, hud: id === "on" })}
                 onHint={setHint}
               />
-              {/* THE INJURIES: the body plate and the g meter. A parental
-                control on the device locks it off — one stop, and the caption
-                says whose word that is. */}
-              <StepRow
-                label={STRINGS.optInjuries}
-                hint={childLock ? STRINGS.optInjuriesLocked : STRINGS.optInjuriesHint}
-                stops={childLock ? OFF_ONLY : ON_OFF}
-                value={onOff(injuriesShown(settings, content))}
-                onPick={(id) => onSettings({ ...settings, injuries: id === "on" })}
-                onHint={setHint}
-              />
-              {/* THE X-RAY CAM and its slow motion: off unless asked for, and
-                only ever on a run that shows the injuries. */}
-              <StepRow
-                label={STRINGS.optXray}
-                hint={STRINGS.optXrayHint}
-                stops={childLock ? OFF_ONLY : ON_OFF}
-                value={onOff(settings.xray && injuriesShown(settings, content))}
-                onPick={(id) => onSettings({ ...settings, xray: id === "on" })}
-                onHint={setHint}
-              />
-              {/* THE DAMAGE HUD — the body plate and the g meter — off unless
-                asked for, and only ever over a run that shows the injuries. */}
-              <StepRow
-                label={STRINGS.optBodyHud}
-                hint={STRINGS.optBodyHudHint}
-                stops={childLock ? OFF_ONLY : ON_OFF}
-                value={onOff(settings.bodyHud && injuriesShown(settings, content))}
-                onPick={(id) => onSettings({ ...settings, bodyHud: id === "on" })}
-                onHint={setHint}
-              />
+              {/* None of the INJURIES rows in a build without them (the store
+                app, `edition.ts`): there is nothing for them to switch. */}
+              {GORE_BUILD && (
+                <>
+                  {/* THE INJURIES: the body plate and the g meter. A parental
+                    control on the device locks it off — one stop, and the caption
+                    says whose word that is. */}
+                  <StepRow
+                    label={STRINGS.optInjuries}
+                    hint={childLock ? STRINGS.optInjuriesLocked : STRINGS.optInjuriesHint}
+                    stops={childLock ? OFF_ONLY : ON_OFF}
+                    value={onOff(injuriesShown(settings, content))}
+                    onPick={(id) => onSettings({ ...settings, injuries: id === "on" })}
+                    onHint={setHint}
+                  />
+                  {/* THE X-RAY CAM and its slow motion: off unless asked for, and
+                    only ever on a run that shows the injuries. */}
+                  <StepRow
+                    label={STRINGS.optXray}
+                    hint={STRINGS.optXrayHint}
+                    stops={childLock ? OFF_ONLY : ON_OFF}
+                    value={onOff(settings.xray && injuriesShown(settings, content))}
+                    onPick={(id) => onSettings({ ...settings, xray: id === "on" })}
+                    onHint={setHint}
+                  />
+                  {/* THE DAMAGE HUD — the body plate and the g meter — off unless
+                    asked for, and only ever over a run that shows the injuries. */}
+                  <StepRow
+                    label={STRINGS.optBodyHud}
+                    hint={STRINGS.optBodyHudHint}
+                    stops={childLock ? OFF_ONLY : ON_OFF}
+                    value={onOff(settings.bodyHud && injuriesShown(settings, content))}
+                    onPick={(id) => onSettings({ ...settings, bodyHud: id === "on" })}
+                    onHint={setHint}
+                  />
+                </>
+              )}
               {/* How long a fall he will not get up from holds before the run starts again. */}
               <StepRow
                 label={STRINGS.optRestartAfter}
@@ -541,6 +549,18 @@ export function OptionsPage({
         >
           {STRINGS.optRestore}
         </button>
+        {/* THE PRIVACY POLICY, on the game's page on the publisher's app site
+          — the one the store listing names — opened outside the game (the
+          browser's new tab; the phone and desktop apps hand it to the system
+          browser), since every build carries it, the store ones included. */}
+        <a
+          class="opt-reset opt-privacy"
+          href={`${APPS_PAGE_URL}privacy/`}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          {STRINGS.optPrivacy}
+        </a>
       </MenuBody>
       <Caption hint={hint} />
     </div>

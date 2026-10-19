@@ -3,7 +3,7 @@
   "productName": "Fall Line",
   "mainBinaryName": "fallline",
   "version": "0.1.0",
-  "identifier": "se.agilator.fallline",
+  "identifier": "dev.local.fallline",
   "build": {
     "frontendDist": "./placeholder"
   },

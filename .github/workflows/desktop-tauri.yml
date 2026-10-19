@@ -135,9 +135,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       # THE MODELLED SKIS (committed in pwa/models/) are
-      # drawn unless a repository variable switches them back — `make
+      # drawn unless a repository secret switches them back — `make
       # ci-models MODELS=off`, no commit needed; unset is on.
-      VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
+      VITE_MODEL_SKIS: ${{ secrets.VITE_MODEL_SKIS }}
       # macOS notarization, exactly as release.yml passes it — so a dispatch
       # here is a real rehearsal of the release's macOS half, which is the
       # only way to find out that a certificate or an app-specific password
@@ -185,11 +185,20 @@ jobs:
       - name: Package
         if: inputs.platform == 'all' || inputs.platform == matrix.target
         shell: bash
+        env:
+          # THE DEPLOYMENT'S IDENTITY — the same secrets, under the same names,
+          # the phone build reads. The identifier is also where the installed
+          # app keeps its progress.
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          APP_DISPLAY_NAME: ${{ secrets.APP_DISPLAY_NAME }}
         run: npm run tauri:package
 
       - name: Package (macOS, Intel)
         if: matrix.target == 'macos' && (inputs.platform == 'all' || inputs.platform == 'macos')
         shell: bash
+        env:
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          APP_DISPLAY_NAME: ${{ secrets.APP_DISPLAY_NAME }}
         run: npm run tauri:package -- --target x86_64-apple-darwin --skip-web --keep
 
       - uses: actions/upload-artifact@v7

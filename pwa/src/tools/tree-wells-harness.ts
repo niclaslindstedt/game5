@@ -35,6 +35,7 @@ import {
 } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
+import { appOutput } from "../output-bridge.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
@@ -271,7 +272,7 @@ const VIEWS: Record<string, () => Promise<void>> = {
     times.sort((a, b) => a - b);
     const ms = times[N >> 1];
     shoot(s, `the chase: ${ms.toFixed(1)} ms a frame (median of ${N})`, "chase");
-    console.warn(`cost ${tier}: ${ms.toFixed(1)} ms a frame (median of ${N})`);
+    appOutput("warn", `cost ${tier}: ${ms.toFixed(1)} ms a frame (median of ${N})`);
   },
   async night() {
     renderer.setSky({ hour: 21 });

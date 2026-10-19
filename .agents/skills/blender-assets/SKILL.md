@@ -322,7 +322,7 @@ half serve that.
 Every build draws the SKIS — local, CI, the site's slots, a release, the
 desktop and store apps — unless SWITCHED BACK (`VITE_MODEL_SKIS=0` in the
 environment or the root `.env`; `model-switch.ts`). Every workflow's
-build step hands on the repository variable of the same name, so
+build step hands on the repository secret of the same name, so
 `make ci-models MODELS=off`
 switches every CI build back with no commit. `docs/configuration.md` is
 the description; what a session needs:

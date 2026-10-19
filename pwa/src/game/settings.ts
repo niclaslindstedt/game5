@@ -42,6 +42,7 @@ import { mergeRacePicks, type RacePicks } from "./race-maps.ts";
 import { freshRide, mergeRide, rideOnFace, type FreeRide } from "./free-ride.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import type { ShellContent } from "../shell-host.ts";
+import { DEVELOPER_BUILD, GORE_BUILD } from "./edition.ts";
 import { freshKeys, mergeKeys, type KeyBindings } from "./settings-input.ts";
 import { freshHeliKeys, mergeHeliKeys, type HeliBindings } from "./settings-heli-keys.ts";
 import { freshPlaneKeys, mergePlaneKeys, type PlaneBindings } from "./settings-plane-keys.ts";
@@ -260,8 +261,10 @@ export const DEV_HOLD_MS = 7000;
 
 /** THE RACES AND TRICKS, behind a feature flag: every discipline and
  * freestyle format is built and kept, but only DEVELOPER lets them onto the
- * front door. Shut, PLAY goes straight to the free ride. */
-export const racesOpen = (settings: Pick<Settings, "developer">): boolean => settings.developer;
+ * front door — and a build without the developer page (`edition.ts`) never
+ * does. Shut, PLAY goes straight to the free ride. */
+export const racesOpen = (settings: Pick<Settings, "developer">): boolean =>
+  DEVELOPER_BUILD && settings.developer;
 
 /** A MAP'S ATTEMPTS RAISED SIDE BY SIDE (`attempt-pool.ts`), behind a
  * feature flag: the same map sooner, at the cost of a worker's heap an
@@ -318,11 +321,13 @@ export function freshSettings(): Settings {
   };
 }
 
-/** WHETHER THE INJURIES ARE DRAWN: a parental control on the device
+/** WHETHER THE INJURIES ARE DRAWN: never in a build without them
+ * (`edition.ts` — the store app); a parental control on the device
  * (`child`) hides them whatever was picked; otherwise the player's own pick,
  * and with none, shown unless the device's owner filters sensitive content
  * (`filtered`). `content` is `shell-host.ts`'s `shellContent()`. */
 export function injuriesShown(settings: Settings, content: ShellContent | null): boolean {
+  if (!GORE_BUILD) return false;
   if (content === "child") return false;
   if (settings.injuries !== null) return settings.injuries;
   return content !== "filtered";
@@ -411,7 +416,7 @@ export function mergeSettings(parsed: unknown): Settings {
   if (isJumpHill(blob.jumpHill)) out.jumpHill = blob.jumpHill;
   if (isAerialCode(blob.aerialPlan)) out.aerialPlan = blob.aerialPlan;
   if (typeof blob.hud === "boolean") out.hud = blob.hud;
-  if (typeof blob.developer === "boolean") out.developer = blob.developer;
+  if (typeof blob.developer === "boolean") out.developer = DEVELOPER_BUILD && blob.developer;
   const dev = record(blob.dev);
   for (const k of DEV_SWITCHES) {
     const on = dev[k];

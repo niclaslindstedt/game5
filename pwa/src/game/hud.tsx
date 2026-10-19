@@ -45,7 +45,6 @@
 // (they write into the input manager at pointer rate). Every word here comes
 // from strings.ts (§39.1).
 
-import { REPO_URL } from "../identity.ts";
 import { formatTime } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { HudActions } from "./hud-actions.tsx";
 import { ReplayOffer, type CrashOffer } from "./hud-replay-offer.tsx";
@@ -854,12 +853,17 @@ export function Hud({
       </div>
 
       {/* §38.3: the build says what it is — version and commit, linked to
-          the source — and beside it the map this frame is of. */}
+          the source on the website and plain in a packaged build, which links
+          nothing back to it — and beside it the map this frame is of. */}
       <div class="hud-build">
         <span>{STRINGS.stage(snap.seed)}</span>
-        <a href={`${REPO_URL}/commit/${__COMMIT_SHA__}`} target="_blank" rel="noreferrer">
-          {__BUILD_LABEL__}
-        </a>
+        {__SOURCE_URL__ ? (
+          <a href={`${__SOURCE_URL__}/commit/${__COMMIT_SHA__}`} target="_blank" rel="noreferrer">
+            {__BUILD_LABEL__}
+          </a>
+        ) : (
+          <span>{__BUILD_LABEL__}</span>
+        )}
       </div>
 
       {away && (

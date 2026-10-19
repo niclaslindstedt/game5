@@ -5,7 +5,7 @@
 // (`real-faces/face-<id>.ts`, loaded only when a map is raised on it);
 // `real-face.ts` reads it.
 //
-// game-spec:allow-large-file: a generated table, ten lines a real face;
+// guidelines:allow-large-file: a generated table, ten lines a real face;
 // it grows with every face imported and holds no logic.
 
 import type { RegionId } from "./regions.ts";

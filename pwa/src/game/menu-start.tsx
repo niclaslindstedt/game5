@@ -107,6 +107,7 @@ import { startChosen, useRunPick } from "./run-pick.ts";
 import { SeedPreview } from "./seed-preview.tsx";
 import type { Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
+import { GORE_BUILD } from "./edition.ts";
 
 /** The seeds the MAP row walks. Seed 0 is not a map; a link may name any
  * seed the stream takes, and the row clamps what it is typed. */
@@ -253,7 +254,9 @@ export function StartPage({
                   onPick={(snow) => setRide({ snow })}
                 />
               )}
-              {!summer && (
+              {/* No AVALANCHES row in a build without the gore (`edition.ts`):
+                it plays safe for work, where no slope slides. */}
+              {!summer && GORE_BUILD && (
                 <StepRow
                   label={STRINGS.startAvalanche}
                   stops={AVALANCHE_ROW}

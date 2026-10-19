@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE SKILLS, held to the contract they are written to (OSS_GAME_SPEC §21)
-// and to the router that points at them (§7, §21.8). Three things drift
+// THE SKILLS, held to the contract they are written to
+// and to the router that points at them. Three things drift
 // here and each has drifted somewhere already: a skill renamed on disk and
 // not in its front matter, so the tool that discovers it by name finds
 // nothing; a maintenance skill without its `.last-updated`, so the sweep
@@ -31,10 +31,10 @@ function frontMatter(text: string): Front | null {
   return out;
 }
 
-/** Maintenance skills are the `update-*` family, the umbrella and the
- * spec walk — the ones §21.4 gives a tracking file. */
+/** Maintenance skills are the `update-*` family and the umbrella — the
+ * ones that keep a tracking file. */
 function isMaintenance(name: string): boolean {
-  return name.startsWith("update-") || name === "maintenance" || name === "sync-game-spec";
+  return name.startsWith("update-") || name === "maintenance";
 }
 
 const agents = readFileSync(join(ROOT, "AGENTS.md"), "utf8");
@@ -61,7 +61,7 @@ function lastColumnSkills(text: string): string[] {
   return out;
 }
 
-describe("every skill (§21.3)", () => {
+describe("every skill", () => {
   it("there are skills", () => {
     expect(dirs.length).toBeGreaterThan(10);
   });
@@ -82,20 +82,17 @@ describe("every skill (§21.3)", () => {
   }
 });
 
-describe("the maintenance skills (§21.4–§21.6)", () => {
+describe("the maintenance skills", () => {
   const maintenance = dirs.filter(isMaintenance);
 
   it("exist: the required set", () => {
     for (const name of ["maintenance", "update-docs", "update-readme", "update-website"]) {
-      expect(maintenance, `${name} is required by §21.5`).toContain(name);
+      expect(maintenance, `${name} is a required maintenance skill`).toContain(name);
     }
-    expect(maintenance, "sync-game-spec is required of a repo claiming conformance").toContain(
-      "sync-game-spec",
-    );
   });
 
   for (const name of maintenance) {
-    it(`${name} carries a .last-updated baseline and the §21.3 sections`, () => {
+    it(`${name} carries a .last-updated baseline and the maintenance sections`, () => {
       expect(existsSync(join(SKILLS, name, ".last-updated")), `${name}/.last-updated`).toBe(true);
       const text = readFileSync(join(SKILLS, name, "SKILL.md"), "utf8");
       for (const heading of [
@@ -122,7 +119,7 @@ describe("the maintenance skills (§21.4–§21.6)", () => {
   });
 });
 
-describe("the router (§7, §21.8)", () => {
+describe("the router", () => {
   it("AGENTS.md's Skills section names every skill on disk, and only those", () => {
     const named = [...section("Skills").matchAll(/\*\*`([a-z]+(?:-[a-z]+)*)`\*\*/g)].map(
       (m) => m[1],

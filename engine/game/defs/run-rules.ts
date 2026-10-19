@@ -177,8 +177,10 @@ export type RunRules = {
    * nobody collides with anybody — no skier, amateur or civilian is
    * shouldered or knocked down (`contact` off) — the afterski's doors stay
    * shut, the helicopter is flown through a steadying hand and cannot
-   * crash (`heli.ts`), and the hot air balloon never catches fire and
-   * cannot crash (`balloon.ts`). Left out, all of it is as it is. */
+   * crash (`heli.ts`), the hot air balloon never catches fire and
+   * cannot crash (`balloon.ts`), nobody in the crowd is down from the
+   * hut (`crowd.ts`), and no slope slides (`avalanche.ts`, a burial being a
+   * death on every run). Left out, all of it is as it is. */
   sfw?: boolean;
   /** THE FREE RIDE'S CARVE (`limits.ts`'s `speedHoldOf` and
    * `bentSpecOf`, `TUNING.arcade.speedHold` and `.freeSidecut`): the

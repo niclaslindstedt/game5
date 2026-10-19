@@ -114,10 +114,11 @@ const CLOUD_ENTITLEMENTS = {
 // THE DEVICE'S CONTENT SETTING (src/content-filter.ts) is read through the
 // sensitive-content analysis policy, which needs the Sensitive Content
 // Analysis capability on the App ID — and, like iCloud, an entitlement the
-// App ID does not carry fails code signing. EXPO_PUBLIC_CONTENT_FILTER=off
-// drops it for a quick local build (the policy then reads as off and the game
-// follows its own OPTIONS switch alone); store builds leave it on.
-const CONTENT_FILTER = process.env.EXPO_PUBLIC_CONTENT_FILTER !== "off";
+// App ID does not carry fails code signing. OFF unless EXPO_PUBLIC_CONTENT_FILTER=on:
+// the setting only ever decided whether the injuries are shown, and the phone
+// build carries none (pwa/src/game/edition.ts), so the store build asks the
+// App ID for nothing it would use. The shell then says nothing of the setting.
+const CONTENT_FILTER = process.env.EXPO_PUBLIC_CONTENT_FILTER === "on";
 const CONTENT_ENTITLEMENTS = {
   "com.apple.developer.sensitivecontentanalysis.client": ["analysis"],
 };
@@ -133,7 +134,14 @@ module.exports = () => ({
     // landscape both work.
     orientation: "default",
     icon: "./assets/icon.png",
-    scheme: "fallline",
+    // The URL scheme is the bundle id — reverse-DNS, as RFC 8252 §7.1 asks of
+    // a private-use scheme — so it is as unique as the app itself and never a
+    // word another app could also claim. It follows APP_BUNDLE_ID, so it is
+    // not committed either: `se.agilator.<slug>` in a store build,
+    // `dev.local.<slug>` in a checkout. Nothing in the game opens a link into
+    // the app today; the scheme is registered so that anything that one day
+    // does (an OAuth redirect, `<bundle id>://oauth`) has a name ready.
+    scheme: BUNDLE_ID,
     userInterfaceStyle: "light",
     backgroundColor: BRAND_BG,
     // Ship the packed website (assets/webroot.zip) inside the app so the game

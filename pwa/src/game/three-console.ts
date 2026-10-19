@@ -9,6 +9,8 @@
 
 import * as THREE from "three";
 
+import { appOutput } from "../output-bridge.ts";
+
 let quiet = false;
 
 export function quietThree(): void {
@@ -18,8 +20,6 @@ export function quietThree(): void {
   THREE.setConsoleFunction((type: string, message: string, ...rest: unknown[]) => {
     if (seen.has(message)) return;
     seen.add(message);
-    if (type === "error") console.error(message, ...rest);
-    else if (type === "warn") console.warn(message, ...rest);
-    else console.log(message, ...rest);
+    appOutput(type === "error" ? "error" : type === "warn" ? "warn" : "info", message, ...rest);
   });
 }

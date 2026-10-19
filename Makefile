@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim
+.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
 
 build:
 	npm run build
@@ -433,17 +433,17 @@ title-scene:
 	node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/title-plates.mjs
 
 # Switch the models on or off for every CI build — the repository
-# VARIABLE the workflows hand the build (needs gh, and the right to set
-# it): `make ci-models MODELS=off` draws the code-built skis on the next
-# deploy with no commit; MODELS=on (or deleting the variable) puts the
-# models back.
+# SECRET the workflows hand the build (this repository keeps no Actions
+# variables; needs gh, and the right to set it): `make ci-models MODELS=off`
+# draws the code-built skis on the next deploy with no commit; MODELS=on (or
+# deleting the secret) puts the models back.
 ci-models:
 	@case "$(MODELS)" in \
-	  off) gh variable set VITE_MODEL_SKIS --body 0 || exit 1 ;; \
-	  on) gh variable set VITE_MODEL_SKIS --body 1 || exit 1 ;; \
+	  off) gh secret set VITE_MODEL_SKIS --body 0 || exit 1 ;; \
+	  on) gh secret set VITE_MODEL_SKIS --body 1 || exit 1 ;; \
 	  *) echo "usage: make ci-models MODELS=on|off" >&2; exit 2 ;; \
 	esac
-	@gh variable list | grep VITE_MODEL || true
+	@gh secret list | grep VITE_MODEL || true
 
 # THE SKY LAB: the sky over one seed from one place through the game's own
 # renderer, as a labelled contact sheet, every cell measured (the zenith's
@@ -1682,6 +1682,12 @@ bench:
 cpu-cost:
 	npm run cpu-cost -- $(ARGS)
 
+# Every dependency's licence, read out of the three committed lockfiles and
+# held to the fleet's allow-list in the script (LGPL only for dev packages).
+# No install needed; CI's lint job runs it.
+licences:
+	node scripts/check-licences.mjs $(ARGS)
+
 shellcheck:
 	shellcheck scripts/*.sh .githooks/*
 
@@ -1711,3 +1717,24 @@ changelog:
 # auto-derive from the current .changes/unreleased/ fragments. Read-only.
 bump:
 	@npx ogf-compute-bump
+
+# ---------------------------------------------------------------------------
+# SHIPPING TO THE STORE (native/store/)
+# ---------------------------------------------------------------------------
+# One authored listing (native/store/listing.mts) compiles into the files the
+# upload tools read. The RULES are committed; the WORDS are not — see
+# native/store/README.md.
+
+# "Is this checkout wired up to ship?" — every gate between here and a
+# submission, what is missing and where to get it. `ARGS="--now"` narrows it to
+# the items that wait on no store account.
+store-preflight:
+	@node --experimental-strip-types --disable-warning=ExperimentalWarning \
+		scripts/store-preflight.mjs $(ARGS)
+
+# Compile the listing into native/store/store.config.json (for
+# `eas metadata:push`) and the fastlane metadata tree. `ARGS="--check"`
+# validates without writing.
+store-metadata:
+	node --experimental-strip-types --disable-warning=ExperimentalWarning \
+		scripts/generate-store-metadata.mjs $(ARGS)

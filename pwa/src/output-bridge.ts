@@ -43,3 +43,19 @@ export function connectOutput(): void {
     }
   });
 }
+
+/** The APP's own diagnostics, through the same door: kept in the buffer
+ * beside the engine's, and written to the console at once — a warning from
+ * the renderer or the title is worth seeing in any build. Every console line
+ * the app writes goes through here. */
+export function appOutput(
+  level: "info" | "warn" | "error",
+  message: string,
+  ...rest: unknown[]
+): void {
+  entries.push({ at: Date.now() - started, level, message });
+  if (entries.length > CAP) entries.shift();
+  if (level === "error") console.error(message, ...rest);
+  else if (level === "warn") console.warn(message, ...rest);
+  else console.log(message, ...rest);
+}

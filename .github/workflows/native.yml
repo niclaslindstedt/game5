@@ -3,7 +3,7 @@
 # so builds — which consume paid EAS build minutes and store credentials — only
 # run when a human asks. Requires an EXPO_TOKEN repo secret (an Expo access
 # token from https://expo.dev/settings/access-tokens) and, until the project
-# id is pinned in native/app.config.js, an EAS_PROJECT_ID repo variable; store
+# id is pinned in native/app.config.js, an EAS_PROJECT_ID repo secret; store
 # submission also needs the App Store Connect / Play credentials configured on
 # the EAS project. native/RELEASING.md is the run-through.
 name: native
@@ -61,24 +61,22 @@ jobs:
         working-directory: native
         run: npm run typecheck
 
-      # vite build + zip. The .easignore keeps the generated zip in the upload
-      # despite .gitignore.
+      # vite build + zip, for the profile being built: the App Store build
+      # (production) leaves the developer page out, and no phone build carries
+      # the gore. The EAS build checks the zip against its profile. The root
+      # .easignore keeps the generated zip in the upload despite .gitignore.
       - name: Bundle the website into the app
         working-directory: native
-        run: npm run bundle
         env:
-          # THE MODELLED SKIS (committed in pwa/models/) are
-          # drawn unless a repository variable switches them back — `make
-          # ci-models MODELS=off`, no commit needed; unset is on.
-          VITE_MODEL_SKIS: ${{ vars.VITE_MODEL_SKIS }}
+          PROFILE: ${{ inputs.profile }}
+        run: npm run bundle -- --profile "$PROFILE"
 
       - name: EAS build
         working-directory: native
         env:
-          EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID }}
-          # The store identifier — never committed (see app.config.js). A
-          # production profile without it refuses to build.
+          APP_DISPLAY_NAME: ${{ secrets.APP_DISPLAY_NAME }}
           APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
         run: |
           eas build \
             --non-interactive \

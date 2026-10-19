@@ -232,6 +232,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   chute: { kind: "chute", t: 1, phase: "open", x: 0, y: 0, z: 0, speed: 14, g: 4 },
   jib: { kind: "jib", t: 1, id: "J1L", jib: "rail", phase: "on", whole: true },
   grind: { kind: "grind", t: 1, id: "L1", phase: "on" },
+  gunfire: { kind: "gunfire", t: 1, phase: "shot", weapon: "rifle", x: 0, y: 0, z: 0 },
   steal: {
     kind: "steal",
     t: 1,

@@ -10,7 +10,7 @@ The shape is the one open-world crime games settled on, and it is borrowed as a 
 - **Solid while seen, flashing while searched for.** While a pursuer has you in sight the stars are solid and the search is centred on you. Out of every pursuer's sight they flash: the army is combing the place you were last seen.
 - **Lost all at once.** Stay unseen long enough (longer the more stars you carry) and the stars drop to nothing. They do not tick down one at a time.
 
-The roster climbs the way a real military response is escalated: first find and shadow the suspect, then put a fire team down, then a squad, then mechanised pursuit over the snow, then more aircraft. The rules of fire follow the force continuum the same way: presence and no shots (`hold`), warning fire aimed off him (`warn`), then aimed fire (`aim`).
+The roster climbs the way a real military response is escalated: first find and shadow the suspect, then put a fire team down, then a squad, then mechanised pursuit over the snow, then more aircraft. The rules of fire follow the force continuum the same way: presence and no shots (`hold`), warning fire aimed off him (`warn`), then aimed fire (`aim`). Every shooter fires through the one gunfire layer ([`gunfire.md`](gunfire.md)), which reads these rules.
 
 ## The state
 

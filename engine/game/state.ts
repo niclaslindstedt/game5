@@ -33,6 +33,7 @@ import type { SledEvent, SledState } from "./sled-state.ts";
 import type { GrimbearEvent, GrimbearState } from "./grimbear-state.ts";
 import type { AvalancheEvent, AvalancheState } from "./avalanche-state.ts";
 import type { WantedEvent, WantedState } from "./wanted-state.ts";
+import type { GunfireEvent, GunfireState } from "./gunfire-state.ts";
 import type { GroomedSnow, GroomerEvent, GroomerState } from "./groomer-state.ts";
 import type { TrafficEvent } from "./traffic-contact.ts";
 import type { BeastEvent, WildState } from "./beast-hit.ts";
@@ -730,6 +731,7 @@ export type GameEvent =
   | GrimbearEvent
   | AvalancheEvent
   | WantedEvent
+  | GunfireEvent
   | AfterskiEvent
   | GroomerEvent
   | TrafficEvent
@@ -965,19 +967,17 @@ export type GameState = ContestState & {
   /** THE AFTERSKI (`afterski.ts`), THE GRIMBEAR (`grimbear.ts`): free ride. */
   afterski?: AfterskiState;
   grimbear?: GrimbearState;
-  /** THE WILDLIFE AS BODIES (`beast-hit.ts`): a free ride's frights and the
-   * animals met; absent on every other run, so no digest sees an animal. */
+  /** THE WILDLIFE AS BODIES (`beast-hit.ts`): a free ride's alone. */
   wild?: WildState;
-  /** HIS CLOTHES ALIGHT (`fire-burn.ts`): a free ride's, once he has
-   * ridden into a fire; absent otherwise, so no digest moves. */
+  /** HIS CLOTHES ALIGHT (`fire-burn.ts`), once he rode into a fire. */
   burn?: import("./fire-burn.ts").BurnState;
   /** THE AVALANCHES (`avalanche.ts`): a free ride that asked for them. */
   avalanche?: AvalancheState;
-  /** THE WANTED LEVEL (`wanted.ts`): the army hunting him, once an offence
-   * (`raiseHeat`) or the run's ask raised it; absent until then. */
+  /** THE WANTED LEVEL (`wanted.ts`), once an offence raised it; absent until then. */
   wanted?: WantedState;
-  /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`): a free ride whose
-   * player asked for them. */
+  /** THE GUNFIRE (`gunfire.ts`), once a gun is armed; absent until then. */
+  gunfire?: GunfireState;
+  /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`), asked for. */
   mishaps?: import("./mishaps.ts").MishapState;
   /** PISTE MACHINES (`groomer.ts`), their snow and the snow guns': never written. */
   groomers?: GroomerState[];

@@ -76,6 +76,7 @@ import type { CameraRung } from "./renderer-api.ts";
 import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
 import { createSledFireView, type SledFireView } from "./sled-fire-view.ts";
+import { createGunfireView, type GunfireView } from "./gunfire-view.ts";
 import type { Blaze } from "./camera-blast.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
 import { drawnAs } from "./ski-looks.ts";
@@ -338,6 +339,8 @@ export function createMachines(
   let burn: BurnView | null = null;
   // A SNOWMOBILE ON FIRE (`sled-fire-view.ts`), built the first time one catches.
   let sledFire: SledFireView | null = null;
+  // THE ARMY'S GUNS (`gunfire-view.ts`), built the first time a gun is armed.
+  let gunfire: GunfireView | null = null;
   let blastLensed = false;
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
@@ -415,6 +418,11 @@ export function createMachines(
         cloud,
         fx.snowAt,
       );
+      if (!gunfire && s.gunfire) {
+        gunfire = createGunfireView();
+        group.add(gunfire.group);
+      }
+      gunfire?.frame(s, alpha, dt, simDt, cloud, fx.snowAt);
       heli?.frame(s, alpha, dt, player, rung, flying, cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
       plane?.frame(s, alpha, dt, rung, flying, aspect, cloud, fx.snowAt);
@@ -586,6 +594,7 @@ export function createMachines(
       // ...and a skier alight, his own, and a snowmobile burning.
       burn?.lamps(lit, floods);
       sledFire?.lamps(lit, eye, floods);
+      gunfire?.lamps(lit, eye, floods);
       rescue?.lamps(lit, floods);
       rescueSleds?.lamps(lit, eye, floods);
       plane?.lamps(lit, floods);
@@ -706,6 +715,7 @@ export function createMachines(
       patrol?.dispose();
       burn?.dispose();
       sledFire?.dispose();
+      gunfire?.dispose();
     },
   };
 }

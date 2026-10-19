@@ -93,6 +93,9 @@ function machine(value: unknown): Machine {
     cores: count(m.cores),
     clockMs: num(m.clockMs, 0),
     gpu: text(m.gpu, GPU_NAME_CAP),
+    renderer: list(m.renderer)
+      .slice(0, 8)
+      .map((line) => text(line, 400)),
   };
 }
 

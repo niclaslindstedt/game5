@@ -16,6 +16,7 @@
 //   wildlife.ts     the birds over the woods, the animals and their prints
 //   spectators.ts   the free ride's amateurs, and a race's crowd watching
 //   camera.ts      the ladder; camera-start.ts a slalom's start, camera-skijump.ts a jump
+//   render-seam.ts the back end under it all: WebGL, or three's node renderer (`gpu-backend.ts`)
 //
 // `setVideo` is the one place a PICTURE row becomes a draw call. It READS
 // `GameState` and never writes it; the map is built in `load`, `draw` only
@@ -39,7 +40,7 @@ import {
 // What is drawn on the snow is solid (`drawn-solids.ts`), in every page that draws a run.
 import "./drawn-solids.ts";
 import { createBreath } from "./backdrop-hold.ts";
-import { noCost, type GpuSlice, type Hideable } from "./benchmark-report.ts";
+import { noCost } from "./benchmark-report.ts";
 import { aimLens, createLens, lensRay, type Lens } from "./camera.ts";
 import { createLineClear, createTrunksNear } from "./camera-clear.ts";
 import { aboardCraft } from "./camera-aboard.ts";
@@ -50,7 +51,7 @@ import type { ReplayView } from "./camera-replay.ts";
 import { createJumpBroadcast } from "./camera-skijump.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
 import { compileByParts, compiled } from "./scene-compile.ts";
-import { byMaterial, depthByKind } from "./shadow-depth.ts";
+import { byMaterial } from "./shadow-depth.ts";
 import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, forestOptionsOf, type Forest, type ForestOptions } from "./forest.ts";
 import { createBuildCount } from "./build-count.ts";
@@ -67,7 +68,14 @@ import { createRideMemory, liftCut, stepRideLook } from "./camera-lift.ts";
 import { createGazeRig } from "./lift-gaze.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createMachines, type Machines } from "./machines.ts";
-import { createGpuTimer, type GpuTimer } from "./gpu-timer.ts";
+import {
+  chooseBackend,
+  readBackend,
+  runsPass,
+  type Backend,
+  type BackendState,
+} from "./gpu-backend.ts";
+import { createQuarantine } from "./gpu-quarantine.ts";
 import { hazeMaterial, setRunSnow } from "./haze.ts";
 import { adaptLamps, dealLamps } from "./headlamp.ts";
 import { createHeroShadow } from "./hero-shadow.ts";
@@ -81,7 +89,9 @@ import {
 } from "./interp.ts";
 import { createRegionPicture } from "./region-picture.ts";
 import { createAfterskiView } from "./afterski-view.ts";
-import { hideSlices, runsOf, SLICE_OF_GROUP, thrownEffects, type Rider } from "./renderer-rider.ts";
+import { hideSlices, runsOf, thrownEffects, type Rider } from "./renderer-rider.ts";
+import { createInstruments } from "./renderer-instruments.ts";
+import { directPicture, openSeam, setSeamFactory } from "./render-seam.ts";
 import { freshRider } from "./renderer-rider.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
@@ -139,8 +149,16 @@ import { loadModels as loadSkierModels } from "./skier-models.ts";
 import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
 import { quietThree } from "./three-console.ts";
 
-// The modelled skis and skiers, fetched before the kit (`use-render-kit.ts`).
-export const loadModels = (): Promise<void> => loadSkierModels();
+// The modelled skis and skiers, fetched before the kit (`use-render-kit.ts`) — and the
+// back end asked for (`gpu-backend.ts`; the link's `?renderer=` unless named), its device first.
+export const loadModels = async (asked?: Backend): Promise<void> => {
+  const backend =
+    asked ?? chooseBackend(readBackend(new URLSearchParams(location.search).get("renderer")));
+  const gpu =
+    backend === "webgl" ? null : import("./gpu-device.ts").then((m) => m.prepareGpu(backend));
+  if (!gpu) setSeamFactory(null);
+  await Promise.all([loadSkierModels(), gpu]);
+};
 
 export type { FrameInfo, RendererOptions, WorldRendererExt } from "./renderer-api.ts";
 import type { RendererOptions, WorldRendererExt } from "./renderer-api.ts";
@@ -157,31 +175,36 @@ export function createWorldRenderer(
 ): WorldRendererExt {
   let video: VideoSettings = { ...(options.video ?? DEFAULT_VIDEO) };
   quietThree();
-  const gl = new THREE.WebGLRenderer({
-    canvas,
+  // THE BACK END (`render-seam.ts`): WebGL, or three's node renderer typed as it.
+  const seam = openSeam(canvas, {
     antialias: video.antialias !== "off",
-    powerPreference: "high-performance",
     preserveDrawingBuffer: options.preserveDrawingBuffer ?? false,
   });
+  const { gl, native } = seam;
+  /** Whether the frame runs pass `id` here (`GPU_PORTS`): always on WebGL. */
+  const passOn = (id: string): boolean => runsPass(seam.state.running, id);
+  const quarantine = createQuarantine(seam.state.running);
   gl.outputColorSpace = THREE.SRGBColorSpace;
   gl.toneMapping = THREE.ACESFilmicToneMapping;
   gl.toneMappingExposure = 1.05;
   gl.shadowMap.enabled = SHADOW_LOOK[video.shadows].size > 0;
   gl.shadowMap.type = THREE.PCFShadowMap; // three draws PCFSoft as PCF, after compiling as PCFSoft
-  gl.setOpaqueSort(byMaterial);
+  if (passOn("shadow-depth")) gl.setOpaqueSort(byMaterial);
   // A ski cut by a lift's rope is drawn clipped to its piece (`ski-cut-view.ts`).
   gl.localClippingEnabled = true;
 
   /** The SHADOWS row's stop, its map no bigger than this GPU can hold. */
   const shadowLook = (): ShadowLook => {
     const look = SHADOW_LOOK[video.shadows];
-    const most = gl.capabilities.maxTextureSize;
+    const most = seam.maxTextureSize();
     return { ...look, size: Math.min(look.size, most), hero: Math.min(look.hero, most) };
   };
 
   const scene = new THREE.Scene();
   // THE REGION'S GRADE (R21, `region-picture.ts`): the frame through it or straight on.
-  const picture = createRegionPicture(gl, () => video.antialias);
+  const picture = passOn("grade-pass")
+    ? createRegionPicture(gl, () => video.antialias)
+    : directPicture(seam);
   const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
   scene.add(lens.camera);
@@ -189,7 +212,7 @@ export function createWorldRenderer(
   const replayCam = createWatchCamera(() => (level && clear ? { level, clear } : null));
   const broadcast = createJumpBroadcast(); // a ski jump's director (`camera-skijump.ts`)
   let watched: ReplayView | null = null;
-  const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9, gl);
+  const env: Environment = createEnvironment(scene, shadowLook(), FAR * 0.9, native ? gl : null);
   env.setDistance(video.distance);
   env.setSky(video.sky);
   env.setHorizon(video.horizon);
@@ -250,53 +273,15 @@ export function createWorldRenderer(
   /** The box the canvas was last given, so a RESOLUTION press can re-apply
    * it at the new share. */
   let box = { width: 1, height: 1, pixelRatio: 1 };
-  /** The one pixel `drain` reads back. */
-  const drained = new Uint8Array(4);
   /** What the last frame cost (`DevRenderer.cost`), rewritten every frame. */
   const cost = noCost();
   const overlay = createTrailOverlay();
   const under = createSnowUnder();
   let overlayOn = false;
-  /** THE GPU'S TIMER and the A/B reading's hidden subsystems — instruments,
-   * both off unless the benchmark asks (`bench-run.ts`). */
-  const ctx = gl.getContext() as WebGL2RenderingContext;
-  let timer: GpuTimer = createGpuTimer(ctx, "off");
-  let hidden: ReadonlySet<Hideable> = new Set();
-  let hiddenTag = "";
+  /** THE GPU'S TIMER, the A/B reading's hidden subsystems, the fence and the
+   * bill — instruments, off unless the benchmark asks (`renderer-instruments.ts`). */
+  const inst = createInstruments(seam);
   const hid: THREE.Object3D[] = [];
-  const sliceOf = new WeakMap<THREE.Object3D, GpuSlice>();
-  const bucket = (object: THREE.Object3D): GpuSlice => {
-    let slice = sliceOf.get(object);
-    if (slice !== undefined) return slice;
-    slice = "scene";
-    for (let o: THREE.Object3D | null = object; o; o = o.parent) {
-      const named = SLICE_OF_GROUP[o.name];
-      if (named !== undefined) {
-        slice = named;
-        break;
-      }
-    }
-    sliceOf.set(object, slice);
-    return slice;
-  };
-  // SPLIT cuts the scene's pass between subsystems; the sun's map is a slice of its own.
-  const direct = gl.renderBufferDirect.bind(gl);
-  gl.renderBufferDirect = (camera, sc, geometry, material, object, group) => {
-    if (timer.mode === "split" && timer.inScene()) timer.enter(bucket(object));
-    direct(camera, sc, geometry, material, object, group);
-  };
-  const shadowPass = depthByKind(gl.shadowMap.render.bind(gl.shadowMap));
-  gl.shadowMap.render = (lights, sc, camera) => {
-    const map = gl.shadowMap;
-    const live =
-      timer.mode !== "off" &&
-      map.enabled &&
-      (map.autoUpdate || map.needsUpdate) &&
-      lights.length > 0;
-    if (live) timer.push("shadow");
-    shadowPass(lights, sc, camera);
-    if (live) timer.pop();
-  };
   const lensDir = new THREE.Vector3();
   const rigPose: RigPose = freshRigPose();
   const rideMem = createRideMemory();
@@ -338,7 +323,7 @@ export function createWorldRenderer(
     // THE LAST FRAME'S RENDER LISTS hold every object it drew, and so every geometry, material and
     // texture of the world just let go, until the scene is drawn again — which it is not while the
     // next world is built behind a card. That was the whole old world held beside the new one.
-    gl.renderLists.dispose();
+    if (native) gl.renderLists.dispose();
     ghost?.dispose();
     ghost = null;
     terrain = forest = gates = lifts = trail = spray = null;
@@ -369,7 +354,7 @@ export function createWorldRenderer(
    * ground's shader holds the maps' uniforms by reference, so new maps are a new ground. */
   function buildTrail(lv: Level): TrailMap {
     const map = createTrailMap(lv.size, TRAIL_LOOK[video.trails]);
-    map.clear(gl);
+    if (passOn("trail-map")) map.clear(gl);
     return map;
   }
   function buildTerrain(lv: Level, map: TrailMap): Terrain {
@@ -379,7 +364,7 @@ export function createWorldRenderer(
     const { wells } = TRAIL_LOOK[video.trails]; // the tree wells, from TRAILS MEDIUM up
     const options = { ...summerOptions(look, lv, video), deform: deformed, wells };
     const ground = createTerrain(lv, env.haze, map.uniforms, options);
-    deform.bind(gl, ground.frame, env.haze.uSunDir); // its shade, a cell at a time
+    if (passOn("deform")) deform.bind(gl, ground.frame, env.haze.uSunDir); // its shade, a cell at a time
     ground.group.name = "terrain";
     scene.add(ground.group);
     return ground;
@@ -440,6 +425,7 @@ export function createWorldRenderer(
     gl.setRenderTarget(picture.load(lv));
     // THE MOUNTAIN'S SHADOW, baked off the thread meanwhile for the run's key.
     const shade = env.setGround(lv, skyLookAt(skyLevel, state.t).key);
+    if (!passOn("env-warm")) return void (await shade); // the node renderer compiles on its first frame
     const parts = compileByParts(gl, scene, lens.camera, () => mine === loads);
     await Promise.all([parts, compiled(gl, trail.compile(gl)), shade]);
     if (mine === loads) hero.render(gl, scene, [], null);
@@ -455,6 +441,7 @@ export function createWorldRenderer(
     gl,
     async load(state, cold = false) {
       const mine = ++loads;
+      await seam.ready; // the node renderer's device (`render-seam.ts`)
       told.at("snow");
       unload();
       warmed = !cold;
@@ -576,7 +563,7 @@ export function createWorldRenderer(
         // A new run on the same map: the trails and the spray start clean.
         filled = state.fresh;
         if (lastState !== null) {
-          trail.clear(gl);
+          if (passOn("trail-map")) trail.clear(gl);
           deform.clear();
           spray.clear();
           cloud.clear();
@@ -741,13 +728,15 @@ export function createWorldRenderer(
         TRAIL_LOOK[video.trails].stamp ? stamps : null,
         { x: fine.uFineOrigin.value.x, z: fine.uFineOrigin.value.y, span: fine.uFineSpan.value },
       );
+      const { timer, hidden } = inst;
+      const trails = !hidden.has("trail") && passOn("trail-map");
       timer.push("trail");
-      if (!hidden.has("trail")) trail.update(gl, stamps, skier.x, skier.z);
-      deform.update(skier, !hidden.has("trail"));
+      if (trails) trail.update(gl, stamps, skier.x, skier.z);
+      if (passOn("deform")) deform.update(skier, !hidden.has("trail"));
       skiClear.update(riders[0].model.bases, !skier.thrown && !summer(), skier.speed > 1);
       skiClear.rivals(riders, eye, !summer());
       // THE NEW SNOW: it settles into every trail and buries the groomer.
-      if (state.fresh > filled && !hidden.has("trail")) {
+      if (state.fresh > filled && trails) {
         trail.fill(gl, state.fresh - filled);
         filled = state.fresh;
       }
@@ -773,7 +762,7 @@ export function createWorldRenderer(
       crowd?.update(state, lens.camera.position); // after the lens and the sun's box (`env.cull`)
       forest?.setWind(wind.x, wind.z, state.t);
       if (present) forest?.update(lens.camera, env.shadow());
-      if (present) {
+      if (present && passOn("hero-shadow")) {
         heroModels.length = 0;
         for (const r of riders) heroModels.push(r.model);
         timer.push("hero");
@@ -825,37 +814,33 @@ export function createWorldRenderer(
         timer.push("scene");
         const w = gl.domElement;
         const room = afterski.inside(state, outfit, outfitKey(outfit), w.width / w.height);
-        picture.draw(room?.scene ?? scene, room?.camera ?? lens.camera, timer);
+        const drawn = room?.scene ?? scene;
+        seam.beginFrame();
+        if (!native) quarantine.hide(drawn); // what the node renderer cannot draw yet
+        picture.draw(drawn, room?.camera ?? lens.camera, timer);
+        quarantine.restore();
         timer.pop();
         gl.shadowMap.autoUpdate = autoShadow;
         for (const o of hid) o.visible = true;
         hid.length = 0;
       }
       const closed = performance.now();
-      const r = picture.info();
-      cost.poseMs = posed - opened;
-      cost.trailMs = trailed - posed;
-      cost.worldMs = built - trailed;
-      cost.submitMs = closed - built;
-      cost.frameMs = closed - opened;
-      cost.calls = r.calls;
-      cost.triangles = r.triangles;
-      cost.programs = gl.info.programs?.length ?? 0;
-      cost.geometries = gl.info.memory.geometries;
-      cost.textures = gl.info.memory.textures;
-      if (present && overlayOn) {
+      inst.bill(cost, { opened, posed, trailed, built, closed }, picture.info());
+      seam.state.quarantined = quarantine.counts();
+      if (present && overlayOn && passOn("trail-overlay")) {
         timer.push("overlay");
         overlay.draw(gl, trail.uniforms);
         timer.pop();
       }
-      if (present) timer.frame(hiddenTag);
+      if (present) timer.frame(inst.tag);
     },
     cost: () => cost,
     sceneTally: () => tallyScene(scene, lens.camera),
     group: (name) => scene.getObjectByName(name),
     plumes: () => plumeBits(spray, cloud?.mesh ?? null),
+    backend: (): BackendState => seam.state,
     skisUnder: () =>
-      terrain && level && riders[0]
+      terrain && level && riders[0] && passOn("snow-under")
         ? under.measure(gl, scene, lens.camera, terrain.group, riders[0].model.bases, level)
         : [],
     snowDug: () => deform.thrown(),
@@ -863,18 +848,10 @@ export function createWorldRenderer(
     setTrailOverlay(on) {
       overlayOn = on;
     },
-    setGpuTimer(mode) {
-      timer.dispose();
-      timer = createGpuTimer(ctx, mode);
-    },
-    gpuTotals: () => timer.totals(),
-    resetGpu() {
-      timer.reset();
-    },
-    setHidden(names, tag = "") {
-      hidden = new Set(names);
-      hiddenTag = tag;
-    },
+    setGpuTimer: (mode) => inst.setTimer(mode),
+    gpuTotals: () => inst.timer.totals(),
+    resetGpu: () => inst.timer.reset(),
+    setHidden: (names, tag = "") => inst.setHidden(names, tag),
     lensPose() {
       const cam = lens.camera;
       cam.getWorldDirection(lensDir);
@@ -945,7 +922,6 @@ export function createWorldRenderer(
       env.setDistance(video.distance);
       env.setSky(video.sky);
       env.setHorizon(video.horizon);
-      env.setHorizon(video.horizon);
       spray?.setBudget(SPRAY_SHARE[video.spray]);
       spray?.setFlight?.(SPRAY_GPU[video.spray]);
       cloud?.setBudget(SPRAY_SHARE[video.spray]);
@@ -972,12 +948,7 @@ export function createWorldRenderer(
         terrain.follow(lens.camera.position.x, lens.camera.position.z);
       }
     },
-    drain() {
-      const at = performance.now();
-      const ctx = gl.getContext();
-      ctx.readPixels(0, 0, 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, drained);
-      return performance.now() - at;
-    },
+    drain: () => inst.drain(),
     info() {
       return picture.info();
     },
@@ -991,9 +962,8 @@ export function createWorldRenderer(
       afterski.dispose();
       env.dispose();
       hero.dispose();
-      timer.dispose();
-      gl.dispose();
-      gl.forceContextLoss(); // a phone keeps only a few contexts alive at once
+      inst.dispose();
+      seam.dispose();
     },
   };
   return api;

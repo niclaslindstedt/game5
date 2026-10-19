@@ -65,6 +65,7 @@ import {
   type SweepResult,
 } from "./picture-sweep.ts";
 import type { BenchSceneId } from "./bench-scenes.ts";
+import { backendLines } from "./gpu-backend.ts";
 import type { DevRenderer, WorldRenderer } from "./renderer-api.ts";
 
 /** Engine steps per frame — exact by construction (`BenchmarkPlan.step`). */
@@ -370,7 +371,7 @@ export function runBenchmark(
       // Both walks run once the stopwatch has stopped, on the last frame
       // drawn: what the run was actually measured against.
       scene = renderer.sceneTally();
-      machine = readMachine();
+      machine = { ...readMachine(), renderer: backendLines(renderer.backend()) };
       if (sweep) {
         const size = renderer.bufferSize();
         swept = {

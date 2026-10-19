@@ -18,6 +18,12 @@
 //   - `window.__SH_STATS__`, the app's own renderer stats when the app
 //     exposes them — printed beside the patched count as a cross-check.
 //
+// `--renderer` draws on another back end (`?renderer=`, `docs/webgpu.md`).
+// The patched context is WebGL's, so on `webgpu` it counts nothing of the
+// world: there the meter's columns stay empty and the frame's own counters
+// are the benchmark's (`make bench ARGS=--renderer=both`) until the WebGPU
+// meter lands (the plan's instruments part).
+//
 // READ THE DRAW CALLS FIRST. Headless Chromium rasterizes in software, so
 // the frame RATE here says nothing about a real machine — but draw calls,
 // triangles and binds are the same numbers the GPU would see. Judge a
@@ -36,6 +42,8 @@ import process from "node:process";
 
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
+
+import { assertBackend, rendererArgs, rendererFlag, renderersOf } from "./lib/backend-flag.mjs";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -67,9 +75,10 @@ const args = parseArgs(
     },
     window: { kind: "number", default: 6, help: "seconds metered per moment" },
     timeout: { kind: "number", default: 45, help: "seconds to wait for window.__SH_READY__" },
+    renderer: rendererFlag(),
   },
   "usage: node scripts/profile-render.mjs [--scene name] [--seed n] [--camera rung] " +
-    "[--video tier|all] [--weather kind] [--hour h] [--region id] [--window s] [--timeout s]",
+    "[--video tier|all] [--weather kind] [--hour h] [--region id] [--window s] [--timeout s] [--renderer b]",
 );
 const scenes = args.scene ? [args.scene] : Object.keys(SCENES);
 
@@ -144,9 +153,14 @@ if (!found) stub("no browser driver or no Chromium (see the framework's tooling/
 const site = await serveDir(dist);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  args: [
+    "--use-gl=angle",
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
-console.log(`profile — seed ${args.seed}, 1280×720, ${args.window} s per moment`);
+console.log(`profile — seed ${args.seed}, 1280×720, ${args.window} s per moment, ${args.renderer}`);
 
 /** The picture rungs metered: one row per rung per moment, so a table reads
  * straight down as what each rung of OPTIONS ▸ PICTURE saves. */
@@ -175,11 +189,13 @@ for (const tier of tiers)
     if (args.weather !== undefined) params.set("weather", String(args.weather));
     if (args.hour !== undefined) params.set("hour", String(args.hour));
     if (args.region !== undefined) params.set("region", String(args.region));
+    if (args.renderer !== "webgl") params.set("renderer", args.renderer);
     await page.goto(`${site.url}?${params}`, { waitUntil: "load" });
     try {
       await page.waitForFunction("window.__SH_READY__ === true", null, {
         timeout: args.timeout * 1000,
       });
+      await assertBackend(page, args.renderer, args.timeout * 1000);
     } catch {
       console.log(`  ${scene}: window.__SH_READY__ never went true in ${args.timeout} s — skipped`);
       for (const p of problems) console.log(`   ${p}`);

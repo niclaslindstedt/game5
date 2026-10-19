@@ -47,6 +47,11 @@ export const DEV_STRINGS = {
   devFps: (fps: number, ms: string): string => `${fps} FPS · ${ms} MS`,
   devCostLine: (calls: number, triangles: number): string =>
     `${calls} draws · ${Math.round(triangles / 1000)}k triangles`,
+  /** The back end drawing (`gpu-backend.ts`), the passes it skips and the meshes it hides. */
+  devBackendLine: (backend: string, skipped: number, hidden: number): string =>
+    skipped + hidden > 0
+      ? `${backend} · ${skipped} passes skipped · ${hidden} meshes hidden`
+      : backend,
   devAir: "AIR",
   devProbe: "probe",
   devLogEmpty: "(the engine has said nothing yet)",

@@ -45,6 +45,7 @@ import * as THREE from "three";
 import { LEVEL_RULES, bermProfile, regionOf, windFromOf, type Level } from "@engine";
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { glslOnly } from "./gpu-backend.ts";
 import type { GroundFrame } from "./deform-shade.ts";
 import { regionLookOf } from "./region-look.ts";
 import { ROOM_CUT_PARS, roomCutUniforms } from "./room-cuts.ts";
@@ -687,6 +688,7 @@ export function createTerrain(
       metalness: 0,
     });
     const name = `${cut ? "terrain-cut" : "terrain"}${summer ? "-summer" : ""}`;
+    glslOnly(material, "terrain"); // its heights are the shader's (`gpu-quarantine.ts`)
     hazeMaterial(material, haze, name, (shader) => {
       Object.assign(shader.uniforms, shared, own, trail, roomCutUniforms);
       shader.vertexShader = shader.vertexShader

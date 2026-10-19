@@ -16,6 +16,7 @@
 //   node scripts/world-preview.mjs
 //   node scripts/world-preview.mjs --seed=12 --views=powder,lookback
 //   node scripts/world-preview.mjs --skip-build --frames=30   # time 30 frames
+//   node scripts/world-preview.mjs --renderer=webgpu --views=spawn   # on the WebGPU path (docs/webgpu.md)
 //
 // The views, in the order the run reaches them: spawn, powder, powder-high,
 // lookback, furrow, track, tips, helmet, far, jump, drop (late in a flight,
@@ -119,6 +120,8 @@ import process from "node:process";
 
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
+
+import { assertBackend, rendererArgs, rendererFlag, renderersOf } from "./lib/backend-flag.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".world-preview");
@@ -419,9 +422,10 @@ const args = parseArgs(
       help: "the player's build by its outfit id (light, medium, solid, heavy)",
     },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
+    renderer: rendererFlag(),
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id | --face=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--daring] [--grimbear] [--skis=id] [--body=id] [--weight=id] [--skip-build]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id | --face=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--daring] [--grimbear] [--skis=id] [--body=id] [--weight=id] [--skip-build] [--renderer=b]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -481,7 +485,12 @@ if (!existsSync(executablePath)) {
 const server = await serveDir(buildDir);
 const browser = await chromium.launch({
   executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const page = await browser.newPage({ viewport: { width: args.width, height: args.height } });
 
@@ -516,6 +525,7 @@ const query = new URLSearchParams({
   ...(args.weight ? { weight: args.weight } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
   ...(args.skyclock > 0 ? { skyclock: String(args.skyclock) } : {}),
+  ...(args.renderer !== "webgl" ? { renderer: args.renderer } : {}),
   w: String(args.width),
   h: String(args.height),
 }).toString();
@@ -525,6 +535,7 @@ console.log(
 await page.goto(`${server.url}world-preview.html?${query}`);
 await page.waitForFunction("window.__world !== undefined");
 await page.evaluate("window.__world.ready");
+await assertBackend(page, args.renderer);
 if (crashed) process.exit(1);
 
 const wanted = args.views ? args.views.split(",").map((v) => v.trim()) : VIEWS;
@@ -576,7 +587,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.daring ? "daring-" : ""}${args.skis ? `${args.skis}-` : ""}${args.body ? `${args.body}-` : ""}${args.weight ? `${args.weight}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${args.skyclock > 0 ? `clock${args.skyclock}-` : ""}${view}.png`,
+    `world-${args.renderer !== "webgl" ? `${args.renderer}-` : ""}${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.daring ? "daring-" : ""}${args.skis ? `${args.skis}-` : ""}${args.body ? `${args.body}-` : ""}${args.weight ? `${args.weight}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${args.skyclock > 0 ? `clock${args.skyclock}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

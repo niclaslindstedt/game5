@@ -266,7 +266,7 @@ export function App() {
   );
 
   // THE RENDER STACK, FETCHED RATHER THAN BUNDLED (see the header).
-  const renderKit = useRenderKit();
+  const renderKit = useRenderKit(params.renderer);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !renderKit) return;

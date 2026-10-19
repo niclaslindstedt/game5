@@ -9,6 +9,7 @@ import type { GameState, SkyOverride } from "@engine";
 
 import type { FrameCost, GpuMode, GpuTotals, Hideable, SceneShare } from "./benchmark-report.ts";
 import type { LensPose } from "./camera-rigs.ts";
+import type { BackendState } from "./gpu-backend.ts";
 import type { PickRay } from "./machine-pick.ts";
 import type { PlumeBit } from "./spray-film.ts";
 import type { Outfit } from "./outfit.ts";
@@ -129,6 +130,9 @@ export interface DevRenderer {
   snowDug(): number;
   /** The drawing buffer, device pixels. */
   bufferSize(): { w: number; h: number };
+  /** WHICH BACK END DRAWS (`gpu-backend.ts`): what was asked, what runs,
+   * and what that one draws without — the last frame's quarantine. */
+  backend(): BackendState;
   /** THE GPU'S TIMER (`gpu-timer.ts`): cut every frame from here on at
    * `mode`, OFF to stop; it starts from nothing each time it is set. */
   setGpuTimer(mode: GpuMode): void;
@@ -181,6 +185,8 @@ export type WorldRendererExt = WorldRenderer &
     /** Lay ONE kind of snow (and one surface age) over the whole map for the
      * picture (`snowpack.ts`, `snow-age.ts`), or null for the map's own. */
     setSnow(kind: SnowKind | null, age?: SnowpackOptions["age"]): void;
-    /** The three.js renderer, for a lab that needs to read pixels. */
+    /** The three.js renderer, for a lab that needs to read pixels — on the
+     * webgpu paths three's node renderer, typed as this for the members both
+     * share (`render-seam.ts`): a lab reaching past those checks `backend()`. */
     readonly gl: THREE.WebGLRenderer;
   };

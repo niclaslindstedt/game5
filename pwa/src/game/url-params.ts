@@ -99,6 +99,11 @@
 //   ?gpu=<mode>     ...with the GPU's timer cutting each frame into its
 //                   render passes (`passes`, the default), the scene split
 //                   by subsystem as well (`split`), or not at all (`off`).
+//   ?renderer=<b>   the world drawn on another back end this visit
+//                   (`gpu-backend.ts`, `docs/webgpu.md`): webgl (the
+//                   default), webgpu (three's WebGPURenderer, drawing what
+//                   is ported and hiding the rest), webgpu-gl (the same on
+//                   its WebGL2 back end). Never stored; `?gpu=` is the timer.
 //   ?hide=<a,b>     ...drawn WITHOUT these subsystems (`HIDEABLE`): the
 //                   A/B reading a slice is checked against.
 //   ?ab=1           ...hiding each subsystem a frame in turn, and timing
@@ -226,6 +231,7 @@ import { BENCHMARK } from "./benchmark-plan.ts";
 import { isBenchScene, type BenchSceneId } from "./bench-scenes.ts";
 import { SWEEP, SWEEP_LEAST } from "./picture-sweep.ts";
 import { GPU_MODES, HIDEABLE, type GpuMode, type Hideable } from "./benchmark-report.ts";
+import { readBackend, type Backend } from "./gpu-backend.ts";
 import { readPose, type SkisPose } from "./debug-readout.ts";
 import { isHoldMove, type HoldMove } from "./hold-input.ts";
 import { bikeLookOf, type BikeLook } from "./bike-variant.ts";
@@ -321,6 +327,8 @@ export type UrlParams = {
   ab: boolean;
   frames: number | null;
   view: BenchSceneId;
+  /** The back end the world is drawn on (`?renderer=`, `gpu-backend.ts`), or null for the default. */
+  renderer: Backend | null;
   /** Pictures a picture sweep deals (`?sweep=`), or none. */
   sweep: number | null;
   shot: boolean;
@@ -521,6 +529,7 @@ export function readParams(search: string): UrlParams {
     ab: q.get("ab") === "1",
     frames: framesOf(q.get("frames")),
     view: isBenchScene(q.get("view")) ? (q.get("view") as BenchSceneId) : "race",
+    renderer: readBackend(q.get("renderer")),
     sweep: sweepOf(q.get("sweep")),
     shot: q.get("shot") === "1",
     paused,

@@ -1,6 +1,6 @@
 # The rescue on the next run
 
-When a run ends with the skier **injured** (`GameState.gore.injured ≥ 0`, which needs the INJURIES switch), an **air ambulance** is called. The next run starts with it flying in from down the valley and setting down near where he lay. Four of its crew and the ski patrol carry him to it on a stretcher, load him through its door, and the machine lifts off and flies down the valley. Crash again while it is on the snow and it is still there; crash near it and the same machine takes you too.
+When a run ends with the skier **injured** (`GameState.gore.injured ≥ 0`, which needs the INJURIES switch), an **air ambulance** is called. The next run starts with it flying in from down the valley and setting down near where he lay. Four of its crew and the ski patrol carry him to it on a stretcher, load him through its door, and the machine lifts off and flies down the valley. Crash again while it is on the snow and it is still there; crash near it and the same machine takes you too. Where there is nowhere near him a helicopter can set down, the **ski patrol** comes on two snowmobiles instead and tows him down in a rescue toboggan — and their machines can be stolen (see *By snowmobile, where nothing can land*).
 
 The machine on its skids is a **solid** the skier can hit (`engine/game/rescue-call.ts`), and its crew can be **knocked over**. The engine reads only where and when the machine sits, handed in with the run (`GameState.rescue`), and draws nothing from `state.rng`, so a run without one moves no digest. The flight is planned in `pwa/src/game/rescue-flight.ts` and each casualty's scoop and carry in `rescue-plan.ts` (both three-free, pure functions of the seconds since the call), posed in `rescue-crew.ts`, kept across runs by `rescue-book.ts` and drawn by `rescue-view.ts`, which `machines.ts` holds beside the machines. `make rescue` is its lab (`--sheet=arrive,second,knock` the arrival, a second casualty, and the crew and the machine met).
 
@@ -88,6 +88,34 @@ The research below is restated in our own words, with the numbers the scene uses
 
 The machine is `heli-view.ts` drawing the rescue model. `rescue-view.ts`'s `MODEL_URL` is the one line that names it (`rescueModelUrl()`, the air-ambulance livery with the hoist over its right door). Its pad is not drawn.
 
+## By snowmobile, where nothing can land
+
+Where no patch near him passes the landing search (`rescue-plan.ts`'s `fitToLand`: a steep face, the woods), the **ski patrol** comes for him on two snowmobiles instead (`engine/game/rescue-sled-route.ts`, `rescue-sled.ts`, the numbers `RESCUE_SLEDS` in `engine/game/defs/rescue-sleds.ts`). A call the patrol cannot reach either (no way up a machine can drive) falls back to the air ambulance, set down wherever it can.
+
+### What a snowmobile rescue looks like
+
+The research below is restated in our own words, with the numbers the scene uses.
+
+- **The toboggan.** A rescue toboggan is a long boat-shaped pan on runners, of fibreglass or aluminium, its ends turned up and forked handles at the front. A current patrol toboggan is about **2.3 m** long and **0.56 m** wide and weighs some 23 kg. It carries a chain brake for a controlled descent and a tail rope. Patrols tow one behind a snowmobile on a short rigid bar (a folding tow bar is about **1 m** long) from a hitch on the machine.
+- **The patrol's machine.** A ski area's patrol machine carries a flashing or rotating **amber light**, a red fluorescent **flag** on a whip, a siren and a headlight. Patrol machines and patrollers wear **red with a white cross** (the older uniform rust with a yellow cross), red for being seen against the snow.
+- **Driving one.** One area's patrol protocol: drive slowly, in a low gear, alarm on, to one side of the run; set the parking brake before stepping off; and **point the machine for a clean departure before tending the patient**.
+- **Towing a patient.** The usual practice is faster on smooth, flat stretches and slow on the steeps and uneven snow. The attendant splints and slings the injuries before loading, straps the skis alongside the patient and keeps the base told by radio.
+- **In the scene:**
+  - **Two machines, two patrollers on each.** They set out from the nearest **patrol post** (a lift's top or bottom station, or the snowmobile's spot at the bottom), the first towing the empty toboggan. Each drives up at most **10 m/s** (36 km/h), slower up a grade and round a bend (2.5 m/s² across), speeding up at 1.6 m/s² and slowing at 2.2.
+  - **Where they stop.** The toboggan is left **6 m** ahead of him along the way down and **2.6 m** out to his side; the first machine stands on its tow bar ahead of it, **pointed down the way it will leave**, driven in on a 12 m straight; the second **3.2 m** out beside it, having left the first one's tracks 16 m short.
+  - **The work** (`RESCUE_SLEDS.work`, **62 s** from the machines stopped to the convoy leaving): off the machines, the board fetched from the toboggan, the scoop as the air ambulance's crew do it, the carry to the toboggan, laid in it and strapped, back on the machines (`pwa/src/game/rescue-sleds-crew.ts`).
+  - **Down.** The first machine tows him down to the snowmobile's spot at the bottom at most **5 m/s** (18 km/h), slower on any grade (1.8 m/s at the least), speeding up and slowing at 0.8 and 1.0 m/s²; the second follows **5 s** behind on the same tracks. The call is over **6 s** after the convoy reaches the bottom.
+
+### The way, searched
+
+A grid of **8 m** cells over the map (`gridOf`, kept per map): a cell is open where no trunk, post, wall or rock column stands within **2.4 m** (**1.2 m** when the woods leave no other way), an edge between two cells is driven where its grade is at most **0.65** (about 33°), and its cost is its length, raised by the grade squared (× 4) and lowered by up to **35 %** on a groomed run, so the patrol drives the pistes where it can. The cheapest way (Dijkstra) to the nearest post, and from him to the bottom, is pulled straight wherever the line stays open and on a grade a machine drives, laid out every 2 m and smoothed into a machine's curve. Each point carries the clock it is passed at (`SledRoute`), so where each machine is at a moment is a pure function of the plan (`onRoute`).
+
+### Stolen
+
+A patrol machine left standing while the patrol works is the player's for the taking: stood within **5 m** of it on his skis, no faster than 12 m/s, the machine press (ENTER, a double tap on touch) takes it, as it takes his own snowmobile (`otherSledWithin`, `swapSled`). It is his snowmobile from then on, in the patrol's colours (`SledState.livery`), and the one he had stays where he left it (`GameState.sledsLeft`, at most three kept), to be taken back the same way. A machine is only taken stood still, never on the move.
+
+What it does to the rescue is a pure function of when it was taken (`RescueCall.sledsTaken`, the call's clock, which the engine writes and the book keeps from run to run): with the first machine gone, the second drives round onto the first one's straight, takes the toboggan and tows him down itself; with both gone, the toboggan stays where it is and the patrol with it. The engine and the drawing read the same function (`rescueSledsAt`), so the machines are solid where they are drawn: the skier is held off one at a crawl and thrown by one met at speed, as by the air ambulance on its skids.
+
 ## Sources
 
 - High-altitude helicopter EMS operations (crew make-up, the rescue specialist): heliopsmag.com — *High Altitude HEMS*
@@ -96,3 +124,9 @@ The machine is `heli-view.ts` drawing the rescue model. `rescue-view.ts`'s `MODE
 - Landing zones (size, approach, bystanders): the landing zone guidelines of an air medical provider, a county fire service and a hospital flight program
 - Slope landings (across the slope, upslope skid first, never facing downhill, the limits): copters.com — *Slope landing*; the federal helicopter flying handbook's slope operations, as discussed and taught (backcountrypilot.org, cfinotebook.net)
 - High-visibility colours for responders: Cranfield University's work on conspicuity
+- The rescue toboggan (its shape, the akja, its materials): Wikipedia — *Rescue toboggan*; a current patrol toboggan's listing (length, width, weight, chain brake, tail rope)
+- Towing a toboggan behind a snowmobile (the folding tow bar's size): a rescue equipment maker's listing for a snowmobile tow device
+- Driving a patrol snowmobile and responding to an incident (low gear, the alarm, the parking brake, parked for departure, the attendant's work): a nordic centre's emergency response protocol and its first aid response guide
+- Towing speed by the terrain: a ski patroller's published diary
+- The patrol machine's light, flag and siren: a state bill draft on snowmobiles at ski areas
+- Patrol uniforms (red with a white cross, rust with a yellow one): a ski area's patrol page and an article on what patrollers are

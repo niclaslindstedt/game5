@@ -21,7 +21,10 @@
 //     refused every frame after. A map never drawn is asked for at once;
 //   - the MIST'S WALL (`PAST_THE_WALL`, `userData.hazeWall`) is the copy's
 //     mask, and a GLOW (`glow-fade.ts`, `userData.glowFade`) its opacity
-//     faded and its mask — its points drawn as sprites (`glow-tsl.ts`).
+//     faded and its mask — its points drawn as sprites (`glow-tsl.ts`);
+//   - a ShaderMaterial flagged with a NODE TWIN (`nodeTwin`: the dome, the
+//     far ranges, the GPU sky's passes — part 3) is drawn by that twin
+//     (`sky-twins-tsl.ts`), made once over its own uniforms.
 //
 // Each material is copied into a node material by the renderer's library
 // (`fromMaterial`) whenever its pipeline is built; the hook below finishes
@@ -36,6 +39,7 @@ import { createGlowSprites, glowFade, insideWall } from "./glow-tsl.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { hazeFog, hazeSlots, syncHaze } from "./haze-tsl.ts";
 import { LampsLight, lightSlots, registerLights, syncLights } from "./lights-tsl.ts";
+import { createTwins } from "./sky-twins-tsl.ts";
 import type { KeyLight } from "./world-lights.ts";
 
 export type Dressing = {
@@ -67,19 +71,23 @@ export function dressScene(
   haze: HazeUniforms,
 ): Dressing {
   registerLights(renderer);
-  const library = renderer.library;
-  const from = library.fromMaterial.bind(library);
-  library.fromMaterial = (material: THREE.Material): NodeMaterial => {
-    const copy = from(material) as NodeMaterial | null;
-    if (copy && copy !== (material as unknown)) finish(copy, material, haze);
-    return copy as NodeMaterial; // null where three has no node twin, as it returns
-  };
   // Mixed in display space where WebGL's frame would go straight onto the
   // canvas through ACES, and in linear light where it would go through the
   // grade's target (`haze-tsl.ts`); the webgpu frame itself always goes
   // straight, the grade's pass not being ported yet (`grade-pass`).
   const display = uniform(renderer.toneMapping === THREE.ACESFilmicToneMapping ? 1 : 0);
-  scene.fogNode = hazeFog(haze, { display, exposure: toneMappingExposure });
+  const how = { display, exposure: toneMappingExposure };
+  const twins = createTwins(haze, how);
+  const library = renderer.library;
+  const from = library.fromMaterial.bind(library);
+  library.fromMaterial = (material: THREE.Material): NodeMaterial => {
+    const twin = twins.of(material);
+    if (twin) return twin;
+    const copy = from(material) as NodeMaterial | null;
+    if (copy && copy !== (material as unknown)) finish(copy, material, haze);
+    return copy as NodeMaterial; // null where three has no node twin, as it returns
+  };
+  scene.fogNode = hazeFog(haze, how);
   scene.add(new LampsLight(haze));
   const hs = hazeSlots(haze);
   const ls = lightSlots(haze);

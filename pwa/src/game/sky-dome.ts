@@ -32,6 +32,7 @@ import { MOON_GLSL } from "./moon-glsl.ts";
 import { DISC, surfaceSurge } from "./night-sky.ts";
 import { STARFIELD_GLSL, turnBasis } from "./starfield.ts";
 import { FAR_AIR } from "./far-ranges-plan.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 
 /** THE FAR RANGES PAINTED ON THE DOME (the HORIZON row's PAINTED): the baked skyline
  * (`far-silhouette.ts`) read at this pixel's bearing and turned into an
@@ -101,7 +102,7 @@ vec3 paintSkyline(vec3 c, vec3 d) {
 
 /** The sun's apparent radius, rad — a touch over the real 0.27° so the disc
  * is more than a pixel on a phone. */
-const SUN_RADIUS = 0.0085;
+export const SUN_RADIUS = 0.0085;
 
 export type SkyDome = {
   mesh: THREE.Mesh;
@@ -300,6 +301,8 @@ export function createSkyDome(
     depthWrite: false,
     depthTest: true,
   });
+  // The webgpu paths draw it with its node twin (`sky-dome-tsl.ts`).
+  nodeTwin(material, "sky", "dome");
   const basis: number[] = [];
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;

@@ -70,6 +70,7 @@ import { timeClouds } from "./sky-cloud-cost.ts";
 import { lowdeckSheet } from "./sky-deck-sheet.ts";
 import { moonSheet } from "./sky-night-sheet.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
+import { chooseBackend, readBackend } from "../game/gpu-backend.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { skyLookAt } from "../game/sky.ts";
 import { createSkyGpu, forceSkyTier } from "../game/sky-gpu.ts";
@@ -140,6 +141,12 @@ const rows = only.length ? ROWS.filter((r) => only.includes(r.label.toLowerCase(
 
 const stage = document.getElementById("stage") as HTMLCanvasElement;
 const sheet = document.getElementById("sheet") as HTMLCanvasElement;
+// `?renderer=webgpu|webgpu-gl` (`docs/webgpu.md`): the node renderer's device
+// first, as the game makes it (`loadModels`, without the models).
+const backend = chooseBackend(readBackend(params.get("renderer")));
+if (backend !== "webgl") await import("../game/gpu-device.ts").then((m) => m.prepareGpu(backend));
+/** Wait for the GPU: WebGL's `finish`; the node renderer has none to wait on. */
+const finish = (): void => (renderer.gl.getContext() as { finish?: () => void }).finish?.();
 const renderer = createWorldRenderer(stage, {
   video: withPreset(DEFAULT_VIDEO, tier),
   preserveDrawingBuffer: true,
@@ -325,11 +332,10 @@ async function cell(
     await renderer.shadeSettled();
     renderer.draw(state, 0, FRAME, false);
   }
-  const gl = renderer.gl.getContext();
-  gl.finish();
+  finish();
   const t0 = performance.now();
   renderer.draw(state, 0, FRAME, true);
-  gl.finish();
+  finish();
   const ms = performance.now() - t0;
   ctx.drawImage(stage, x, y, cellW, cellH);
   const bytes = ctx.getImageData(x, y, cellW, cellH).data;
@@ -509,6 +515,7 @@ async function tiers(): Promise<{ note: string; r: number; c: number; cells: Sky
 /** The GPU sky's passes timed on this context, ms each (software GL here:
  * comparable only with itself). */
 function timePasses(): string {
+  if (backend !== "webgl") return "the passes are timed on WebGL only";
   forceSkyTier(null);
   const gl = renderer.gl;
   const ctx = gl.getContext();
@@ -676,11 +683,10 @@ async function far(): Promise<{ note: string; r: number; c: number; cells: SkyCe
       // The same frame without the ranges, timed.
       forceFar(false);
       renderer.draw(state, 0, FRAME, false);
-      const gl = renderer.gl.getContext();
-      gl.finish();
+      finish();
       const t0 = performance.now();
       renderer.draw(state, 0, FRAME, true);
-      gl.finish();
+      finish();
       const off = performance.now() - t0;
       forceFar(null);
       ctx.fillStyle = "#0b1116";
@@ -714,9 +720,8 @@ const host: CloudSheetHost = {
   standSky,
   tick: () => renderer.draw(state, 0, FRAME, false),
   grab() {
-    const gl = renderer.gl.getContext();
     renderer.draw(state, 0, FRAME, true);
-    gl.finish();
+    finish();
     const c = document.createElement("canvas");
     c.width = cellW;
     c.height = cellH;

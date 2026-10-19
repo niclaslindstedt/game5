@@ -33,12 +33,13 @@
 // return — the pixel is the clipped one either way; a pixel with no haze at
 // all keeps its colour untouched.
 //
-// STAND-INS for what is not ported yet (each a hook its part replaces):
-// the aerial-perspective volume (`aerialShade`, part 3) is 1 — the haze as
-// LOW draws it, which is what the webgpu paths' sky is until then (the
-// GPU sky's passes are skipped, so `uSkyView` is the LOW grid); and a
-// material's own share of its colour through the haze (`HAZE_KEEP`: the
-// snow, the rock) is not read — both are hidden until their parts.
+// THE AIR'S SHADOWS (`aerialShade`): HIGH's aerial-perspective volume,
+// drawn by the GPU sky's froxel pass (`sky-atmo-tsl.ts`), read as WebGL
+// reads it — 1 wherever there is none.
+//
+// STAND-IN for what is not ported yet: a material's own share of its
+// colour through the haze (`HAZE_KEEP`: the snow, the rock) is not read —
+// both are hidden until their parts.
 
 import * as THREE from "three";
 import {
@@ -69,6 +70,7 @@ import {
   smoothstep,
   sqrt,
   texture,
+  uniform,
   vec2,
   vec3,
   vec4,
@@ -77,6 +79,7 @@ import type { TextureNode } from "three/webgpu";
 
 import { FAR_RADIUS } from "./horizon.ts";
 import { MIST_OPEN, type HazeUniforms } from "./haze.ts";
+import { FROXEL_ATLAS, FROXELS } from "./sky-gpu-plan.ts";
 
 /** A node of the graph, whatever its type. TSL's own types track each
  * node's width (a float, a vec3…) and its swizzles through every call; the
@@ -111,15 +114,40 @@ export function standIn(rgba: [number, number, number, number] = [0, 0, 0, 0]): 
   return tex;
 }
 
+/** A texture slot of shared uniforms (`{ value }`), read by a texture node
+ * re-pointed at what it holds every render — `stand` while it holds none.
+ * `keep` must be in the graph (it reads 0) for the re-pointing to run; the
+ * stand-in must be of the slot's own format and type, which the pipeline's
+ * binding is laid out for. */
+export function texSlot(
+  o: { value: THREE.Texture | null },
+  stand: THREE.Texture,
+): { tex: N; keep: N } {
+  const tex: N = texture(o.value ?? stand);
+  const keep: N = uniform(0).onRenderUpdate(() => {
+    const v = o.value ?? stand;
+    if (tex.value !== v) tex.value = v;
+    return 0;
+  });
+  return { tex, keep };
+}
+
 /** What the haze's nodes read: every slot once, and the texture nodes the
  * frame re-points (`syncHaze`) when a writer swaps a map. */
 export type HazeSlots = ReturnType<typeof makeSlots>;
 
+/** The aerial volume's stand-in while none is drawn: 1, the haze unshaded. */
+const NO_AIR = standIn([1, 1, 1, 1]);
+
 function makeSlots(u: HazeUniforms) {
   const sky = texture(u.uSkyView.value);
+  const ap = texture(u.uAp.value ?? NO_AIR);
   return {
     u,
     sky,
+    ap,
+    apViewProj: slot(u.uApViewProj, "mat4"),
+    apOn: slot(u.uApOn, "vec4"),
     sunDir: slot(u.uSunDir, "vec3"),
     sunPos: slot(u.uSunPos, "vec3"),
     skySize: slot(u.uSkyViewSize, "vec2"),
@@ -153,6 +181,8 @@ export function hazeSlots(u: HazeUniforms): HazeSlots {
 /** Re-point the texture nodes at what the slots hold this frame. */
 export function syncHaze(s: HazeSlots): void {
   if (s.sky.value !== s.u.uSkyView.value) s.sky.value = s.u.uSkyView.value;
+  const ap = s.u.uAp.value ?? NO_AIR;
+  if (s.ap.value !== ap) s.ap.value = ap;
 }
 
 /** THE PHYSICAL SKY along `dir` (`SKY_GLSL`'s `skyColour`). */
@@ -232,6 +262,48 @@ export function hazeMist(s: HazeSlots, dist: N, rise: N): N {
   mist = mix(mist, smoothstep(0.2, 0.82, m), s.mistAloft);
   const open = mix(mist, min(mist, MIST_OPEN), s.mistOpen);
   return select(s.mist.lessThanEqual(0), float(0), open);
+}
+
+/** The mist on the dome, a band over the true horizon (`mistBand`). */
+export function mistBand(s: HazeSlots, dir: N): N {
+  const up = max(normalize(dir).y.add(s.far.x), 0);
+  const band = float(1)
+    .sub(s.mistOpen)
+    .mul(float(1).sub(smoothstep(0, float(40).div(s.mist), up)));
+  return select(s.mist.lessThanEqual(0), float(0), band);
+}
+
+/** THE AIR'S SHADOWS along the way to `world` (`AERIAL_GLSL`'s
+ * `aerialShade`): the share of the air's light the sun gives, off HIGH's
+ * volume — 1 where there is none, off the screen, or behind the lens. */
+export function aerialShade(s: HazeSlots, world: N): N {
+  const F = FROXELS;
+  const shade = vec3(1).toVar();
+  // A uniform's branch: LOW and MEDIUM, with no volume, read nothing.
+  If(s.apOn.x.greaterThan(0.5), () => {
+    const c = s.apViewProj.mul(vec4(world, 1)).toVar();
+    const sc = c.xy.div(max(c.w, 1e-6)).mul(0.5).add(0.5).toVar();
+    const raw = float(F.slices)
+      .mul(pow(length(world.sub(cameraPosition)).div(F.depth), 1 / 3))
+      .sub(1)
+      .toVar();
+    const inside = clamp(raw.add(1), 0, 1);
+    const k = clamp(raw, 0, F.slices - 1).toVar();
+    const k0 = k.floor();
+    const k1 = min(k0.add(1), F.slices - 1);
+    const x = clamp(sc.x.mul(F.size), 0.5, F.size - 0.5);
+    const ap: N = s.ap;
+    const at = (slice: N): N =>
+      ap.sample(vec2(slice.mul(F.size).add(x).div(FROXEL_ATLAS.width), sc.y)).level(0).rgb;
+    const off = c.w
+      .lessThanEqual(0)
+      .or(sc.x.lessThan(0))
+      .or(sc.y.lessThan(0))
+      .or(sc.x.greaterThan(1))
+      .or(sc.y.greaterThan(1));
+    shade.assign(select(off, vec3(1), mix(vec3(1), mix(at(k0), at(k1), k.sub(k0)), inside)));
+  });
+  return shade;
 }
 
 // THE SEA OF CLOUD'S TOP as lumps (`seaHash`, `seaNoise`, `seaHeight`,
@@ -360,51 +432,67 @@ export function fromDisplay(d: N, exposure: N): N {
  * and the exposure the output pass runs at. */
 export type HazeFogOptions = { display: N; exposure: N };
 
+/** How a surface's haze is reckoned, where it differs from the ground's:
+ * the far ranges thin the air past the map's scale and let the mist go
+ * past its wall (`far-ranges.ts`). Each takes the distance and the rise. */
+export type HazeAir = { air?: (dist: N) => N; mist?: (dist: N, rise: N) => N };
+
 /**
- * THE HAZE AS THE SCENE'S FOG NODE (`HAZE_FRAGMENT`): what three mixes the
- * material's colour (`output`) into. The air's own light on the bearing and
- * how much of it stands in front, per channel; the twilight's lift on it;
- * the mist's wall; the low deck or the valley fog seen from outside it.
+ * THE HAZE OVER A SURFACE (`HAZE_FRAGMENT`): `base`, the surface's colour
+ * at world point `world`, mixed into the air's own light on the bearing
+ * by how much of it stands in front, per channel; the twilight's lift on
+ * it; the mist's wall; the low deck or the valley fog seen from outside it.
  */
-export function hazeFog(u: HazeUniforms, how: HazeFogOptions): N {
+export function hazeOver(
+  u: HazeUniforms,
+  how: HazeFogOptions,
+  base: N,
+  world: N,
+  own: HazeAir = {},
+): N {
   const s = hazeSlots(u);
-  return Fn(() => {
-    const ray = positionWorld.sub(cameraPosition).toVar();
-    const dist = length(ray).toVar();
-    const dir = ray.div(max(dist, 1e-3)).toVar();
-    // `aerialShade` is 1 until the GPU sky's volume is ported (part 3).
-    const air = float(1)
-      .sub(pow(vec3(float(1).sub(hazeAir(s, dist, ray.y))), s.tint))
-      .toVar();
-    const a2 = air.mul(air);
-    const col = hazeColour(s, dir).mul(pow(vec3(s.airLift), float(1).sub(a2.mul(a2))));
-    const far = farColour(s, dir, 1);
-    const mist = hazeMist(s, dist, ray.y).toVar();
-    const over = max(air, vec3(mist.mul(s.mistOpen)));
-    const shut = mist.mul(float(1).sub(s.mistOpen));
-    const base = output.rgb;
-    const shown = how.display.greaterThan(0.5);
-    const into = (c: N): N => select(shown, toDisplay(c, how.exposure), c);
-    const mixed = mix(mix(into(base), into(col), over), into(far), shut).toVar();
-    const touched = max(max(over.x, over.y), max(over.z, shut)).toVar();
-    If(s.seaK.greaterThan(0), () => {
-      const lo = min(cameraPosition.y, positionWorld.y);
-      const hi = max(cameraPosition.y, positionWorld.y);
-      const span = hi.sub(lo);
-      const under = clamp(min(hi, s.sea.w).sub(max(lo, s.seaBase)).add(1).div(span.add(1)), 0, 1);
-      const sea = s.sea.xyz.toVar();
-      If(cameraPosition.y.greaterThan(s.sea.w).and(positionWorld.y.lessThan(s.sea.w)), () => {
-        const p = cameraPosition.xz.add(
-          ray.xz.mul(s.sea.w.sub(cameraPosition.y)).div(min(ray.y, -1e-3)),
-        );
-        sea.assign(seaTop(s, p, length(p.sub(cameraPosition.xz))));
-      });
-      const k = float(1).sub(exp(s.seaK.negate().mul(dist).mul(under)));
-      mixed.assign(mix(mixed, into(sea), k));
-      touched.assign(max(touched, k));
+  const ray = world.sub(cameraPosition).toVar();
+  const dist = length(ray).toVar();
+  const dir = ray.div(max(dist, 1e-3)).toVar();
+  const reach = own.air ? own.air(dist) : dist;
+  const air = float(1)
+    .sub(pow(vec3(float(1).sub(hazeAir(s, reach, ray.y))), s.tint))
+    .toVar();
+  const a2 = air.mul(air);
+  const col = hazeColour(s, dir)
+    .mul(aerialShade(s, world))
+    .mul(pow(vec3(s.airLift), float(1).sub(a2.mul(a2))));
+  const far = farColour(s, dir, 1);
+  const mist = (own.mist ? own.mist(dist, ray.y) : hazeMist(s, dist, ray.y)).toVar();
+  const over = max(air, vec3(mist.mul(s.mistOpen)));
+  const shut = mist.mul(float(1).sub(s.mistOpen));
+  const shown = how.display.greaterThan(0.5);
+  const into = (c: N): N => select(shown, toDisplay(c, how.exposure), c);
+  const mixed = mix(mix(into(base), into(col), over), into(far), shut).toVar();
+  const touched = max(max(over.x, over.y), max(over.z, shut)).toVar();
+  If(s.seaK.greaterThan(0), () => {
+    const lo = min(cameraPosition.y, world.y);
+    const hi = max(cameraPosition.y, world.y);
+    const span = hi.sub(lo);
+    const under = clamp(min(hi, s.sea.w).sub(max(lo, s.seaBase)).add(1).div(span.add(1)), 0, 1);
+    const sea = s.sea.xyz.toVar();
+    If(cameraPosition.y.greaterThan(s.sea.w).and(world.y.lessThan(s.sea.w)), () => {
+      const p = cameraPosition.xz.add(
+        ray.xz.mul(s.sea.w.sub(cameraPosition.y)).div(min(ray.y, -1e-3)),
+      );
+      sea.assign(seaTop(s, p, length(p.sub(cameraPosition.xz))));
     });
-    const back = select(shown, fromDisplay(mixed, how.exposure), mixed);
-    // A pixel the air does not reach keeps its own colour to the bit.
-    return vec4(select(touched.greaterThan(1 / 1024), back, base), output.a);
-  })();
+    const k = float(1).sub(exp(s.seaK.negate().mul(dist).mul(under)));
+    mixed.assign(mix(mixed, into(sea), k));
+    touched.assign(max(touched, k));
+  });
+  const back = select(shown, fromDisplay(mixed, how.exposure), mixed);
+  // A pixel the air does not reach keeps its own colour to the bit.
+  return select(touched.greaterThan(1 / 1024), back, base);
+}
+
+/** THE HAZE AS THE SCENE'S FOG NODE: what three mixes the material's
+ * colour (`output`) into — `hazeOver` at the fragment's own world point. */
+export function hazeFog(u: HazeUniforms, how: HazeFogOptions): N {
+  return Fn(() => vec4(hazeOver(u, how, output.rgb, positionWorld), output.a))();
 }

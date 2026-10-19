@@ -109,6 +109,9 @@ export type SkyDome = {
   follow(camera: THREE.Camera): void;
   /** The night's half of a look; the cloud's is `clouds`'s uniforms. */
   update(look: SkyLook): void;
+  /** The program the dome reads the clouds' picture with, as the clouds
+   * now stand: `update`'s first step, and the load's before it warms. */
+  syncClouds(): void;
   /** The SKY row's PLAIN: the air's colour alone, nothing in it. */
   setPlain(on: boolean): void;
   /** The HORIZON row's PAINTED: the far ranges' skyline painted on the
@@ -301,6 +304,16 @@ export function createSkyDome(
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
   mesh.renderOrder = -10;
+  const syncClouds = (): void => {
+    // The slab is read (a program of its own) only when it is drawn.
+    const slab = clouds.slab() && clouds.uniforms.uCloudTex.value !== null;
+    const want = slab ? (clouds.volume() ? 2 : 1) : 0;
+    if ((material.defines.CLOUD_SLAB ?? 0) !== want) {
+      if (want) material.defines.CLOUD_SLAB = want;
+      else delete material.defines.CLOUD_SLAB;
+      material.needsUpdate = true;
+    }
+  };
   return {
     mesh,
     follow(camera) {
@@ -316,15 +329,9 @@ export function createSkyDome(
       own.uSkyline.value = skyline;
       own.uSkylineOn.value = skyline ? 1 : 0;
     },
+    syncClouds,
     update(look) {
-      // The slab is read (a program of its own) only when it is drawn.
-      const slab = clouds.slab() && clouds.uniforms.uCloudTex.value !== null;
-      const want = slab ? (clouds.volume() ? 2 : 1) : 0;
-      if ((material.defines.CLOUD_SLAB ?? 0) !== want) {
-        if (want) material.defines.CLOUD_SLAB = want;
-        else delete material.defines.CLOUD_SLAB;
-        material.needsUpdate = true;
-      }
+      syncClouds();
       own.uStars.value = look.stars;
       own.uGalaxy.value = look.galaxy;
       const m = turnBasis(look.turn, basis);

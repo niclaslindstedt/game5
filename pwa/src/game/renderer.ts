@@ -443,7 +443,7 @@ export function createWorldRenderer(
     const parts = compileByParts(gl, scene, lens.camera, () => mine === loads);
     await Promise.all([parts, compiled(gl, trail.compile(gl)), shade]);
     if (mine === loads) hero.render(gl, scene, [], null);
-    if (mine === loads) env.warm(gl, scene, lens.camera, lv.size);
+    if (mine === loads) env.warm(gl, scene, lens.camera, lv.size, { level: skyLevel, t: state.t });
     gl.setRenderTarget(null);
   }
 

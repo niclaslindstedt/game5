@@ -80,7 +80,7 @@ import {
   type VideoSettings,
 } from "./settings-video.ts";
 import { STRINGS } from "./strings.ts";
-import { APPS_PAGE_URL } from "../identity.ts";
+import { APPS_PAGE_URL } from "../apps-page.ts";
 
 /** The word for a stop on any of the picture's ladders — one vocabulary for
  * every row, so LOW means the same thing wherever it is read. */

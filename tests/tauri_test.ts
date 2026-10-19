@@ -18,7 +18,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { APP_DESCRIPTION, APP_NAME, APPS_PAGE_URL, BRAND_COLOR } from "../pwa/src/identity.ts";
+import { APPS_PAGE_URL } from "../pwa/src/apps-page.ts";
+import { APP_DESCRIPTION, APP_NAME, BRAND_COLOR } from "../pwa/src/identity.ts";
 import {
   SHELL_COMMAND,
   SHELL_COMMANDS,

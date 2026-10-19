@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-# guidelines:allow-large-file: one builder for one figure, the man and the woman cut on the same bones; split it by garment when it is next reworked.
 # THE HIKER MODELLED IN BLENDER: a mountain guide on the descent, as a man
 # (`hiker`) or a woman (`hiker-woman`) — a red hardshell with black
 # shoulders, slim charcoal touring pants with ARTICULATED, REINFORCED KNEES

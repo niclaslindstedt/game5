@@ -27,7 +27,8 @@ import { describe, expect, it } from "vitest";
 
 import { RULES } from "../native/store/listing.mts";
 import * as skeleton from "../native/store/copy.example.mts";
-import { APP_TITLE, APPS_PAGE_URL, PUBLISHER } from "../pwa/src/identity.ts";
+import { APPS_PAGE_URL } from "../pwa/src/apps-page.ts";
+import { APP_TITLE, PUBLISHER } from "../pwa/src/identity.ts";
 
 const root = join(import.meta.dirname, "..");
 const read = (...parts: string[]) => readFileSync(join(root, ...parts), "utf8");

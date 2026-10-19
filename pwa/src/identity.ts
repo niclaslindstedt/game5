@@ -21,20 +21,11 @@ export const APP_DESCRIPTION =
   "A downhill skiing game that runs in your browser. Ski a graded piste from " +
   "the summit to the valley over a generated mountain — through the trees, " +
   "over the rollers and off the kickers — or drop into the powder beside it; " +
-  "on your phone or desktop, offline once loaded.";
+  "on your phone or desktop, offline once loaded. No account, no download.";
 export const SITE_URL = "https://game5.niclaslindstedt.se";
-/** Where the source lives — on the website, the HUD's build label and the
- * menu's version link a build's commit here, so the running app can always say
- * exactly what it is. The browser code never imports it: it reads
- * `__SOURCE_URL__`, which a packaged build (`VITE_SHELL_BUILD=on`) leaves
- * empty, so the label prints plain and the URL is not in its bundle. */
+/** Where the source lives — the HUD's build label will link a build's commit
+ * here, so the running app can always say exactly what it is. */
 export const REPO_URL = "https://github.com/niclaslindstedt/game5";
-/** The game's page on the publisher's app site, which carries its privacy
- * policy (`privacy/`) and support page (`support/`). It is where the store
- * listing and the packaged apps send a player: a phone or desktop build names
- * neither the website above nor the source, and its bundle scripts refuse one
- * that does (`scripts/lib/no-source.mjs`). The website keeps both. */
-export const APPS_PAGE_URL = "https://apps.agilator.se/fall-line/";
 
 /** A clear day on the mountain: fresh snow in the sun and blue in the shade,
  * a pale sky deepening overhead, dark spruce on the lower slopes, the grey

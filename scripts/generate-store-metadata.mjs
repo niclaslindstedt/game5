@@ -48,6 +48,7 @@ const rel = (path) => relative(root, path);
 
 const { RULES } = await import(at("native", "store", "listing.mts"));
 const identity = await import(at("pwa", "src", "identity.ts"));
+const { APPS_PAGE_URL } = await import(at("pwa", "src", "apps-page.ts"));
 const pkg = JSON.parse(readFileSync(at("package.json"), "utf8"));
 
 // ---------------------------------------------------------------------------
@@ -140,7 +141,7 @@ function checkLength(field, value, limit) {
 // ---------------------------------------------------------------------------
 // The game's page on the publisher's app site, not the web edition: a listing
 // names neither the website nor the source (see THE SOURCE below).
-const page = identity.APPS_PAGE_URL.replace(/\/$/, "");
+const page = APPS_PAGE_URL.replace(/\/$/, "");
 const MARKETING_URL = `${page}/`;
 const PRIVACY_URL = `${page}/privacy/`;
 const copyright = `${new Date().getFullYear()} ${identity.PUBLISHER}`;

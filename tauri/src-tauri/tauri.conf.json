@@ -31,7 +31,7 @@
     "externalBin": [],
     "category": "Sports Game",
     "shortDescription": "A downhill skiing game over a generated mountain",
-    "longDescription": "A downhill skiing game that runs in your browser. Ski a graded piste from the summit to the valley over a generated mountain — through the trees, over the rollers and off the kickers — or drop into the powder beside it; on your phone or desktop, offline once loaded.",
+    "longDescription": "A downhill skiing game that runs in your browser. Ski a graded piste from the summit to the valley over a generated mountain — through the trees, over the rollers and off the kickers — or drop into the powder beside it; on your phone or desktop, offline once loaded. No account, no download.",
     "copyright": "Copyright © Niclas Lindstedt",
     "macOS": {
       "minimumSystemVersion": "10.15"

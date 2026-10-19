@@ -290,7 +290,11 @@ describe("fitting the picture to the machine (picture-fit.ts)", () => {
         const fit = fitPicture(at, measured);
         const scale = measured / pictureCost(at);
         if (FLOOR_MS * scale <= FIT_BUDGET_MS) {
-          expect(pictureCost(fit) * scale, `${measured} ms`).toBeLessThanOrEqual(FIT_BUDGET_MS);
+          // A picture that spends the budget to the hundredth is within it:
+          // the sum of its costs in floats may land a hair over.
+          expect(pictureCost(fit) * scale, `${measured} ms`).toBeLessThanOrEqual(
+            FIT_BUDGET_MS + 1e-9,
+          );
         }
         const worth = pictureWorth(fit);
         expect(worth, `${measured} ms`).toBeLessThanOrEqual(last);

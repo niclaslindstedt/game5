@@ -76,7 +76,7 @@ export const FIT_REFERENCE = { width: 1920, height: 1080 } as const;
 /** The frame with every row at its cheapest stop on the reference machine,
  * ms: the engine, the sky, the ground at its coarsest — what no row can
  * take off. */
-export const FLOOR_MS = 3.79;
+export const FLOOR_MS = 3.56;
 
 /**
  * THE PRICE LIST. Benefits, row by row:
@@ -85,8 +85,8 @@ export const FLOOR_MS = 3.79;
  * call: the edges' steps, then the pixels' softness, before anything that
  * changes what is in the picture. Their worths are set so that a
  * millisecond of either buys less than a millisecond of any other row
- * (the cheapest of those, DISTANCE MAX over HIGH, about 4 a ms;
- * RESOLUTION about 2 to 3; ANTIALIAS under 1), and the fit — which keeps
+ * (the cheapest of those, DISTANCE MAX over HIGH and TERRAIN HIGH over
+ * MEDIUM, about 4.6 a ms; RESOLUTION about 2 to 3; ANTIALIAS under 1), and the fit — which keeps
  * the most worth the frame affords — always takes them first.
  * DISTANCE: LOW closes the mist a few seconds ahead, which is a real loss of
  * place; MEDIUM and HIGH push it out; MAX only clears the last haze off the
@@ -116,9 +116,9 @@ export const FLOOR_MS = 3.79;
  * the lower stops give up, and LOW the snow's glitter in the beams.
  *
  * The costs are the dearer view's of `make bench ARGS="--gpu --costs"` at
- * `FIT_REFERENCE` — the race's, for every row: its top picture is 13.7 ms a
- * frame against the vista's 9.0, and no row's share of the vista's frame
- * outweighs that. What the benchmark's race does not draw is not in them:
+ * `FIT_REFERENCE` — the race's for nearly every row: its top picture is
+ * 10.3 ms a frame against the vista's 8.2 (RESOLUTION's LOW the vista's
+ * dearer share). What the benchmark's race does not draw is not in them:
  * the TREE WELLS (`TRAIL_LOOK`'s `wells`, MEDIUM and HIGH only) are dug only
  * in a metre of powder, where they cost a refill of the well map every 16 m
  * the lens moves (about 6 ms of the processor's, a hitch rather than a
@@ -126,40 +126,38 @@ export const FLOOR_MS = 3.79;
  * by day, where LAMPS has nothing to light: it is priced from the NIGHT
  * scene alone (`make bench ARGS="--gpu --costs --views night --rows
  * lamps"`), a clear sky well after sunset with every headlamp and the floods
- * on (12.5 ms a frame at the top picture).
+ * on (10.1 ms a frame at the top picture).
  */
 export const PICTURE_PRICES: PriceList = {
-  // MEDIUM (71% a side) read between the 70% and 80% stops of the ladder of
-  // tenths these were last measured on; the row owes a re-price.
   resolution: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 1.12, benefit: 3 },
-    high: { cost: 3.34, benefit: 8 },
+    medium: { cost: 0.72, benefit: 2 },
+    high: { cost: 2.26, benefit: 5 },
   },
   // Carries the SKY's tiers (`SKY_TIER`, `sky-gpu.ts`), the CLOUD
   // (`CLOUD_TIER`: LOW the shell, MEDIUM the slab, HIGH and MAX the
   // raymarched volume) and the FAR RANGES' rings (`FAR_TIER`) with the mist.
   distance: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.29, benefit: 27 },
-    high: { cost: 0.91, benefit: 39 },
-    max: { cost: 1.66, benefit: 42 },
+    medium: { cost: 0.36, benefit: 27 },
+    high: { cost: 0.85, benefit: 39 },
+    max: { cost: 1.5, benefit: 42 },
   },
   terrain: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.15, benefit: 8 },
-    high: { cost: 0.78, benefit: 12 },
+    medium: { cost: 0.32, benefit: 8 },
+    high: { cost: 1.19, benefit: 12 },
   },
-  // MEDIUM and HIGH are dear for the deformable snow: its patch (80k and
-  // 115k triangles, one draw call) and its self-shadow march (7 and 14
-  // steps). The field's own CPU (the presses, the settling, the upload) is
+  // MEDIUM and HIGH add the deformable snow: its patch (folded where no tool
+  // has touched it) and its self-shadow, marched once a field cell. The
+  // field's own CPU (the presses, the settling, the upload) is
   // a few tenths of a millisecond riding, more under a fall (`make
   // snow-eval ARGS=--deform-perf`).
   trails: {
     off: { cost: 0, benefit: 0 },
-    low: { cost: 0.15, benefit: 50 },
-    medium: { cost: 2.76, benefit: 66 },
-    high: { cost: 3.64, benefit: 72 },
+    low: { cost: 0.37, benefit: 50 },
+    medium: { cost: 1.18, benefit: 66 },
+    high: { cost: 1.35, benefit: 72 },
   },
   // Measured on a winter race. A SUMMER free ride also draws the grass the
   // row reaches (`FOREST_LOOK[...].grass`): ESTIMATED, not measured, at about
@@ -168,46 +166,44 @@ export const PICTURE_PRICES: PriceList = {
   // prices until a GPU bench times a summer frame.
   forest: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.12, benefit: 12 },
-    high: { cost: 0.3, benefit: 18 },
+    medium: { cost: 0.16, benefit: 12 },
+    high: { cost: 0.38, benefit: 18 },
   },
   shadows: {
     off: { cost: 0, benefit: 0 },
-    skiers: { cost: 1.59, benefit: 22 },
-    medium: { cost: 1.6, benefit: 40 },
-    high: { cost: 2.28, benefit: 44 },
+    skiers: { cost: 0.8, benefit: 22 },
+    medium: { cost: 0.88, benefit: 40 },
+    high: { cost: 1.45, benefit: 44 },
   },
   spray: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.32, benefit: 8 },
-    high: { cost: 0.34, benefit: 12 },
+    medium: { cost: 0.05, benefit: 8 },
+    high: { cost: 0.12, benefit: 12 },
   },
-  // From the night scene; by day the row reads 0.07 ms at MEDIUM and HIGH.
+  // From the night scene; by day the row reads nothing.
   lamps: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.29, benefit: 6 },
-    high: { cost: 0.47, benefit: 10 },
+    medium: { cost: 0.27, benefit: 6 },
+    high: { cost: 0.4, benefit: 10 },
   },
   // FULL's worth is the cloud, the sun and the night sky over a picture
-  // that has none. Dearer by day (0.26 ms) than under the night's stars
-  // and moon (0.19).
+  // that has none. Dearer by day than under the night's stars and moon.
   sky: {
     plain: { cost: 0, benefit: 0 },
-    full: { cost: 0.26, benefit: 14 },
+    full: { cost: 0.27, benefit: 14 },
   },
   // 3D's worth is ridges that stand apart as the lens moves and meet the
-  // map's own ground with no seam.
+  // map's own ground with no seam. Priced at nothing over PAINTED.
   horizon: {
     painted: { cost: 0, benefit: 0 },
-    "3d": { cost: 0.06, benefit: 5 },
+    "3d": { cost: 0, benefit: 5 },
   },
-  // The picture's target multisampled, on the benchmark's maritime race at
-  // the reference buffer: 4× 1.2 ms over none, 2× 0.2 ms less (interleaved
-  // A/B builds, not yet the --costs list's share of the top frame).
+  // The picture's target multisampled (the benchmark's race is maritime,
+  // graded: an alpine map's 4× is the canvas's own, about as dear).
   antialias: {
     off: { cost: 0, benefit: 0 },
-    "2": { cost: 1.0, benefit: 1 },
-    "4": { cost: 1.2, benefit: 1.1 },
+    "2": { cost: 1.22, benefit: 1 },
+    "4": { cost: 1.6, benefit: 1.1 },
   },
 };
 

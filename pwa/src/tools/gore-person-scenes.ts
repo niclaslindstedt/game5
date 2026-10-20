@@ -109,8 +109,9 @@ function runInto(st: Stage, kmh: number, safe = false): void {
   a.board = null;
   a.knobs = { ...a.knobs, skill: 0.5 };
   a.vx = a.vz = a.speed = 0;
-  a.x = c.x + Math.sin(h) * 0.9;
-  a.z = c.z + Math.cos(h) * 0.9;
+  // Within the two bodies of him (`PERSON_HIT.foot`): they meet this step.
+  a.x = c.x + Math.sin(h) * 0.4;
+  a.z = c.z + Math.cos(h) * 0.4;
   a.y = s.level.groundAt(a.x, a.z);
   // Stood square across the piste: struck in his side.
   a.heading = h + Math.PI / 2;

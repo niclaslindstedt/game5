@@ -7,7 +7,16 @@
 
 import { describe, expect, it } from "vitest";
 import { CROWD_LOOKS } from "../pwa/src/game/crowd-rig.ts";
-import { casualtiesOf, CROWD_BODIES, PERSON_HIT, personGive, type GameEvent } from "@engine";
+import {
+  casualtiesOf,
+  clipCrowd,
+  CROWD_BODIES,
+  footRadius,
+  PERSON_HIT,
+  personGive,
+  TUNING,
+  type GameEvent,
+} from "@engine";
 
 import { hitRow, rideOn, stageMeeting } from "./support/body-hits.ts";
 
@@ -39,6 +48,34 @@ describe("a person run into", () => {
     expect(state.skier.thrown!.vz).toBeLessThan(60 / 3.6 - e!.taken + 1);
     expect(a.mode).toBe("down");
     expect(a.thrown!.vz).toBeGreaterThan(5);
+  });
+
+  it("strikes as the two bodies meet, never off the skis: not a metre out, not alongside", () => {
+    // A metre up his way the shoulder's circles round the skis overlap him
+    // already; the bodies are still apart, so there is no blow yet.
+    const early = stageMeeting(60, "man", true, 1.2);
+    expect(early.events.some((e) => e.kind === "struck")).toBe(false);
+    expect(early.a.mode).not.toBe("down");
+    // Skied by with the skis beside his and the bodies 0.7 m apart: none.
+    const by = stageMeeting(60, "man", true, 0, 0.7);
+    expect(by.events.some((e) => e.kind === "struck")).toBe(false);
+    expect(by.a.mode).not.toBe("down");
+    // Carried on from a metre out (his run's frame would put a staged
+    // amateur back where his plan has him, so only the player moves), he
+    // is struck the step the bodies touch.
+    const { state, a } = early;
+    const c = state.skier;
+    const reach = footRadius("man") + PERSON_HIT.foot.reach;
+    let gap = Infinity;
+    for (let i = 0; i < 60 && gap === Infinity; i++) {
+      c.z += c.vz * TUNING.dt;
+      const events: GameEvent[] = [];
+      clipCrowd(state, events);
+      if (events.some((e) => e.kind === "struck")) gap = Math.hypot(c.x - a.x, c.z - a.z);
+    }
+    expect(gap).toBeLessThan(reach + 1e-6);
+    expect(gap).toBeGreaterThan(reach - 0.2);
+    expect(a.mode).toBe("down");
   });
 
   it("at 30 km/h with injuries on: the player bruised, the amateur hurt past getting up", () => {

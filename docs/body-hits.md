@@ -55,6 +55,19 @@ Restated in our own words, as the numbers it gave:
 | ~45 km/h | thrown (`skier`), a cracked neck, a concussion, broken arms and pelvis — down hurt | injured (a child: killed) | knocked down, up again |
 | 60 km/h and over | thrown, the chest stove in, the belly torn, the pelvis and the femurs broken, the neck broken — dead | KILLED past `kill` (9 m/s of his own), CRUSHED 0..1 on to `crush` (15 m/s) | knocked down, up again |
 
+- **The bodies meet, not the skis.** The shoulder under the strike is met on
+  the crowd's wide circles round the player's skis (`RACE.bump`'s two
+  circles fore and aft against the amateur's `CROWD_SIZE` radius), which
+  overlap a man a metre and a half up the player's way. Past the strike it
+  is the two BODIES: each an upright body of a torso's half-width round his
+  middle (`PERSON_HIT.foot` — `reach` 0.22 m for the skier, `radius` 0.26 m
+  for a grown man, a smaller body's by the root of his height), met over
+  the whole step (`bodiesMet`: the nearest the two came between where they
+  stood a step ago and where they stand now, so 30 m/s, a quarter of a
+  metre a step, is not skied through). The blow lands the step the two
+  touch, so the struck event's spot between the two middles lies on both
+  bodies; skis passing beside or under his with the bodies apart are no
+  blow at all. A person on foot is met on the same two bodies.
 - **The exchange** (`strikePerson`): the impulse by the two real masses
   (`totalMass` of the player's pair, `CROWD_SIZE` for the amateur) with
   `restitution` 0.1. The amateur is thrown onto his ragdoll (`crowd-down.ts`)
@@ -114,6 +127,18 @@ The breaks are dealt off a hash of the amateur and come on over the blow's
 first fifth of a second, so a replay lies him the same; everything thrown is
 dealt off the meeting's own seed.
 
+**The blood comes out of HIM.** Its source is the WOUND on the struck
+body (`pwa/src/game/crowd-wound.ts`, held by `tests/crowd_wound_test.ts`):
+at the blow the spot is put in his trunk's own frame off his ragdoll — how
+far up from his hips to his shoulders the blow came (kept to the belly and
+the chest) and which way round his trunk the player came from, on the
+torso's surface — and every frame after, the same spot on the trunk as it
+now lies. `crowd-gore.ts` pours it out over the blow's first 0.3 s of the
+run's clock (`SPRAY_FOR`), each drop leaving with the body's own way and on
+along his fling, the spatter back at the player in the first third of it;
+a hurt man's spatter comes off his face, and a crushed man's flesh and ribs
+are torn out of the same wound. Nothing hangs in the air where the two met.
+
 **The impact cam cuts to a hard one** — with INJURIES on and the X-ray cam
 off, live and in a replay — as it does to a body crushed on a solid
 (`pwa/src/game/impact-people.ts` under `impact-forecast.ts`, held by
@@ -123,7 +148,8 @@ ahead steps a copy of the player with the people on foot in it, so a
 meeting with one of them comes out of the copy's own step; the crowd is not
 copied (four hundred amateurs stepped five times a frame is a frame's
 budget) but each amateur near the player's path is DEAD-RECKONED off where
-he goes as the read begins and met on `clipCrowd`'s own geometry, the
+he goes as the read begins and met on `clipCrowd`'s own geometry (the two
+bodies, `bodiesMet`), the
 outcome off `exchangeOf`. A meeting is the cam's when it kills or injures
 the person or closes past 12.5 m/s (45 km/h, `PERSON_AHEAD.hard`): with the
 injuries on that is every strike of a grown man from some 24 km/h. The
@@ -211,8 +237,8 @@ amateur, civilian, crew, walker, patrol, sled, thrown, groomer, car).
   crowd's), the person thrown onto a ragdoll of his own the engine steps
   (`FootDown`) and, with INJURIES on, injured, killed and crushed on the same
   ladder. Under the strike speed the app's knock is the whole of it, as
-  before. A person on foot is narrower than a skier (`PERSON_HIT.foot`), so
-  he is met inside a skier's own reach of him.
+  before. He is met body to body (`PERSON_HIT.foot`: his torso's
+  half-width and the skier's own), as an amateur is at a strike.
 - **What strikes them** is everything that moves among them and is the
   engine's (`foot.ts`' hitters):
   - the player on his skis (above);

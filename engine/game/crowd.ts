@@ -56,7 +56,8 @@ import {
 } from "./crowd-lift.ts";
 import { crashLimit, throwRider } from "./crash.ts";
 import { PERSON_HIT } from "./defs/person-hit.ts";
-import { strikePerson } from "./person-hit.ts";
+import { footRadius } from "./foot.ts";
+import { bodiesMet, strikePerson } from "./person-hit.ts";
 import { standApart } from "./crowd-apart.ts";
 import { stepDown, throwAmateur } from "./crowd-down.ts";
 import { carryOff, hurtFall } from "./crowd-hurt.ts";
@@ -818,10 +819,17 @@ export function stepCrowd(state: GameState): void {
   }
 }
 
+/** Where the player is met from: the two circles round his skis' fore and
+ * aft for the shoulder, his one body at a strike. */
+const SKIS = [-1, 1] as const;
+const BODY = [0] as const;
+const met = { nx: 0, nz: 0 };
+
 /** THE PLAYER AGAINST THE CROWD, once a step after everyone has moved: the
  * player's two circles against each amateur's one, pushed apart by mass,
  * the closing speed traded — and an amateur hit hard enough goes down, a
- * player hitting one hard enough too. */
+ * player hitting one hard enough too. Closing past the strike it is the
+ * two bodies that meet instead (below). */
 export function clipCrowd(state: GameState, events: GameEvent[]): void {
   const crowd = state.crowd;
   const c = state.skier;
@@ -851,16 +859,29 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
     if (a.mode === "down" && a.thrown && a.rise === 0) continue;
     if (Math.abs(a.x - c.x) > 3 || Math.abs(a.z - c.z) > 3 || Math.abs(a.y - feet) > 1.6) continue;
     const size = CROWD_SIZE[a.body];
-    for (const side of [-1, 1]) {
+    // AT SPEED IT IS THE BODIES THAT MEET, NOT THE SKIS: closing past the
+    // strike, each is one upright body of a torso's half-width round his
+    // middle (`PERSON_HIT.foot`), met over the whole step (`bodiesMet`), so
+    // the blow lands as the two touch rather than a metre and a half out
+    // where the shoulder's wide circles round the skis first overlap — and
+    // a pass with the skis beside or under his is no blow at all.
+    const fast = a.mode !== "down" && hypot(c.vx - a.vx, c.vz - a.vz) >= PERSON_HIT.strike;
+    for (const side of fast ? BODY : SKIS) {
       const cx = c.x + fx * B.offset * side;
       const cz = c.z + fz * B.offset * side;
       const dx = a.x - cx;
       const dz = a.z - cz;
       const dist = hypot(dx, dz);
-      const pen = size.radius + B.radius - dist;
-      if (pen <= 0) continue;
-      const nx = dist > 1e-6 ? dx / dist : 1;
-      const nz = dist > 1e-6 ? dz / dist : 0;
+      const reach = fast ? footRadius(a.body) + PERSON_HIT.foot.reach : size.radius + B.radius;
+      let pen = reach - dist;
+      let nx = dist > 1e-6 ? dx / dist : 1;
+      let nz = dist > 1e-6 ? dz / dist : 0;
+      if (fast) {
+        if (!bodiesMet(dx, dz, c.vx - a.vx, c.vz - a.vz, reach, met)) continue;
+        nx = met.nx;
+        nz = met.nz;
+        pen = Math.max(0, pen);
+      } else if (pen <= 0) continue;
       const ma = size.mass;
       const share = ma / (mp + ma);
       c.x -= nx * pen * share;

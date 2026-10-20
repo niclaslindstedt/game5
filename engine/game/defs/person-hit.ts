@@ -64,11 +64,15 @@ export const PERSON_HIT = {
   /** The most injuries one collision does the player, as many blows'
    * worth as this — a body met with every part at once. */
   blows: 3,
-  /** A PERSON ON FOOT (`foot.ts`: the civilians, the rescue's and the
-   * police's crews): his reach round his middle, m, at a grown man's 1.8 m
-   * (a smaller body's by the root of his height), off skis and so narrower
-   * than an amateur's (`CROWD_SIZE`); the skier's reach round his own
-   * middle, m; and how long a person knocked and not hurt is no body to
+  /** THE BODIES THAT MEET at a strike — a person on foot (`foot.ts`: the
+   * civilians, the rescue's and the police's crews) always, an amateur of
+   * the crowd once the two close past `strike`: each an upright body of a
+   * torso's half-width round his middle, m — a grown man's 1.8 m (`radius`;
+   * a smaller body's by the root of his height) and the skier's own on his
+   * skis (`reach`). Nothing wider: at speed the skis pass under and beside
+   * a person, and only when the two BODIES touch is it a blow (the crowd's
+   * shoulder under `strike` keeps its wide circles, `RACE.bump`). And how
+   * long a person knocked and not hurt is no body to
    * the engine, s — he lies, gets up and walks back to his routine
    * (`pwa/src/game/civilian-knock.ts`) — before he stands where his plan
    * has him again. The player THROWN is a low round body of `thrown` m
@@ -81,7 +85,7 @@ export const PERSON_HIT = {
    * meet them every `every` steps — a thirtieth of a second, in which a
    * car on the road out goes half a metre, an eighth of its own length, so
    * none goes through a person between two looks. */
-  foot: { radius: 0.26, reach: 0.36, back: 60, thrown: 0.5, blow: 3.4, every: 4 },
+  foot: { radius: 0.26, reach: 0.22, back: 60, thrown: 0.5, blow: 3.4, every: 4 },
   /** A BODY LYING ON THE SNOW gone over (`lying.ts`) — an amateur down, a
    * person on foot struck — by the player's skis, board or bike, his
    * snowmobile, a piste machine or a car. `docs/body-hits.md` carries the

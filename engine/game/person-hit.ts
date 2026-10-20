@@ -27,6 +27,7 @@ import type { Vec3 } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { CROWD_SIZE } from "./defs/crowd.ts";
 import { PERSON_HIT as K } from "./defs/person-hit.ts";
 import { totalMass } from "./defs/skis.ts";
+import { TUNING } from "./defs/tuning.ts";
 import type { Amateur } from "./crowd-state.ts";
 import type { CrashCause, GameEvent, GameState } from "./state.ts";
 import type { FootDown } from "./foot.ts";
@@ -88,6 +89,38 @@ export function exchangeOf(
   const injured = injuries && !killed && given >= K.injure;
   const crush = injuries ? Math.min(1, Math.max(0, (given - K.kill) / (K.crush - K.kill))) : 0;
   return { taken, given, killed, injured, crush };
+}
+
+/** WHERE TWO BODIES MET over the step just taken — a person `dx`, `dz` m
+ * from the player now, the player closing on him at (`rvx`, `rvz`) m/s
+ * (the player's velocity less his), the two bodies `reach` m round their
+ * middles together (`PERSON_HIT.foot`): whether they came within it at any
+ * moment of the step (the nearest the straight line between where the
+ * person stood from him a step ago and where he stands now comes, so a
+ * blow at 30 m/s, a quarter of a metre a step, is not skied through), and
+ * the way out of the player at that moment into `out` (`nx`, `nz`). */
+export function bodiesMet(
+  dx: number,
+  dz: number,
+  rvx: number,
+  rvz: number,
+  reach: number,
+  out: { nx: number; nz: number },
+): boolean {
+  const ax = dx + rvx * TUNING.dt;
+  const az = dz + rvz * TUNING.dt;
+  const sx = dx - ax;
+  const sz = dz - az;
+  const ss = sx * sx + sz * sz;
+  const u = ss > 1e-12 ? Math.min(1, Math.max(0, -(ax * sx + az * sz) / ss)) : 1;
+  const qx = ax + sx * u;
+  const qz = az + sz * u;
+  const d = hypot(qx, qz);
+  if (d >= reach) return false;
+  const r = hypot(rvx, rvz);
+  out.nx = d > 1e-6 ? qx / d : r > 1e-6 ? rvx / r : 1;
+  out.nz = d > 1e-6 ? qz / d : r > 1e-6 ? rvz / r : 0;
+  return true;
 }
 
 /** THE COLLISION itself, once `clipCrowd` has found the two closing at

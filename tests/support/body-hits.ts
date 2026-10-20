@@ -36,11 +36,15 @@ import { levelFor } from "./levels.ts";
 export const HIT_SEED = 3;
 
 /** The meeting staged and stepped once: the player at `kmh` into a
- * standing amateur of `body`, on a run with its INJURIES on or off. */
+ * standing amateur of `body`, on a run with its INJURIES on or off — the
+ * amateur `ahead` m in front of the player's middle and `aside` m to his
+ * right (by default within the two bodies, so they meet this step). */
 export function stageMeeting(
   kmh: number,
   body: CrowdBody,
   gore: boolean,
+  ahead = 0.4,
+  aside = 0,
 ): { state: GameState; a: Amateur; events: GameEvent[] } {
   const state = createGame({
     level: levelFor(HIT_SEED),
@@ -59,8 +63,8 @@ export function stageMeeting(
   a.knobs = { ...a.knobs, skill: 0.5 };
   a.vx = a.vz = a.speed = 0;
   const c = state.skier;
-  a.x = c.x;
-  a.z = c.z + 0.9;
+  a.x = c.x + aside;
+  a.z = c.z + ahead;
   a.y = c.y - c.spec.cogHeight;
   c.heading = 0;
   c.vx = 0;
@@ -203,7 +207,7 @@ export function stageFoot(
   const c = state.skier;
   const x = c.x;
   const ahead = { sled: 1.75, groomer: 4.2, thrown: 0.7 } as Partial<Record<FootWho, number>>;
-  const z = c.z + (ahead[who] ?? 0.5);
+  const z = c.z + (ahead[who] ?? 0.4);
   const y = state.level.groundAt(x, z);
   if (who === "crew" || who === "patrol") {
     const patrol = who === "patrol";

@@ -18,6 +18,7 @@ import {
   feelBumps,
   markFall,
   NEUTRAL_INPUT,
+  PERSON_HIT,
   step,
   type Amateur,
   type GameEvent,
@@ -356,7 +357,8 @@ describe("the player meets the crowd", () => {
     a.speed = 0;
     const c = state.skier;
     a.x = c.x;
-    a.z = c.z + 0.9;
+    // Closing past the strike it is the bodies that meet: stood within them.
+    a.z = c.z + (v >= PERSON_HIT.strike ? 0.4 : 0.9);
     a.y = c.y - c.spec.cogHeight;
     c.heading = 0;
     c.vx = 0;

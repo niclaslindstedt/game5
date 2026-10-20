@@ -9,6 +9,7 @@ export { inCabin } from "./crowd-lift.ts";
 export { throwAmateur } from "./crowd-down.ts";
 export { hurtFall, waitsForRescue } from "./crowd-hurt.ts";
 export {
+  bodiesMet,
   casualtiesOf,
   exchangeOf,
   strikePerson,

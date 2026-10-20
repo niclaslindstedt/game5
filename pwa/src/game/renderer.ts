@@ -111,6 +111,7 @@ import { createSpray, type Spray } from "./spray.ts";
 import { createSnowCloud, type SnowCloud } from "./snow-cloud.ts";
 import { plumeBits } from "./plume-probe.ts";
 import { cullBehind } from "./rider-cull.ts";
+import { bareRockOf, offRock, type BareRock } from "./bare-rock.ts";
 import { createDeformRig } from "./renderer-deform.ts";
 import { createSnowUnder } from "./snow-under.ts";
 import { createSkiClear, skiClearUniforms, type SkiClear } from "./ski-clear.ts";
@@ -240,6 +241,8 @@ export function createWorldRenderer(
   const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
 
   let level: Level | null = null;
+  /** Where the map's ground is drawn as bare rock (`bare-rock.ts`). */
+  let bare: BareRock | null = null;
   let terrain: Terrain | null = null;
   let forest: Forest | null = null;
   let gates: Gates | null = null;
@@ -344,6 +347,7 @@ export function createWorldRenderer(
     trunks = undefined;
     riders = [];
     level = null;
+    bare = null;
     skyLevel = null;
     void env.setGround(null, null);
     snowfall.clear();
@@ -417,6 +421,7 @@ export function createWorldRenderer(
       depth: state.snowDepth,
       ...snowForce,
       piste: state.piste,
+      bare,
     });
   }
 
@@ -455,6 +460,7 @@ export function createWorldRenderer(
       unload();
       warmed = !cold;
       level = state.level;
+      bare = bareRockOf(level);
       setSummerLook(!!state.summer); // the ground green, the snow shed, nothing thrown
       skyLevel = skyOverride ? withSky(level, skyOverride) : level;
       const lv = level;
@@ -598,6 +604,7 @@ export function createWorldRenderer(
       const stepped = lastTick < 0 ? 0 : Math.max(0, state.tick - lastTick);
       const simDt = Math.min(stepped * TUNING.dt, 0.25);
       stamps.length = 0;
+      let laid = 0; // the stamps already kept off the rock
       for (let i = 0; i < runs.length; i++) {
         const run = runs[i];
         const r = riders[i];
@@ -612,6 +619,7 @@ export function createWorldRenderer(
                 run.snowDepth,
                 TRAIL_LOOK[video.trails].stamp,
                 pack ? sampleSnow : undefined,
+                bare,
               )
             : 0) - (skier.thrown ? 0 : (machines?.slideLift(skier.x, skier.z) ?? 0));
         r.sink += (want - r.sink) * (1 - Math.exp(-dt * 10));
@@ -665,6 +673,8 @@ export function createWorldRenderer(
             sampleSnow,
           });
         }
+        offRock(stamps, bare, laid); // none on bare rock
+        laid = stamps.length;
         deform.end(i, skier, stamps, simDt, thrownSnow);
         r.wasAirborne = skier.airborne;
         r.airTime = skier.airborne ? skier.airTime : r.airTime * (skier.airborne ? 1 : 0);
@@ -742,6 +752,7 @@ export function createWorldRenderer(
       const { timer, hidden } = inst;
       const trails = !hidden.has("trail") && passOn("trail-map");
       timer.push("trail");
+      offRock(stamps, bare, laid); // the machines' and the wildlife's
       if (trails) trail.update(gl, stamps, skier.x, skier.z);
       if (passOn("deform")) deform.update(skier, !hidden.has("trail"));
       skiClear.update(riders[0].model.bases, !skier.thrown && !summer(), skier.speed > 1);

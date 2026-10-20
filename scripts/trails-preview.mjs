@@ -17,6 +17,7 @@
 //           ski leaves, on the groomer and in powder
 //   rider   the rider in his own track: skis and a snowboard in deep powder,
 //           and a board at a crawl, beside him and from the chase lens
+//   rock    skied across a face drawn as bare rock: no furrow, no spray
 //
 // Each GROUP is one contact sheet, previews/trails-<group>.png, and every
 // frame is also written alone, previews/trails-<view>-<label>.png. The page
@@ -49,12 +50,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (bands, low, night, kinds, speed, skate, rider); every one when left out",
+      help: "which sheets, comma-separated (bands, low, night, kinds, speed, skate, rider, rock); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (groomed, powder, deep, groomed-low, powder-low, deep-low, deep-night, skis-groomed, board-groomed, sled-groomed, skis-powder, board-powder, sled-powder, speed-powder, speed-deep, skate-groomed, skate-powder, rider-skis-deep, rider-board-powder, rider-board-deep, rider-board-crawl)",
+      help: "only these views, comma-separated (groomed, powder, deep, groomed-low, powder-low, deep-low, deep-night, skis-groomed, board-groomed, sled-groomed, skis-powder, board-powder, sled-powder, speed-powder, speed-deep, skate-groomed, skate-powder, rider-skis-deep, rider-board-powder, rider-board-deep, rider-board-crawl, rock)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

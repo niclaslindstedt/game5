@@ -2,8 +2,11 @@
 // WHAT A PERSON RUN INTO LEAVES ON THE SNOW — on a free ride with the
 // INJURIES switch on, every amateur the player struck hard enough to hurt
 // (`CrowdState.struck`, `engine/game/person-hit.ts`) and every person on
-// foot — a civilian, a rescue or police crew member (`engine/game/foot.ts`): blood thrown at the
-// blow along the way he was flung and spattered back at the player, a red
+// foot — a civilian, a rescue or police crew member (`engine/game/foot.ts`): blood
+// out of the WOUND on his body (`crowd-wound.ts`, the struck side of his
+// trunk, or a hurt man's face) over the blow's first `SPRAY_FOR`, going
+// with him as he is flung and on along his fling, and spattered back at
+// the player at first — never out of the air the two met in — a red
 // smear under him along his slide, and a pool where he comes to rest that
 // grows as he bleeds. A body crushed past `CRUSHED` is torn too: what was
 // stove in thrown out with the blood — flesh, the splinters of ribs.
@@ -34,6 +37,7 @@ import {
 } from "@engine";
 
 import { bledBetween, CRUSHED } from "./crowd-broken.ts";
+import { DEPTH, woundAt, woundFacing, woundOf, type Wound } from "./crowd-wound.ts";
 
 import { createBlood, type Blood } from "./gore-blood.ts";
 import { gibGround, lump } from "./gore-gibs.ts";
@@ -61,9 +65,34 @@ const POOL_AT = 0.6;
 /** The pieces a torn body throws. */
 const ORGANS: readonly OrganKind[] = ["gobbet", "gobbet", "lung", "liver"];
 
+/** How long after the blow the blood goes on coming out of the wound, s
+ * of the run's clock: the spurt of a body burst, not one frame's cloud. */
+const SPRAY_FOR = 0.3;
+
+/** ...the share of it in which the spatter goes back at the player. */
+const BACK_FOR = 0.35;
+
 /** One person struck, as drawn: where the last smear was laid and how long
- * after the blow the pool was last run. */
-type Body = { key: string; hit: StruckPerson; sx: number; sz: number; ran: number };
+ * after the blow the pool was last run; the wound the blood comes out of
+ * (`crowd-wound.ts`, null until his body can be read), the way he was
+ * flung, how far into the spray it has got (s) and the stream it is dealt
+ * off. */
+type Body = {
+  key: string;
+  hit: StruckPerson;
+  sx: number;
+  sz: number;
+  ran: number;
+  wound: Wound | null;
+  dir: THREE.Vector3;
+  sprayed: number;
+  next: () => number;
+  rng: ReturnType<typeof createRng>;
+};
+
+/** How many of `total` drops a spray `from`..`to` s into its `span` owes. */
+const dropsBetween = (total: number, from: number, to: number, span: number): number =>
+  Math.round(total * Math.min(1, to / span)) - Math.round(total * Math.min(1, from / span));
 
 /** The body a meeting threw: the amateur's, or the person on foot's. */
 function thrownOf(state: GameState, hit: StruckPerson): Thrown | null | undefined {
@@ -80,7 +109,8 @@ const keyOf = (hit: StruckPerson): string =>
 const v1 = new THREE.Vector3();
 const v2 = new THREE.Vector3();
 const v3 = new THREE.Vector3();
-const zero = new THREE.Vector3();
+const v4 = new THREE.Vector3();
+const facing = { x: 0, y: 0, z: 0 };
 
 export function createCrowdGore(level: Level, wrap: Wrap): CrowdGore {
   const group = new THREE.Group();
@@ -114,24 +144,68 @@ export function createCrowdGore(level: Level, wrap: Wrap): CrowdGore {
   let last: GameState | null = null;
   let lastT = 0;
 
-  /** THE BLOW: what comes out of the body at once, flung along `dir`. */
-  const burst = (hit: StruckPerson, dir: THREE.Vector3, seed: number): void => {
-    const rng = createRng(seed ^ 0x9e75);
-    const next = () => rng.next();
-    const at = v2.set(hit.x, hit.y, hit.z);
+  /** WHERE IT COMES OUT of `body` now, into `out`: the wound on his trunk
+   * as it lies — a hurt man's face, his head — or, his body not to be
+   * read, the spot of the blow. */
+  const sourceOf = (body: Body, b: Thrown | null | undefined, out: THREE.Vector3): void => {
+    const hit = body.hit;
+    if (b && !hit.killed) {
+      const h = 3 * RAGDOLL.head;
+      out.set(b.points[h], b.points[h + 1], b.points[h + 2]);
+      if (body.wound && woundFacing(b.points, body.wound, facing))
+        out.addScaledVector(v1.set(facing.x, facing.y, facing.z), DEPTH);
+      return;
+    }
+    if (b && body.wound && woundAt(b.points, body.wound, out)) return;
+    out.set(hit.x, hit.y, hit.z);
+  };
+
+  /** THE SPRAY, `from`..`to` s after the blow: the share of what comes out
+   * of him owed over that while, out of the wound as it now is, going as
+   * his body goes (`carry`) and on along the way he was flung — and,
+   * early, some back at the player who went through him. */
+  const spray = (body: Body, b: Thrown | null | undefined, from: number, to: number): void => {
+    const hit = body.hit;
+    const dir = body.dir;
+    const next = body.next;
+    const at = v2;
+    sourceOf(body, b, at);
+    // Out of the wound at a spurt's few metres a second OVER his own way
+    // (`carry`): blood leaves a body flung at the body's speed, so a burst
+    // as fast again as the blow outruns him in a frame and reads as a
+    // cloud of its own.
     const fast = Math.max(3, hit.given);
-    const carry = v3.copy(dir).multiplyScalar(hit.given * 0.5);
+    const carry = b ? v3.set(b.vx, b.vy, b.vz) : v3.copy(dir).multiplyScalar(hit.given * 0.5);
     if (!hit.killed) {
       // A face struck: a spatter of drops off it.
-      blood.emit(at, dir, fast * 0.5, 30, 0.9, carry, next);
+      const n = dropsBetween(30, from, to, SPRAY_FOR);
+      if (n > 0) blood.emit(at, dir, fast * 0.2, n, 0.9, carry, next);
       return;
     }
     const c = hit.crush;
-    blood.emit(at, dir, fast * 0.8 + 1, Math.round(90 + 520 * c), 0.7, carry, next);
-    // Back at the player, who went through him.
-    v1.copy(dir).negate().setY(0.6).normalize();
-    blood.emit(at, v1, 2 + 3 * c, Math.round(30 + 160 * c), 1, zero, next);
-    if (c < CRUSHED) return;
+    const n = dropsBetween(Math.round(90 + 520 * c), from, to, SPRAY_FOR);
+    if (n > 0) blood.emit(at, dir, fast * 0.3 + 1, n, 0.8, carry, next);
+    // Back at the player, who went through him: off the struck side, with
+    // little of the body's own way in it.
+    const back = SPRAY_FOR * BACK_FOR;
+    const m = dropsBetween(Math.round(30 + 160 * c), from, to, back);
+    if (m > 0) {
+      v1.copy(dir).negate().setY(0.6).normalize();
+      blood.emit(at, v1, 2 + 3 * c, m, 1, v4.copy(carry).multiplyScalar(0.3), next);
+    }
+  };
+
+  /** THE BLOW: what is torn out of a crushed body at once, out of the
+   * wound and flung along `dir`. */
+  const burst = (body: Body, b: Thrown | null | undefined): void => {
+    const hit = body.hit;
+    const c = hit.crush;
+    if (!hit.killed || c < CRUSHED) return;
+    const dir = body.dir;
+    const rng = body.rng;
+    const fast = Math.max(3, hit.given);
+    sourceOf(body, b, v4);
+    const from = { x: v4.x, y: v4.y, z: v4.z };
     const torn = (c - CRUSHED) / (1 - CRUSHED);
     const fling = (geos: readonly THREE.BufferGeometry[], count: number, r: number, k: number) => {
       for (let i = 0; i < count; i++) {
@@ -144,7 +218,7 @@ export function createCrowdGore(level: Level, wrap: Wrap): CrowdGore {
         const u = fast * rng.range(0.3, 1);
         v2.set(rng.range(-1, 1), rng.range(-1, 1), rng.range(-1, 1)).normalize();
         const piece = lump(
-          { x: hit.x, y: hit.y, z: hit.z },
+          from,
           { x: v1.x * u, y: v1.y * u, z: v1.z * u },
           r,
           { x: v2.x, y: v2.y, z: v2.z },
@@ -180,18 +254,38 @@ export function createCrowdGore(level: Level, wrap: Wrap): CrowdGore {
       if (bodies.has(key)) continue;
       const b = thrownOf(state, hit);
       const heading = b?.heading ?? 0;
-      v1.set(b?.vx ?? 0, 0, b?.vz ?? 0);
-      if (v1.lengthSq() < 1e-6) v1.set(Math.sin(heading), 0, Math.cos(heading));
-      v1.normalize().setY(0.25).normalize();
+      const dir = new THREE.Vector3(b?.vx ?? 0, 0, b?.vz ?? 0);
+      if (dir.lengthSq() < 1e-6) dir.set(Math.sin(heading), 0, Math.cos(heading));
+      dir.normalize().setY(0.25).normalize();
       const who = hit.foot !== undefined ? 104729 + hit.foot : hit.amateur;
-      burst(hit, v1.clone(), Math.floor(hit.t * 997) ^ (who * 7919));
-      bodies.set(key, { key, hit, sx: hit.x, sz: hit.z, ran: 0 });
+      const rng = createRng(Math.floor(hit.t * 997) ^ (who * 7919) ^ 0x9e75);
+      const body: Body = {
+        key,
+        hit,
+        sx: hit.x,
+        sz: hit.z,
+        ran: 0,
+        // Read off his body as it was at the blow: the ragdoll is thrown
+        // standing where he stood, so its first points are his stance.
+        wound: b ? woundOf(b.points, hit) : null,
+        dir,
+        sprayed: 0,
+        next: () => rng.next(),
+        rng,
+      };
+      bodies.set(key, body);
+      burst(body, b);
     }
     if (dt <= 0) return;
     for (const body of bodies.values()) {
       const b = thrownOf(state, body.hit);
-      if (!b) continue;
       const u = state.t - body.hit.t;
+      const to = Math.min(SPRAY_FOR, u);
+      if (to > body.sprayed) {
+        spray(body, b, body.sprayed, to);
+        body.sprayed = to;
+      }
+      if (!b) continue;
       // The pool where it bleeds: his chest dead, his face alive.
       const at = body.hit.killed
         ? b

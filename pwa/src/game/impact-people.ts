@@ -14,9 +14,9 @@
 // path will be over the next second, and an amateur on his run holds his
 // line and his speed over that long: each is DEAD-RECKONED from where he is
 // and how he goes as the read begins (`ghostsOf`), and the copy's skier is
-// met against those ghosts on the crowd's own geometry (`clipCrowd`: the
-// player's two circles against the amateur's one, closing past
-// `PERSON_HIT.strike`) with the engine's own exchange (`exchangeOf`) for
+// met against those ghosts on the crowd's own geometry (`clipCrowd`: past
+// `PERSON_HIT.strike` the two BODIES, met over the step by `bodiesMet`)
+// with the engine's own exchange (`exchangeOf`) for
 // what it will do to him. Nothing is written to the run or the copy: the
 // copy's skier passes through a ghost untouched, and no digest moves.
 //
@@ -25,10 +25,11 @@
 // — the cruise's knock under it is left to the game's own camera.
 
 import {
+  bodiesMet,
   CROWD_SIZE,
   exchangeOf,
+  footRadius,
   PERSON_HIT,
-  RACE,
   totalMass,
   type GameEvent,
   type GameState,
@@ -49,7 +50,8 @@ export const PERSON_AHEAD = {
 } as const;
 
 /** An amateur as the read carries him: where he is as it begins, how he
- * goes then (m/s, in plan), his reach round his middle and his mass. */
+ * goes then (m/s, in plan), his body round his middle at a strike, m, and
+ * his mass. */
 export type Ghost = {
   id: number;
   x: number;
@@ -111,7 +113,7 @@ export function ghostsOf(state: GameState, horizon: number): Ghost[] {
       z: a.z,
       vx: a.vx,
       vz: a.vz,
-      radius: size.radius,
+      radius: footRadius(a.body),
       mass: size.mass,
       height: PERSON_HIT.height[a.body],
     });
@@ -124,36 +126,31 @@ export function ghostsOf(state: GameState, horizon: number): Ghost[] {
 export function meetGhosts(run: GameState, ghosts: readonly Ghost[], t: number): PersonMet | null {
   const c = run.skier;
   if (!ghosts.length || c.thrown || c.lift || run.heli?.rider) return null;
-  const B = RACE.bump;
-  const fx = Math.sin(c.heading);
-  const fz = Math.cos(c.heading);
   const feet = c.y - c.spec.cogHeight;
   for (const g of ghosts) {
     const gx = g.x + g.vx * t;
     const gz = g.z + g.vz * t;
     if (Math.abs(gx - c.x) > 3 || Math.abs(gz - c.z) > 3) continue;
     if (Math.abs(run.level.groundAt(gx, gz) - feet) > 1.6) continue;
-    for (const side of [-1, 1]) {
-      const dx = gx - (c.x + fx * B.offset * side);
-      const dz = gz - (c.z + fz * B.offset * side);
-      const dist = Math.hypot(dx, dz);
-      if (dist >= g.radius + B.radius) continue;
-      const nx = dist > 1e-6 ? dx / dist : 1;
-      const nz = dist > 1e-6 ? dz / dist : 0;
-      const closing = (c.vx - g.vx) * nx + (c.vz - g.vz) * nz;
-      if (closing < PERSON_HIT.strike) continue;
-      const ex = exchangeOf(run, totalMass(c.spec), g.mass, closing);
-      return {
-        at: { x: (c.x + gx) / 2, y: feet + g.height * 0.55, z: (c.z + gz) / 2 },
-        person: { x: gx, z: gz },
-        speed: closing,
-        killed: ex.killed,
-        injured: ex.injured,
-      };
-    }
+    const rvx = c.vx - g.vx;
+    const rvz = c.vz - g.vz;
+    if (Math.hypot(rvx, rvz) < PERSON_HIT.strike) continue;
+    if (!bodiesMet(gx - c.x, gz - c.z, rvx, rvz, g.radius + PERSON_HIT.foot.reach, met)) continue;
+    const closing = rvx * met.nx + rvz * met.nz;
+    if (closing < PERSON_HIT.strike) continue;
+    const ex = exchangeOf(run, totalMass(c.spec), g.mass, closing);
+    return {
+      at: { x: (c.x + gx) / 2, y: feet + g.height * 0.55, z: (c.z + gz) / 2 },
+      person: { x: gx, z: gz },
+      speed: closing,
+      killed: ex.killed,
+      injured: ex.injured,
+    };
   }
   return null;
 }
+
+const met = { nx: 0, nz: 0 };
 
 /** A person on foot struck in one of the copy's steps (its `struck`
  * event), or null. */

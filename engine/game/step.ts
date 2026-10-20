@@ -97,6 +97,7 @@ import { stepGunfire } from "./gunfire.ts";
 import { freshArmy, stepArmy } from "./army.ts";
 import { stepGround } from "./army-ground.ts";
 import { stepArmySleds } from "./army-sled.ts";
+import { stepArmyVehicles } from "./army-vehicle.ts";
 import { freshMishaps, type MishapAsk } from "./mishaps.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
 import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
@@ -881,6 +882,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   if (state.wanted) stepGround(state, events);
   // ...and its snowmobiles (`army-sled.ts`).
   if (state.wanted) stepArmySleds(state, events);
+  // ...and the ground waves' carriers, trucks and tanks (`army-vehicle.ts`).
+  if (state.wanted) stepArmyVehicles(state, events);
   // THE GUNFIRE (`gunfire.ts`), once a gun is armed.
   if (state.gunfire) stepGunfire(state, events);
   // THE BODY (`body.ts`): what a shoulder into a rival or an amateur did.

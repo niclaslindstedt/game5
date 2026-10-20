@@ -88,11 +88,11 @@ import {
   sample,
   sampleBody,
 } from "./interp.ts";
-import { CANVAS_SAMPLES, createRegionPicture } from "./region-picture.ts";
+import { createRegionPicture } from "./region-picture.ts";
 import { createAfterskiView } from "./afterski-view.ts";
 import { hideSlices, runsOf, thrownEffects, type Rider } from "./renderer-rider.ts";
 import { createInstruments } from "./renderer-instruments.ts";
-import { directPicture, openSeam, setSeamFactory } from "./render-seam.ts";
+import { openSeam, setSeamFactory } from "./render-seam.ts";
 import { freshRider } from "./renderer-rider.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
@@ -205,9 +205,7 @@ export function createWorldRenderer(
 
   const scene = new THREE.Scene();
   // THE REGION'S GRADE (R21, `region-picture.ts`): the frame through it or straight on.
-  const picture = passOn("grade-pass")
-    ? createRegionPicture(gl, () => video.antialias)
-    : directPicture(seam, () => video.antialias, video.antialias !== "off" ? CANVAS_SAMPLES : 0);
+  const picture = createRegionPicture(gl, () => video.antialias, seam.post);
   const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
   scene.add(lens.camera);

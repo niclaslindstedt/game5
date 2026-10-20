@@ -25,6 +25,7 @@ import { BEAST_HIT, PERSON_HIT, type GameEvent, type JumpLanding, type Level } f
 
 import type { PlayShape } from "@niclaslindstedt/oss-game-framework/audio/types";
 
+import { GUN_REPORT as REPORT, GUN_STRIKE as STRIKE } from "./gunfire-bank.ts";
 import { heliHeard } from "./heli-voice.ts";
 import type { SnowUnder } from "./snow-voice.ts";
 
@@ -662,6 +663,15 @@ export function soundForEvent(
       };
     }
 
+    // A WAVE'S VEHICLE (`army-vehicle.ts`): its diesel and tracks are the
+    // army's bed's (`army-bed.ts`), its gun the gunfire's; the one-shot is
+    // a skier met by its front — the steel's crash, at full.
+    case "army-vehicle": {
+      if (event.change !== "strike") return null;
+      const heard = heardAt(event, contact.ear, HEARD_NEAR);
+      return { id: "sled_crash", shape: { ...heard, gain: heard.gain! * 1.3 } };
+    }
+
     // THE VILLAGE'S TRAFFIC (`traffic.ts`): a skier met by a car, the bus
     // or a bike — the bodywork's thud, as loud as he came in hard.
     case "traffic": {
@@ -934,26 +944,6 @@ export function heardFrom(
     pitch: (shape?.pitch ?? 1) * ear.muffle,
   };
 }
-
-/** THE REPORT each weapon makes. */
-const REPORT = {
-  rifle: "gun_rifle",
-  lmg: "gun_rifle",
-  doorGun: "gun_mg",
-  heavyGun: "gun_heavy",
-  rocket: "rocket_launch",
-  tankGun: "tank_gun",
-} as const;
-
-/** What a round strikes sounds like. */
-const STRIKE = {
-  snow: "gun_puff",
-  trunk: "gun_wood",
-  steel: "gun_ping",
-  rock: "gun_ping",
-  machine: "gun_ping",
-  body: "gun_hit",
-} as const;
 
 /** A gun's report carries far (`REPORT_REF` m at full, never under its
  * floor); a strike is heard only near. */

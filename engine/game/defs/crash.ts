@@ -227,6 +227,9 @@ export const CRASH = {
     // Ridden into a piste machine (`groomer.ts`), or met by its blade:
     // knocked flat on his back off the steel, and over onto a side.
     groomer: { pitch: -0.7, side: 0.6, up: 0.8 },
+    // Run down by an army vehicle's front (`army-vehicle.ts`): the steel
+    // takes his legs and throws him back off it, onto his back and a side.
+    armour: { pitch: -0.8, side: 0.5, up: 0.6 },
     // Knocked down by a car, the ski bus or a bicycle in the village
     // (`traffic-contact.ts`): the legs taken by the bumper, the body
     // thrown up onto the bonnet and off it, over onto a side.

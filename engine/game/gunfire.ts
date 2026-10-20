@@ -43,7 +43,6 @@
 // arms one moves no digest.
 
 import { hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
-import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import {
   GUNFIRE,
   WEAPONS,
@@ -52,9 +51,8 @@ import {
   type WeaponKind,
 } from "./defs/weapons.ts";
 import { TUNING } from "./defs/tuning.ts";
-import { pierceBody, type PierceHit } from "./body.ts";
-import { throwRider } from "./crash.ts";
-import { sever } from "./gore.ts";
+import { pierceBody } from "./body.ts";
+import { blastAt, inCabin } from "./blast.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { rosterOf } from "./wanted.ts";
 import { bodyCentre, bodyHit, bodyPoints, passDistance } from "./gunfire-body.ts";
@@ -62,7 +60,6 @@ import { sayGunfire } from "./gunfire-log.ts";
 import { MACHINES, damageMachine, machineAt, machineHit, seizeLost } from "./gunfire-machine.ts";
 import type { BodyPart } from "./defs/anatomy.ts";
 import type { GameEvent, GameState } from "./state.ts";
-import type { GorePiece } from "./gore-state.ts";
 import type { AimTarget, FireRules, Gun, GunfireState, Round } from "./gunfire-state.ts";
 
 const dt = TUNING.dt;
@@ -592,7 +589,7 @@ function flyRound(state: GameState, g: GunfireState, r: Round, events: GameEvent
   r.flown += step * s;
   const j = 0.5 * def.mass * v * v;
   if (def.kind === "blast") {
-    burst(state, g, r, def, x, y, z, events);
+    blastAt(state, g, def, x, y, z, r.weapon, r.id, events);
     return false;
   }
   if (what !== "body") {
@@ -626,12 +623,6 @@ function flyRound(state: GameState, g: GunfireState, r: Round, events: GameEvent
       );
   } else if (what === "body" && part) wound(state, g, part, j, r, x, y, z, events);
   return false;
-}
-
-/** Whether he sits in a cabin a round must come through the airframe to
- * reach: the helicopter he flies, the plane. */
-function inCabin(state: GameState): boolean {
-  return !!(state.heli?.rider && state.heli.mode !== "wreck") || !!state.plane?.rider;
 }
 
 /** What of a man at the controls a round through the cabin finds. */
@@ -672,102 +663,4 @@ function wound(
     on: "body",
   });
   pierceBody(state, events, [{ part, j }]);
-}
-
-/** The parts a burst's fragments find, in the order they are dealt. */
-const FRAG_PARTS: readonly BodyPart[] = [
-  "chest",
-  "abdomen",
-  "thighL",
-  "thighR",
-  "armL",
-  "armR",
-  "shinL",
-  "shinR",
-  "head",
-  "shoulderL",
-  "shoulderR",
-  "pelvis",
-  "back",
-  "neck",
-];
-
-/** A ROCKET OR A SHELL BURSTS at (x, y, z): the man near it torn, struck
- * or thrown, the machines near it damaged. */
-function burst(
-  state: GameState,
-  g: GunfireState,
-  r: Round,
-  def: BlastDef,
-  x: number,
-  y: number,
-  z: number,
-  events: GameEvent[],
-): void {
-  sayGunfire(g, events, { kind: "gunfire", t: state.t, phase: "blast", weapon: r.weapon, x, y, z });
-  // The machines near it.
-  for (const m of MACHINES) {
-    const at = machineAt(state, m);
-    if (at && hypot3(at.x - x, at.y - y, at.z - z) < def.kill + 5)
-      damageMachine(state, g, m, 0, true, r.weapon, events);
-  }
-  // Never on his body where the army does not shoot to kill.
-  if (!lethalOf(state) || inCabin(state)) return;
-  const c = bodyCentre(state);
-  const d = hypot3(c.x - x, c.y - y, c.z - z);
-  if (d > Math.max(def.wound, def.throw)) return;
-  // THE BLAST off his feet: away from it and up, harder the nearer.
-  const sk = state.skier;
-  if (d < def.throw) {
-    const k = def.shove * (1 - d / def.throw);
-    const n = Math.max(0.5, d);
-    const v = {
-      x: (sk.thrown?.vx ?? sk.vx) + ((c.x - x) / n) * k,
-      y: (sk.thrown?.vy ?? sk.vy) + k * 0.6,
-      z: (sk.thrown?.vz ?? sk.vz) + ((c.z - z) / n) * k,
-    };
-    if (!sk.thrown && !sk.lift) throwRider(state, "blast", v, events);
-  }
-  // THE FRAGMENTS: more and harder the nearer.
-  if (d < def.wound) {
-    const near = Math.max(0, 1 - d / def.wound);
-    const n = Math.max(1, Math.round(1 + 6 * near * near + gunDraw(g) * 2 * near));
-    const hits: PierceHit[] = [];
-    for (let k = 0; k < n; k++) {
-      const part = FRAG_PARTS[Math.floor(gunDraw(g) * FRAG_PARTS.length)];
-      const j = def.frag * Math.min(2, def.kill / Math.max(def.kill * 0.5, d)) * (0.5 + gunDraw(g));
-      hits.push({ part, j });
-      sayGunfire(g, events, {
-        kind: "gunfire",
-        t: state.t,
-        phase: "hit",
-        weapon: r.weapon,
-        x: c.x,
-        y: c.y,
-        z: c.z,
-        part,
-        j,
-        on: "body",
-      });
-    }
-    g.hits += 1;
-    pierceBody(state, events, hits);
-  }
-  // TORN APART inside its kill radius, with the INJURIES switch on.
-  if (d < def.kill && state.gore && state.skier.thrown) {
-    const deal = (k: number): number => hash2(k, r.id, (state.seed ^ SALT) | 0);
-    const pieces: GorePiece[] = [];
-    // Each piece's chance: a third at the kill radius's edge, sure at
-    // half of it.
-    const near = Math.min(1, 1 / 3 + (4 / 3) * (1 - d / def.kill));
-    if (deal(0) < near * 0.5) pieces.push("head");
-    if (deal(1) < near) pieces.push(deal(2) < 0.5 ? "armL" : "forearmL");
-    if (deal(3) < near) pieces.push(deal(4) < 0.5 ? "armR" : "forearmR");
-    if (deal(5) < near * 0.4) pieces.push("lower");
-    else {
-      if (deal(6) < near) pieces.push(deal(7) < 0.5 ? "legL" : "shinL");
-      if (deal(8) < near) pieces.push(deal(9) < 0.5 ? "legR" : "shinR");
-    }
-    sever(state, pieces, near > 0.4 ? ["chest", "abdomen"] : ["abdomen"], events);
-  }
 }

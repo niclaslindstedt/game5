@@ -102,7 +102,7 @@ export const GPU_PORTS: readonly GpuPort[] = [
     kind: "pass",
     part: 7,
     what: "the region's grade over the frame",
-    ported: false,
+    ported: true,
   },
   {
     id: "snow-under",

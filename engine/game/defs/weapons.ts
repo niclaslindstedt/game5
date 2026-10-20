@@ -108,6 +108,13 @@ export type BlastDef = {
    * dust. 0 for a gun. */
   backblast: number;
   cone: number;
+  /** THE CRATER it leaves in the snow, m: its radius and its depth at the
+   * middle — what the drawing presses into the snow where it burst. A
+   * burst on snow throws the snow out rather than the ground under it: a
+   * shoulder rocket's warhead leaves a bowl a metre or two across, a tank's
+   * high-explosive shell one three or four metres across and some half a
+   * metre deep. */
+  crater: { radius: number; depth: number };
 };
 
 export type WeaponDef = GunDef | BlastDef;
@@ -235,6 +242,7 @@ export const WEAPONS: Record<WeaponKind, WeaponDef> = {
     frag: 900,
     backblast: 30,
     cone: Math.PI / 4,
+    crater: { radius: 0.9, depth: 0.3 },
   },
   // A TANK'S MAIN GUN firing a HIGH-EXPLOSIVE shell, 105–120 mm class: a
   // ~20 kg shell at ~900 m/s (the high-explosive and the multi-purpose
@@ -265,6 +273,7 @@ export const WEAPONS: Record<WeaponKind, WeaponDef> = {
     frag: 1400,
     backblast: 0,
     cone: 0,
+    crater: { radius: 1.8, depth: 0.55 },
   },
 };
 

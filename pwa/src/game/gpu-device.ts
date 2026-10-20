@@ -25,6 +25,8 @@ import { WebGPURenderer } from "three/webgpu";
 
 import { freshBackend, type Backend } from "./gpu-backend.ts";
 import { dressScene, type Dressing } from "./gpu-dress.ts";
+import { nodeGradePass } from "./grade-tsl.ts";
+import { CANVAS_SAMPLES } from "./region-picture.ts";
 import { setSeamFactory, type RenderSeam, type SeamInfo } from "./render-seam.ts";
 
 /** The limits raised to the adapter's own. */
@@ -171,7 +173,15 @@ function gpuSeam(
       renderer.info.reset();
       dressing?.begin();
     },
-    hazeInDisplay: (on) => dressing?.hazeInDisplay(on),
+    post: {
+      canvas: options.antialias ? CANVAS_SAMPLES : 0,
+      grade: (u) => nodeGradePass(renderer, u),
+      hazeInDisplay: (on) => dressing?.hazeInDisplay(on),
+      info: () => {
+        const r = renderer.info.render;
+        return { calls: r.drawCalls, triangles: r.triangles, points: r.points };
+      },
+    },
     endFrame: () => dressing?.end(),
     settled: () => (device ? device.queue.onSubmittedWorkDone() : glSettled(renderer)),
     info() {

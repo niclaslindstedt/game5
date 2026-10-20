@@ -75,10 +75,9 @@ export function dressScene(
   haze: HazeUniforms,
 ): Dressing {
   registerLights(renderer);
-  // Mixed in display space where WebGL's frame would go straight onto the
-  // canvas through ACES, and in linear light where it would go through the
-  // grade's target (`haze-tsl.ts`); the webgpu frame itself always goes
-  // straight, the grade's pass not being ported yet (`grade-pass`).
+  // Mixed in display space where the frame goes straight onto the canvas
+  // through ACES, and in linear light where it goes through the grade's
+  // target (`haze-tsl.ts`, `region-picture.ts`), as on WebGL.
   const display = uniform(renderer.toneMapping === THREE.ACESFilmicToneMapping ? 1 : 0);
   const how = { display, exposure: toneMappingExposure };
   const twins = createTwins(haze, how);

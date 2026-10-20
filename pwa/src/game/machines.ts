@@ -471,16 +471,17 @@ export function createMachines(
         gunfire = createGunfireView();
         group.add(gunfire.group);
       }
-      gunfire?.frame(s, alpha, dt, simDt, cloud, fx.snowAt);
+      gunfire?.frame(s, alpha, dt, simDt, cloud, fx.snowAt, stamps);
       if (
         !army &&
         s.army &&
         (s.army.helis.some((h) => h.phase !== "due") ||
           s.army.troops.length > 0 ||
-          s.army.sleds.length > 0)
+          s.army.sleds.length > 0 ||
+          s.army.vehicles.length > 0)
       )
         armyBuilt();
-      army?.frame(s, alpha, dt, simDt);
+      army?.frame(s, alpha, dt, simDt, stamps, cloud);
       heli?.frame(s, alpha, dt, player, rung, flying, cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
       plane?.frame(s, alpha, dt, rung, flying, aspect, cloud, fx.snowAt);

@@ -388,7 +388,7 @@ export const ACES_OUT = new THREE.Matrix3().set(
 );
 
 /** `m` times `v`, row by row. */
-function times(m: THREE.Matrix3, v: N): N {
+export function times(m: THREE.Matrix3, v: N): N {
   const e = m.elements; // column-major
   return vec3(
     dot(vec3(e[0], e[3], e[6]), v),

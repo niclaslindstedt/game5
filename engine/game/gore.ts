@@ -43,6 +43,7 @@ import { hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
 import { GORE, INSTANT } from "./defs/gore.ts";
+import { ARMY_VEHICLE } from "./defs/army-vehicle.ts";
 import { GROOMER } from "./defs/groomer.ts";
 import { HELI_BLADES } from "./defs/heli-grip.ts";
 import { bladeAt } from "./heli-grip.ts";
@@ -448,54 +449,78 @@ const PIECE_AT: readonly (GorePiece | null)[] = (() => {
   return out;
 })();
 
-/** UNDER A PISTE MACHINE: every point of his body a working machine's
+/** UNDER A MACHINE: every point of his body a working piste machine's
  * tracks and tiller pass over — alive or dead — torn off and spat out of
  * the back of the tiller; the skull crushed under a belt, the chest and the
- * belly burst. */
+ * belly burst. AN ARMY TANK'S TRACKS (`army-vehicle.ts`) do the same to
+ * what they pass over: sixty tonnes on two belts. */
 function underMachine(state: GameState, g: GoreState, events: GameEvent[]): void {
-  const ms = state.groomers;
   const b = state.skier.thrown;
-  if (!ms || !b) return;
+  if (!b) return;
+  for (const m of state.groomers ?? []) {
+    if (m.rider) continue;
+    runOver(state, g, b, m, m.speed, GROOMER.front, GROOMER.back, GROOMER.half, events);
+  }
+  for (const v of state.army?.vehicles ?? []) {
+    if (v.kind !== "tank" || v.mode === "due") continue;
+    const A = ARMY_VEHICLE.kinds.tank;
+    runOver(state, g, b, v, v.speed, A.halfLength, A.halfLength, A.halfWidth, events);
+  }
+}
+
+/** ONE MACHINE OVER HIM: going `speed` m/s along its heading, its belts
+ * `front` m ahead of its middle and `back` m behind it, `half` m either
+ * side. */
+function runOver(
+  state: GameState,
+  g: GoreState,
+  b: Thrown,
+  m: { x: number; y: number; z: number; heading: number },
+  speed: number,
+  front: number,
+  back: number,
+  half: number,
+  events: GameEvent[],
+): void {
   const M = GORE.machine;
-  const K = GROOMER;
-  for (const m of ms) {
-    if (m.rider || Math.abs(m.speed) < M.speed) continue;
-    const dir = Math.sign(m.speed);
-    const fx = Math.sin(m.heading);
-    const fz = Math.cos(m.heading);
-    for (let i = 0; i < R.count; i++) {
-      const px = b.points[3 * i];
-      const py = b.points[3 * i + 1];
-      const pz = b.points[3 * i + 2];
-      if (py > m.y + M.over) continue;
-      const dx = px - m.x;
-      const dz = pz - m.z;
-      // Along the way it goes: past the blade's face (or the tiller's end
-      // backing up) and inside it, under the belts and the tiller.
-      const u = (dx * fx + dz * fz) * dir;
-      const v = dx * fz - dz * fx;
-      const lead = dir > 0 ? K.front : K.back;
-      const tail = dir > 0 ? K.back : K.front;
-      if (u > lead - M.behind || u < -tail || Math.abs(v) > K.half) continue;
-      const h = hash2(i, state.seed | 0, SALT + 1);
-      const spit = -(Math.abs(m.speed) + M.spit * (0.6 + 0.8 * h)) * dir;
-      const out = {
-        x: fx * spit + (v > 0 ? -fz : fz) * h * 2,
-        y: M.up * (0.6 + 0.8 * h),
-        z: fz * spit + (v > 0 ? fx : -fx) * h * 2,
-      };
-      const piece = PIECE_AT[i];
-      if (piece && !(g.lost & bit(piece))) {
-        tearOff(state, g, b, piece, out, events);
-        mortalBy(state, g, "machine");
-      } else if (i === R.head && !(g.lost & bit("head")) && g.crushed < 0) {
-        crushSkull(state, g, b, events);
-        mortalBy(state, g, "machine");
-      } else if (i <= R.shoulderR) {
-        for (const part of GORE_OPEN)
-          if (!(g.open & (1 << GORE_OPEN.indexOf(part)))) openTrunk(state, g, b, part, events);
-        mortalBy(state, g, "machine");
-      }
+  if (Math.abs(speed) < M.speed) return;
+  const reach = front + back + half;
+  if (Math.abs(b.points[0] - m.x) > reach || Math.abs(b.points[2] - m.z) > reach) return;
+  const dir = Math.sign(speed);
+  const fx = Math.sin(m.heading);
+  const fz = Math.cos(m.heading);
+  for (let i = 0; i < R.count; i++) {
+    const px = b.points[3 * i];
+    const py = b.points[3 * i + 1];
+    const pz = b.points[3 * i + 2];
+    if (py > m.y + M.over) continue;
+    const dx = px - m.x;
+    const dz = pz - m.z;
+    // Along the way it goes: past its front's face (or its back's,
+    // backing up) and inside it, under the belts.
+    const u = (dx * fx + dz * fz) * dir;
+    const v = dx * fz - dz * fx;
+    const lead = dir > 0 ? front : back;
+    const tail = dir > 0 ? back : front;
+    if (u > lead - M.behind || u < -tail || Math.abs(v) > half) continue;
+    const h = hash2(i, state.seed | 0, SALT + 1);
+    const spit = -(Math.abs(speed) + M.spit * (0.6 + 0.8 * h)) * dir;
+    const out = {
+      x: fx * spit + (v > 0 ? -fz : fz) * h * 2,
+      y: M.up * (0.6 + 0.8 * h),
+      z: fz * spit + (v > 0 ? fx : -fx) * h * 2,
+    };
+    const piece = PIECE_AT[i];
+    if (piece && !(g.lost & bit(piece))) {
+      tearOff(state, g, b, piece, out, events);
+      mortalBy(state, g, "machine");
+    } else if (i === R.head && !(g.lost & bit("head")) && g.crushed < 0) {
+      crushSkull(state, g, b, events);
+      mortalBy(state, g, "machine");
+    } else if (i <= R.shoulderR) {
+      for (const part of GORE_OPEN)
+        if (!(g.open & (1 << GORE_OPEN.indexOf(part)))) openTrunk(state, g, b, part, events);
+      mortalBy(state, g, "machine");
     }
   }
 }

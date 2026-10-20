@@ -48,7 +48,8 @@ really drew on, and a fallback is never reported as WebGPU.
   hangs the haze on the scene as its fog node, gives the key, the sky and
   the lamps their light nodes, and finishes every material's node copy (see
   below). It is reached only through `gpu-device.ts`'s chunk, together with
-  `haze-tsl.ts`, `lights-tsl.ts` and `glow-tsl.ts`. `tests/haze_tsl_test.ts`
+  `haze-tsl.ts`, `lights-tsl.ts`, `glow-tsl.ts` and every later part's TSL
+  (the grade's `grade-tsl.ts`, handed to the picture as the seam's `post`). `tests/haze_tsl_test.ts`
   holds that nothing else imports `three/webgpu` or `three/tsl`.
 - **`gpu-quarantine.ts`** hides, for one frame, every object the node
   renderer cannot draw yet, and shows each again after. A material is hidden
@@ -85,7 +86,7 @@ webgpu paths.
 | `hero-shadow` | pass | 6 | the skiers' own shadow maps, one depth atlas, read by the key's light. Ported |
 | `shadow-depth` | pass | 16 | WebGL's sun-map depth by kind and its opaque sort. The node renderer's shadow pass does not need it, so it stays WebGL-only until the GLSL goes |
 | `env-warm` | pass | 6 | the warm-up: every pipeline built behind the card (`warmNode`). Ported |
-| `grade-pass` | pass | 7 | the region's grade (the frame draws straight to the canvas instead) |
+| `grade-pass` | pass | 7 | the region's grade, the buzz and the blaze over the frame, with the tone map and the sRGB curve done by hand. Ported |
 | `snow-under` | pass | 14 | the snow under the skis |
 | `trail-overlay` | pass | 14 | the trail overlay |
 | `gpu-timer` | pass | 14 | the timer queries |
@@ -99,7 +100,7 @@ webgpu paths.
 | `wingsuit` | material | 12 | the wingsuit figure |
 | `gore-tree` | material | 11 | the gore on a tree |
 
-On the webgpu paths after part 6, the frame draws these:
+On the webgpu paths after part 7, the frame draws these:
 
 - the sky: the dome with the sun, the moon, the stars and the Milky Way,
   the contrails and LOW's cloud shell, and the far ranges
@@ -115,6 +116,7 @@ On the webgpu paths after part 6, the frame draws these:
 - the gate poles, the netting and the fences
 - the lifts, with their chairs and towers
 - the lamps' glows
+- the region's grade over the whole frame, and the buzz and the blaze
 - the HUD
 
 All of it is hazed and lit by the key and the sky as WebGL lights them, and
@@ -186,39 +188,38 @@ second copy.
     asks for two);
   - the buzz or the blaze.
 
-  `region-picture.ts`'s `drawsStraight` is that decision. The webgpu
-  paths' picture (`render-seam.ts`'s `directPicture`) keeps the same
-  inputs and asks it every frame (`seam.hazeInDisplay`).
-- **How the fog node squares the two.** The node renderer's frame always
-  goes straight to the canvas through ACES until the grade pass is ported.
-  Where WebGL's frame would go straight too, the fog node:
+  `region-picture.ts`'s `drawsStraight` is that decision. Since part 7 the
+  same picture draws on every back end, and on the node renderer it tells
+  the haze every frame where to mix (`NodePicture.hazeInDisplay`).
+- **How the fog node squares the two.** Where the frame goes straight onto
+  the canvas, through three's own output pass, the fog node:
   1. carries the material's colour and the air's into display space, using
      the output pass's own transform (`toDisplay`);
   2. mixes them there;
   3. carries the result back (`fromDisplay`).
 
-  The output pass then lands on the pixel WebGL makes. Where WebGL would
-  draw through its target, the fog node mixes in linear light, as WebGL
-  does. A pixel with no haze keeps its colour to the bit.
+  The output pass then lands on the pixel WebGL makes. Where the frame
+  goes through the grade's target, the fog node mixes in linear light, as
+  WebGL does. A pixel with no haze keeps its colour to the bit. No region's
+  grade is the identity today, so every frame goes through the target on
+  every back end (part 7), and the display-space mix waits for a neutral
+  row.
 
 **Where the two paths still differ:**
 
-- **The lit colour under the haze.** Measured on the chairs of seed 38's
-  lift, inside the outline, from 20 m out to 300 m, at noon and at dusk, on
-  LOW and on HIGH. The haze matches WebGL's to a few levels at every
-  distance. A lit surface is still about 8–15 levels lower in blue on the
-  webgpu paths, near and far alike, and part 1's frame was lower by the
-  same amount. Part 3 shows the gap is not in the lighting either: the
-  dome is lit by nothing, and its sky is still 8–11 levels lower in blue
-  (and 3–5 in green) at noon, on LOW's table and on HIGH's passes alike
-  (seed 38's vista, rows 30–100). The node ACES fit accounts for under one
-  level of it, and brightens. What is left sits after the twin's linear
-  colour: the output pass or the canvas. That is part 7's to find.
+- **The lit colour under the haze** was 8–15 levels lower in blue on the
+  webgpu paths from part 1 to part 6, the dome's sky as much as a lit
+  surface. It was the grade: the alpine is graded, its shade split pulls
+  everything below white toward a deep blue, and the node frame went
+  straight to the canvas without it. Part 7 draws the grade and closes it
+  (see part 7 for the measurement).
 
 - **Three's NODE ACES fit is not quite its GLSL one.** The node fit also
-  multiplies the `0.432951` by `0.983729`, so the node canvas is a hair
-  darker in the mid-tones. Squaring that belongs to part 7. The inverse used
-  here is the node fit's, because that is the one the fog node has to undo.
+  multiplies the `0.432951` by `0.983729`, so three's node output pass is a
+  hair darker in the mid-tones. The grade's pass (part 7) tone maps with the
+  GLSL fit by hand (`grade-tsl.ts`'s `acesGlsl`), so a graded frame matches
+  WebGL's. The fog node's inverse is still the node fit's, because that is
+  the one a frame drawn straight goes through.
 
 **Stand-ins until their parts:**
 
@@ -576,6 +577,96 @@ literal, and both node layouts), the atlas on each renderer, the
 key's map masking only a dressed caster, and `warmNode`'s draw and
 everything it puts back.
 
+## The grade and the post (part 7)
+
+The region's grade, the buzz and the blaze now draw on the webgpu paths.
+WebGL's code path is untouched, so its picture is the same to the bit.
+
+| Piece | WebGL | Node renderer |
+| --- | --- | --- |
+| Where the frame is drawn | `grade-pass.ts`'s half-float `WebGLRenderTarget`, multisampled as the ANTIALIAS row asks | the same pass over three's own `RenderTarget` (`createGradePass(samples, node)`) |
+| What decides it | `region-picture.ts` (`drawsStraight`, the samples, the buzz, the blaze) | the same picture, handed the seam's `post` (`NodePicture`): the canvas's samples, the node grade, where the haze mixes, the counters |
+| The pass | a `ShaderMaterial` quad, `GRADE_FRAGMENT` | `grade-tsl.ts`'s `gradeOutput` on a `RenderPipeline`, over the pass's own uniforms by reference |
+| The tone map and the sRGB curve | three's `tonemapping_fragment` and `colorspace_fragment` in the quad | done by hand in the quad (`acesGlsl`, `sRGBTransferOETF`), the pipeline's `outputColorTransform` off |
+| The warm-up | three's `compile` against the pass's target | `warmNode` draws through one pixel of the pass's target, the target the caller set |
+
+**The order is WebGL's.** Three's node output transform would run after
+everything the quad does. WebGL's pass tone maps before the grade and
+encodes after it, so the quad does both itself, in that order: the buzz's
+and the shimmer's reads, the tone map, the grade, the buzz's edges and the
+blaze, the sRGB curve. The scene is drawn into the target in linear light
+(the node renderer tone maps nothing into a target), so the haze mixes
+there as WebGL's does (`hazeInDisplay(false)`).
+
+**The steady blue deficit was the grade.** Parts 1 to 6 measured the node
+frame 8–15 levels short in blue, the dome as much as a lit surface, and
+looked for it in the output pass and the canvas. Neither is the cause. A
+patch of flat colour drawn by a `MeshBasicMaterial` with ACES and sRGB
+lands on the same canvas byte, to a level, on WebGL, WebGPU and `webgpu-gl`,
+read back from the canvas or from a screenshot. Drawn in the game, the
+same patch came out as (134, 182, 234) on WebGL and (137, 179, 220) on
+WebGPU. Only WebGL's moved. The alpine's grade is not the identity (a
+shade split toward `#3f6ab0`, a touch of contrast and colour), and the
+grade's model (`gradeTone`) takes (136, 179, 219) to (133, 182, 234).
+Every WebGL frame went through the grade, and the node frame went
+straight to the canvas without it. `colour-grade.ts`'s comment that the
+alpine is the identity was stale and is corrected.
+
+Measured on `make world SEED=38` at 1280×720 (spawn, chase-6, track, far),
+as webgpu's mean minus WebGL's on the same view, in canvas levels (R, G, B).
+The sky is the top 120 rows and the snow the bottom 240, each averaged over
+the four views:
+
+| Quality | Hour | Sky, before | Sky, after | Snow, before | Snow, after |
+| --- | --- | --- | --- | --- | --- |
+| LOW | 9 | +3.3 −1.3 −12.6 | +0.2 +0.2 +0.2 | −0.6 −2.1 −9.0 | −0.7 +0.1 +0.6 |
+| LOW | 12 | +3.0 −1.8 −13.0 | +0.2 +0.2 +0.2 | −2.5 −3.7 −9.8 | −1.3 −0.6 −0.3 |
+| LOW | 16.5 | +1.0 −1.1 −8.8 | +0.1 +0.2 +0.3 | −1.7 −1.5 −4.9 | −2.0 −1.7 −1.5 |
+| HIGH | 9 | −4.8 −6.5 −12.8 | −8.0 −4.9 +0.3 | +5.8 +2.7 −6.6 | +5.6 +4.8 +3.2 |
+| HIGH | 12 | −5.2 −7.1 −13.8 | −8.2 −5.1 −0.3 | −2.6 −3.9 −10.1 | −1.6 −0.9 −0.3 |
+| HIGH | 16.5 | −7.2 −5.3 −5.6 | −8.5 −3.5 +5.1 | +5.9 +3.1 −4.0 | +5.2 +2.6 −0.2 |
+
+At LOW the sky now matches WebGL's to a fifth of a level, and the snow to
+one or two. The blue is gone at HIGH too. What is left at HIGH is not the
+grade. The sky's red is the clouds, which the webgpu paths still draw as
+LOW's shell (part 10). The snow's few levels in the morning and the late
+afternoon are the woods' and the cabins' shadows and shapes, which are not
+drawn there yet (parts 8 and 13). `webgpu-gl` measures the same as WebGPU
+to a fifth of a level. The buzz and the blaze, forced on over seed 38's
+far view at LOW, land within a level of WebGL's on both node back ends,
+the flames rising from the foot of the frame on all three.
+
+**What a draw binds after part 7**, counted on `webgpu-gl` the same way
+(seed 38's spawn view): the grade's quad binds one texture unit. The most
+any fragment program binds is 12 at LOW and 15 at HIGH, the ground, as
+before. The most any vertex program binds is 8.
+
+**The traps:**
+
+- **The alpine is graded.** `isNeutral` is false for every region today,
+  so a frame drawn straight onto the canvas is never the normal case on
+  any back end. The display-space haze (`toDisplay`, part 2) now serves
+  only a neutral row, and none exists.
+- **A target's scissor is its own.** On the node renderer a render target
+  is cut by its own `scissor`, and only while the canvas's scissor test is
+  on. So `warmNode` sets the target's scissor to one pixel and puts it
+  back.
+- **A pipeline is built for its target.** The pass's target is half float
+  at the ANTIALIAS row's samples, and the canvas's frame is drawn at the
+  canvas's samples. So the warm-up draws into the target the frame will
+  use, and changing the ANTIALIAS row builds new pipelines.
+- **Three's node ACES fit is not its GLSL one** (part 2). The grade uses
+  the GLSL fit, restated in `acesGlsl`, and `tests/grade_tsl_test.ts`
+  holds it to three's chunk.
+
+`tests/grade_tsl_test.ts` holds the register row, the alpine's grade
+behind the deficit, the pass on each renderer over one set of uniforms,
+the picture's order on the node renderer (the haze told, the scene into
+the target, the grade after, the counters before it), the node grade
+built on plain Node as a `RenderPipeline` with its output transform off,
+every number of `GRADE_FRAGMENT` restated in the TSL, and the warm-up
+through a target's own scissor.
+
 ## Measuring both paths
 
 Every browser lab takes `--renderer=webgl|webgpu|webgpu-gl`
@@ -620,7 +711,10 @@ lines.
 | 6 Shadows and the warm-up | 2026-10-20 | webgl | 100 | 231 882 | 51 programs | 12.18 | 5.77 | 0 / 0 | the 24 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, track, far) are pixel-identical to part 5's. At HIGH: 110 draws, 686 162 triangles, 67 programs, 18.43 ms |
 | 6 Shadows and the warm-up | 2026-10-20 | webgpu | 80 (80 before) | 144 327 (144 327) | 62 programs, 40 pipelines (54, 35 before) | 2 459.63 (1 849.30 before) | 2 453.48 (1 842.99) | 6 passes / 29 meshes (8 / 29 before) | The key's map with the mountain's cut, the skiers' atlas and the warm-up. The warm-up builds every pipeline before the run, so more are counted (the cut ground and what was hidden at the start). The steady readings are 8–19 ms; the mean is the device's queue on SwiftShader, and the last reading drains it (7 842 ms; 7 800 before). Two runs of the same build differ by a third here, as WebGL's own mean does (1 371 and 981 ms for one code path). At HIGH: 83 draws (100), 460 791 triangles (497 357), 121 programs and 89 pipelines (81, 52), 9 472.08 ms (9 416.62) with steady readings of 17–27 ms and a last reading of 43 689 ms (36 624). The game's own race builds no pipeline after the card lifts (see part 6) |
 
-Parts 1 to 6 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+| 7 Grade and post | 2026-10-20 | webgl | 100 | 231 877 | 51 programs | 12.60 (13.86 before) | 5.83 (6.21) | 0 / 0 | the 24 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, track, far) are pixel-identical to part 6's. At HIGH: 110 draws, 686 187 triangles, 67 programs, 19.66 ms (20.16) |
+| 7 Grade and post | 2026-10-20 | webgpu | 79 (80 before) | 143 958 (144 327) | 62 programs, 40 pipelines (62, 40 before) | 1 333.19 (2 422.07 before) | 1 325.83 (2 415.02) | 5 passes / 29 meshes (6 / 29 before) | The grade, the buzz and the blaze draw, and the blue deficit is closed. The grade's pipeline takes the place of three's output pass, so the counts hold. The steady readings are 10–12 ms; the mean is the device's queue on SwiftShader, which the last reading drains (4 078 ms; 8 194 before), and two runs of one build differ by that much (part 6). At HIGH: 85 draws (83), 464 052 triangles (460 791), 121 programs and 89 pipelines (121, 89), 9 951.81 ms (10 389.35) with steady readings of 17–24 ms (12–19) and a last reading of 40 829 ms (41 815) |
+
+Parts 1 to 7 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis).
 
 ## Systems ported
@@ -631,7 +725,7 @@ Parts 1 to 6 were measured with `make bench ARGS="--renderer=both --frames 60 --
 - [x] 4 Terrain and snow I (`terrain`): the clipmap's vertices, the snow's sample, colour and light, the strata, summer, the room cut, each as the ground's node twin
 - [x] 5 Trails and deform (`trail-map`, `deform`): the trail maps' four passes and the deformable snow's shade as node twins; the furrows, grooves, piste tracks, tree wells, avalanche and deformable snow in the ground's twin
 - [x] 6 Shadows and the warm-up (`hero-shadow`, `env-warm`): the key's map with the mountain's cut, the skiers' atlas, every pipeline built behind the card; `shadow-depth` kept for WebGL until part 16
-- [ ] 7 Grade and post (`grade-pass`)
+- [x] 7 Grade and post (`grade-pass`): the region's grade, the buzz and the blaze as a `RenderPipeline` over the pass's own uniforms, the tone map and the sRGB curve by hand in WebGL's order; the warm-up through the grade's target
 - [ ] 8 Forest (`forest-batch`)
 - [ ] 9 Particles and air
 - [ ] 10 Clouds (`clouds`)

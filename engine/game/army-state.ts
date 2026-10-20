@@ -243,6 +243,14 @@ export type ArmyState = {
   waveSleds: number;
   routes: WaveRoute[];
   marched: number;
+  /** THE WAVES' VEHICLES (`army-vehicle.ts`): the carriers, trucks and
+   * tanks out, the next one's id, and the counts the labs read: vehicles
+   * called, men put down off them, the tanks' rounds fired. */
+  vehicles: ArmyVehicle[];
+  nextVehicle: number;
+  vehiclesCalled: number;
+  unloaded: number;
+  shells: number;
   /** THE ARREST: the soldier holding him, when it was made, and where and
    * which way he was put down — absent until one is. */
   arrest?: { by: number; t: number; x: number; z: number; heading: number };
@@ -345,6 +353,82 @@ export type ArmySledEvent = {
   z: number;
 };
 
+/** What one of the waves' vehicles is doing (`army-vehicle.ts`):
+ *   * `due`: brought up the valley, not yet on the map (it sets off at
+ *     `due`);
+ *   * `drive`: up the way from the valley, then after him over the snow;
+ *   * `drop`: halted, its men getting out of the back;
+ *   * `park`: a carrier stood where it put its men down, watching him;
+ *   * `halt`: a tank stopped to lay its gun on him and fire;
+ *   * `leave`: the hunt over (or a truck emptied), back down the way it
+ *     came;
+ *   * `gone`: off the map — dropped at the end of the step. */
+export type ArmyVehicleMode = "due" | "drive" | "drop" | "park" | "halt" | "leave" | "gone";
+
+/** ONE OF THE WAVES' VEHICLES: its kind and its wave; its middle on the
+ * snow (m, the front unit's for a carrier), the way it faces and its
+ * attitude off the ground under it (rad, the game's conventions), its pace
+ * along its heading (m/s, negative backing); a carrier's rear unit's
+ * heading; the way it steers and the pace it wants; THE WAY UP it drives
+ * (the wave's own, from the valley to where the column formed) and the
+ * next point of it; the men aboard; a tank's turret off its nose and its
+ * gun's elevation (rad), its rounds this halt, the next run time it may
+ * halt and when it last fired; when its crew last saw him; and the
+ * bookkeeping its stuck watch runs on. */
+export type ArmyVehicle = {
+  id: number;
+  kind: "carrier" | "truck" | "tank";
+  wave: number;
+  mode: ArmyVehicleMode;
+  due: number;
+  t: number;
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+  pitch: number;
+  roll: number;
+  speed: number;
+  rear: number;
+  way: number;
+  pace: number;
+  path: { x: number; z: number; w: number }[];
+  leg: number;
+  aboard: number;
+  turret: number;
+  gun: number;
+  shots: number;
+  next: number;
+  fired: number;
+  saw: number;
+  wx: number;
+  wz: number;
+  wt: number;
+  slow: number;
+  side: number;
+  until: number;
+  dug: number;
+  stuck: number;
+};
+
+/** A WAVE VEHICLE'S EVENT: brought up the valley (`called`), set off up
+ * the way (`out`), its men out of the back (`drop`), a tank halted to fire
+ * (`halt`) and its gun fired (`fire`), backed out of where it was held
+ * (`dug`), put back on the way after a third window held (`stuck`), him
+ * knocked down by its front (`strike`), and gone (`gone`). */
+export type ArmyVehicleEvent = {
+  kind: "army-vehicle";
+  t: number;
+  change: "called" | "out" | "drop" | "halt" | "fire" | "dug" | "stuck" | "strike" | "gone";
+  id: number;
+  vehicle: ArmyVehicle["kind"];
+  x: number;
+  y: number;
+  z: number;
+};
+
 /** THE HUNT'S EVENTS — the wanted level's, the gunfire's, the army's
- * machines', its soldiers' and its snowmobiles' — as one row of `GameEvent`. */
-export type HuntEvent = WantedEvent | GunfireEvent | ArmyEvent | SoldierEvent | ArmySledEvent;
+ * machines', its soldiers', its snowmobiles' and its waves' vehicles' — as
+ * one row of `GameEvent`. */
+export type HuntEvent =
+  WantedEvent | GunfireEvent | ArmyEvent | SoldierEvent | ArmySledEvent | ArmyVehicleEvent;

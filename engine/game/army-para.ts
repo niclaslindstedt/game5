@@ -16,10 +16,13 @@
 // body is crossed.
 //
 // THE HANDS. A pilot circling a man on the snow flies a ground track, not
-// a heading: the way round the circle (and in or out onto it), and the
-// heading that holds that track with the wind blowing him off it — the
-// CRAB a pilot reads off his drift. The toggles follow that heading, damped
-// against the turn already going. The throttle holds a height over the
+// a heading: the way round the circle (and in or out onto it) at the
+// orbit's speed, the circle carried along at the man's own speed, and the
+// heading through the air that sums with the wind to that — the CRAB a
+// pilot reads off his drift. The toggles follow that heading, damped
+// against the turn already going (gently while well under his height: a
+// wing banked hard sinks), and the speed bar goes out when the track needs
+// more than the trim. The throttle holds a height over the
 // circle's highest snow, crowns and lift ropes and over the ground ahead;
 // under the hard floor it goes to full. Two paramotors keep apart, and
 // both keep off the army's helicopters' discs. A pilot does not fly in a
@@ -53,6 +56,7 @@ import { crownAt, fallPiece, lineDir, liftDrag, pullLines, swingDamp, wayOf } fr
 import { paraAirAt, type ParaAir } from "./para-air.ts";
 import { armGun, disarmGun, fireAt, gunReady } from "./gunfire.ts";
 import { enlist } from "./army-troop.ts";
+import { quarryVelocity } from "./army.ts";
 import { liftPlans, ropeAt } from "./lift-line.ts";
 import { treesNear } from "./upright-grid.ts";
 import { quarryOf, raiseHeat, seesQuarry } from "./wanted.ts";
@@ -192,10 +196,12 @@ export function launchPara(state: GameState, p: ArmyPara, events: GameEvent[]): 
   const r = (size / 2 - K.inset) / Math.max(Math.abs(sx), Math.abs(sz), 1e-6);
   p.x = size / 2 + sx * r;
   p.z = size / 2 + sz * r;
-  p.y = state.level.groundAt(p.x, p.z) + K.enter;
   const q = quarryOf(state);
+  // Over the snow under him and well over the man, whose slope may stand
+  // higher than the edge it comes in at.
+  p.y = Math.max(state.level.groundAt(p.x, p.z) + K.enter, q.y + K.orbit.height);
   const h = Math.atan2(q.x - p.x, q.z - p.z);
-  const trim = 15;
+  const trim = K.trim;
   p.vx = Math.sin(h) * trim;
   p.vy = 0;
   p.vz = Math.cos(h) * trim;
@@ -208,14 +214,16 @@ export function launchPara(state: GameState, p: ArmyPara, events: GameEvent[]): 
 
 // ─── the flight ────────────────────────────────────────────────────────
 
-/** ONE STEP OF THE RIG under the hands `steer` (−1..1), `throttle` and
- * `brake` (0..1): the engine, the pilot, the wing on its lines. */
+/** ONE STEP OF THE RIG under the hands `steer` (−1..1), `throttle`,
+ * `brake` and the speed bar `bar` (0..1): the engine, the pilot, the wing
+ * on its lines. */
 export function flyPara(
   state: GameState,
   p: ArmyPara,
   steer: number,
   throttle: number,
   brake: number,
+  bar = 0,
 ): void {
   const level = state.level;
   const w = p.wing;
@@ -224,6 +232,7 @@ export function flyPara(
   ctl.steer += (clamp(steer, -1, 1) - ctl.steer) * k;
   ctl.throttle += (clamp(throttle, 0, 1) - ctl.throttle) * k;
   ctl.brake += (clamp(brake, 0, 1) - ctl.brake) * k;
+  ctl.bar += (clamp(bar, 0, 1) - ctl.bar) * k;
   // THE ENGINE, its thrust along the way he faces, tilted up its line.
   const goal = E.idle + (E.full - E.idle) * ctl.throttle;
   w.rpm += (goal - w.rpm) * (1 - Math.exp(-dt / E.lag));
@@ -260,7 +269,10 @@ export function flyPara(
   const down = ax * U.x + ay * U.y + az * U.z;
   wayOf(ax, ay, az, down, U, w.heading, FW);
   const alpha =
-    PARA.rig + B.rig * ctl.brake + Math.atan2(-down, Math.max(1e-3, ax * FW.x + ay * FW.y + az * FW.z));
+    PARA.rig +
+    B.rig * ctl.brake +
+    ctl.bar * PARA.speedBar.rig +
+    Math.atan2(-down, Math.max(1e-3, ax * FW.x + ay * FW.y + az * FW.z));
   w.stalled = alpha > P.stall - B.stall * ctl.brake;
   const base = clamp(P.slope * (alpha - P.zero) + B.lift * ctl.brake, 0, P.most);
   const lift = w.stalled ? P.stalled : base;
@@ -300,7 +312,7 @@ export function flyPara(
   const hx = Math.cos(w.heading);
   const hz = -Math.sin(w.heading);
   w.bank = Math.atan2(U.x * hx + U.z * hz, U.y);
-  w.pitch = alpha - PARA.rig;
+  w.pitch = alpha - PARA.rig - ctl.bar * PARA.speedBar.rig;
   w.airspeed = V;
   w.alpha = alpha;
   const ground = level.groundAt(p.x, p.z);
@@ -348,30 +360,47 @@ function heightFor(state: GameState, p: ArmyPara, cx: number, cy: number, cz: nu
   return want;
 }
 
-/** THE HEADING THAT HOLDS THE TRACK `track` (rad) against the wind (`wx`,
- * `wz`) at airspeed `va` — the crab a pilot reads off his drift. */
-export function crabFor(track: number, wx: number, wz: number, va: number): number {
-  const right = wx * Math.cos(track) - wz * Math.sin(track);
-  return track + Math.asin(clamp(-right / Math.max(5, va), -0.9, 0.9));
-}
-
-/** The hands to fly the ground track `gx, gz` (unit) and hold height
- * `want`: the steer and the throttle. */
-function handsFor(state: GameState, p: ArmyPara, gx: number, gz: number): { steer: number; throttle: number } {
+/** THE HANDS TO MAKE GOOD THE GROUND VELOCITY (`gx`, `gz`) m/s and hold
+ * the height `p.want`: the heading through the air that sums with the wind
+ * to it (the crab a pilot reads off his drift), the toggle toward that
+ * heading damped against the turn already going, the speed bar pushed when
+ * it needs more than the trim, and the throttle on the height. */
+function handsFor(
+  state: GameState,
+  p: ArmyPara,
+  gx: number,
+  gz: number,
+): { steer: number; throttle: number; bar: number } {
   const w = p.wing;
-  const h = crabFor(Math.atan2(gx, gz), air.x, air.z, w.airspeed);
   const H = K.hands;
-  const err = angleDiff(w.heading, h);
-  const steer = clamp(H.steer * err - 0.6 * p.rate, -H.most, H.most);
+  const nx = gx - air.x;
+  const nz = gz - air.z;
+  const err = angleDiff(w.heading, Math.atan2(nx, nz));
+  // A wing banked hard sinks: well under the height he wants, he turns
+  // gently and climbs first.
+  const most = p.y < p.want - H.under ? H.climbing : H.most;
+  const steer = clamp(H.steer * err - 0.6 * p.rate, -most, most);
+  const bar = clamp((hypot(nx, nz) - K.trim) / H.barSpan, 0, 1);
   const ground = state.level.groundAt(p.x, p.z);
   const low = p.y < ground + K.clear.floor || p.y < clearAt(state, p.x, p.z) - K.clear.snow + K.clear.floor;
   const throttle = low ? 1 : clamp(H.trim + H.perMetre * (p.want - p.y) - H.perClimb * p.vy, 0, 1);
-  return { steer, throttle };
+  return { steer, throttle, bar: low ? 0 : bar };
 }
 
-/** THE TRACK round the circle at (cx, cz), radius `R`: round it, in or out
- * onto it, and off the others' tracks and the helicopters' discs. */
-function trackRound(state: GameState, air2: ArmyAirState, p: ArmyPara, cx: number, cz: number, R: number): V {
+/** THE GROUND VELOCITY TO FLY round the circle at (cx, cz), radius `R`,
+ * the circle itself moving at (`ux`, `uz`): round it at the orbit's speed,
+ * in or out onto it, and off the others' tracks and the helicopters'
+ * discs. */
+function trackRound(
+  state: GameState,
+  air2: ArmyAirState,
+  p: ArmyPara,
+  cx: number,
+  cz: number,
+  ux: number,
+  uz: number,
+  R: number,
+): V {
   let rx = p.x - cx;
   let rz = p.z - cz;
   const d = Math.max(1, hypot(rx, rz));
@@ -380,9 +409,10 @@ function trackRound(state: GameState, air2: ArmyAirState, p: ArmyPara, cx: numbe
   const tx = p.dir * rz;
   const tz = -p.dir * rx;
   const O = K.orbit;
-  const inward = d > O.far * R ? 3 : clamp((R - d) * O.close * 3, -2, 2);
-  let gx = tx + rx * inward;
-  let gz = tz + rz * inward;
+  // Inward (toward the middle) is −r̂.
+  const inward = d > O.far * R ? 3 : clamp((d - R) * O.close * 3, -2, 2);
+  let gx = tx - rx * inward;
+  let gz = tz - rz * inward;
   // Kept off the others and the helicopters.
   for (const o of air2.paras) {
     if (o === p || o.mode !== "fly") continue;
@@ -408,7 +438,8 @@ function trackRound(state: GameState, air2: ArmyAirState, p: ArmyPara, cx: numbe
     }
   }
   const g = Math.max(1e-6, hypot(gx, gz));
-  return { x: gx / g, y: 0, z: gz / g };
+  const v = d > O.far * R ? O.dash : O.speed;
+  return { x: ux + (gx / g) * v, y: 0, z: uz + (gz / g) * v };
 }
 
 // ─── the hunt ──────────────────────────────────────────────────────────
@@ -435,9 +466,10 @@ export function huntPara(
   }
   // The air at the wing as it last read, for the crab.
   paraAirAt(state.level, state.t, p.wing.x, p.wing.y, p.wing.z, air);
-  const g = trackRound(state, air2, p, cx, cz, R);
+  const u = seen ? quarryVelocity(state) : { x: 0, z: 0 };
+  const g = trackRound(state, air2, p, cx, cz, u.x, u.z, R);
   const hands = handsFor(state, p, g.x, g.z);
-  flyPara(state, p, hands.steer, hands.throttle, 0);
+  flyPara(state, p, hands.steer, hands.throttle, 0, hands.bar);
   fireRifle(state, p, w, q, events);
 }
 
@@ -446,15 +478,15 @@ export function leavePara(state: GameState, p: ArmyPara, events: GameEvent[]): v
   p.firing = false;
   disarmGun(state, gunOf(p));
   const size = state.level.size;
-  const gx = Math.sin(p.bearing);
-  const gz = Math.cos(p.bearing);
+  const gx = Math.sin(p.bearing) * K.trim;
+  const gz = Math.cos(p.bearing) * K.trim;
   if (state.t - p.read >= READ) {
     p.read = state.t;
     p.want = Math.max(state.level.groundAt(p.x, p.z) + K.leave.height, heightFor(state, p, p.x, p.y, p.z, 0, 0));
   }
   paraAirAt(state.level, state.t, p.wing.x, p.wing.y, p.wing.z, air);
   const hands = handsFor(state, p, gx, gz);
-  flyPara(state, p, hands.steer, hands.throttle, 0);
+  flyPara(state, p, hands.steer, hands.throttle, 0, hands.bar);
   const past = K.leave.past;
   if (p.x < -past || p.z < -past || p.x > size + past || p.z > size + past) {
     p.mode = "gone";

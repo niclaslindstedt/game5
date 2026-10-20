@@ -88,7 +88,7 @@ export function airTable(E, level, args, list) {
       for (let i = 0; i < args.seconds / dt; i++) {
         let input;
         if (chase && s.heli?.rider && s.heli.mode !== "wreck") {
-          // At the nearest paramotor flying, at its height; else hold.
+          // Over the nearest paramotor flying, its wash down on the wing; else hold.
           let aim = null;
           let best = Infinity;
           for (const p of paras(s)) {
@@ -103,7 +103,7 @@ export function airTable(E, level, args, list) {
             ? E.pilotInput(s, {
                 x: aim.wing.x,
                 z: aim.wing.z,
-                height: Math.max(15, aim.wing.y - level.groundAt(aim.wing.x, aim.wing.z) - 4),
+                height: Math.max(15, aim.wing.y - level.groundAt(aim.wing.x, aim.wing.z) + 8),
               })
             : E.pilotInput(s, { x: s.heli.x, z: s.heli.z, height: 120 });
         } else input = quarry === "still" ? E.NEUTRAL_INPUT : E.botInput(s);

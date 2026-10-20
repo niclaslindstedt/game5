@@ -42,6 +42,9 @@ export const ARMY_AIR = {
      * circle in a wind past about two thirds of that — a pilot stays on
      * the ground (`most`, m/s at 10 m over him). */
     most: 9,
+    /** THE WING'S TRIM, m/s: the free ride's wing flies near 15 m/s hands
+     * up; the speed bar adds a few. */
+    trim: 15,
     /** THE SOLDIER IN THE HARNESS with his kit, kg (`ARMY_GROUND.mass`'s
      * man), the motor's on his back besides; his drag area seated in the
      * harness with the cage behind him, m² (a seated pilot's frontal area
@@ -50,8 +53,10 @@ export const ARMY_AIR = {
     /** THE ORBIT round him: its radius, m, its height over him, m, and how
      * hard it closes on the circle's radius (the share of the way spent
      * closing on it per m off it, against the way round). Off the circle
-     * further than `far` radii, it flies straight in. */
-    orbit: { radius: 150, height: 60, close: 0.012, far: 1.8 },
+     * further than `far` radii, it flies straight in. `speed` is the way
+     * round over the ground, m/s, on top of the man's own, and `dash` the
+     * way in from further out (the speed bar all the way out). */
+    orbit: { radius: 150, height: 60, close: 0.012, far: 1.8, speed: 15, dash: 19 },
     /** THE SEARCH out of sight: the circle round where he was last seen,
      * this many times wider and `height` m over it. */
     search: { wider: 1.6, height: 90 },
@@ -67,9 +72,21 @@ export const ARMY_AIR = {
     heli: 60,
     /** THE HANDS: how hard the toggles follow the heading it wants, per
      * rad off it; the most toggle it pulls (a steady turn, never a
-     * spiral); and the throttle's hold — its trim, per m off the height it
-     * wants, per m/s of climb. */
-    hands: { steer: 1.4, most: 0.55, trim: 0.55, perMetre: 0.04, perClimb: 0.25 },
+     * spiral), and the least of it while more than `under` m under the
+     * height it wants (`climbing`: a wing banked hard sinks); the m/s past
+     * the trim over which the speed bar goes all the way out; and the
+     * throttle's hold — its trim, per m off the height it wants, per m/s
+     * of climb. */
+    hands: {
+      steer: 1.4,
+      most: 0.35,
+      under: 20,
+      climbing: 0.15,
+      barSpan: 4,
+      trim: 0.55,
+      perMetre: 0.04,
+      perClimb: 0.25,
+    },
     /** THE RIFLE from the harness: he fires within `range` m of him and
      * in sight, a burst at a time, `every` s apart at the least. */
     fire: { range: 340, every: 3.5 },

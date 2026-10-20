@@ -135,7 +135,7 @@ export { rearOf } from "./army-vehicle-body.ts";
 // THE ARMY'S PARAMOTORS AND BALLOONS (`army-air.ts`): riflemen and rocketeers.
 export { ARMY_AIR } from "./defs/army-air.ts";
 export { airWanted, armyBalloons, armyParas, nearestAir, stepArmyAir } from "./army-air.ts";
-export { AIR_SQUAD, crabFor, flyPara } from "./army-para.ts";
+export { AIR_SQUAD, flyPara } from "./army-para.ts";
 export { rocketGun } from "./army-balloon.ts";
 export { freshAirState } from "./army-air-state.ts";
 export type * from "./army-air-state.ts";

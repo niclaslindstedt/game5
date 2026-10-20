@@ -119,6 +119,7 @@ import { feelBumps, markFall } from "./body.ts";
 import { freshGore } from "./gore-state.ts";
 import { copyCall, type RescueCall } from "./rescue-call.ts";
 import { meetFoot, stepFoot, withFoot, type FootCall, type FootState } from "./foot.ts";
+import { meetLying } from "./lying.ts";
 import { freshSkier } from "./skier.ts";
 import { freshStep } from "./snowfall.ts";
 import { pisteDayOf } from "./piste-day.ts";
@@ -864,6 +865,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   // THE PEOPLE ON FOOT (`foot.ts`): the bodies down, and any run into.
   stepFoot(state);
   if (state.rules.contact) meetFoot(state, events);
+  // ...and THE BODIES LYING ON THE SNOW gone over (`lying.ts`).
+  if (state.rules.contact) meetLying(state, events);
   // THE GRIMBEAR (`grimbear.ts`), on a free ride he was dealt to.
   if (state.grimbear) stepGrimbear(state, events);
   // THE WILDLIFE (`beast-hit.ts`): the groups he puts up.

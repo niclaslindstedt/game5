@@ -2,7 +2,8 @@
 // The crowd's smaller exports, gathered for `engine/index.ts`: the lift's
 // cabin test, an amateur thrown, a person run into with the bodies that
 // need collecting after (`person-hit.ts`), and the people on foot met as
-// bodies (`foot.ts`) with the routes they walk (`foot-route.ts`).
+// bodies (`foot.ts`) with the routes they walk (`foot-route.ts`), and the
+// bodies lying on the snow gone over (`lying.ts`).
 
 export { inCabin } from "./crowd-lift.ts";
 export { throwAmateur } from "./crowd-down.ts";
@@ -18,6 +19,7 @@ export {
   type StruckPerson,
 } from "./person-hit.ts";
 export { personGive } from "./body-person.ts";
+export { meetLying, type LyingBy, type LyingOver } from "./lying.ts";
 export { PERSON_HIT } from "./defs/person-hit.ts";
 export {
   CREW_KEYS,

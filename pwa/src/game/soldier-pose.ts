@@ -45,7 +45,7 @@ export const SOLDIER_LOOK: CrowdLook = {
   pack: true,
 };
 
-/** THE FIGURES: a soldier on skis (rifle slung, poles in his hands), one on
+/** THE FIGURES: a soldier on skis (rifle on his chest, poles in his hands), one on
  * his feet (rifle in his hands), the door gunner (sat at his gun, no
  * rifle) and the anti-armour man (the launcher, and a rifle). */
 export type SoldierKind = "skier" | "foot" | "gunner" | "rocketeer";
@@ -148,7 +148,7 @@ function rifleInHands(P: Posed, up: V3): Carried {
 }
 
 /** THE PACK, m: how far out from the chest's back it stands at its belly
- * (its depth — what a rifle or a launcher slung on the back lies over),
+ * (its depth — what a launcher slung on the back lies over),
  * how wide and how tall it is (a large-volume patrol rucksack, some 80 to
  * 100 litres: about 0.6 m tall, 0.35 wide and 0.25 deep loaded), and how
  * far under the chest's middle its middle sits. */
@@ -163,6 +163,66 @@ function slung(P: Posed, length: number, look: CrowdLook, mirror = 1, over = 0):
   const rear = add(add(back, mul(c.r, 0.2 * mirror)), mul(c.u, -0.32));
   const toward = norm(add(mul(c.r, -0.42 * mirror), mul(c.u, 0.9)));
   return { rear, front: add(rear, mul(toward, length)), up: mul(c.f, -1) };
+}
+
+/** THE RIFLE ON THE CHEST SLING, the way a ski trooper carries it when he
+ * is not using it: slung low across the front of him over the chest rig,
+ * the butt up on his right breast and the muzzle down past his left hip,
+ * steep enough to stay between his arms so the poles swing clear of it.
+ * It lies on its side against him, its top toward his left shoulder and
+ * its magazine and grip toward his right hip, so nothing of it points
+ * into the rig. The point a fall lands on is the stock, not the muzzle,
+ * and it comes up to the shoulder from there in one move. */
+const SLING = {
+  /** How far out from the smock's line its axis lies, m: over the
+   * pouches (which stand some 6 cm out) and half its own width more. */
+  out: 0.1,
+  /** Where the butt sits from the chest's middle: up and to his right, m. */
+  up: 0.2,
+  right: 0.11,
+  /** Its line down across him, in his right and up (unnormalized). */
+  across: -0.36,
+  down: 0.93,
+  /** How far its line swings from the chest's own down toward the
+   * ground's, 0..1 (a sling holds the butt, the muzzle hangs). */
+  swing: 0.5,
+  /** How much further across him it lies the more he bends over. */
+  aside: 1.1,
+} as const;
+
+function chestSling(P: Posed, look: CrowdLook): Carried {
+  const c = chestOf(P);
+  const mid = mix(P.waist, P.neck, 0.5);
+  const rear = add(
+    add(add(mid, mul(c.f, look.girth + SLING.out)), mul(c.u, SLING.up)),
+    mul(c.r, SLING.right),
+  );
+  // Down across him, swung toward the ground as far as the sling lets it
+  // when he bends over (a pole plant, a crouch), and never into him.
+  const down = norm(mix(mul(c.u, -1), [0, -1, 0], SLING.swing));
+  // Bent over, his thighs come up under it: it swings out past the left
+  // knee instead of between them (`bent`: 0 upright, 1 the chest flat).
+  const bent = Math.max(0, 1 - c.u[1]);
+  let a = norm(add(mul(c.r, SLING.across - SLING.aside * bent), mul(down, SLING.down)));
+  const into = dot(a, c.f);
+  if (into < 0) a = norm(sub(a, mul(c.f, into)));
+  // On its side: its top in the chest's plane, square to it, upward.
+  const s = cross(a, c.f);
+  const top = dot(s, c.u) >= 0 ? s : mul(s, -1);
+  return { rear, front: add(rear, mul(a, RIFLE.length)), up: top };
+}
+
+/** SAT DOWN on a chair, the same sling let out: the muzzle comes down
+ * onto his lap and the rifle lies along his left thigh, the butt at his
+ * belt in front of him and the muzzle out past the knee, on its side. */
+function lapSling(P: Posed, look: CrowdLook): Carried {
+  const c = chestOf(P);
+  const rear = add(add(P.waist, mul(c.f, look.girth + 0.08)), mul(c.r, 0.04));
+  const thigh = add(P.kneeL, [0, 0.16, 0]);
+  const a = norm(sub(thigh, rear));
+  const s = cross(a, [0, 1, 0]);
+  const top = norm(dot(s, c.r) < 0 ? s : mul(s, -1));
+  return { rear, front: add(rear, mul(a, RIFLE.length)), up: top };
 }
 
 // ── keys ─────────────────────────────────────────────────────────────────
@@ -355,7 +415,8 @@ const AIMS: Readonly<Record<string, V3>> = {
 
 const SKI_DIALS: Readonly<Record<string, PoseDials>> = {
   ski: {},
-  tuck: { crouch: 0.85 },
+  // Under a loaded pack a soldier's tuck is a taller one than a racer's.
+  tuck: { crouch: 0.65 },
   lean: { lean: 1 },
   leanLeft: { leanLeft: 1 },
   pole: { pole1: 1 },
@@ -408,7 +469,7 @@ function skierPose(name: SoldierPoseName<"skier">): SoldierPose {
     const posed = flatSkis(keyPosed(PIN, SOLDIER_LOOK), SOLDIER_LOOK);
     return {
       posed,
-      rifle: slung(posed, RIFLE.length, SOLDIER_LOOK),
+      rifle: chestSling(posed, SOLDIER_LOOK),
       tube: null,
       poles: planted(posed),
     };
@@ -416,7 +477,7 @@ function skierPose(name: SoldierPoseName<"skier">): SoldierPose {
   const posed = poseCrowd(SOLDIER_LOOK, SKI_DIALS[name]);
   return {
     posed,
-    rifle: slung(posed, RIFLE.length, SOLDIER_LOOK),
+    rifle: name === "seat" ? lapSling(posed, SOLDIER_LOOK) : chestSling(posed, SOLDIER_LOOK),
     tube: null,
     poles: [
       [posed.handL, posed.basketL],
@@ -427,7 +488,7 @@ function skierPose(name: SoldierPoseName<"skier">): SoldierPose {
 
 /** A SOLDIER LYING as his body lies (`posed`, the ragdoll read as his
  * joints — `army-ground-view.ts`), carrying what his figure carries: the
- * rifle slung on his back, the launcher across it, and a skier's poles
+ * rifle on his chest sling, the launcher across his back, and a skier's poles
  * still in his fists, along his forearms. */
 export function lyingSoldier(posed: Posed, kind: SoldierKind): SoldierPose {
   const pole = (hand: V3, elbow: V3): [V3, V3] => {
@@ -437,7 +498,7 @@ export function lyingSoldier(posed: Posed, kind: SoldierKind): SoldierPose {
   const c = SOLDIER_CARRIES[kind];
   return {
     posed,
-    rifle: c.rifle ? slung(posed, RIFLE.length, SOLDIER_LOOK) : null,
+    rifle: c.rifle ? chestSling(posed, SOLDIER_LOOK) : null,
     tube: c.tube ? slung(posed, LAUNCHER.length, SOLDIER_LOOK, -1) : null,
     poles: c.skis ? [pole(posed.handL, posed.elbowL), pole(posed.handR, posed.elbowR)] : null,
   };
@@ -461,9 +522,7 @@ function footPose(name: SoldierPoseName<"foot">): SoldierPose {
                 : ROPE;
   const posed = keyPosed(k, SOLDIER_LOOK);
   const rifle =
-    name === "rope"
-      ? slung(posed, RIFLE.length, SOLDIER_LOOK)
-      : rifleInHands(posed, chestOf(posed).u);
+    name === "rope" ? chestSling(posed, SOLDIER_LOOK) : rifleInHands(posed, chestOf(posed).u);
   return { posed, rifle, tube: null, poles: null };
 }
 

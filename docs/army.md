@@ -93,7 +93,7 @@ The rotor blur is the heli's own (`rotorDisc`, `createRotorEye`), with four blad
 - mittens;
 - a large pack, its cover white too.
 
-Ski troops move on long, wide, plain white touring skis with a cable binding and carry their rifle slung. The weapons stay dark: a 5.56 mm-class assault rifle under a metre long and, for the section's anti-armour man, a disposable launcher tube about a metre long and under a decimetre across.
+Ski troops move on long, wide, plain white touring skis with a cable binding and carry their rifle slung low on the chest, muzzle down: it is to hand at once, and a fall lands on the stock rather than the muzzle. The weapons stay dark: a 5.56 mm-class assault rifle under a metre long and, for the section's anti-armour man, a disposable launcher tube about a metre long and under a decimetre across.
 
 **Drawn in code, like the crowd.** The soldiers are built on the crowd's bench and rig (`crowd-shapes.ts`' `Figure`, `crowd-rig.ts`'s `Posed`), so they are chunky, faceted and low-poly. From forty metres the silhouette and the colour are what read: a white figure with a helmet, a big pack and a black rifle. The figure is built for that:
 
@@ -102,12 +102,13 @@ Ski troops move on long, wide, plain white touring skis with a cable binding and
 - The goggles are dark, and the boots and weapons are the only other dark things on him.
 - The ski tops are white and their edges grey, so the skis still read on the snow.
 - The pack is a large-volume patrol rucksack (some 80 to 100 litres: about 0.6 m tall, 0.35 m wide and 0.25 m deep loaded) under a white snow cover. Its frame holds it close to the back from the small of it to the shoulders. So it is lofted as a soft, rounded bag whose face lies on the smock and whose belly stands out, with a domed lid a shade greyer over its top and a compression strap round each side, low and high (`PACK`, `emitPack`). Sat on a chair, the figure is set forward by the pack's depth, so the bag sits against the backrest rather than through it.
+- The rifle rides on a CHEST SLING whenever he is not using it: on skis, skinning, on a rope and lying down (`chestSling`). It hangs low across the front of him over the chest rig, the butt up on his right breast and the muzzle down past his left hip, steep enough to stay between his arms so the poles swing clear of it. It lies on its side, its top toward his left shoulder, so its magazine and grip lie flat against him rather than pointing into the rig. Bent over (a tuck, a pole plant), it swings toward the ground and out past the left knee rather than between his thighs. Under the loaded pack his tuck is a taller one than a racer's. Sat on a chair, the sling let out, it lies along his left thigh with the muzzle past the knee (`lapSling`). The rocket man keeps his rifle on his back while the launcher is on his shoulder. Every pose that aims or fires keeps the rifle in his hands.
 
 There are four figures (`SoldierKind`), each at three cuts (`CrowdLod`: about 500, 440 and 160 triangles). Every pose of a figure is a morph target, so one draw call can hold a whole squad. A pose no morph target holds can be set outright on the same mesh with `poseSoldierFigure` or `SoldierView.posed`. The gunner at an arbitrary aim is drawn this way.
 
 | Figure | Carries | Poses (the first its rest) |
 | --- | --- | --- |
-| `skier` | rifle slung over the pack, poles | `ski`, `tuck`, `lean`, `leanLeft`, `pole`, `skiAim` (stood on his skis aiming, the poles planted beside him) |
+| `skier` | rifle on the chest sling (along the left thigh when seated), poles | `ski`, `tuck`, `lean`, `leanLeft`, `pole`, `skiAim` (stood on his skis aiming, the poles planted beside him) |
 | `foot` | rifle in his hands | `ready` (the low ready), `walkA`, `walkB`, `aim` (stood, bladed, the butt in the shoulder), `kneel` (off the right knee), `doorSit` (in a doorway, the rifle across his lap), `rope` (hand under hand, the rifle slung) |
 | `gunner` | nothing (the door gun is the machine's) | `sit`, `fire`, `fireDown`, `fireFore`, `fireAft` |
 | `rocketeer` | rifle, launcher | `carry`, `walkA`, `walkB` (rifle at the ready, the launcher across his back), `launch`, `kneelLaunch` (the launcher on his right shoulder) |

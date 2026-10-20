@@ -30,6 +30,7 @@ import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
 import type { HazeUniforms } from "./haze.ts";
+import { createFlashLamps } from "./flash-lights.ts";
 import { createHeliScene, type HeliScene } from "./heli-scene.ts";
 import {
   CHUTE_RIGS,
@@ -178,6 +179,15 @@ export type Machines = {
   dispose(): void;
 };
 
+/** Whether a run may have a rescue drawn: the air ambulance after an
+ * injured run, the police after a death, either called to the crowd. */
+const callsRescue = (s: GameState): boolean =>
+  !!(s.gore || (s.crowd && s.rules.heli) || s.rescue?.length);
+
+/** How many flashes are lit at once (`flash-lights.ts`): one, as many point
+ * lights as the helicopter's explosion alone always stood in the scene. */
+const FLASH_LAMPS = 1;
+
 /** The longest the run's load waits on the machines' models, ms: a file that
  * never comes is linked when it does, rather than holding the card up. */
 const MODEL_WAIT = 5000;
@@ -281,6 +291,12 @@ export function createMachines(
   let doorEyes = false;
   let ownLook = false;
   if (heli) group.add(heli.group);
+  // THE LAMPS EVERY FLASH IS LENT (`flash-lights.ts`): the explosions', the
+  // police camera's — a fixed count from the run's start, so a flash built
+  // or shown mid-run never relinks every lit program in the scene.
+  const flashLamps = createFlashLamps(FLASH_LAMPS);
+  flashLamps.setCount(state.rules.heli || state.rules.sled ? FLASH_LAMPS : 0);
+  group.add(flashLamps.group);
   carried(state);
   // The balloon's own ladder while he stands in its basket.
   const basketLens = state.rules.heli ? createBalloonLadder() : null;
@@ -332,6 +348,20 @@ export function createMachines(
   // be called to mid-run, injuries on or off (`crowd-calls.ts`).
   let rescue: RescueScene | null = null;
   let rescueSleds: RescueSledsScene | null = null;
+  const rescueBuilt = (): RescueScene => {
+    rescue = createRescueScene(level, haze);
+    group.add(rescue.group);
+    return rescue;
+  };
+  const sledsBuilt = (): RescueSledsScene => {
+    rescueSleds = createRescueSledsScene(level, haze);
+    group.add(rescueSleds.group);
+    return rescueSleds;
+  };
+  // ...built with the world, behind the loading card, for a run that may
+  // call one: its models in and its programs linked before the run, never
+  // on the frame a call first shows it (or later, as he skis near).
+  const rescueReady = callsRescue(state) ? [rescueBuilt().ready, sledsBuilt().ready] : [];
   // THE AVALANCHE (`avalanche-view.ts`), built with the run's first slab.
   let slide: AvalancheView | null = null;
   // THE SKI PATROL AND THE SEARCH (`patrol-view.ts`), built when the first
@@ -357,6 +387,15 @@ export function createMachines(
   // THE ARMY'S MACHINES (`army-air-view.ts`), built the first time one is out.
   let army: ArmyAirView | null = null;
   let armyPace = 1;
+  const armyBuilt = (): ArmyAirView => {
+    army = createArmyAirView(haze);
+    army.setPace(armyPace);
+    group.add(army.group);
+    return army;
+  };
+  // ...built with the world on a run whose helicopter he may take — the
+  // theft that brings them out — so they never stall the picture as they come.
+  const armyReady = state.rules.heli ? [armyBuilt().ready] : [];
   let blastLensed = false;
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
@@ -366,9 +405,15 @@ export function createMachines(
       return balloon;
     },
     ready: Promise.race([
-      Promise.all([heli?.ready, sled?.ready, groomers?.ready, plane?.ready, hover?.ready]).then(
-        () => undefined,
-      ),
+      Promise.all([
+        heli?.ready,
+        sled?.ready,
+        groomers?.ready,
+        plane?.ready,
+        hover?.ready,
+        ...rescueReady,
+        ...armyReady,
+      ]).then(() => undefined),
       new Promise<void>((done) => setTimeout(done, MODEL_WAIT)),
     ]),
     seat(model, s) {
@@ -446,11 +491,8 @@ export function createMachines(
           s.army.troops.length > 0 ||
           s.army.sleds.length > 0 ||
           s.army.vehicles.length > 0)
-      ) {
-        army = createArmyAirView(haze);
-        army.setPace(armyPace);
-        group.add(army.group);
-      }
+      )
+        armyBuilt();
       army?.frame(s, alpha, dt, simDt, stamps, cloud);
       armyCraft?.frame(s, alpha, dt);
       heli?.frame(s, alpha, dt, player, rung, flying, cloud, fx.snowAt, aspect);
@@ -571,18 +613,12 @@ export function createMachines(
       current = s;
       groomers?.frame(s, dt, stamps, fx.cloud);
       doors?.update(s);
-      if ((s.gore || (s.crowd && s.rules.heli) || s.rescue?.length) && !rescue) {
-        rescue = createRescueScene(level, haze);
-        group.add(rescue.group);
-      }
+      if (callsRescue(s) && !rescue) rescueBuilt();
       if (rescue && fx.wearing) rescue.dress(fx.wearing());
       rescue?.frame(s, dt, fx.cloud, fx.snowAt);
       // THE SKI PATROL on snowmobiles where no machine could land
       // (`rescue-sleds-view.ts`), built with the air ambulance's.
-      if ((s.gore || (s.crowd && s.rules.heli) || s.rescue?.length) && !rescueSleds) {
-        rescueSleds = createRescueSledsScene(level, haze);
-        group.add(rescueSleds.group);
-      }
+      if (callsRescue(s) && !rescueSleds) sledsBuilt();
       if (rescueSleds && fx.wearing) rescueSleds.dress(fx.wearing());
       rescueSleds?.frame(s);
       if (s.avalanche?.slide && !slide) {
@@ -612,6 +648,7 @@ export function createMachines(
       if (chute) lineLightOf(look, chuteLight.value);
     },
     lamps(lit, eye, others) {
+      flashLamps.lend(group);
       // The eye settled for this frame: the helicopter's and the jump
       // plane's cockpits shown while it is in their cabins.
       heli?.seen(eye);
@@ -753,6 +790,7 @@ export function createMachines(
       gunfire?.dispose();
       army?.dispose();
       armyCraft?.dispose();
+      flashLamps.dispose();
     },
   };
 }

@@ -144,6 +144,8 @@ export type RescueScene = {
   lamps(lit: number, out: Flood[]): void;
   /** Whether any rescue is under way on this run. */
   active(): boolean;
+  /** The first machine of each kind's model in the group (`HeliView.ready`). */
+  ready: Promise<void>;
   /** Told where the dead are left lying (`police-remains.ts`): a police
    * call's casualty there is drawn by the remains until its crew have him.
    * Hands back each police call's casualty and whether they have him. */
@@ -318,6 +320,18 @@ export function lyingMatrix(height: number): THREE.Matrix4 {
   return m;
 }
 
+/** A casualty's figure a body, built once: every call's man, of whichever
+ * colours, is a dressed copy of it (`dressed`). */
+const casualties = new Map<CrowdBody, THREE.BufferGeometry>();
+function casualtyBody(body: CrowdBody): THREE.BufferGeometry {
+  let g = casualties.get(body);
+  if (!g) {
+    g = buildPosedFigure(body, "near", casualtyTargets(body), `casualty:${body}`);
+    casualties.set(body, g);
+  }
+  return g;
+}
+
 /** HIM, dressed in the player's outfit (his own colours, his helmet on) —
  * or, an amateur of the crowd (`crowd-calls.ts`), in his body and kit
  * (`look`) — at his lying target (its one weight his sprawl), and the matrix that lays
@@ -343,7 +357,7 @@ export function casualtyFigure(
         HAIR[0],
       ];
   const geometry = dressed(
-    buildPosedFigure(body, "near", casualtyTargets(body), `casualty:${body}`),
+    casualtyBody(body),
     { jacket, pants, head, accent, vest: jacket, skin, hair },
     [PART.helmet],
   );
@@ -438,12 +452,14 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     ...(kind === "police" ? [OFFICERS[2].body] : []),
   ];
 
-  /** A machine's things, built the first time a rescue needs that many
-   * (and again for a call of the other kind). */
-  const units: Unit[] = [];
-  const unitFor = (i: number, kind: Kind = "ambulance"): Unit => {
-    if (units[i]?.kind === kind) return units[i];
-    if (units[i]) drop(units[i]);
+  /** EACH KIND'S MACHINES and their things, built the first time a rescue
+   * needs that many of the kind (the first of each with the scene, below),
+   * and kept for every call after; and the one each of this run's calls
+   * is drawn with. */
+  const pools: Record<Kind, Unit[]> = { ambulance: [], police: [] };
+  let units: Unit[] = [];
+  const unitOf = (kind: Kind, i: number): Unit => (pools[kind][i] ??= build(kind, i));
+  const build = (kind: Kind, i: number): Unit => {
     const heli = createHeliView(level, haze, {
       pad: false,
       url: MODEL_URL(kind),
@@ -460,7 +476,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       mesh.morphTargetInfluences = new Array<number>(CREW_POSES.length).fill(0);
       mesh.castShadow = true;
       mesh.frustumCulled = false;
-      mesh.name = `rescue-${role}-${i}-${j}`;
+      mesh.name = `rescue-${kind}-${role}-${i}-${j}`;
       group.add(mesh);
       crew.push({ mesh, weights: mesh.morphTargetInfluences });
       // Knocked over: his own copy of the stance, posed off his ragdoll.
@@ -470,7 +486,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       lying.castShadow = true;
       lying.frustumCulled = false;
       lying.visible = false;
-      lying.name = `rescue-${role}-${i}-${j}-down`;
+      lying.name = `rescue-${kind}-${role}-${i}-${j}-down`;
       group.add(lying);
       down.push(lying);
     });
@@ -493,7 +509,6 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       dressing,
       statue: { delta: new Array<number>(16).fill(0), moved: false, shut: false },
     };
-    units[i] = u;
     return u;
   };
 
@@ -550,10 +565,18 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     l.dressed = key;
   };
 
-  // The first machine built with the scene (the run that will call it), so
-  // its model is in before the next run flies it in.
-  unitFor(0);
-  hide(units[0]);
+  // THE FIRST MACHINE OF EACH KIND built with the scene, behind the loading
+  // card — the air ambulance and the police's, each with a casualty on its
+  // stretcher and the police's scene laid somewhere on the map — so their
+  // models are in and every program they draw with is linked before the run
+  // (`renderer.ts`' warm-up), never on the frame a call first shows one.
+  const mid = level.track.points[Math.floor(level.track.points.length / 2)];
+  for (const kind of ["ambulance", "police"] as const) {
+    const u = unitOf(kind, 0);
+    dressCasualty(litterFor(u, 0));
+    u.dressing?.build(planPolice(level, { x: mid.x, z: mid.z, evidence: [] }));
+    hide(u);
+  }
 
   // THE CALLS this run carries (`GameState.rescue`) and their flights —
   // read again whenever one is made or joined mid-run (`crowd-calls.ts`).
@@ -599,8 +622,13 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     // `rescue-sleds-view.ts`').
     calls = (state.rescue ?? []).filter((c) => c.kind !== "sled");
     people = [];
+    const used: Record<Kind, number> = { ambulance: 0, police: 0 };
+    units = calls.map((c) => {
+      const kind: Kind = c.kind === "police" ? "police" : "ambulance";
+      return unitOf(kind, used[kind]++);
+    });
     flights = calls.map((c, i) => {
-      const u = unitFor(i, c.kind === "police" ? "police" : "ambulance");
+      const u = units[i];
       u.askedAt = NaN;
       if (c.kind !== "police") {
         u.police = null;
@@ -634,7 +662,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       );
     });
     // The machines no call has this run, put away.
-    for (let i = calls.length; i < units.length; i++) hide(units[i]);
+    for (const u of [...pools.ambulance, ...pools.police]) if (!units.includes(u)) hide(u);
   };
   function hide(u: Unit): void {
     u.heli.group.visible = false;
@@ -802,27 +830,6 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       });
     }
   };
-  /** A machine's things put away for good (its call of another kind). */
-  function drop(u: Unit): void {
-    u.heli.dispose();
-    group.remove(u.heli.group);
-    for (const m of [...u.crew.map((c) => c.mesh), ...u.down]) {
-      group.remove(m);
-      m.geometry.dispose();
-    }
-    for (const l of u.litters) {
-      group.remove(l.group);
-      if (l.casualty) {
-        group.remove(l.casualty);
-        l.casualty.geometry.dispose();
-      }
-    }
-    if (u.dressing) {
-      group.remove(u.dressing.group);
-      u.dressing.dispose();
-    }
-  }
-
   return {
     group,
     frame(state, dt, cloud, snowAt) {
@@ -885,8 +892,11 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       }
       return taken;
     },
+    ready: Promise.all([pools.ambulance[0].heli.ready, pools.police[0].heli.ready]).then(
+      () => undefined,
+    ),
     dispose() {
-      for (const u of units) {
+      for (const u of [...pools.ambulance, ...pools.police]) {
         u.heli.dispose();
         for (const m of u.crew) m.mesh.geometry.dispose();
         for (const m of u.down) m.geometry.dispose();

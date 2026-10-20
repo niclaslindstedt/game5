@@ -299,8 +299,10 @@ export function createRescueSledsScene(level: Level, haze: HazeUniforms): Rescue
     }
   };
 
-  // The first call's things built with the scene, so its model is in
-  // before a run carries one.
+  // The first call's things built with the scene, him on its stretcher, so
+  // its model is in and its programs linked behind the loading card before
+  // a run carries one.
+  dressCasualty(unitFor(0));
   hide(unitFor(0));
 
   // THE CALLS this run carries, and the four of each as people on foot a

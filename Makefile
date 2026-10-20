@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn gunfire gunfire-table army army-flight army-ground water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
+.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn gunfire gunfire-table army army-flight army-ground water tree-wells trails piste-day snow summer judder menu-stalls hitches trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
 
 build:
 	npm run build
@@ -1337,6 +1337,16 @@ judder:
 # a before and after.
 menu-stalls:
 	node scripts/menu-stalls.mjs $(ARGS)
+
+# THE HITCHES LAB: the free ride's moments felt as a stall — the crowd's
+# call, the air ambulance, the police and their scene, the patrol's
+# snowmobiles, the police machine taken and flown — each played in a page
+# of its own through the game's renderer, every frame timed and every
+# program linked counted (scripts/hitches.mjs; its own bundle, no build).
+# `make hitches ARGS="--scenario=police,steal --detail"` ·
+# `make hitches ARGS="--json previews/hitches-before.json"` · `--compare`
+hitches:
+	npm run hitches -- $(ARGS)
 
 # THE TREE LAB: every kind of tree (spruce, fir, pine, larch, birch…) and
 # each of its ten variants side by side through the game's own procedural

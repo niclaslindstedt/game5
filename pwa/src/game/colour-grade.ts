@@ -12,10 +12,11 @@
 // out of a flat steel-grey world; the maritime range wants the low gold of a
 // late-winter afternoon over grey-green darks.
 //
-// THE BOREAL IS NEUTRAL. The alpine forest is the country every material,
-// every sky and every tone in this game was authored against, so its row is
-// the identity and the renderer draws no pass at all for it (`isNeutral`):
-// the map everybody has always ridden looks and costs exactly what it did.
+// THE ALPINE IS GRADED TOO. It is the country every material, every sky and
+// every tone in this game was authored against, and its row is the lightest
+// touch of the four — a hair of contrast and colour, the altitude blue in
+// the shadows — but it is not the identity, so every region's frame goes
+// through the pass. A row that is the identity (`isNeutral`) draws none.
 //
 // THE GRADE IS APPLIED TO THE TONE-MAPPED PICTURE (`grade-pass.ts` is the
 // GLSL half): the scene is drawn in linear HDR, the pass tone-maps it with
@@ -129,7 +130,7 @@ export const COLOUR_GRADES: Readonly<Record<RegionId, ColourGrade>> = {
  * drained steel and its lift of blowing snow in the shadows turn a green
  * hillside to grey felt — so a summer's run takes rows of its own: each
  * country's cast kept, the colour left in the grass and no snow in the air.
- * The alpine stays the identity. */
+ * The alpine keeps its winter row. */
 export const SUMMER_GRADES: Readonly<Record<RegionId, ColourGrade>> = {
   alpine: COLOUR_GRADES.alpine,
   // Soft and long-lit, a little cool, the midnight sun's warmth on the light.

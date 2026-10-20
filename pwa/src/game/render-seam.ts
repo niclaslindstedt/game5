@@ -17,12 +17,7 @@ import * as THREE from "three";
 
 import { freshBackend, type BackendState } from "./gpu-backend.ts";
 import type { HazeUniforms } from "./haze.ts";
-import { regionOf } from "@engine";
-
-import { gradeOf, isNeutral } from "./colour-grade.ts";
-import { drawsStraight, type RegionPicture } from "./region-picture.ts";
-import { summerShown } from "./season-look.ts";
-import { ANTIALIAS_SAMPLES, type AntialiasLevel } from "./settings-video.ts";
+import type { NodePicture } from "./region-picture.ts";
 
 /** What a frame cost the node renderer, in the WebGL path's own terms. */
 export type SeamInfo = {
@@ -53,10 +48,10 @@ export type RenderSeam = {
   /** Before a frame's draws: the node renderer's counters zeroed and what
    * the dressing reads brought up to the frame. */
   beginFrame(): void;
-  /** Whether WebGL would draw this frame straight onto the canvas, where
-   * three hazes in display space (`region-picture.ts`'s `drawsStraight`):
-   * the node renderer's haze mixes where WebGL's would. Nothing on WebGL. */
-  hazeInDisplay(on: boolean): void;
+  /** The node renderer's half of the picture (`region-picture.ts`): the
+   * canvas's samples, the grade's node pass (`grade-tsl.ts`), where the
+   * haze mixes and the counters. Null on WebGL, whose picture is its own. */
+  readonly post: NodePicture | null;
   /** After a frame's draws: what `beginFrame` stood in for put back. */
   endFrame(): void;
   /** Resolves once the device has run every draw handed to it so far: a
@@ -108,7 +103,7 @@ function webglSeam(canvas: HTMLCanvasElement, options: SeamOptions): RenderSeam 
     maxTextureSize: () => gl.capabilities.maxTextureSize,
     dress: () => {},
     beginFrame: () => {},
-    hazeInDisplay: () => {},
+    post: null,
     endFrame: () => {},
     settled: () => Promise.resolve(),
     info: () => none,
@@ -116,45 +111,5 @@ function webglSeam(canvas: HTMLCanvasElement, options: SeamOptions): RenderSeam 
       gl.dispose();
       gl.forceContextLoss(); // a phone keeps only a few contexts alive at once
     },
-  };
-}
-
-/** The webgpu paths' picture: the scene straight onto the canvas — the
- * region's grade is a pass not yet ported (`grade-pass`). It still keeps
- * what WebGL's picture would have drawn through (`drawsStraight`: the
- * grade, the buzz, the blaze, and the ANTIALIAS row against the canvas as
- * it was made, `canvas` samples) and tells the seam each frame, so the haze
- * is mixed where WebGL's is (`hazeInDisplay`). */
-export function directPicture(
-  seam: RenderSeam,
-  antialias: () => AntialiasLevel,
-  canvas: number,
-): RegionPicture {
-  const last = { calls: 0, triangles: 0, points: 0 };
-  let graded = false;
-  let buzz = 0;
-  let burning = false;
-  return {
-    load(level) {
-      graded = !isNeutral(gradeOf(regionOf(level).id, summerShown()));
-      return null;
-    },
-    draw(scene, camera) {
-      const samples = ANTIALIAS_SAMPLES[antialias()];
-      seam.hazeInDisplay(drawsStraight({ graded, buzz, burning, samples, canvas }));
-      seam.gl.render(scene, camera);
-      const info = seam.info();
-      last.calls = info.calls;
-      last.triangles = info.triangles;
-      last.points = info.points;
-    },
-    setBuzz(b) {
-      buzz = b > 1e-3 ? b : 0;
-    },
-    setBlaze(b) {
-      burning = !!b && b.heat + b.flash + b.smoke > 1e-3;
-    },
-    info: () => ({ ...last }),
-    dispose: () => {},
   };
 }

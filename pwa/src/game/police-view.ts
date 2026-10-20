@@ -13,6 +13,7 @@ import * as THREE from "three";
 import type { Level, TapeCut } from "@engine";
 
 import { CROWD_LOOKS } from "./crowd-rig.ts";
+import { FlashPoint } from "./flash-lights.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { TAPE_LIFT } from "./police-carry.ts";
 import {
@@ -407,7 +408,7 @@ export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDr
   camera.castShadow = true;
   group.add(camera);
   // The flash: a light at the camera, and its glare.
-  const light = new THREE.PointLight(FLASH.colour, 0, FLASH.reach, 2);
+  const light = new FlashPoint(FLASH.colour, 0, FLASH.reach, 2); // a lamp lent it (`flash-lights.ts`)
   group.add(light);
   const glare = new THREE.Sprite(
     new THREE.SpriteMaterial({
@@ -562,6 +563,7 @@ export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDr
       glare.material.dispose();
       tentMat.dispose();
       kit.dispose();
+      light.dispose();
     },
   };
 }

@@ -3,11 +3,10 @@
 // the region's grade (`grade-pass.ts`). The renderer hands every frame here
 // and never learns which.
 //
-// A region whose grade is neutral — the alpine, the picture as authored —
-// is drawn onto the canvas exactly as it always was, and no target is ever
-// allocated for it: the map everybody has always ridden costs what it cost.
-// A graded region draws into the pass's half-float target and the pass
-// writes the canvas. The pass is built the first time a graded region
+// A region whose grade is neutral (`isNeutral`: no region's is today — the
+// alpine too is graded) is drawn straight onto the canvas, and no target is
+// ever allocated for it. A graded region draws into the pass's half-float
+// target and the pass writes the canvas. The pass is built the first time a graded region
 // loads, and kept.
 //
 // THE ANTIALIAS ROW (`ANTIALIAS_SAMPLES`) is the target's sample count, set
@@ -15,6 +14,12 @@
 // so a neutral region is drawn straight onto it only while that is what the
 // row asks for (its four samples, or none); at any other count it is drawn
 // through the pass, at the neutral grade, as under the buzz.
+//
+// ON THE NODE RENDERER (`docs/webgpu.md`, part 7) the same decisions are
+// made over the same pass: its target is three's own `RenderTarget` and
+// the node grade (`grade-tsl.ts`, handed in as `node`) writes the canvas.
+// The haze is told each frame where WebGL's would be mixed
+// (`hazeInDisplay`): in display space only when the frame goes straight.
 
 import * as THREE from "three";
 import { regionOf, type Level } from "@engine";
@@ -23,7 +28,7 @@ import { gradeOf, isNeutral, type ColourGrade } from "./colour-grade.ts";
 import { ANTIALIAS_SAMPLES, type AntialiasLevel } from "./settings-video.ts";
 import { summerShown } from "./season-look.ts";
 import type { GpuTimer } from "./gpu-timer.ts";
-import { createGradePass, gradeSupported, type GradePass } from "./grade-pass.ts";
+import { createGradePass, gradeSupported, type GradePass, type NodeGrade } from "./grade-pass.ts";
 
 export type RegionPicture = {
   /** The region `level` is built in becomes the picture's; returns the
@@ -42,6 +47,18 @@ export type RegionPicture = {
   /** What the last frame's SCENE cost — the grade's own pass not counted. */
   info(): { calls: number; triangles: number; points: number };
   dispose(): void;
+};
+
+/** The node renderer's half of the picture (`render-seam.ts`'s `post`). */
+export type NodePicture = {
+  /** The samples the canvas was made with. */
+  readonly canvas: number;
+  /** The grade's node pass over the GLSL pass's uniforms. */
+  readonly grade: NodeGrade;
+  /** Whether the haze mixes in display space this frame (`drawsStraight`). */
+  hazeInDisplay(on: boolean): void;
+  /** The node renderer's counters since the frame began. */
+  info(): { calls: number; triangles: number; points: number };
 };
 
 /** What a canvas made with multisampling takes a pixel. */
@@ -63,14 +80,18 @@ export function drawsStraight(o: {
 }
 
 /** The picture over `gl`, multisampled as the ANTIALIAS row `antialias`
- * reads at each frame. */
+ * reads at each frame — on the node renderer, through `node`. */
 export function createRegionPicture(
   gl: THREE.WebGLRenderer,
   antialias: () => AntialiasLevel,
+  node: NodePicture | null = null,
 ): RegionPicture {
   let samples = ANTIALIAS_SAMPLES[antialias()];
   // The canvas's own, as it was made.
-  const canvas = gl.getContextAttributes()?.antialias ? CANVAS_SAMPLES : 0;
+  const canvas = node ? node.canvas : gl.getContextAttributes()?.antialias ? CANVAS_SAMPLES : 0;
+  // The node renderer always draws into half floats (its own frame is one).
+  const supported = (): boolean => !!node || gradeSupported(gl);
+  const createPass = (n: number): GradePass => createGradePass(n, node?.grade ?? null);
   let pass: GradePass | null = null;
   let graded = false;
   let grade: ColourGrade | null = null;
@@ -78,6 +99,13 @@ export function createRegionPicture(
   let burning = false;
   const size = new THREE.Vector2();
   const last = { calls: 0, triangles: 0, points: 0 };
+  /** The scene's draw, counted before the grade's own. */
+  const tally = (): void => {
+    const r = node ? node.info() : gl.info.render;
+    last.calls = r.calls;
+    last.triangles = r.triangles;
+    last.points = r.points;
+  };
   /** The row moved: the target takes the new count at once, and a neutral
    * region not drawn straight onto the canvas gets a pass to be drawn by. */
   const follow = (): void => {
@@ -85,34 +113,34 @@ export function createRegionPicture(
     if (n === samples) return;
     samples = n;
     pass?.setSamples(n);
-    if (pass || samples === canvas || !gradeSupported(gl)) return;
-    pass = createGradePass(samples);
+    if (pass || samples === canvas || !supported()) return;
+    pass = createPass(samples);
     if (grade) pass.setGrade(grade);
   };
   return {
     load(level) {
       grade = gradeOf(regionOf(level).id, summerShown());
-      graded = !isNeutral(grade) && gradeSupported(gl);
+      graded = !isNeutral(grade) && supported();
       pass?.setGrade(grade);
-      if (!graded && (samples === canvas || !gradeSupported(gl))) return null;
-      pass ??= createGradePass(samples);
+      if (!graded && (samples === canvas || !supported())) return null;
+      pass ??= createPass(samples);
       pass.setGrade(grade);
       return pass.target;
     },
     setBuzz(b, t) {
-      buzz = b > 1e-3 && gradeSupported(gl) ? b : 0;
+      buzz = b > 1e-3 && supported() ? b : 0;
       if (buzz > 0 && !pass) {
-        pass = createGradePass(samples);
+        pass = createPass(samples);
         if (grade) pass.setGrade(grade);
       }
       pass?.setBuzz(buzz, t);
     },
     setBlaze(b, t) {
-      const on = !!b && b.heat + b.flash + b.smoke > 1e-3 && gradeSupported(gl);
+      const on = !!b && b.heat + b.flash + b.smoke > 1e-3 && supported();
       if (!on && !burning) return;
       burning = on;
       if (on && !pass) {
-        pass = createGradePass(samples);
+        pass = createPass(samples);
         if (grade) pass.setGrade(grade);
       }
       if (on && b) pass?.setBlaze(b.heat, b.flash, b.smoke, t);
@@ -120,12 +148,11 @@ export function createRegionPicture(
     },
     draw(scene, camera, timer) {
       follow();
-      if (drawsStraight({ graded, buzz, burning, samples, canvas }) || !pass) {
+      const straight = drawsStraight({ graded, buzz, burning, samples, canvas });
+      node?.hazeInDisplay(straight || !pass);
+      if (straight || !pass) {
         gl.render(scene, camera);
-        const r = gl.info.render;
-        last.calls = r.calls;
-        last.triangles = r.triangles;
-        last.points = r.points;
+        tally();
         return;
       }
       gl.getDrawingBufferSize(size);
@@ -133,10 +160,7 @@ export function createRegionPicture(
       const onto = gl.getRenderTarget();
       gl.setRenderTarget(pass.target);
       gl.render(scene, camera);
-      const r = gl.info.render;
-      last.calls = r.calls;
-      last.triangles = r.triangles;
-      last.points = r.points;
+      tally();
       gl.setRenderTarget(onto);
       timer?.push("grade");
       pass.render(gl);

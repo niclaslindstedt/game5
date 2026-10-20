@@ -55,6 +55,33 @@ export type Evidence = {
   z: number;
 };
 
+/** A POLICE CORDON as the app plans it (`pwa/src/game/police-tape.ts`):
+ * its stakes round the ring (m, world), the call's clocks the tape is run
+ * along each span from stake `i` to stake `i + 1` (s), and the call's clock
+ * the machine lifts off and takes the cordon with it. Never read here. */
+export type Cordon = {
+  ring: readonly { x: number; z: number }[];
+  spans: readonly { t0: number; t1: number }[];
+  lift: number;
+};
+
+/** ONE SPAN OF CORDON TAPE BROKEN by something going through it
+ * (`pwa/src/game/police-tape.ts`'s `cutTape`): the span, how far along it
+ * it was struck (0 … 1), the call's clock it was struck at (s), the
+ * velocity of what went through (m/s, in plan), whether it SNAPPED at the
+ * contact or TORE off the nearer stake, and the wind over the snow then
+ * (m/s, at 10 m). Never read here. */
+export type TapeCut = {
+  span: number;
+  u: number;
+  t: number;
+  vx: number;
+  vz: number;
+  tear: boolean;
+  wx: number;
+  wz: number;
+};
+
 /** ONE CASUALTY a call is there for: where he lay, and the plan's clock he
  * was found at — and, an amateur of this run's crowd called for mid-run
  * (`crowd-hurt.ts`), his id, from which he is the rescue's, and how he is
@@ -101,6 +128,11 @@ export type RescueCall = {
    * `CrewTrack`), sampled off its plan by the app — the bodies the skier
    * meets; absent when the app sampled none. */
   crew?: CrewTrack[];
+  /** A police call's cordon (`Cordon`), planned by the app; shared. */
+  cordon?: Cordon;
+  /** The spans of its tape broken so far (`TapeCut`), oldest first: carried
+   * from run to run and written by the app as a run goes. */
+  tape?: TapeCut[];
 };
 
 /** A call copied whole, so a run never shares one with its caller. */
@@ -118,6 +150,8 @@ export function copyCall(r: RescueCall): RescueCall {
     ...(r.evidence ? { evidence: r.evidence.map((e) => ({ ...e })) } : {}),
     // Never written during a run: shared, not copied.
     ...(r.crew ? { crew: r.crew } : {}),
+    ...(r.cordon ? { cordon: r.cordon } : {}),
+    ...(r.tape ? { tape: r.tape.map((c) => ({ ...c })) } : {}),
   };
 }
 

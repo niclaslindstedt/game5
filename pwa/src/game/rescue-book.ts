@@ -31,6 +31,7 @@ import type {
   RescueCall,
   RescueCasualty,
   RescueSledPlan,
+  TapeCut,
 } from "@engine";
 import { sledCallGone, withRescue } from "@engine";
 
@@ -53,6 +54,9 @@ export type BookedRide = {
   sleds?: { plan: RescueSledPlan; taken: (number | null)[] };
   kind?: "police";
   evidence?: Evidence[];
+  /** A police call's tape broken so far (`police-tape.ts`), the call's
+   * clock: kept from run to run while its cordon stands. */
+  tape?: TapeCut[];
 };
 
 /** When a ride is over, s from its call. */
@@ -112,6 +116,8 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
   for (const call of ended.rescue ?? []) {
     const ride = book.rides.find((r) => Math.abs(r.start - book.clock - call.start) < 1e-6);
     if (ride?.sleds && call.sledsTaken) ride.sleds.taken = [...call.sledsTaken];
+    // The police's tape broken while it ran, left lying.
+    if (ride?.kind === "police" && call.tape?.length) ride.tape = call.tape.map((c) => ({ ...c }));
   }
   const now = book.clock + Math.max(0, ended.t);
   // THE CALLS MADE WHILE IT RAN, for the crowd (`crowd-calls.ts`): kept,
@@ -138,6 +144,8 @@ export function bookRun(book: RescueBook, ended: GameState, next: GameState): Ga
     const casualties = ride.casualties.map((c) => ({ ...c, known: 0 }));
     ride.start = book.clock + r.stolen;
     ride.casualties = casualties;
+    // Its scene laid afresh by the machine sent after it.
+    delete ride.tape;
     ride.flight =
       ride.kind === "police"
         ? planPolice(level, {
@@ -199,6 +207,7 @@ export function callsOf(book: RescueBook): RescueCall[] {
       up: start + r.flight!.lift,
       casualties: r.casualties.map((c) => ({ ...c })),
       ...(r.kind ? { kind: r.kind, evidence: (r.evidence ?? []).map((e) => ({ ...e })) } : {}),
+      ...(r.tape ? { tape: r.tape.map((c) => ({ ...c })) } : {}),
     };
   });
 }

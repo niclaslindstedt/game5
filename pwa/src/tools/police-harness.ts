@@ -34,8 +34,9 @@ import {
 import type { LensPose } from "../game/camera-rigs.ts";
 import { PHOTO, POLICE } from "../game/police-defs.ts";
 import { freshPoliceFrame, planPolice, policeAt, type PolicePlan } from "../game/police-plan.ts";
+import { ropeOf, ropeTo } from "../game/police-tape.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
-import { bookRun, createRescueBook, noteImpact } from "../game/rescue-book.ts";
+import { bookRun, createRescueBook, noteImpact, stepRun } from "../game/rescue-book.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { throwAt } from "./gore-scenes.ts";
 
@@ -463,7 +464,96 @@ const VIEWS: Record<string, (s: GameState, plan: PolicePlan) => void> = {
   },
 };
 
+/** THE TAPE BROKEN: the skier sent through the cordon's uphill span from
+ * outside it at `speed` m/s, once it is all taped — stepped by the app's own
+ * step (`stepRun`, which breaks the tape), the frames around the break
+ * shot square to his line and the halves after, close and from mid range. */
+function tapeRun(s: GameState, plan: PolicePlan, speed: number, close: boolean): void {
+  const ring = plan.ring;
+  const n = ring.length;
+  // The span highest up the hill: he comes down at it from above.
+  let best = 0;
+  let high = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const [a, b] = [ring[i], ring[(i + 1) % n]];
+    const y = level.groundAt((a.x + b.x) / 2, (a.z + b.z) / 2);
+    if (y > high && Math.hypot(b.x - a.x, b.z - a.z) > 4) {
+      high = y;
+      best = i;
+    }
+  }
+  const [a, b] = [ring[best], ring[(best + 1) % n]];
+  const mid = ring.reduce((p, q) => ({ x: p.x + q.x / n, z: p.z + q.z / n }), { x: 0, z: 0 });
+  const hitAt = { x: a.x + (b.x - a.x) * 0.42, z: a.z + (b.z - a.z) * 0.42 };
+  const h = Math.atan2(mid.x - hitAt.x, mid.z - hitAt.z);
+  const lead = close ? 0.2 : 7;
+  const from = off(hitAt, h, -lead);
+  const t0 = plan.at.taped + 3;
+  poseAt(s, t0, 0.6);
+  placeRun(s, { x: from.x, z: from.z, heading: h, speed, time: t0 });
+  const call = s.rescue![0];
+  // Square to his line, a little up the hill, the span across the frame.
+  const side = { ...off(hitAt, h + Math.PI / 2, 6.5), up: 1.5 };
+  const seen = lens(side, hitAt, 0.55, 48);
+  let cut = NaN;
+  const want: [number, string][] = [
+    [-0.12, "coming"],
+    [0.02, "struck"],
+    [0.07, "bowed"],
+    [0.16, "parted"],
+    [0.3, "whipping back"],
+    [0.55, "falling"],
+    [0.9, "fluttering down"],
+    [1.5, "landing"],
+    [3, "settling"],
+    [8, "lying"],
+  ];
+  let k = 0;
+  const steps = Math.round(FRAME / TUNING.dt);
+  for (let f = 0; f < 60 * 14 && k < want.length; f++) {
+    for (let i = 0; i < steps; i++) stepRun(s, NEUTRAL_INPUT);
+    if (Number.isNaN(cut) && call.tape?.length) cut = call.tape[0].t + call.start;
+    // Out of the way once well past it, so the halves are seen alone.
+    if (!Number.isNaN(cut) && s.t > cut + 1.2 && s.skier.speed > 0.5) {
+      const away = off(mid, h, 60);
+      placeRun(s, { x: away.x, z: away.z, heading: h, time: s.t });
+    }
+    renderer.draw(s, 1, FRAME, false);
+    if (k === 0) {
+      if (!Number.isNaN(cut) || s.t >= t0 + lead / speed + want[0][0]) {
+        shoot(s, `${want[0][1]} ${want[0][0]} s`, seen);
+        k = 1;
+      }
+      continue;
+    }
+    while (k < want.length && !Number.isNaN(cut) && s.t >= cut + want[k][0]) {
+      shoot(s, `${want[k][1]} +${want[k][0]} s`, seen);
+      k++;
+    }
+  }
+  const c = call.tape?.[0];
+  if (!c) return;
+  const how = `${c.tear ? "torn off a stake" : "snapped"} at ${Math.hypot(c.vx, c.vz).toFixed(1)} m/s`;
+  for (const f of frames) if (f.view === view) f.caption += ` · ${how}`;
+  // The halves lying, from above their loose ends close and from mid range.
+  const rope = ropeTo(level, ropeOf(level, a, b, c), s.t - call.start);
+  const ends = c.tear ? [c.u < 0.5 ? 0 : rope.n - 1] : [rope.k, rope.k + 1];
+  const across = Math.atan2(b.x - a.x, b.z - a.z);
+  for (const e of ends) {
+    const at = { x: rope.pos[3 * e], z: rope.pos[3 * e + 2] };
+    shoot(s, `lying, close (${how})`, lens({ ...off(at, h + 0.5, 2.2), up: 1.5 }, at, 0, 50));
+  }
+  const at = { x: a.x + (b.x - a.x) * c.u, z: a.z + (b.z - a.z) * c.u };
+  shoot(s, "a stake, close", lens({ ...off(a, across + Math.PI + 0.5, 2.6), up: 1.4 }, a, 0.3, 50));
+  shoot(s, "lying, mid range", lens({ ...off(at, h + 2.6, 12), up: 4 }, at, 0, 52));
+  shoot(s, "from 70 m", lens({ ...off(mid, h + 0.4, 6), up: 70 }, mid, 0, 55));
+}
+
+VIEWS.tape = (s, plan) => tapeRun(s, plan, 12, false);
+VIEWS["tape-slow"] = (s, plan) => tapeRun(s, plan, 0.9, true);
+
 const GROUPS: Record<string, readonly string[]> = {
+  tape: ["tape", "tape-slow"],
   arrive: ["arrive"],
   survey: ["survey"],
   cordon: ["cordon"],

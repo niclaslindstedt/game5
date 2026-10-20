@@ -796,7 +796,10 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     // THE POLICE'S SCENE, and the photographer's camera.
     if (u.dressing && "scene" in now) {
       const pf = now as ReturnType<typeof freshPoliceFrame>;
-      u.dressing.update(pf.scene, pf.crew[PHOTO]);
+      u.dressing.update(pf.scene, pf.crew[PHOTO], {
+        tape: calls[i].tape,
+        t: state.t - calls[i].start,
+      });
     }
   };
   /** A machine's things put away for good (its call of another kind). */

@@ -271,13 +271,17 @@ person already knocked all strike him (`civilian-hits.ts`), and what his body
 does about it is `civilian-knock.ts`'s, on the engine's own ragdoll. Up to a
 brisk cruise (`PERSON_HIT.strike`, some 23 km/h) it is presentation only:
 the plan still says where he is, the knock is kept in the view and stepped
-on the engine's clock, and the skier is not slowed by him. Past it, from the
-skier or the snowmobile he rides, it is the ENGINE's collision of two bodies
-([body-hits.md](body-hits.md)): the skier slowed or thrown and hurt, the
+on the engine's clock, and the skier is not slowed by him. Past it — from
+the skier or his body thrown, and from the snowmobile, a piste machine or a
+car past the blow a skier gives at that speed (`PERSON_HIT.foot.blow`) — it
+is the ENGINE's collision of two bodies ([body-hits.md](body-hits.md)): the
+hitter slowed or thrown and the skier hurt when it was his own body, the
 person thrown with his share — and the knock here is that body, copied off
 the engine each frame (`fromEngine`) until it lies still; then a person it
 did not hurt gets up and walks back as below, and one it hurt or killed (the
-INJURIES switch on) lies broken where he came to rest.
+INJURIES switch on) lies broken where he came to rest. The dog walkers are
+among them: the engine meets each one on a track knotted off his walks
+(`dog-foot.ts`). A knocked person flung into the next is the view's alone.
 
 ### What the research says
 
@@ -329,10 +333,14 @@ the walk home. `tests/civilian_knock_test.ts` holds the ladder.
 ## Dogs on the sidewalks
 
 The village's streets have their own people on foot: its households walking
-their dogs. Like everything on this page they are presentation only. They are
-dealt off the map's seed on a salt of their own, and where every owner, dog
-and pile is at a moment is a pure function of the plan and the clock. No
-digest moves and nothing is drawn from `state.rng`.
+their dogs. They are dealt off the map's seed on a salt of their own, and
+where every owner, dog and pile is at a moment is a pure function of the plan
+and the clock. No digest moves and nothing is drawn from `state.rng`. The
+owners and the children out with them are BODIES to the engine like every
+civilian (*Knocked*, above): each is handed in as a track knotted off his
+walks — a knot at every change of leg and every turn of the line, out by the
+hour as drawn — a couple of minutes ahead of the clock, as the walks are
+dealt (`dog-foot.ts`, `walkersAhead`). The dogs are the view's alone.
 
 ### What the research says
 

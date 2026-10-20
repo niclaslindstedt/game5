@@ -5,14 +5,17 @@
 // with the INJURIES switch on and off (`tests/support/body-hits.ts`, the
 // meeting `tests/body_hits_test.ts` holds); and the same into a person on
 // foot (`engine/game/foot.ts`, `tests/civilian_body_hits_test.ts`): a
-// civilian, a rescue crew member, and a civilian run down by the
-// snowmobile the player rides (`--who`). Each row prints both sides:
+// civilian, a rescue crew member, a dog walker and a ski patrolman run
+// into on skis, and a civilian met by the snowmobile the player rides, by
+// his body thrown, by a piste machine and by a car of the village's
+// traffic (`--who`), each at the speeds it goes. Each row prints both sides:
 // whether the player was thrown, his worst AIS, his severity score, dead
 // or down, his worst injuries; and the amateur knocked, killed, injured
 // past getting up, crushed and back up — and who `casualtiesOf` lists for
 // the rescue to collect. Pure Node.
 //
-//   node scripts/body-hits-lab.mjs [--who=amateur,civilian,crew,sled] [--seconds=N] [--json=FILE]
+//   node scripts/body-hits-lab.mjs [--who=amateur,civilian,crew,walker,patrol,sled,thrown,groomer,car]
+//                                  [--seconds=N] [--json=FILE]
 
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -30,8 +33,8 @@ const args = parseArgs(
     json: { kind: "string", default: "", help: "write the rows to this file" },
     who: {
       kind: "string",
-      default: "amateur,civilian,crew,sled",
-      help: "who is run into, comma-separated (amateur, civilian, crew, sled)",
+      default: "amateur,civilian,crew,walker,patrol,sled,thrown,groomer,car",
+      help: "who is run into, and by what, comma-separated (amateur, civilian, crew, walker, patrol, sled, thrown, groomer, car)",
     },
   },
   "usage: node scripts/body-hits-lab.mjs [--who=LIST] [--seconds=N] [--json=FILE]",
@@ -40,7 +43,10 @@ const args = parseArgs(
 aliasEngine(root);
 const lab = await import(join(root, "tests/support/body-hits.ts"));
 const { HIT_BODIES, HIT_SPEEDS, footRow, hitRow } = lab;
-const WHO = ["amateur", "civilian", "crew", "sled"];
+const WHO = ["amateur", "civilian", "crew", "walker", "patrol", "sled", "thrown", "groomer", "car"];
+// The speeds each goes at: a piste machine at its working, climbing and
+// driven pace, a car at the village's and the road out's.
+const SPEEDS = { groomer: [9, 12, 22], car: [15, 25, 45] };
 const asked = args.who.split(",").filter(Boolean);
 for (const w of asked) {
   if (!WHO.includes(w)) {
@@ -57,8 +63,8 @@ console.log(
 const rows = [];
 for (const who of asked) {
   for (const gore of [true, false]) {
-    for (const body of who === "sled" ? ["man"] : HIT_BODIES) {
-      for (const kmh of HIT_SPEEDS) {
+    for (const body of who === "sled" || who === "patrol" ? ["man"] : HIT_BODIES) {
+      for (const kmh of SPEEDS[who] ?? HIT_SPEEDS) {
         const r =
           who === "amateur"
             ? hitRow(kmh, body, gore, args.seconds)

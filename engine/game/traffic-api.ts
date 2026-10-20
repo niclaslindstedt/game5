@@ -24,6 +24,7 @@ export {
   TRAFFIC,
   TRAFFIC_STRIKE,
   VEHICLES,
+  VEHICLE_MASS,
   type Drive,
   type VehicleKind,
   type VehicleSize,

@@ -7,20 +7,23 @@
 // in before the first step (`peopled`) and carried by a replay's recipe
 // (`replay.ts`), so a replay meets the same people. DOM-free and three-free.
 //
-// The village's dog walkers are not handed in: their walks wait at the
-// kerbs on the traffic (`dog-walk.ts`) and the village's streets are walked
-// with the skis off (`town.ts`), so they stay the app's knock alone.
+// The village's dog walkers are handed in beside them, each as the track
+// he walks (`dog-foot.ts`): met by the snowmobile, the player's body thrown,
+// the piste machines and the traffic as bodies (the village's streets are
+// walked with the skis off, `town.ts`, at no speed to strike anyone at).
 
 import { withFoot, type FootCall, type FootPerson, type GameState, type Level } from "@engine";
 
 import { civilianPlanFor, hasCivilians, roleIn } from "./civilian-plan.ts";
+import { dogWalkersOf, walkersFor } from "./dog-foot.ts";
 import { skyClock } from "./sky-clock.ts";
 
 const calls = new WeakMap<Level, { summer: boolean; rate: number; call: FootCall }>();
 
 /** THE CIVILIANS OF `level` (in midsummer's cast when `summer`) as the
  * engine meets them — keyed by their index in the plan, as the views key
- * their knocks (`civilian-hits.ts`' `peopleOf`). */
+ * their knocks (`civilian-hits.ts`' `peopleOf`) — and the village's dog
+ * walkers after them (`walkerKey`). */
 export function footCallOf(level: Level, summer: boolean, rate = skyClock()): FootCall {
   const had = calls.get(level);
   if (had && had.summer === summer && had.rate === rate) return had.call;
@@ -51,7 +54,10 @@ export function footCallOf(level: Level, summer: boolean, rate = skyClock()): Fo
       rr: rr + 1,
     };
   });
+  const walkers = dogWalkersOf(level, summer);
+  people.push(...walkers.people);
   const call: FootCall = { people, rate };
+  walkersFor(call, walkers);
   calls.set(level, { summer, rate, call });
   return call;
 }

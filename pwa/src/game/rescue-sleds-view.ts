@@ -34,6 +34,7 @@
 import * as THREE from "three";
 import {
   RESCUE_SLEDS,
+  crewKey,
   type GameState,
   type Level,
   type RescueCall,
@@ -50,6 +51,7 @@ import {
 } from "./civilian-hits.ts";
 import { onRagdoll } from "./civilian-knock.ts";
 import { knockedPose } from "./civilian-knock-pose.ts";
+import { breakPose, footHurtOf } from "./crowd-broken.ts";
 import { freshCivilianPose, type CivilianPose } from "./civilian-plan.ts";
 import { buildPosedFigure, poseCivilianFigure } from "./civilian-shapes.ts";
 import type { Flood } from "./headlamp.ts";
@@ -343,6 +345,9 @@ export function createRescueSledsScene(level: Level, haze: HazeUniforms): Rescue
       BEARERS.forEach((b, j) =>
         people.push({
           key: 4 * i + j,
+          // The engine meets him off his track (`rescue-tracks.ts`), keyed
+          // by his call's place among all the run's.
+          foot: crewKey((state.rescue ?? []).indexOf(c), j),
           id: 7400 + 4 * i + j,
           body: b.body,
           skis: false,
@@ -421,6 +426,9 @@ export function createRescueSledsScene(level: Level, haze: HazeUniforms): Rescue
         m.mesh.visible = false;
         const r = knock.rag;
         const posed = knockedPose(r.points, knock.body, [r.x, r.y, r.z]);
+        // Struck by the engine and hurt (INJURIES on): lying broken.
+        const hurt = knock.engine ? footHurtOf(state, knock.engine) : undefined;
+        if (hurt) breakPose(posed, hurt);
         poseCivilianFigure(knock.body, "near", posed, m.down.geometry);
         m.down.position.set(r.x, r.y, r.z);
         m.down.visible = true;

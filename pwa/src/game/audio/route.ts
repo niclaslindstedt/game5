@@ -127,6 +127,9 @@ const HEARD_NEAR = 4;
 const HIT_FULL = 20;
 /** The closing speed a person run into is heard at full from, m/s. */
 const STRUCK_FULL = 25;
+/** The distance a person struck by a machine the player is not driving is
+ * heard at full size from, m. */
+const STRUCK_HEARD = 8;
 
 /** THE CRASH'S CLOSING SPEED at which the blast is as big as it gets,
  * m/s, and the share of it the gentlest crash is still worth — a helicopter
@@ -371,30 +374,40 @@ export function soundForEvent(
     // A PERSON RUN INTO (`person-hit.ts`, `person-bank.ts`): a body of a
     // man's weight met — heavier, lower and longer the faster the two
     // closed; one killed (the injuries on) is run clean through, his ribs
-    // going. The shoulder's `bump` in the same step is this blow said
-    // smaller and is left out (`soundsForStep`); thrown, the wipeout's
-    // tumble follows it.
+    // going; one a piste machine or a car struck is heard by its distance.
+    // The shoulder's `bump` in the same step is this blow said smaller and
+    // is left out (`soundsForStep`); thrown, the wipeout's tumble follows it.
     case "struck": {
       const hard = ramp(event.speed, PERSON_HIT.strike, STRUCK_FULL);
       const small = ramp(1.8 - event.height, 0, 0.7);
+      // Struck by a machine he was not driving (`away`): heard from where.
+      const far = event.away ? heardAt(event, contact.ear, STRUCK_HEARD) : null;
+      const shaped = (shape: PlayShape): PlayShape =>
+        far
+          ? {
+              gain: shape.gain! * far.gain!,
+              pitch: shape.pitch! * far.pitch!,
+              stretch: shape.stretch! * far.stretch!,
+            }
+          : shape;
       if (event.killed || event.crush > 0) {
         const smash = Math.max(hard, event.crush);
         return {
           id: "struck_crush",
-          shape: {
+          shape: shaped({
             gain: 0.85 + 0.35 * smash,
             pitch: 1 - 0.15 * smash + 0.2 * small,
             stretch: 0.9 + 0.3 * smash,
-          },
+          }),
         };
       }
       return {
         id: "struck_body",
-        shape: {
+        shape: shaped({
           gain: 0.7 + 0.5 * hard,
           pitch: 1.05 - 0.2 * hard + 0.25 * small,
           stretch: 0.9 + 0.35 * hard,
-        },
+        }),
       };
     }
 

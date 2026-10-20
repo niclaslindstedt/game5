@@ -17,7 +17,9 @@
 // line at 60 and 90 km/h, the injuries on and off — the blow, the throw and
 // both bodies lying, his figure drawn off the engine's body (broken and
 // flattened when it hurt him, `civilians-view.ts`), the snow's blood the
-// crowd's (`crowd-gore.ts`).
+// crowd's (`crowd-gore.ts`). Its `civilian-walker-` views are the same
+// over a dog walker on the village's sidewalks (`dog-foot.ts`), met at the
+// first moment of the run one is out where the player meets him square.
 
 import {
   NEUTRAL_INPUT,
@@ -37,6 +39,7 @@ import {
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { civilianAt, civilianHour, civilianPlanFor } from "../game/civilian-plan.ts";
+import { walkersAhead } from "../game/dog-foot.ts";
 import { peopled } from "../game/foot-call.ts";
 import { flatSpot, type Drive, type Lens, type Stage } from "./gore-scenes.ts";
 
@@ -210,6 +213,66 @@ function civilianInto(st: Stage, kmh: number, safe = false): void {
     st.shoot(s, "nobody-met-on-this-map", "chase");
     return;
   }
+  shootMeeting(st, s, pick, kmh, safe);
+}
+
+/** The first dog walker out on the village's sidewalks a run-in at `kmh`
+ * actually meets square, and when — tried on fresh runs with the injuries
+ * on, the clock set to the moment, his way knotted on to it. */
+function metWalker(st: Stage, kmh: number): { i: number; heading: number; t: number } | null {
+  const fresh = (t: number) => {
+    const s = peopled(st.fresh({ crowd: 30 }));
+    for (const o of s.crowd!.amateurs) o.mode = "lift";
+    s.t = t;
+    walkersAhead(s.foot!.call, t);
+    return s;
+  };
+  const at = { x: 0, y: 0, z: 0 };
+  for (let t = 20; t < 900; t += 20) {
+    const probe = fresh(t);
+    const call = probe.foot!.call!;
+    for (let i = 0; i < call.people.length; i++) {
+      const p = call.people[i];
+      if (!p.track || p.body === "child" || !footAt(probe, call, p, t, at)) continue;
+      for (const heading of [0, 0.5, 1, 1.5].map((k) => k * Math.PI)) {
+        const trial = fresh(t);
+        sendAt(trial, i, heading, kmh);
+        for (let k = 0; k < 60 && !trial.foot!.struck.length; k++) step(trial, NEUTRAL_INPUT);
+        const square = (h: { foot?: number; speed: number }) =>
+          h.foot === p.key && h.speed > (kmh / 3.6) * 0.8;
+        if (trial.foot!.struck.some(square)) return { i, heading, t };
+      }
+    }
+  }
+  return null;
+}
+
+/** THE MEETING WITH A DOG WALKER (`dog-foot.ts`): the player sent at `kmh`
+ * at the first owner out on the village's sidewalks he meets square — then
+ * the frames over him and the player. */
+function walkerInto(st: Stage, kmh: number, safe = false): void {
+  const s = peopled(st.fresh({ crowd: 30, ...(safe ? { safe: true } : {}) }));
+  for (const o of s.crowd!.amateurs) o.mode = "lift";
+  const pick = metWalker(st, kmh);
+  if (!pick) {
+    st.shoot(s, "nobody-met-on-this-map", "chase");
+    return;
+  }
+  s.t = pick.t;
+  walkersAhead(s.foot!.call, pick.t);
+  shootMeeting(st, s, pick, kmh, safe);
+}
+
+/** The player sent at person `pick.i` of `s`'s people on foot along
+ * `pick.heading` at `kmh`, and the frames: the moment before, the blow,
+ * the throw and both bodies lying. */
+function shootMeeting(
+  st: Stage,
+  s: GameState,
+  pick: { i: number; heading: number },
+  kmh: number,
+  safe: boolean,
+): void {
   const h = pick.heading;
   const at = sendAt(s, pick.i, h, kmh);
   const side = h + Math.PI / 2;
@@ -246,6 +309,8 @@ export const PERSON_VIEWS: Record<string, (st: Stage) => void | Promise<void>> =
   "civilian-90": (st) => civilianInto(st, 90),
   "civilian-60-safe": (st) => civilianInto(st, 60, true),
   "civilian-90-safe": (st) => civilianInto(st, 90, true),
+  "civilian-walker-60": (st) => walkerInto(st, 60),
+  "civilian-walker-60-safe": (st) => walkerInto(st, 60, true),
   "person-30": (st) => runInto(st, 30),
   "person-60": (st) => runInto(st, 60),
   "person-90": (st) => runInto(st, 90),

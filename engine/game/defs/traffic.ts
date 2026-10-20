@@ -243,3 +243,18 @@ export const TRAFFIC_STRIKE = {
   give: 0.12,
   bus: 0.5,
 } as const;
+
+/** WHAT EACH CLASS WEIGHS on the street, kg, with its driver: a small
+ * five-door 1.1–1.2 t, a compact estate some 1.4, a mid-size SUV some 1.9,
+ * a panel van some 2.2, a low-floor town bus 11–13 t, and a winter
+ * cyclist with his bicycle. A person on foot it meets is struck at these
+ * (`foot.ts`), and the app's knock throws him by the same
+ * (`pwa/src/game/civilian-hits.ts`). */
+export const VEHICLE_MASS: Readonly<Record<VehicleKind, number>> = {
+  hatch: 1150,
+  estate: 1450,
+  suv: 1950,
+  van: 2200,
+  bus: 12500,
+  bike: 95,
+};

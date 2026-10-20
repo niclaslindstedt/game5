@@ -13,19 +13,20 @@
 // (`civilian-knock.ts`). Three-free, so the suite reads it.
 //
 // The knocks are kept here, beside the plan, and step the ragdoll on the
-// engine's clock; nothing is written to the game's state. A blow past
-// `PERSON_HIT.strike` from the skier or the snowmobile he rides is the
-// ENGINE'S (`engine/game/foot.ts`): two bodies colliding, the skier slowed
-// or thrown by it and the person thrown with his share — and here his
-// knock is the engine's body, copied each frame (`fromEngine`) until it
-// lies still, then his own to get up from, or for good when it hurt him.
-// Everything softer, and every other hitter (the piste machines, the
-// traffic, a person knocked into the next), is this module's alone and
+// engine's clock; nothing is written to the game's state. A hard blow is
+// the ENGINE'S (`engine/game/foot.ts`) — from the skier or his body thrown
+// past `PERSON_HIT.strike`, from the snowmobile, a piste machine or the
+// traffic past the blow it gives (`PERSON_HIT.foot.blow`): two bodies
+// colliding, the person thrown with his share — and here his knock is the
+// engine's body, copied each frame (`fromEngine`) until it lies still,
+// then his own to get up from, or for good when it hurt him. Everything
+// softer, and a person knocked into the next, is this module's alone, and
 // the hitter never notices the person it went through.
 
 import {
   GROOMER,
   VEHICLES,
+  VEHICLE_MASS,
   TUNING,
   centreOf,
   freshVehiclePose,
@@ -50,6 +51,7 @@ import {
 import { KNOCK, knockOf, startTarget, stepKnock, strike, type Knock } from "./civilian-knock.ts";
 import { CIVILIAN_POSES, civilianDials, dialsPoints, settled } from "./civilian-moves.ts";
 import { CROWD_LOOKS } from "./crowd-rig.ts";
+import { walkerKey } from "./dog-foot.ts";
 import { dogWalkerAt } from "./dog-walk-pose.ts";
 import { dogPlanFor } from "./dog-walk.ts";
 
@@ -76,16 +78,17 @@ export const KNOCK_HIT = {
   sled: { length: 3.3, width: 1.15, height: 1.3, mass: 385, high: 0.6, lift: 0.4 },
   /** The piste machine: its blade a wall; a body is pushed ahead of it. */
   groomer: { height: 2.9, high: 0.8, lift: 0.18 },
-  /** The village's vehicles: a class's mass, kg, and its front's height and
-   * throw (a car's bonnet scoops; the bus's flat front projects). */
+  /** The village's vehicles: a class's front's height and throw (a car's
+   * bonnet scoops; the bus's flat front projects); its mass is the
+   * engine's (`VEHICLE_MASS`), which strikes a person by it too. */
   vehicle: {
-    hatch: { mass: 1150, high: 0.55, lift: 0.32 },
-    estate: { mass: 1450, high: 0.6, lift: 0.3 },
-    suv: { mass: 1950, high: 0.8, lift: 0.24 },
-    van: { mass: 2200, high: 0.95, lift: 0.16 },
-    bus: { mass: 12500, high: 1.1, lift: 0.1 },
-    bike: { mass: 95, high: 0.7, lift: 0.2 },
-  } satisfies Record<VehicleKind, { mass: number; high: number; lift: number }>,
+    hatch: { high: 0.55, lift: 0.32 },
+    estate: { high: 0.6, lift: 0.3 },
+    suv: { high: 0.8, lift: 0.24 },
+    van: { high: 0.95, lift: 0.16 },
+    bus: { high: 1.1, lift: 0.1 },
+    bike: { high: 0.7, lift: 0.2 },
+  } satisfies Record<VehicleKind, { high: number; lift: number }>,
   /** A knocked person is a hitter himself while this fast, m/s. */
   chain: 0.6,
   /** Sweep the hitters in steps of at most this, m. */
@@ -173,6 +176,7 @@ export function peopleOf(level: Level, summer = false): Person[] {
       out.push({
         key: out.length,
         id: 9000 + hh.id * 2 + member,
+        foot: walkerKey(hh.id, member),
         body,
         skis: false,
         // A dog walk goes round the village: no cull but the village's.
@@ -313,7 +317,7 @@ export function hittersOf(state: GameState, knocks: Knocks, out: Hitter[]): Hitt
           back: V.length / 2,
           half: V.width / 2,
           height: V.height,
-          mass: H.mass,
+          mass: VEHICLE_MASS[vehicle.kind],
           high: H.high,
           lift: H.lift,
         }),

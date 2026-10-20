@@ -107,6 +107,9 @@ export { landing, ropeHover } from "./army.ts";
 export { landingSpot, type LandSpot } from "./army-land.ts";
 export { armyTroops, liftSquad, onTheGround, soldierKey, stepGround } from "./army-ground.ts";
 export { LIFT_SQUAD, inGondola, liftFor } from "./army-lift.ts";
+// THE GROUND WAVES (`army-wave.ts`): the columns up the mountain.
+export { ARMY_WAVE } from "./defs/army-wave.ts";
+export { WAVE_SQUAD, wayDown } from "./army-wave.ts";
 // THE ARMY'S SNOWMOBILES (`army-sled.ts`): two up, after him over the snow.
 export { ARMY_SLED } from "./defs/army-sled.ts";
 export {

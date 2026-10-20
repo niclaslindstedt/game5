@@ -28,6 +28,7 @@ import {
   type SkierInput,
 } from "@engine";
 import { syntheticLevel } from "./support/synthetic.ts";
+import { withoutWaves } from "./support/waves.ts";
 
 const level = syntheticLevel();
 const dt = TUNING.dt;
@@ -197,8 +198,9 @@ describe("the hunt", () => {
 
 describe("the guns", () => {
   it("fires at a man with SAFE FOR WORK on and never wounds him", () => {
+    // The machines' guns alone: no column up the mountain for him to ski into.
     const s = hunted(5, { sfw: true });
-    run(s, 90, botInput);
+    withoutWaves(() => run(s, 90, botInput));
     expect(s.gunfire!.fired).toBeGreaterThan(20);
     expect(s.gunfire!.hits).toBe(0);
     expect(s.skier.body.injuries).toHaveLength(0);

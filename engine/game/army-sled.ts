@@ -660,8 +660,10 @@ export function stepArmySleds(state: GameState, events: GameEvent[]): void {
   if (!a || a.home || !w) return;
   const on = w.ended === null && w.stars > 0;
   const roster = rosterOf(on ? w.stars : 0);
-  if (a.sleds.length === 0 && roster.snowmobiles === 0) return;
-  call(state, a, roster.snowmobiles, events);
+  // The roster's, and the ground waves' on top (`army-wave.ts`).
+  const want = roster.snowmobiles + (on ? a.waveSleds : 0);
+  if (a.sleds.length === 0 && want === 0) return;
+  call(state, a, want, events);
   const q = quarryOf(state);
   for (const m of a.sleds) {
     m.t += dt;

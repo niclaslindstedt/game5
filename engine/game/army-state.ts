@@ -96,6 +96,8 @@ export type ArmyHeli = {
 };
 
 /** What a soldier on the ground is doing (`army-ground.ts`):
+ *   * `climb`: with his ground wave's column, up the way from the valley
+ *     (`army-wave.ts`), until he leaves it for the fight;
  *   * `rope`: sliding down a hovering machine's fast rope;
  *   * `out`: off a landed machine — run out to his side and knelt facing
  *     out until it has lifted;
@@ -111,6 +113,7 @@ export type ArmyHeli = {
  *     rifle on him while another does;
  *   * `gone`: aboard a machine — dropped at the end of the step. */
 export type SoldierMode =
+  | "climb"
   | "rope"
   | "out"
   | "chase"
@@ -127,16 +130,17 @@ export type SoldierMode =
   | "gone";
 
 /** ONE SOLDIER ON THE GROUND: his feet's place (m), his way over the snow
- * (m/s, plan) and his heading (rad); his `role` (a rifleman on skis or the
- * anti-armour man on foot) and where he came from (a machine's squad is
- * its id; a lift's squad is numbered past `LIFT_SQUAD`, a snowmobile's
- * crew past `SLED_SQUAD`); what he is doing
+ * (m/s, plan) and his heading (rad); his `role` (a rifleman on skis, a
+ * rifleman on foot, or the anti-armour man on foot) and where he came from
+ * (a machine's squad is its id; a lift's squad is numbered past
+ * `LIFT_SQUAD`, a snowmobile's crew past `SLED_SQUAD`, a ground wave's past
+ * `WAVE_SQUAD`); what he is doing
  * and for how long; the stance he fires from and the way he aims; and the
  * bookkeeping his decisions run on. */
 export type Soldier = {
   id: number;
-  role: "rifle" | "rocket";
-  from: "heli" | "lift" | "sled";
+  role: "rifle" | "foot" | "rocket";
+  from: "heli" | "lift" | "sled" | "wave";
   squad: number;
   mode: SoldierMode;
   /** Seconds in his mode. */
@@ -174,6 +178,10 @@ export type Soldier = {
   lift: number;
   carrier: number;
   seat: number;
+  /** WITH A GROUND WAVE: the next point of its way up he climbs to (−1:
+   * none), and his file — how far right of the way's line he climbs, m. */
+  leg: number;
+  lane: number;
   /** NOT GETTING STUCK: where he was at the last check and when, how many
    * checks in a row he barely moved, and the side he steps off to and until
    * when. */
@@ -183,6 +191,14 @@ export type Soldier = {
   slow: number;
   side: number;
   until: number;
+};
+
+/** A GROUND WAVE'S WAY UP (`army-wave.ts`): its squad, and the points it
+ * climbs from its column's tail to him — each a place on a run (m) and the
+ * run's width there, m. */
+export type WaveRoute = {
+  squad: number;
+  pts: { x: number; z: number; w: number }[];
 };
 
 /** THE ARMY'S AIR on a run hunted at a star that sends helicopters —
@@ -216,6 +232,17 @@ export type ArmyState = {
   sledsCalled: number;
   crewsDown: number;
   sledsTaken: number;
+  /** THE GROUND WAVES (`army-wave.ts`): the waves sent this hunt (the
+   * next one's number in `groundWave`), the star the count `waveAt` was
+   * kept against, the snowmobiles the last wave keeps out on top of the
+   * roster's, the ways up being climbed, and the men marched out (the
+   * labs' count). */
+  waves: number;
+  waveStar: number;
+  waveAt: number;
+  waveSleds: number;
+  routes: WaveRoute[];
+  marched: number;
   /** THE ARREST: the soldier holding him, when it was made, and where and
    * which way he was put down — absent until one is. */
   arrest?: { by: number; t: number; x: number; z: number; heading: number };
@@ -227,11 +254,14 @@ export type ArmyState = {
 /** THE ARMY'S EVENT: a machine called in (`called`, at its `due`), on
  * the map (`arrived`), turned for home (`leaving`), out over the edge
  * (`gone`), rammed (`rammed`), come down burning (`down`), set down on the
- * snow or hovered for the rope (`landed`), and off it again (`lifted`). */
+ * snow or hovered for the rope (`landed`), and off it again (`lifted`);
+ * and a ground wave sent up the mountain (`wave`: `id` its number, the
+ * place its column forms up at). */
 export type ArmyEvent = {
   kind: "army";
   t: number;
-  change: "called" | "arrived" | "leaving" | "gone" | "rammed" | "down" | "landed" | "lifted";
+  change:
+    "called" | "arrived" | "leaving" | "gone" | "rammed" | "down" | "landed" | "lifted" | "wave";
   id: number;
   x: number;
   y: number;

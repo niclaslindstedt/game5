@@ -211,18 +211,18 @@ if (tables.has("troops")) troopTable();
 if (tables.has("sleds")) sledTable();
 
 function troopTable() {
-console.log(
-  "| Quarry | Stars | Set down, s | Landed / roped | Men put down | First contact, s | Rounds | In him | Dead, s | Arrested, s | Picked up | Rode a lift (most at once) | Knocked down | Stuck |",
-);
-console.log(
-  "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-);
-for (const r of rows) {
   console.log(
-    `| ${r.quarry} | ${r.stars} | ${f(r.landed)} | ${r.landings} / ${r.ropes} | ${r.put} | ${f(r.contact)} | ${r.fired} | ${r.hits} | ${f(r.dead)} | ${f(r.arrested)} | ${r.picked} | ${r.lifted} (${r.onLift}) | ${r.down} | ${r.stuck} |`,
+    "| Quarry | Stars | Set down, s | Landed / roped | Men put down | First contact, s | Rounds | In him | Dead, s | Arrested, s | Picked up | Rode a lift (most at once) | Knocked down | Stuck |",
   );
-}
-console.log("");
+  console.log(
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+  );
+  for (const r of rows) {
+    console.log(
+      `| ${r.quarry} | ${r.stars} | ${f(r.landed)} | ${r.landings} / ${r.ropes} | ${r.put} | ${f(r.contact)} | ${r.fired} | ${r.hits} | ${f(r.dead)} | ${f(r.arrested)} | ${r.picked} | ${r.lifted} (${r.onLift}) | ${r.down} | ${r.stuck} |`,
+    );
+  }
+  console.log("");
 }
 
 function sledTable() {

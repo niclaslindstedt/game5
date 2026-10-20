@@ -271,6 +271,7 @@ const SILENT_KINDS: GameEvent["kind"][] = [
   "steal",
   "wanted",
   "soldier",
+  "army-sled",
 ];
 
 /** The ceiling a context at 16 kHz holds a cutoff under. */

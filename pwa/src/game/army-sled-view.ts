@@ -106,7 +106,10 @@ export function createArmySledView(haze: HazeUniforms, material: THREE.Material)
         d.sled.root.position.z += b.vz * ahead;
         d.driver.mesh.visible = m.driver;
         d.gunner.mesh.visible = m.gunner;
-        if (m.gunner && !(Math.abs(m.aimYaw - d.yaw) < REPOSE && Math.abs(m.aimPitch - d.pitch) < REPOSE)) {
+        if (
+          m.gunner &&
+          !(Math.abs(m.aimYaw - d.yaw) < REPOSE && Math.abs(m.aimPitch - d.pitch) < REPOSE)
+        ) {
           d.gunner.posed(sledGunnerPose(m.aimYaw, m.aimPitch));
           d.yaw = m.aimYaw;
           d.pitch = m.aimPitch;

@@ -657,7 +657,11 @@ export function sledDriverPose(): SoldierPose {
  * seat toward it as far as his hips let him, the rest in his arms. */
 export function sledGunnerPose(yaw: number, pitch: number): SoldierPose {
   const S = SLED_SEATS;
-  const aim: V3 = [Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)];
+  const aim: V3 = [
+    Math.sin(yaw) * Math.cos(pitch),
+    Math.sin(pitch),
+    Math.cos(yaw) * Math.cos(pitch),
+  ];
   const k = aimKey(
     astride(S.gunner, S.driver.z - S.gunner.z - 0.12, {
       pitch: 0.12,

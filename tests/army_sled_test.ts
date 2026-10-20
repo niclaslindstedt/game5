@@ -185,7 +185,12 @@ describe("taken", () => {
     m.body.running = false;
     m.body.rider = false;
     s.wanted!.ended = null;
-    standSkier(s, m.body.x + 1.2 * Math.cos(m.body.heading), m.body.z - 1.2 * Math.sin(m.body.heading), m.body.heading);
+    standSkier(
+      s,
+      m.body.x + 1.2 * Math.cos(m.body.heading),
+      m.body.z - 1.2 * Math.sin(m.body.heading),
+      m.body.heading,
+    );
     expect(stealWithin(s)?.livery).toBe("army");
     const heat = s.wanted!.heat;
     const events = run(s, dt, undefined);

@@ -2,7 +2,7 @@
 
 The army that hunts a wanted skier ([`wanted.md`](wanted.md)) needs a machine to come in and people to fire its guns ([`gunfire.md`](gunfire.md)). **This page is how they look and how its helicopters fly.** It covers the military helicopter, the winter infantry on skis and on foot, the door gunner and the anti-armour man, and what each is drawn from and why. Then it covers the helicopters [in flight](#in-flight): called in, hunting him and firing.
 
-The helicopters fly in the game. The soldiers are drawn, but nothing sets them down yet: the parts that send the section out build on the view classes, the places on the machine and the soldiers' poses here.
+The helicopters fly in the game, the soldiers are set down [on the ground](#on-the-ground), and the roster's snowmobiles drive after him [on snowmobiles](#on-snowmobiles).
 
 | Piece | Where |
 | --- | --- |
@@ -15,8 +15,10 @@ The helicopters fly in the game. The soldiers are drawn, but nothing sets them d
 | The soldiers as built and drawn | `pwa/src/game/soldier-shapes.ts` (`buildSoldierFigure`, `SoldierView`) |
 | The machines in flight: the call, the flight, the hunt, the guns, the ram | `engine/game/army.ts`, its numbers `engine/game/defs/army.ts` (`ARMY`), its state `engine/game/army-state.ts` (`GameState.army`) |
 | The machines in flight as drawn and heard | `pwa/src/game/army-air-view.ts` (held by `machines.ts`), `pwa/src/game/audio/army-bed.ts` |
+| The army on snowmobiles: the call, the drive, the short halt, the crew off, the machine taken | `engine/game/army-sled.ts`, its numbers `engine/game/defs/army-sled.ts` (`ARMY_SLED`), `ArmyState.sleds` |
+| The snowmobiles as drawn and heard | `pwa/src/game/army-sled-view.ts`, `sled-army-kit.ts`, `sled-livery.ts` (`army`), `soldier-pose.ts` (`sledDriverPose`, `sledGunnerPose`), `audio/army-bed.ts` |
 | The labs | `make army` (`scripts/army-preview.mjs`, `pwa/src/tools/army-harness.ts`, `pwa/army-preview.html`), `make army-flight` (`scripts/army-flight.mjs`) |
-| The tests | `tests/army_heli_test.ts`, `tests/soldier_test.ts`, `tests/army_test.ts`, `tests/models_test.ts`, `tests/model_registry_test.ts` |
+| The tests | `tests/army_heli_test.ts`, `tests/soldier_test.ts`, `tests/army_test.ts`, `tests/army_sled_test.ts`, `tests/models_test.ts`, `tests/model_registry_test.ts` |
 
 ## The helicopter
 
@@ -337,3 +339,111 @@ The army lab's `ground` sheet (`make army ARGS="--sheet=ground"`) photographs th
 - The soldiers have no voices: the shout and the arrest are events only.
 - They do not go prone, take cover behind a trunk, or ski a drop-off on purpose.
 - The rocketeer walks; he has no skis.
+
+## On snowmobiles
+
+`engine/game/army-sled.ts` sends the roster's military snowmobiles (`rosterOf(stars).snowmobiles`: one at three stars, two at four, three at five) after him. Its numbers are `ARMY_SLED` in `engine/game/defs/army-sled.ts`; the machines live in `ArmyState.sleds`. Like the soldiers, nothing here draws from any stream, so a hunt replays and no digest moves, and a run nobody hunts or a hunt under three stars calls none.
+
+**What the real thing does.** An army's over-snow sled is a long-track utility snowmobile, ridden two up: a long seat with a pillion and grab handles behind the driver, and a tubular rack over the tunnel's end for the crew's kit, a fuel can and a radio. It is painted a flat olive drab and, in a snow theatre, given white panels or daubed with a temporary white over the green. It carries a pair of riflemen fast over open snow and stops to let them fight: a machine on the move bucks under every bump and is a poor gun platform, so the man behind fires from a **short halt** (the driver brakes to a stop, the gunner fires a few bursts, and they move on before the target can answer). A skier who keeps moving and keeps something between him and them makes them stop often and is hard to hit from one.
+
+**The machine.** Each is the free ride's own snowmobile (`sled.ts`): the same body, belt and engine (`rideSled`), stepped on the same snow, with the trunks and the map's edge (`sledSolids`, `sledBounds`) and the pilot's hands (`sledPilot`, aimed at a point of the army's choosing). It is laden with two men in their kit and 40 kg of gun, ammunition and packs. It is called out of the village: 20 s after the roster asks, one every 8 s after the first, each from its own place beside the free ride's snowmobile spot (`sledPad`), 5 m to alternate sides, clear of trunks and water.
+
+**Reading the snow.** Every tenth of a second each machine weighs nine headings across 1.6 rad either side of the way to him (`wayCost`), reading 36 m ahead every 6 m. A heading is no way at all where:
+
+- a rise is steeper than 0.75 (more than a laden machine climbs);
+- a drop is steeper than 0.9 (a cliff it will not ride off);
+- open water is within 6 m;
+- the map's edge is within 40 m.
+
+A heading also costs for every radian off the way to him, every metre it is stopped short, every trunk within 3 m of its line, and for leaving the heading it holds. Among the trees it slows from 17 m/s (some 60 km/h, a laden utility machine and not a racer) to 8, and inside 60 m of where it stands off him it eases to a crawl. A **watchdog** counts the windows of 4 s in which it meant to move and barely did: the first swings it off to a side for 3 s, the second **digs it out** (stood 6 m back on its own track, facing him). Its crew see him as a snowmobile's do (`WANTED.sight`, 400 m), through the terrain and not through three or more crowns (`throughWoods`), so the woods lose him to them.
+
+**The short halt.** With him in their own sight, between 20 and 380 m, and the last halt over, the driver turns the machine broadside (the gunner fires past the driver's back, clear of him) and brakes it to a stop. Under 1.5 m/s and once the gunner has settled for 1.5 s with his aim laid on him, the gunner fires up to three bursts of the **light machine gun** (`lmg`, a 5.56 mm-class belt-fed gun: 850 rounds a minute, bursts of 3 to 6, aimed to 600 m) through the gunfire layer under the roster's rules of fire. After 8 s, three bursts, or 1.5 s out of sight they drive on, and halt again no sooner than 6 to 11 s later. Nobody halts to fire at a man already down. With the INJURIES on they stand off him at 110 m.
+
+**Safe for work.** They never wound him: the gun's fire is the gunfire's warning fire, never at him. They run him down and stand off at 7 m; with him seen within 14 m and slow, or down, the crew **get off** and become two soldiers on the ground (`army-ground.ts`, `from: "sled"`), who arrest him exactly as a squad does. The machine is left standing empty.
+
+**Body on machine.** The skier is held out of every machine's hull (`meetBoxes`, steel). Skiing into one at speed strikes the crewman on the side he meets (`foot.ts`' `meetPerson`): he is knocked off onto the snow as a soldier down, the heat rises (`hit-soldier`), the other man gets off after him to chase on skis, and the machine is left standing empty.
+
+**Taken.** An empty machine standing still is a machine to take (`steal.ts`' `ARMY_SLED_SOURCE`): the machine press beside it puts him on it as his own snowmobile in the army's livery, and the theft is an offence (`stole-snowmobile`). At most three machines are left standing; one is gone once the hunt is over and he is 300 m off.
+
+**The pursuers.** Every crewed machine on the snow is one pursuer (`kind: "snowmobile"`, ids from 5000). **Events:** one `army-sled` event, its `change` saying what happened: `called`, `out`, `halt`, `knocked`, `dismount`, `dug`, `stolen`, `gone`.
+
+### As drawn and heard
+
+`army-sled-view.ts` (held by `army-air-view.ts`) draws each machine as the free ride's model in the army's livery (`sled-livery.ts`' `army` row: olive drab) with its kit (`sled-army-kit.ts`: white daubed over the hood and the tunnel in ragged blotches, a white panel on the hood, the pillion and its grab handles, the rack with a fuel can and a white-covered pack, and the radio's whip). The crew are the part-3 soldier figures: the driver astride the seat with his fists on the grips (`sledDriverPose`), the gunner on the pillion with the gun laid where the engine aims it (`sledGunnerPose`). A man off it is drawn as a soldier on the ground. A machine he has taken is drawn the same, kit and all (`sled-view.ts`). Each is heard as the free ride's snowmobile (`audio/army-bed.ts`, the sled's voice racks, three at most); the gun is heard as the rifle (`audio/route.ts`).
+
+### The labs
+
+`make army-ground ARGS="--table=sleds"` adds a second table: the snowmobiles out (and the most at once), the first out and the first halt, the halts, the rounds and the rounds in him, his death or arrest, the crews off to arrest him, the machines dug out, and the machines STUCK (still held after the swing and the dig out: a third window of 4 s running in which it barely moved) — always 0. `--alone` hunts him with the snowmobiles alone (the roster's door gunners, soldiers and lifted men held back). A run of `make army-ground ARGS="--seconds=180 --table=sleds"` on seed 38, before the snowmobiles:
+
+| Quarry | Stars | Snowmobiles out (most at once) | First out, s | First halt, s | Halts | Rounds | In him | Dead, s | Arrested, s | Crews off to arrest | Dug out | Stuck |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 0 (0) | — | — | 0 | 0 | 0 | 99 | — | 0 | 0 | 0 |
+| skier | 3 | 0 (0) | — | — | 0 | 0 | 0 | 163 | — | 0 | 0 | 0 |
+| skier | 4 | 0 (0) | — | — | 0 | 0 | 0 | 70 | — | 0 | 0 | 0 |
+| skier | 5 | 0 (0) | — | — | 0 | 0 | 0 | 70 | — | 0 | 0 | 0 |
+| still | 2 | 0 (0) | — | — | 0 | 0 | 0 | 90 | — | 0 | 0 | 0 |
+| still | 3 | 0 (0) | — | — | 0 | 0 | 0 | 75 | — | 0 | 0 | 0 |
+| still | 4 | 0 (0) | — | — | 0 | 0 | 0 | 52 | — | 0 | 0 | 0 |
+| still | 5 | 0 (0) | — | — | 0 | 0 | 0 | 52 | — | 0 | 0 | 0 |
+
+After, INJURIES on:
+
+| Quarry | Stars | Snowmobiles out (most at once) | First out, s | First halt, s | Halts | Rounds | In him | Dead, s | Arrested, s | Crews off to arrest | Dug out | Stuck |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 1 (1) | 84 | — | 0 | 0 | 0 | 99 | — | 0 | 0 | 0 |
+| skier | 3 | 2 (2) | 20 | 121 | 1 | 10 | 0 | 131 | — | 0 | 2 | 0 |
+| skier | 4 | 2 (2) | 20 | — | 0 | 0 | 0 | 70 | — | 0 | 0 | 0 |
+| skier | 5 | 3 (3) | 20 | — | 0 | 0 | 0 | 70 | — | 0 | 0 | 0 |
+| still | 2 | 1 (1) | 89 | — | 0 | 0 | 0 | 90 | — | 0 | 0 | 0 |
+| still | 3 | 1 (1) | 20 | 64 | 1 | 8 | 1 | 69 | — | 0 | 0 | 0 |
+| still | 4 | 2 (2) | 20 | — | 0 | 0 | 0 | 52 | — | 0 | 0 | 0 |
+| still | 5 | 3 (3) | 20 | — | 0 | 0 | 0 | 52 | — | 0 | 0 | 0 |
+
+SAFE FOR WORK:
+
+| Quarry | Stars | Snowmobiles out (most at once) | First out, s | First halt, s | Halts | Rounds | In him | Dead, s | Arrested, s | Crews off to arrest | Dug out | Stuck |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 2 (2) | 84 | 101 | 5 | 64 | 0 | — | — | 0 | 0 | 0 |
+| skier | 3 | 2 (2) | 20 | 67 | 7 | 78 | 0 | — | — | 0 | 0 | 0 |
+| skier | 4 | 2 (2) | 20 | 55 | 5 | 45 | 0 | — | 90 | 1 | 0 | 0 |
+| skier | 5 | 3 (3) | 20 | 55 | 23 | 200 | 0 | — | — | 0 | 4 | 0 |
+| still | 2 | 1 (1) | 89 | — | 0 | 0 | 0 | — | 92 | 0 | 0 | 0 |
+| still | 3 | 1 (1) | 20 | 59 | 1 | 11 | 0 | — | 69 | 1 | 0 | 0 |
+| still | 4 | 2 (2) | 20 | 59 | 2 | 13 | 0 | — | 69 | 1 | 0 | 0 |
+| still | 5 | 3 (3) | 20 | 59 | 2 | 13 | 0 | — | 69 | 1 | 0 | 0 |
+
+The snowmobiles alone, INJURIES on:
+
+| Quarry | Stars | Snowmobiles out (most at once) | First out, s | First halt, s | Halts | Rounds | In him | Dead, s | Arrested, s | Crews off to arrest | Dug out | Stuck |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 2 (2) | 83 | 101 | 3 | 39 | 2 | — | — | 0 | 1 | 0 |
+| skier | 3 | 2 (2) | 20 | 59 | 4 | 25 | 8 | 140 | — | 0 | 3 | 0 |
+| skier | 4 | 3 (3) | 20 | 55 | 3 | 12 | 5 | 125 | — | 0 | 5 | 0 |
+| skier | 5 | 3 (3) | 20 | 55 | 6 | 12 | 3 | 91 | — | 0 | 1 | 0 |
+| still | 2 | 1 (1) | 84 | 127 | 2 | 6 | 6 | 139 | — | 0 | 0 | 0 |
+| still | 3 | 1 (1) | 20 | 64 | 1 | 12 | 5 | 71 | — | 0 | 0 | 0 |
+| still | 4 | 2 (2) | 20 | 64 | 1 | 12 | 5 | 71 | — | 0 | 0 | 0 |
+| still | 5 | 3 (3) | 20 | 64 | 1 | 12 | 5 | 71 | — | 0 | 0 | 0 |
+
+The snowmobiles alone, SAFE FOR WORK:
+
+| Quarry | Stars | Snowmobiles out (most at once) | First out, s | First halt, s | Halts | Rounds | In him | Dead, s | Arrested, s | Crews off to arrest | Dug out | Stuck |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 2 (2) | 83 | 101 | 7 | 48 | 0 | — | — | 0 | 0 | 0 |
+| skier | 3 | 1 (1) | 20 | 59 | 3 | 24 | 0 | — | 95 | 1 | 0 | 0 |
+| skier | 4 | 5 (3) | 20 | 55 | 15 | 148 | 0 | — | — | 2 | 0 | 0 |
+| skier | 5 | 3 (3) | 20 | 55 | 14 | 138 | 0 | — | — | 0 | 0 | 0 |
+| still | 2 | 1 (1) | 84 | 123 | 1 | 11 | 0 | — | 138 | 1 | 0 | 0 |
+| still | 3 | 1 (1) | 20 | 59 | 1 | 11 | 0 | — | 69 | 1 | 0 | 0 |
+| still | 4 | 2 (2) | 20 | 59 | 2 | 11 | 0 | — | 69 | 1 | 0 | 0 |
+| still | 5 | 3 (3) | 20 | 59 | 2 | 11 | 0 | — | 69 | 1 | 0 | 0 |
+
+The heat climbs on its own the longer he survives, so a hunt raised at two stars has its first machine out at three. With the whole army out, the door guns kill a man before the snowmobiles reach him at four and five stars. Alone, the machines put a man stood still down at the first halt, and a skier going straight down the piste (the bot does not dodge) within two minutes or so; one who weaves through the woods is out of their sight. With SAFE FOR WORK no round is ever in him, and a man who stands still is arrested by a sled's crew.
+
+The army lab's `sleds` sheet (`make army ARGS="--sheet=sleds"`) photographs the same hunts through the game's own renderer: `sled-chase` (a crewed machine after him, and the crew close up), `sled-halt` (stopped broadside, the gunner firing), `sled-arrest` (SAFE FOR WORK: the empty machine, its crew off and him held).
+
+### Not yet
+
+- The crew have no voices, and the machine has no siren or horn.
+- They do not tow a sledge (an ahkio) or carry more than two.
+- The ground waves' snowmobiles from the valley (`groundWave`) are still data: the roster's are the ones that come.

@@ -86,7 +86,7 @@ From two stars the army also comes **up the mountain from the valley** in waves 
 | 4 | 45 | 50 | 2, 2, 2, 0, 16 | 5, 4, 3, 1, 40 |
 | 5 | 30 | 40 | 3, 2, 2, 1, 24 | 6, 6, 4, 3, 64 |
 
-The helicopters and their door gunners fly ([`army.md`](army.md#in-flight)), and the soldiers on skis and on the lifts are set down and chase him ([`army.md`](army.md#on-the-ground)); the rest of the roster and the ground waves are data the later parts read.
+The helicopters and their door gunners fly ([`army.md`](army.md#in-flight)), the soldiers on skis and on the lifts are set down and chase him ([`army.md`](army.md#on-the-ground)), and the roster's snowmobiles drive after him ([`army.md`](army.md#on-snowmobiles)); the rest of the roster and the ground waves are data the later parts read.
 
 ## How a hunt ends
 

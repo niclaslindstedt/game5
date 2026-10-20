@@ -336,7 +336,6 @@ function drive(state: GameState, m: ArmySled, ctl: SledControls): void {
 function handsTo(state: GameState, m: ArmySled, pace: number): SledControls {
   const b = m.body;
   if (pace < 0.5) return { ...STOP, steer: 0 };
-  const D = K.drive;
   // Aimed well out along the way, so the hands hold the pace asked.
   const aim = { x: b.x + Math.sin(m.way) * 90, z: b.z + Math.cos(m.way) * 90, cruise: pace };
   return sledControls(sledPilot(state, aim, b));
@@ -345,7 +344,12 @@ function handsTo(state: GameState, m: ArmySled, pace: number): SledControls {
 /** Braked to a stop, the bars turned to bring the nose round to `face`. */
 function haltOn(m: ArmySled, face: number): SledControls {
   const off = angleDiff(m.body.heading, face);
-  return { throttle: m.body.speed < 0.6 && Math.abs(off) > 0.5 ? 0.25 : 0, brake: 1, steer: clamp(off * 2, -1, 1), lean: 0 };
+  return {
+    throttle: m.body.speed < 0.6 && Math.abs(off) > 0.5 ? 0.25 : 0,
+    brake: 1,
+    steer: clamp(off * 2, -1, 1),
+    lean: 0,
+  };
 }
 
 /** NOT GETTING STUCK: progress checked a window at a time; a swing off to
@@ -449,15 +453,18 @@ function chase(
   const stand = w.lethal ? K.stand.lethal : K.stand.sfw;
   // Eased from its pace to a crawl over the last `slow` m to where it
   // stands off him — and stopped there while its crew have him in sight.
-  const pace = sees && d < stand ? 0 : Math.min(m.pace, D.close + (m.pace - D.close) * clamp((d - stand) / D.slow, 0, 1));
+  const pace =
+    sees && d < stand
+      ? 0
+      : Math.min(m.pace, D.close + (m.pace - D.close) * clamp((d - stand) / D.slow, 0, 1));
   drive(state, m, handsTo(state, m, pace));
   if (pace > 2) watch(state, m, toward, events);
   else rest(state, m);
 }
 
-/** THE HALT: stopped, the nose at him, the gun laid on him and fired a few
+/** THE HALT: stopped broadside to him, the gun laid on him and fired a few
  * bursts — then on again. */
-function halt(state: GameState, m: ArmySled, w: WantedState, q: V, events: GameEvent[]): void {
+function halt(state: GameState, m: ArmySled, w: WantedState, q: V): void {
   const b = m.body;
   const H = K.halt;
   const sees = looks(state, m, q);
@@ -465,8 +472,16 @@ function halt(state: GameState, m: ArmySled, w: WantedState, q: V, events: GameE
   drive(state, m, haltOn(m, face));
   const muzzle = sledPoint(b, K.gun.muzzle);
   const flat = hypot(q.x - muzzle.x, q.z - muzzle.z);
-  const yaw = clamp(angleDiff(b.heading, Math.atan2(q.x - muzzle.x, q.z - muzzle.z)), -K.gun.arc, K.gun.arc);
-  const pitch = clamp(Math.atan2(q.y + WANTED.line.chest - muzzle.y, flat) - b.pitch, K.gun.low, K.gun.high);
+  const yaw = clamp(
+    angleDiff(b.heading, Math.atan2(q.x - muzzle.x, q.z - muzzle.z)),
+    -K.gun.arc,
+    K.gun.arc,
+  );
+  const pitch = clamp(
+    Math.atan2(q.y + WANTED.line.chest - muzzle.y, flat) - b.pitch,
+    K.gun.low,
+    K.gun.high,
+  );
   const turn = K.gun.turn * dt;
   m.aimYaw += clamp(yaw - m.aimYaw, -turn, turn);
   m.aimPitch += clamp(pitch - m.aimPitch, -turn, turn);
@@ -487,7 +502,11 @@ function halt(state: GameState, m: ArmySled, w: WantedState, q: V, events: GameE
 }
 
 /** The gun at the muzzle as the machine moves (a burst may still be going). */
-function carry(gun: { x: number; y: number; z: number; vx: number; vy: number; vz: number }, b: SledState, at: V): void {
+function carry(
+  gun: { x: number; y: number; z: number; vx: number; vy: number; vz: number },
+  b: SledState,
+  at: V,
+): void {
   gun.x = at.x;
   gun.y = at.y;
   gun.z = at.z;
@@ -577,12 +596,18 @@ function knock(state: GameState, a: ArmyState, m: ArmySled, events: GameEvent[])
     const rx = Math.cos(b.heading);
     const rz = -Math.sin(b.heading);
     const side = (c.x - b.x) * rx + (c.z - b.z) * rz >= 0 ? 1 : -1;
-    const p = { x: s0.x + rx * side * K.hull.halfWidth, y: s0.y, z: s0.z + rz * side * K.hull.halfWidth };
+    const p = {
+      x: s0.x + rx * side * K.hull.halfWidth,
+      y: s0.y,
+      z: s0.z + rz * side * K.hull.halfWidth,
+    };
     // The person on foot he is struck as is keyed by the soldier he will
     // be: the army's next.
     const key = ARMY_GROUND.ids.key + a.nextSoldier;
     const feet = state.level.groundAt(p.x, p.z);
-    if (!meetPerson(state, events, key, "soldier", "man", p.x, feet, p.z, b.heading, ARMY_GROUND.mass))
+    if (
+      !meetPerson(state, events, key, "soldier", "man", p.x, feet, p.z, b.heading, ARMY_GROUND.mass)
+    )
       continue;
     stepOff(state, a, m, seat, "down");
     struck = true;
@@ -649,7 +674,7 @@ export function stepArmySleds(state: GameState, events: GameEvent[]): void {
         else chase(state, a, m, w, q, roster.fire, events);
         break;
       case "halt":
-        halt(state, m, w, q, events);
+        halt(state, m, w, q);
         break;
       case "leave":
         home(state, m, events);

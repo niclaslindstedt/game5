@@ -1212,6 +1212,7 @@ gunfire:
 # One contact sheet a view, previews/army-<view>.png, and every frame
 # alone. Its own one-off bundle from pwa/army-preview.html (never
 # deployed); needs a Chromium like `world`.
+# The `air` sheet: the paramotors, a balloon, a rocket in flight, a wreck.
 # ARGS="--sheet=soldiers", "--sheet=hunt", "--views=doors,flight-dusk",
 # "--poses=aim,kneel", "--smock=whites".
 army:
@@ -1234,6 +1235,8 @@ gunfire-table:
 # death or his machine downed, and the least height over the snow and the
 # crowns with the steps under the floor (always 0). ARGS="--stars=2,4",
 # "--quarry=heli", "--seconds=180", "--sfw", "--json=previews/army-flight.json".
+# "--table=air" is the paramotors' and balloons' table instead (a row a star
+# and a quarry: skier, still, chase), "--alone" the air without the rest.
 army-flight:
 	npm run army-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 

@@ -93,6 +93,7 @@ import { SoldierView, soldierMaterial, soldierTriangles } from "../game/soldier-
 import { castInLight } from "../game/terrain-shade.ts";
 import { WAVE_VIEWS, waveViews } from "./army-waves-sheet.ts";
 import { VEHICLE_VIEWS, vehicleViews } from "./army-vehicles-sheet.ts";
+import { AIR_VIEWS, airViews } from "./army-air-sheet.ts";
 
 type Frame = { view: string; label: string; caption: string; png: string };
 
@@ -105,6 +106,7 @@ const GROUPS = {
   sleds: ["sled-chase", "sled-halt", "sled-arrest"],
   waves: WAVE_VIEWS,
   vehicles: VEHICLE_VIEWS,
+  air: AIR_VIEWS,
 } as const;
 
 declare global {
@@ -863,6 +865,7 @@ const LAB = {
 const VIEWS: Record<string, () => void | Promise<void>> = {
   ...waveViews(LAB),
   ...vehicleViews(LAB),
+  ...airViews(LAB),
   "sled-chase": () =>
     sledScene(4, true, (m) => m.mode === "drive" && m.body.speed > 8 && m.driver && m.gunner, [
       ["beside", Math.PI / 2 + 0.3, 7, 1.6, 50],
@@ -935,7 +938,7 @@ const COLS: Record<string, number> = {
   "sled-chase": 3,
   "sled-halt": 3,
   "sled-arrest": 3,
-  ...Object.fromEntries([...WAVE_VIEWS, ...VEHICLE_VIEWS].map((v) => [v, 3])),
+  ...Object.fromEntries([...WAVE_VIEWS, ...VEHICLE_VIEWS, ...AIR_VIEWS].map((v) => [v, 3])),
 };
 
 const ready = (async () => {

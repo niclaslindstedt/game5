@@ -205,7 +205,7 @@ describe("the stolen helicopter", () => {
       const h = s.heli!;
       expect(h.rider).toBe(true);
       // Hold the helicopter over the wing, its wash down on it.
-      const events = run(s, 3, (st) => {
+      const events = run(s, 3, () => {
         const w = p.wing;
         h.x = w.x;
         h.z = w.z;

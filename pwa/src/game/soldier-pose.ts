@@ -610,3 +610,67 @@ export function aimOf(kind: SoldierKind, name: string): V3 | null {
 export const asP3 = (p: V3): P3 => ({ x: p[0], y: p[1], z: p[2] });
 /** And back. */
 export const asV3 = tup;
+
+// ── on a snowmobile ──────────────────────────────────────────────────────
+
+/** THE ARMY'S SNOWMOBILE'S SEATS in the machine's traced frame
+ * (`sled-look.ts`: z forward from the tunnel's end, y up from the snow
+ * under the belt), m: where each man sits along it, the seat's top under
+ * him, his boots on the running boards and the driver's fists on the
+ * grips (`SLED_LOOK.grip`, the bar's width). Each figure is drawn in its
+ * own frame at (0, 0, `z`) of the machine's, facing its nose. */
+export const SLED_SEATS = {
+  driver: { z: 1.42, seat: 0.8 },
+  gunner: { z: 0.92, seat: 0.9 },
+  boards: 0.345,
+  grip: { x: 0.33, y: 1.135, z: 1.978 },
+} as const;
+
+/** The two men astride: the hips on the seat, the knees out round the
+ * machine, the boots on the boards. */
+function astride(seat: { z: number; seat: number }, ahead: number, k: Partial<Key>): Key {
+  const B = SLED_SEATS.boards + ANKLE;
+  return key({
+    hipY: seat.seat + 0.09,
+    hipZ: 0,
+    kneesOut: 0.6,
+    feet: [v(-0.3, B, ahead), v(0.3, B, ahead)],
+    ...k,
+  });
+}
+
+/** THE DRIVER: astride the seat, leant over the bars, a fist on each grip. */
+export function sledDriverPose(): SoldierPose {
+  const S = SLED_SEATS;
+  const g = S.grip;
+  const k = astride(S.driver, 0.32, {
+    pitch: 0.38,
+    nod: -0.15,
+    elbowsOut: 0.4,
+    hands: [v(-g.x, g.y, g.z - S.driver.z), v(g.x, g.y, g.z - S.driver.z)],
+  });
+  return { posed: keyPosed(k, SOLDIER_LOOK), rifle: null, tube: null, poles: null };
+}
+
+/** THE GUNNER ON THE PILLION, his light machine gun at his shoulder laid
+ * `yaw` off the nose (right positive) and `pitch` up, rad: turned in his
+ * seat toward it as far as his hips let him, the rest in his arms. */
+export function sledGunnerPose(yaw: number, pitch: number): SoldierPose {
+  const S = SLED_SEATS;
+  const aim: V3 = [
+    Math.sin(yaw) * Math.cos(pitch),
+    Math.sin(pitch),
+    Math.cos(yaw) * Math.cos(pitch),
+  ];
+  const k = aimKey(
+    astride(S.gunner, S.driver.z - S.gunner.z - 0.12, {
+      pitch: 0.12,
+      roll: 0.06,
+      twist: Math.max(-0.75, Math.min(0.75, yaw * 0.6)) + 0.2,
+      nod: 0.25,
+    }),
+    aim,
+  );
+  const posed = keyPosed(k, SOLDIER_LOOK);
+  return { posed, rifle: rifleInHands(posed, chestOf(posed).u), tube: null, poles: null };
+}

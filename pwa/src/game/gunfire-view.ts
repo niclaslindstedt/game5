@@ -47,6 +47,7 @@ export const GUNFIRE_LOOK = {
   /** THE MUZZLE FLASH by weapon: its size, m, how long it shows, s. */
   flash: {
     rifle: { size: 0.45, life: 0.05 },
+    lmg: { size: 0.55, life: 0.05 },
     doorGun: { size: 0.75, life: 0.05 },
     heavyGun: { size: 1.1, life: 0.06 },
     rocket: { size: 1.6, life: 0.09 },

@@ -13,7 +13,7 @@
 
 import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { solidsNear, solidsOf } from "./posts.ts";
-import { NEUTRAL_INPUT, type GameState, type SkierInput } from "./state.ts";
+import { NEUTRAL_INPUT, type GameState, type SkierInput, type SledState } from "./state.ts";
 
 /** How far ahead the bot looks for trunks and posts (`posts.ts`), m, and how wide a lane it wants
  * clear of them either side of the machine's centre line, m. */
@@ -24,8 +24,7 @@ const near: number[] = [];
 /** The bars away from the trunks ahead and how much to slow for them: each
  * trunk in the lane ahead pushes the bars toward its far side, harder the
  * nearer it stands and the more squarely in the way. */
-function dodge(run: GameState): { steer: number; slow: number } {
-  const s = run.sled!;
+function dodge(run: GameState, s: SledState): { steer: number; slow: number } {
   const fx = Math.sin(s.heading);
   const fz = Math.cos(s.heading);
   let steer = 0;
@@ -61,16 +60,20 @@ function uphill(run: GameState): SledAim {
   return top ? { x: s.x * 0.7 + top.x * 0.3, z: top.z } : { x: s.x, z: s.z - 400 };
 }
 
-/** The bot's controls for this step, riding `run`'s snowmobile to `aim`. */
-export function sledPilot(run: GameState, aim: SledAim = uphill(run)): SkierInput {
-  const s = run.sled;
+/** The bot's controls for this step, riding `run`'s snowmobile (or `s`,
+ * any machine on its snow — the army's, `army-sled.ts`) to `aim`. */
+export function sledPilot(
+  run: GameState,
+  aim: SledAim = uphill(run),
+  s: SledState | undefined = run.sled,
+): SkierInput {
   if (!s) return { ...NEUTRAL_INPUT };
   const dx = aim.x - s.x;
   const dz = aim.z - s.z;
   const d = hypot(dx, dz);
   if (d < 6) return { ...NEUTRAL_INPUT, brake: 1 };
   const off = angleDiff(s.heading, Math.atan2(dx, dz));
-  const avoid = dodge(run);
+  const avoid = dodge(run, s);
   const steer = clamp(off * 1.6 + avoid.steer, -1, 1);
   // How steep it climbs: the snow's rise along the nose.
   const ahead = 4;

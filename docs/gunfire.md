@@ -25,6 +25,7 @@ Each row is a CLASS of weapon, never a model. Its numbers sit in the band the se
 | Weapon | Round | Muzzle speed | Rate | Fired as | Effective |
 | --- | --- | --- | --- | --- | --- |
 | `rifle`, a 5.56 mm-class assault rifle | 4 g | 930 m/s (~650 at 300 m) | 800 a minute | 1–3 round bursts | 300–500 m |
+| `lmg`, a 5.56 mm-class light machine gun, belt-fed, fired off a snowmobile's pillion | 4 g, a tracer every 4th | 915 m/s | 850 a minute | bursts of 3–6 | ~600 m |
 | `doorGun`, a 7.62 mm-class general-purpose machine gun on a door mount | 9.5 g, a tracer every 4th | 840 m/s | 750 a minute | bursts of 6–9 | ~800 m |
 | `heavyGun`, a 12.7 mm-class heavy machine gun on a vehicle | 43 g, a tracer every 5th | 890 m/s | 550 a minute | bursts of 5–7 | ~1.2–1.8 km |
 | `rocket`, a shoulder-fired rocket launcher | 2.5 kg | thrown out at 115 m/s, its motor lit 11 m out and driving it to 290 m/s | one, 5–8 s to reload | — | a man to ~300 m |

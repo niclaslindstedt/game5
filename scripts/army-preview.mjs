@@ -28,6 +28,10 @@
 //   soldiers  ski, foot, rocket (every pose from the front, the side and
 //             behind at the chase camera's range, a row a pose), gunner
 //             (sat at his door gun at each aim), lods (the three cuts)
+//   sleds     sled-chase (a crewed snowmobile after him), sled-halt (its
+//             short halt broadside, the gunner firing), sled-arrest (SAFE
+//             FOR WORK: the crew off it and him held) — a hunted free ride
+//             on the real engine, him stood still
 //
 // Each frame is captioned with its milliseconds, draw calls and triangles.
 // Each VIEW is one contact sheet, previews/army-<view>.png, and every
@@ -58,12 +62,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (heli, flight, hunt, ground, soldiers); every one when left out",
+      help: "which sheets, comma-separated (heli, flight, hunt, ground, soldiers, sleds); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (turntable, close, doors, squad, flight-day, flight-dusk, hunt-2, hunt-4, hunt-heli, ground-land, ground-file, ground-fire, ground-lift, ground-arrest, ski, foot, rocket, gunner, lods)",
+      help: "only these views, comma-separated (turntable, close, doors, squad, flight-day, flight-dusk, hunt-2, hunt-4, hunt-heli, ground-land, ground-file, ground-fire, ground-lift, ground-arrest, sled-chase, sled-halt, sled-arrest, ski, foot, rocket, gunner, lods)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

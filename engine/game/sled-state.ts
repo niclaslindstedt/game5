@@ -57,8 +57,9 @@ export type SledContact = {
   touching: boolean;
 };
 
-/** The owners a snowmobile taken off the snow is drawn for (`steal.ts`). */
-export type SledLivery = "patrol";
+/** The owners a snowmobile taken off the snow is drawn for (`steal.ts`):
+ * the ski patrol's (`rescue-sled.ts`) or the army's (`army-sled.ts`). */
+export type SledLivery = "patrol" | "army";
 
 /** THE FREE RIDE'S SNOWMOBILE (`sled.ts`) — on a run whose rules carry one
  * (`RunRules.sled`), absent everywhere else. A rigid body: its place is

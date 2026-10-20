@@ -39,7 +39,7 @@
 // speed it still has there: what `body.ts`' `pierce` ladders read.
 
 /** The weapons there are. */
-export type WeaponKind = "rifle" | "doorGun" | "heavyGun" | "rocket" | "tankGun";
+export type WeaponKind = "rifle" | "lmg" | "doorGun" | "heavyGun" | "rocket" | "tankGun";
 
 /** A GUN that fires bullets. */
 export type GunDef = {
@@ -136,6 +136,31 @@ export const WEAPONS: Record<WeaponKind, WeaponDef> = {
     hold: 2,
     climb: 3.5,
     lead: 0.25,
+  },
+  // A LIGHT MACHINE GUN, 5.56 mm class: a section's belt-fed automatic
+  // weapon, the rifle's 4 g round; 700–1000 rounds a minute, fired in
+  // bursts of three to six; a tracer every 4th or 5th round of the belt;
+  // effective against a man to ~600 m off its bipod. Its cone of fire is
+  // ~2 mil. Fired off a sling from the pillion of a halted snowmobile —
+  // no bipod, the seat rocking on the idling engine and the soft snow, a
+  // man at the end of a fast ride — the gunner holds ~5 mil, twice a
+  // rifleman stood on his skis, and the heavier gun climbs ~1.5 mil a
+  // round.
+  lmg: {
+    kind: "gun",
+    mass: 0.004,
+    muzzle: 915,
+    drag: 0.00123,
+    rpm: 850,
+    burst: [3, 6],
+    pause: [0.8, 1.6],
+    tracer: 4,
+    range: 600,
+    reach: 1000,
+    dispersion: 2,
+    hold: 5,
+    climb: 1.5,
+    lead: 0.3,
   },
   // A DOOR-MOUNTED GENERAL-PURPOSE MACHINE GUN, 7.62 mm class: a 9.5 g
   // bullet at ~840 m/s, ~600 m/s at 500 m; 650–950 rounds a minute,

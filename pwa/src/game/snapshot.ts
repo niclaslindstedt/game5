@@ -602,7 +602,7 @@ export function heliOf(state: GameState): HudHeli | null {
   const c = state.skier;
   // At the door of a machine that is not his (`steal.ts`): the press takes it.
   const taken = stealWithin(state);
-  if (taken?.kind === "heli" && taken.livery !== "patrol")
+  if (taken?.kind === "heli" && taken.livery !== "patrol" && taken.livery !== "army")
     return {
       kind: "waiting",
       pad: Math.hypot(taken.door.x - c.x, taken.door.z - c.z),

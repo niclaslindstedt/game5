@@ -16,6 +16,7 @@
 
 import * as THREE from "three";
 import {
+  ARMY_VEHICLE,
   ARMY_WAVE,
   NEUTRAL_INPUT,
   WANTED,
@@ -110,8 +111,15 @@ export function vehicleViews(lab: VehicleLab): Record<string, () => Promise<void
         v.rear = v.heading - 0.25;
         v.mode = "park";
         v.speed = 0;
-        v.pitch = 0;
-        v.roll = 0;
+        // Leaned to the snow under it, as the engine leans it.
+        const S = ARMY_VEHICLE.kinds[v.kind];
+        const g = (a: number, b: number) =>
+          r.level.groundAt(
+            v.x + Math.sin(v.heading) * a + Math.cos(v.heading) * b,
+            v.z + Math.cos(v.heading) * a - Math.sin(v.heading) * b,
+          );
+        v.pitch = Math.atan2(g(S.halfLength, 0) - g(-S.halfLength, 0), 2 * S.halfLength);
+        v.roll = Math.atan2(g(0, -S.halfWidth) - g(0, S.halfWidth), 2 * S.halfWidth);
         if (v.kind === "tank") {
           v.turret = -0.5;
           v.gun = 0.06;
@@ -130,8 +138,8 @@ export function vehicleViews(lab: VehicleLab): Record<string, () => Promise<void
         ["the truck", truck, [-1.0, 2.4]],
       ] as const) {
         const at = centre(r, v, 1.4);
-        for (const b of bearings)
-          lab.shoot(label, lab.look(off(r, at, v.heading + b, 11, 2.2), at, 50), n, r);
+        for (const [k, b] of bearings.entries())
+          lab.shoot(`${label} ${k === 0 ? "front" : "back"}`, lab.look(off(r, at, v.heading + b, 11, 2.2), at, 50), n, r);
       }
     });
 

@@ -456,9 +456,11 @@ function hunt(
   const T = K.tank;
   const sees = looks(state, v, q);
   const d = hypot(q.x - v.x, q.z - v.z);
-  traverse(v, sees ? q : null);
+  // CUED: out of its own sight, laid on him by whoever sees him.
+  const cued = sees || (w.seen && d < T.cued);
+  traverse(v, cued ? q : null);
   const down = !!state.skier.thrown;
-  if (sees && !down && fire !== "hold" && d < T.range && state.t >= v.next) {
+  if (cued && !down && fire !== "hold" && d < T.range && state.t >= v.next) {
     v.mode = "halt";
     v.t = 0;
     v.shots = 0;
@@ -509,7 +511,7 @@ function halt(
 ): void {
   const T = K.tank;
   stand(state, a, v);
-  const sees = looks(state, v, q);
+  const sees = looks(state, v, q) || (w.seen && hypot(q.x - v.x, q.z - v.z) < T.cued);
   // The point laid on: him, or a warning shot's spot to his side.
   let tx = q.x;
   let tz = q.z;

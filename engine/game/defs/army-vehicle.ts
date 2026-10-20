@@ -157,8 +157,9 @@ export const ARMY_VEHICLE = {
 
   /** THE TANK'S FIGHT: it stands off him `lethal` m shooting to kill and
    * `sfw` m with SAFE FOR WORK on, closes to run him down where he is
-   * within `ram` m (INJURIES on); with him in sight within `range` m it
-   * halts to fire (no sooner than `least` s after the last halt ended),
+   * within `ram` m (INJURIES on); with him in sight within `range` m —
+   * or, out of its own crew's sight, CUED onto him by whoever of the hunt
+   * sees him (the radio) within `cued` m — it halts to fire (no sooner than `least` s after the last halt ended),
    * brakes under `still` m/s, lays the gun at `traverse` rad/s and
    * `elevate` rad/s between `low` and `high` rad, and fires once it is
    * laid within `laid` rad, up to `shots` rounds or for `hold` s. The
@@ -168,6 +169,7 @@ export const ARMY_VEHICLE = {
     sfw: 90,
     ram: 45,
     range: 900,
+    cued: 450,
     least: 5,
     still: 0.6,
     traverse: 0.7,

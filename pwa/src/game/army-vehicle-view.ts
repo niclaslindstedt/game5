@@ -118,7 +118,7 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
       turret = new THREE.Group();
       root.add(turret);
       mesh(geo.tankTurret, turret);
-      mesh(geo.commander, turret).position.set(0.75, 2.93, -0.6);
+      mesh(geo.commander, turret).position.set(0.75, 2.83, -0.6);
       gun = new THREE.Group();
       gun.position.set(0, TANK_GUN.y, TANK_GUN.z);
       turret.add(gun);

@@ -181,7 +181,7 @@ export const TANK_GUN = {
   y: A.tank.ring,
   z: 1.25,
   length: A.tank.muzzle - 1.25,
-  radius: 0.085,
+  radius: 0.1,
 } as const;
 
 /** THE CARRIER'S REAR UNIT's middle behind the front's, m (along the front's
@@ -425,7 +425,7 @@ function tankHull(): THREE.BufferGeometry {
 
 function tankTurret(): THREE.BufferGeometry {
   const p = new Part({ ...TANK_CAMO, seed: 1.7 });
-  const top = 2.65;
+  const top = 2.55;
   const base = 1.6;
   // The wide flat turret with its wedge front.
   p.hexa(

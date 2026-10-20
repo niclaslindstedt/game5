@@ -104,9 +104,8 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   group.name = "helicopter";
   const home: HeliView = createHeliView(level, haze);
   /** THE MACHINE TAKEN FROM ITS OWNERS (`steal.ts`), drawn in their
-   * livery off their model — built as soon as a run carries one he could
-   * take, so its model is in before he takes it — and the view drawing the
-   * run's machine this frame. */
+   * livery off their model (each built with the world, below), and the
+   * view drawing the run's machine this frame. */
   const takenBy = new Map<HeliLivery, HeliView>();
   let view = home;
   const lookOf = (livery: HeliLivery): HeliView => {
@@ -119,10 +118,11 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
     }
     return v;
   };
+  // Both owners' machines built with the world, behind the loading card:
+  // their models in and every program linked before he can take one,
+  // never on the frame he climbs in.
+  const takenReady = (Object.keys(LIVERY_LOOK) as HeliLivery[]).map((l) => lookOf(l).ready);
   const viewFor = (state: GameState): HeliView => {
-    for (const r of state.rescue ?? []) lookOf(r.kind === "police" ? "police" : "rescue");
-    // A crowd the ambulance may be called to mid-run (`crowd-calls.ts`).
-    if (state.crowd && state.rules.heli) lookOf("rescue");
     const livery = state.heli?.livery;
     home.setAway(!!livery);
     for (const [k, v] of takenBy) if (k !== livery) v.group.visible = false;
@@ -171,7 +171,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   // between the engine's steps (the tick it was read at, and the velocity).
   return {
     group,
-    ready: home.ready,
+    ready: Promise.all([home.ready, ...takenReady]).then(() => undefined),
     frame(state, alpha, dt, player, rung, flying, cloud, snowAt, aspect = 16 / 9) {
       const h = state.heli;
       cam.cut = !flying;

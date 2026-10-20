@@ -47,7 +47,9 @@
 // fired, the shells' fragments in him, his death or his arrest, the
 // vehicles backed out (dug) and the vehicles STUCK — put back on the way
 // after a third window held — which must be 0, and the step's cost as in
-// the waves' table. With `--sfw`, a fragment in him is a failure.
+// the waves' table. With `--sfw`, a fragment in him is a failure. `--waves`
+// hunts him with the ground waves alone: the roster's door gunners,
+// soldiers, lifts and every snowmobile held back.
 //
 // Nothing drawn; tens of seconds.
 //
@@ -56,7 +58,7 @@
 //   node scripts/army-ground.mjs --json=previews/army-ground.json
 //   node scripts/army-ground.mjs --table=sleds --alone
 //   node scripts/army-ground.mjs --table=waves --sfw
-//   node scripts/army-ground.mjs --table=vehicles --alone
+//   node scripts/army-ground.mjs --table=vehicles --waves
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -82,9 +84,14 @@ const args = parseArgs(
       default: false,
       help: "the snowmobiles alone: no door gunners, soldiers or lifts",
     },
+    waves: {
+      kind: "flag",
+      default: false,
+      help: "the ground waves alone: no door gunners, soldiers, lifts or snowmobiles",
+    },
     json: { kind: "string", default: "", help: "write the table as JSON to this file" },
   },
-  "usage: node scripts/army-ground.mjs [--seed=n] [--stars=a,b] [--quarry=skier,still] [--seconds=s] [--sfw] [--table=troops,sleds,waves,vehicles] [--alone] [--json=FILE]",
+  "usage: node scripts/army-ground.mjs [--seed=n] [--stars=a,b] [--quarry=skier,still] [--seconds=s] [--sfw] [--table=troops,sleds,waves,vehicles] [--alone] [--waves] [--json=FILE]",
 );
 
 aliasEngine(root);
@@ -98,6 +105,22 @@ const list = (s) =>
 const level = E.generateLevel(args.seed);
 const dt = E.TUNING.dt;
 const tables = new Set(list(args.table));
+// THE GROUND WAVES ALONE: the roster's men and every snowmobile held back,
+// so what ends a hunt is the waves' men and their vehicles.
+if (args.waves) {
+  for (const row of E.WANTED.roster) {
+    row.gunners = 0;
+    row.soldiers = 0;
+    row.lifted = 0;
+    row.snowmobiles = 0;
+  }
+  for (const row of E.WANTED.waves) {
+    if (!row) continue;
+    row.base.snowmobiles = 0;
+    row.grow.snowmobiles = 0;
+    row.cap.snowmobiles = 0;
+  }
+}
 // THE SNOWMOBILES ALONE: every row's men but theirs held back for the run.
 if (args.alone) {
   for (const row of E.WANTED.roster) {
@@ -293,7 +316,7 @@ for (const quarry of list(args.quarry))
 const f = (v, d = 0) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 console.log(
   `seed ${args.seed}, ${args.seconds} s a hunt, ${args.sfw ? "SAFE FOR WORK" : "INJURIES on"}` +
-    `${args.alone ? ", the snowmobiles alone" : ""}\n`,
+    `${args.alone ? ", the snowmobiles alone" : ""}${args.waves ? ", the ground waves alone" : ""}\n`,
 );
 if (tables.has("troops")) troopTable();
 if (tables.has("sleds")) sledTable();

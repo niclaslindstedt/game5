@@ -32,7 +32,7 @@ import { throwRider } from "./crash.ts";
 import { ARMY_VEHICLE, type VehicleSpec } from "./defs/army-vehicle.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { lethalOf } from "./gunfire.ts";
-import { solidsNear } from "./posts.ts";
+import { solidsNear, solidsOf } from "./posts.ts";
 import type { ArmyVehicle, ArmyVehicleEvent } from "./army-state.ts";
 import type { GameEvent, GameState } from "./state.ts";
 
@@ -73,6 +73,30 @@ export function rearOf(v: Pick<ArmyVehicle, "x" | "z" | "heading" | "rear">): {
   return { x: hx - Math.sin(v.rear) * R.back, z: hz - Math.cos(v.rear) * R.back };
 }
 
+/** WHAT STANDS within `r` m of (x, z) — every solid of the map (a trunk,
+ * a post, a wall) whose own girth reaches that far, the trees felled for
+ * the village (kept in the list with no girth) left out — by index into
+ * `solidsOf`, into `out`. */
+export function standingNear(
+  level: GameState["level"],
+  x: number,
+  z: number,
+  r: number,
+  out: number[],
+): number[] {
+  solidsNear(level, x, z, r + 1, out);
+  const all = solidsOf(level);
+  let n = 0;
+  for (const i of out) {
+    const u = all[i];
+    if (u.radius <= 0 || u.height <= 0) continue;
+    if (hypot(u.x - x, u.z - z) > r + u.radius) continue;
+    out[n++] = i;
+  }
+  out.length = n;
+  return out;
+}
+
 /** WHETHER SOMETHING STANDS IN ITS WAY at its front (or its back,
  * backing): a solid within its half width, open water, or another vehicle
  * of the waves within reach ahead. */
@@ -83,7 +107,7 @@ function blocked(state: GameState, v: ArmyVehicle, all: readonly ArmyVehicle[]):
   const fz = Math.cos(v.heading) * dir;
   const px = v.x + fx * (S.halfLength + 0.6);
   const pz = v.z + fz * (S.halfLength + 0.6);
-  if (solidsNear(state.level, px, pz, S.halfWidth * 0.8, near).length > 0) return true;
+  if (standingNear(state.level, px, pz, S.halfWidth * 0.8, near).length > 0) return true;
   if (waterWithin(state.level.water, px, pz, 1)) return true;
   for (const o of all) {
     if (o === v || o.mode === "due" || o.mode === "gone") continue;

@@ -68,6 +68,7 @@ import {
   moveVehicle,
   movedSince,
   sayVehicle,
+  standingNear,
   specOf,
 } from "./army-vehicle-body.ts";
 import { ARMY_VEHICLE, type ArmyVehicleKind } from "./defs/army-vehicle.ts";
@@ -75,7 +76,6 @@ import { ARMY_WAVE } from "./defs/army-wave.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { WANTED, type WaveMix } from "./defs/wanted.ts";
 import { armGun, disarmGun, fireAt, gunReady } from "./gunfire.ts";
-import { solidsNear } from "./posts.ts";
 import { villageOf } from "./village.ts";
 import { quarryOf, rosterOf, seesQuarry } from "./wanted.ts";
 import type { ArmyState, ArmyVehicle, WaveRoute } from "./army-state.ts";
@@ -270,7 +270,7 @@ function driveTo(
       READS[v.kind],
       D,
       S.halfWidth + K.terrain.trunk,
-      solidsNear,
+      standingNear,
     );
     v.way = c.way;
     v.pace = c.woods ? S.woods : S.cruise;
@@ -308,7 +308,7 @@ function watch(state: GameState, v: ArmyVehicle, events: GameEvent[]): void {
     for (let k = 1; k <= 3; k++) {
       const x = v.x + Math.sin(back) * S.dig * k;
       const z = v.z + Math.cos(back) * S.dig * k;
-      if (solidsNear(state.level, x, z, specOf(v).halfWidth + 1, near).length === 0) {
+      if (standingNear(state.level, x, z, specOf(v).halfWidth + 1, near).length === 0) {
         v.x = x;
         v.z = z;
         break;
@@ -389,7 +389,6 @@ function unload(state: GameState, a: ArmyState, v: ArmyVehicle, w: WantedState, 
     }
     v.aboard--;
     a.unloaded++;
-    a.marched++;
     return;
   }
   if (v.aboard === 0 && v.t >= D.linger) {

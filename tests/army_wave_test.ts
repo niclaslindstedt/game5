@@ -9,6 +9,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ARMY_VEHICLE,
   ARMY_WAVE,
   NEUTRAL_INPUT,
   TUNING,
@@ -35,13 +36,17 @@ const level = levelFor(LEVEL_SEEDS[1]);
 
 /** THE WAVES ALONE: the roster's door gunners, soldiers, lifted men and
  * snowmobiles held back and its fire held (`hold`), for the length of
- * `fn`, and the snowmobiles the waves bring set to `sleds` — so what a
- * test reads is the columns. Put back as they were. */
+ * `fn`, the snowmobiles the waves bring set to `sleds` and their carriers,
+ * trucks and tanks held back (`army_vehicle_test.ts` reads those) — so
+ * what a test reads is the columns. Put back as they were. */
 function wavesAlone<T>(fn: () => T, sleds = 0): T {
   const rows = WANTED.roster as WantedRoster[];
   const kept = rows.map((r) => ({ ...r }));
   const W = ARMY_WAVE as { sleds: number };
   const keptSleds = W.sleds;
+  const vehicles = ARMY_VEHICLE.most as number[];
+  const keptVehicles = [...vehicles];
+  vehicles.fill(0);
   for (const r of rows) {
     r.gunners = 0;
     r.soldiers = 0;
@@ -55,6 +60,7 @@ function wavesAlone<T>(fn: () => T, sleds = 0): T {
   } finally {
     kept.forEach((r, i) => Object.assign(rows[i], r));
     W.sleds = keptSleds;
+    keptVehicles.forEach((n, i) => (vehicles[i] = n));
   }
 }
 

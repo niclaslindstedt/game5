@@ -22,10 +22,25 @@
 // sled's own engine bed (`sled-voice.ts`, read through `sled-bed.ts`'
 // `sledVoiceOf`): one of its racks a machine, from where the skier is.
 //
+// THE GROUND WAVES' VEHICLES (`army-vehicle.ts`) are heard by their own
+// diesel (`army-vehicle-voice.ts`: the block, the knock, the turbo, the
+// tracks' clatter and squeal): the nearest few, a rack each, from where the
+// skier is.
+//
 // Built only on a run whose hunt brought the army's air; anywhere else it
 // builds nothing and costs nothing.
 
-import { ARMY, ARMY_HELI, armyHelis, armySleds, type ArmyHeli, type GameState } from "@engine";
+import {
+  ARMY,
+  ARMY_HELI,
+  ARMY_VEHICLE,
+  armyHelis,
+  armySleds,
+  armyVehicles,
+  type ArmyHeli,
+  type ArmyVehicle,
+  type GameState,
+} from "@engine";
 
 import type { Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
 import type { LayerTarget } from "@niclaslindstedt/oss-game-framework/audio/voice";
@@ -42,6 +57,14 @@ import {
   type HeliVoice,
 } from "./heli-voice.ts";
 import { listenerFor, type Listener } from "./listener.ts";
+import {
+  VEHICLE_GLIDE,
+  VEHICLE_LAYERS,
+  vehicleHeard,
+  vehicleTargets,
+  type VehicleLayer,
+  type VehicleVoice,
+} from "./army-vehicle-voice.ts";
 import { SLED_GLIDE, SLED_LAYERS, sledHeard, sledTargets, type SledLayer } from "./sled-voice.ts";
 import { sledVoiceOf } from "./sled-bed.ts";
 import { SCREEN_TO_ENGINE } from "../input-model.ts";
@@ -60,6 +83,41 @@ export const ARMY_VOICE = { thump: 1.5, whine: 0.86, twin: 1.012, second: 0.8 } 
 const MOST = 3;
 /** The wreck's fire, 0..1, while it burns (the engine's `ram.wreck`). */
 const BURN = 0.8;
+
+/** THE MOST VEHICLES HEARD AT ONCE — the nearest. */
+const MOST_VEHICLES = 4;
+
+/** ONE WAVE VEHICLE AGAINST THE EAR: its diesel's revs off its pace (a
+ * fast idle while it stands), the work a climb or pulling away asks of it,
+ * and where it is from the skier — how far, and how far across. */
+export function vehicleVoiceOf(
+  state: GameState,
+  v: ArmyVehicle,
+): { voice: VehicleVoice; distance: number; pan: number } {
+  const c = state.skier;
+  const dx = v.x - c.x;
+  const dz = v.z - c.z;
+  const distance = Math.hypot(dx, v.y + 1.5 - (c.y + EAR), dz);
+  const fx = Math.sin(c.heading);
+  const fz = Math.cos(c.heading);
+  const flat = Math.hypot(dx, dz);
+  const across = flat > 1 ? (dx * fz - dz * fx) / flat : 0;
+  const pace = Math.abs(v.speed);
+  const share = Math.min(1, pace / ARMY_VEHICLE.kinds[v.kind].cruise);
+  const moving = v.mode === "drive" || v.mode === "leave";
+  const climb = Math.max(0, v.pitch * Math.sign(v.speed || 1));
+  const pulling = moving ? Math.max(0, v.pace - pace) / 4 : 0;
+  return {
+    voice: {
+      kind: v.kind,
+      rev: moving ? Math.min(1, 0.2 + 0.6 * share + 2 * climb) : 0.05,
+      load: moving ? Math.min(1, 0.25 + 4 * climb + pulling) : 0.08,
+      pace,
+    },
+    distance,
+    pan: across * SCREEN_TO_ENGINE * PAN,
+  };
+}
 
 /** ONE MACHINE AGAINST THE EAR — a `HeliVoice` read off the engine's
  * machine: the spool it flies at, the collective a climb or a hard turn
@@ -136,7 +194,21 @@ export function createArmyBed(synth: Synth): ArmyBed {
   // its racks a machine, a slot each.
   const sledRacks: (Rack<SledLayer> | null)[] = Array.from({ length: MOST }, () => null);
   const sledSlots: (number | null)[] = Array.from({ length: MOST }, () => null);
+  // THE WAVES' VEHICLES: one of their racks a vehicle, the nearest few.
+  const vehicleRacks: (Rack<VehicleLayer> | null)[] = Array.from(
+    { length: MOST_VEHICLES },
+    () => null,
+  );
+  const vehicleSlots: (number | null)[] = Array.from({ length: MOST_VEHICLES }, () => null);
   let listener: Listener = listenerFor("chase");
+
+  const hushVehicles = (): void => {
+    for (let i = 0; i < MOST_VEHICLES; i++) {
+      vehicleRacks[i]?.stop();
+      vehicleRacks[i] = null;
+      vehicleSlots[i] = null;
+    }
+  };
 
   const hushSleds = (): void => {
     for (let i = 0; i < MOST; i++) {
@@ -152,6 +224,7 @@ export function createArmyBed(synth: Synth): ArmyBed {
       slots[i] = null;
     }
     hushSleds();
+    hushVehicles();
   };
 
   /** Every army snowmobile out, its engine steered as the free ride's. */
@@ -179,10 +252,45 @@ export function createArmyBed(synth: Synth): ArmyBed {
     }
   };
 
+  /** The nearest of the waves' vehicles, each its diesel and its tracks. */
+  const vehicles = (state: GameState, duck: number): void => {
+    const all = armyVehicles(state);
+    if (all.length === 0 && vehicleSlots.every((s) => s === null)) return;
+    const heard = all
+      .map((v) => ({ v, ...vehicleVoiceOf(state, v) }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, MOST_VEHICLES);
+    for (let i = 0; i < MOST_VEHICLES; i++) {
+      if (vehicleSlots[i] !== null && !heard.some((h) => h.v.id === vehicleSlots[i])) {
+        vehicleRacks[i]?.stop();
+        vehicleRacks[i] = null;
+        vehicleSlots[i] = null;
+      }
+    }
+    for (const h of heard) {
+      let i = vehicleSlots.indexOf(h.v.id);
+      if (i < 0) i = vehicleSlots.indexOf(null);
+      if (i < 0) continue;
+      vehicleSlots[i] = h.v.id;
+      const rack = (vehicleRacks[i] ??= createRack(synth, VEHICLE_LAYERS, VEHICLE_GLIDE));
+      const mix = vehicleHeard(h.distance);
+      const targets = vehicleTargets(h.voice, {
+        gain: mix.gain * listener.machine * duck,
+        tone: mix.tone,
+      });
+      for (const k of Object.keys(targets) as VehicleLayer[])
+        targets[k].pan = h.pan * listener.side;
+      rack.apply(targets);
+    }
+  };
+
   return {
     update(state, _dt, duck = 1) {
       const helis = armyHelis(state);
-      if (synth.now() !== null) sleds(state, duck);
+      if (synth.now() !== null) {
+        sleds(state, duck);
+        vehicles(state, duck);
+      }
       if (helis.length === 0) {
         if (racks.some((r) => r)) hush();
         return;
@@ -214,6 +322,7 @@ export function createArmyBed(synth: Synth): ArmyBed {
     reset: hush,
     live: () =>
       racks.reduce((n, r) => n + (r ? r.live() : 0), 0) +
-      sledRacks.reduce((n, r) => n + (r ? r.live() : 0), 0),
+      sledRacks.reduce((n, r) => n + (r ? r.live() : 0), 0) +
+      vehicleRacks.reduce((n, r) => n + (r ? r.live() : 0), 0),
   };
 }

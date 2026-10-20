@@ -92,6 +92,7 @@ import {
 import { SoldierView, soldierMaterial, soldierTriangles } from "../game/soldier-shapes.ts";
 import { castInLight } from "../game/terrain-shade.ts";
 import { WAVE_VIEWS, waveViews } from "./army-waves-sheet.ts";
+import { VEHICLE_VIEWS, vehicleViews } from "./army-vehicles-sheet.ts";
 
 type Frame = { view: string; label: string; caption: string; png: string };
 
@@ -103,6 +104,7 @@ const GROUPS = {
   soldiers: ["ski", "foot", "rocket", "gunner", "lods"],
   sleds: ["sled-chase", "sled-halt", "sled-arrest"],
   waves: WAVE_VIEWS,
+  vehicles: VEHICLE_VIEWS,
 } as const;
 
 declare global {
@@ -847,16 +849,19 @@ async function sledScene(
     shoot(label, clearRound(c, b.heading, bearing, d, up, fov), note, run);
 }
 
+const LAB = {
+  groundRun,
+  shoot,
+  look,
+  clearRound,
+  settle: settleGround,
+  note: groundNote,
+  at: open,
+  frame: (run: GameState, dt: number) => renderer.draw(run, 1, dt),
+};
 const VIEWS: Record<string, () => void | Promise<void>> = {
-  ...waveViews({
-    groundRun,
-    shoot,
-    look,
-    clearRound,
-    settle: settleGround,
-    note: groundNote,
-    at: open,
-  }),
+  ...waveViews(LAB),
+  ...vehicleViews(LAB),
   "sled-chase": () =>
     sledScene(4, true, (m) => m.mode === "drive" && m.body.speed > 8 && m.driver && m.gunner, [
       ["beside", Math.PI / 2 + 0.3, 7, 1.6, 50],
@@ -929,7 +934,7 @@ const COLS: Record<string, number> = {
   "sled-chase": 3,
   "sled-halt": 3,
   "sled-arrest": 3,
-  ...Object.fromEntries(WAVE_VIEWS.map((v) => [v, 3])),
+  ...Object.fromEntries([...WAVE_VIEWS, ...VEHICLE_VIEWS].map((v) => [v, 3])),
 };
 
 const ready = (async () => {

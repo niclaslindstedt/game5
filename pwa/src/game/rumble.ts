@@ -185,8 +185,11 @@ export function rumbleForEvent(event: GameEvent): Rumble | null {
 
     // A PERSON RUN INTO (`person-hit.ts`): a body of his own weight — as
     // hard as the speed it took off him, one run clean through a beat
-    // longer. Thrown, the wipeout beside it plays.
+    // longer. Thrown, the wipeout beside it plays; a person a piste machine
+    // or a car struck (`away`) is not felt at all.
     case "struck": {
+      // Struck by a machine he was not driving: nothing of it is his to feel.
+      if (event.away) return null;
       const hard = ramp(event.taken, 1, STRUCK_FULL);
       return { ms: (event.killed ? 120 : 80) + 120 * hard, strength: 0.55 + 0.45 * hard };
     }

@@ -71,6 +71,15 @@ export const PERSON_HIT = {
    * middle, m; and how long a person knocked and not hurt is no body to
    * the engine, s — he lies, gets up and walks back to his routine
    * (`pwa/src/game/civilian-knock.ts`) — before he stands where his plan
-   * has him again. */
-  foot: { radius: 0.26, reach: 0.36, back: 60 },
+   * has him again. The player THROWN is a low round body of `thrown` m
+   * round his middle, tumbling into them. A MACHINE the player is not on
+   * his skis for — a piste machine, a car, the bus, a bicycle — strikes
+   * when the change of speed it gives the person reaches `blow`, m/s:
+   * what a skier at the strike speed gives a grown man (half of it, and
+   * the little bounce), so twelve tonnes of steel at a walking pace is a
+   * collision where a skier at that pace is only a shove. The machines
+   * meet them every `every` steps — a thirtieth of a second, in which a
+   * car on the road out goes half a metre, an eighth of its own length, so
+   * none goes through a person between two looks. */
+  foot: { radius: 0.26, reach: 0.36, back: 60, thrown: 0.5, blow: 3.4, every: 4 },
 } as const;

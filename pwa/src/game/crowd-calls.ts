@@ -12,7 +12,9 @@
 // lie. The call is pushed into the run's own `GameState.rescue` (its
 // clock the run's), so the engine holds a skier out of the landed machine
 // and lets him take it (`steal.ts`) as any other; the book carries it into
-// the runs after (`rescue-book.ts`).
+// the runs after (`rescue-book.ts`). Its crew is sampled for the engine
+// as it is made or joined (`crewTracks`), so the men a call brings are
+// bodies the skier meets from the moment they step out.
 //
 // A pure function of the state, run after EVERY step the app takes of a
 // run — live, a replay's playback and a replay's seek alike (`stepRun`) —
@@ -31,6 +33,8 @@ import {
 import { CROWD_PALETTE, outfitOf } from "./crowd-dress.ts";
 import { dispatchRescue, sledCall } from "./rescue-dispatch.ts";
 import { canTake, planFlight, type RescueFlight } from "./rescue-flight.ts";
+import { crewTracks } from "./rescue-tracks.ts";
+import { walkersAhead } from "./dog-foot.ts";
 
 /** How long his body lies still before the call is made, s (thrown). */
 export const SETTLE = 3;
@@ -86,6 +90,7 @@ export function callCrowd(state: GameState): number {
     if (join) {
       join.casualties.push({ ...casualty, known: state.t - join.start });
       join.up = join.start + flightOf(state, join).lift;
+      join.crew = crewTracks(state.level, join);
       made++;
       continue;
     }
@@ -95,7 +100,9 @@ export function callCrowd(state: GameState): number {
     if (sent.sleds) {
       // Nowhere near him to set down: the patrol drives up (it takes him alone).
       const end = state.t + sledCallGone(sent.sleds);
-      calls.push(sledCall(sent.sleds, state.t, end, [casualty], [null, null]));
+      const call = sledCall(sent.sleds, state.t, end, [casualty], [null, null]);
+      call.crew = crewTracks(state.level, call);
+      calls.push(call);
       made++;
       continue;
     }
@@ -109,6 +116,7 @@ export function callCrowd(state: GameState): number {
       casualties: [casualty],
     };
     flights.set(call, { n: 1, flight });
+    call.crew = crewTracks(state.level, call);
     calls.push(call);
     made++;
   }
@@ -118,6 +126,8 @@ export function callCrowd(state: GameState): number {
 /** ONE STEP OF A RUN as the app takes it: the engine's, then the crowd's
  * calls made — the one door every host of a run steps it through. */
 export function stepRun(state: GameState, input: SkierInput): void {
+  // The dog walkers' ways knotted on ahead of the clock (`dog-foot.ts`).
+  walkersAhead(state.foot?.call, state.t);
   step(state, input);
   callCrowd(state);
 }

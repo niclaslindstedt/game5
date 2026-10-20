@@ -38,11 +38,16 @@ import type { FootDown } from "./foot.ts";
  * player, whether the amateur was killed or injured and how crushed, 0..1
  * — and whether the player's body has been struck by it yet. A person on
  * foot (`foot.ts`) is `amateur` −1 and carries his `foot` key and `who`
- * he is. */
+ * he is, and — when it was not the player on his skis or his snowmobile —
+ * what struck him (`by`: the player's body thrown, a piste machine, a car)
+ * and whether the player had nothing to do with it (`away`: a machine he
+ * was not driving, heard from where it happened and never felt). */
 export type StruckPerson = {
   amateur: number;
   foot?: number;
   who?: FootDown["who"];
+  by?: "thrown" | "groomer" | "car";
+  away?: true;
   t: number;
   x: number;
   y: number;

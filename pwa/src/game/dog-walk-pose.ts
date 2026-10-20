@@ -92,6 +92,27 @@ function dogSide(w: Walk, d: number, side: number, t: number): number {
   return side;
 }
 
+/** How far the child walks a step ahead of the owner, m, and to the side
+ * away from the dog. */
+export const CHILD_AT = { ahead: 0.15, side: 0.62 } as const;
+
+/** WHERE THE OWNER (`member` 0) OR THE CHILD (1) of household `h` is on
+ * walk `w` at `t`, into `out`: the point of its line he walks at — what he
+ * is drawn at and the engine meets him at (`dog-foot.ts`). */
+export function walkerPlace(
+  plan: DogPlan,
+  h: number,
+  member: 0 | 1,
+  w: Walk,
+  t: number,
+  out: LinePoint,
+): LinePoint {
+  const arc = walkerArc(w.legs, t);
+  if (member === 0) return pointAt(w.line, arc, 0, out);
+  const side = -Math.sign(plan.households[h].dogs[0].side || 1) * CHILD_AT.side;
+  return pointAt(w.line, arc + CHILD_AT.ahead, side, out);
+}
+
 /**
  * THE OWNER (`member` 0) OR THE CHILD (1) of household `h` at `t`, into a
  * civilian's pose: walking the line at his pace, stood at a stop, at a
@@ -111,12 +132,9 @@ export function dogWalkerAt(
   out.bag = false;
   out.since = Infinity;
   if (!w) return out;
-  const hh = plan.households[h];
   const arc = walkerArc(w.legs, t);
   const leg = w.legs.find((g) => t >= g.t0 && t < g.t1) ?? w.legs[w.legs.length - 1];
-  // The child walks a step ahead on the side away from the dog.
-  const side = member === 0 ? 0 : -Math.sign(hh.dogs[0].side || 1) * 0.62;
-  pointAt(w.line, arc + (member === 1 ? 0.15 : 0), side, AT);
+  walkerPlace(plan, h, member, w, t, AT);
   out.x = AT.x;
   out.z = AT.z;
   out.y = footY(plan.level, AT.x, AT.z);

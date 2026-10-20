@@ -621,7 +621,8 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       bodiesOf(u.kind).forEach((body, j) =>
         people.push({
           key: 8 * i + j,
-          foot: crewKey(i, j),
+          // The engine keys a man by his call's place among all the run's.
+          foot: crewKey((state.rescue ?? []).indexOf(c), j),
           id: 7000 + 8 * i + j,
           body,
           skis: false,

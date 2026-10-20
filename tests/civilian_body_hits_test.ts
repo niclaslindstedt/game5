@@ -191,7 +191,9 @@ describe("the people handed in", () => {
   it("are met where the civilians' plan draws them, out when it has them out", () => {
     const plan = civilianPlanFor(level);
     const call = footCallOf(level, false, 0);
-    expect(call.people.length).toBe(plan.people.length);
+    // The plan's people first, each by his index; the dog walkers after.
+    expect(call.people.filter((p) => !p.track).length).toBe(plan.people.length);
+    call.people.slice(0, plan.people.length).forEach((p, i) => expect(p.key).toBe(i));
     const state = { level };
     const at = { x: 0, y: 0, z: 0 };
     let walkers = 0;

@@ -2,8 +2,10 @@
 
 What happens when the player, on a free ride, skis (or rides a board, the
 snowmobile's boards or the bike) into one of the crowd's amateurs at speed —
-or into a PERSON ON FOOT: a civilian of the ski area, a man of the air
-ambulance's or the police's crew (below, *People on foot*).
+or into a PERSON ON FOOT: a civilian of the ski area, a dog walker of its
+village, a man of the air ambulance's, the police's or the ski patrol's
+crew — and what his body thrown, a piste machine or a car does to one of
+them (below, *People on foot*).
 Under a brisk cruise it is still the crowd's SHOULDER — the bump, a knock
 down past a skill-scaled threshold, the player's shoulder and arm dosed
 (`crowd.ts`' `clipCrowd`, `body.ts`' `feelBumps`). Past
@@ -158,11 +160,12 @@ on a free ride, so no sim or determinism digest moves.
 
 The free ride's CIVILIANS ([civilians.md](civilians.md): the lift crew, the
 patrol, the guests walking the base in ski boots, the terrace, the children
-at play) and the CREWS of the air ambulance and the police
-([rescue.md](rescue.md), [police.md](police.md)) are the same bodies to the
-skier as an amateur: `engine/game/foot.ts`, held by
-`tests/civilian_body_hits_test.ts` and printed by `make body-hits` (`--who=`
-amateur, civilian, crew, sled).
+at play, and the village's DOG WALKERS) and the CREWS of the air ambulance,
+the police and the ski patrol on its snowmobiles ([rescue.md](rescue.md),
+[police.md](police.md)) are the same bodies to the skier as an amateur:
+`engine/game/foot.ts`, held by `tests/civilian_body_hits_test.ts` and
+`tests/foot_hitters_test.ts` and printed by `make body-hits` (`--who=`
+amateur, civilian, crew, walker, patrol, sled, thrown, groomer, car).
 
 - **Where they stand is the app's plan, handed in as DATA.** The civilians'
   plan is a few thousand lines of the app's (the places off every building,
@@ -174,12 +177,32 @@ amateur, civilian, crew, sled).
   (`engine/game/foot-route.ts`, the engine's, which the app's plan walks
   too), his role's share out by the hour and his own keenness, and the sky
   clock's rate the hour runs at. `footAt` is where he stands at a moment —
-  exactly where `civilianAt` draws him. A crew member is a TRACK sampled off
-  his call's own plan every quarter second (`rescue-tracks.ts`' `crewTracks`,
-  `RescueCall.crew`, `crewAt`). The ski patrol on snowmobiles
-  (`kind: "sled"`) is sampled for no tracks: its men are still the view's
-  alone. A replay's recipe carries the call (`recipeOf`), so a replay meets
-  the same people at the same places.
+  exactly where `civilianAt` draws him.
+- **A dog walker** (the owner, and the child out with him) is a TRACK
+  knotted off his walks (`dog-foot.ts`, `FootTrack`, `trackAt`): a knot at
+  every change of leg — a stop, a kerb, a chat, set off again — and wherever
+  the line he walks turns, so the owner read in straight lines between them
+  is exactly where `dogWalkerAt` draws him (the child, eased round a corner
+  beside the line, within a few centimetres, and swapping sides across a
+  hairpin in a fifth of a second), with a gap while the household is at
+  home and out by the hour as drawn (`DOG_HOURS`). A walk is dealt only as
+  the clock comes to it (it waits at the kerbs on the traffic), so the
+  tracks are knotted a couple of minutes ahead of the clock by the one door
+  every host steps a run through (`crowd-calls.ts`' `stepRun` →
+  `walkersAhead`) — each a prefix of the one way the plan has him on, so a
+  replay meets the same walker whichever run knotted it further.
+- **A crew member** is a TRACK sampled off his call's own plan every
+  quarter second (`rescue-tracks.ts`' `crewTracks`, `RescueCall.crew`,
+  `crewAt`), handed in with the call at a run's start (`rescue-book.ts`) and
+  when a call is made or joined mid-run (`crowd-calls.ts`). The SKI PATROL
+  on snowmobiles is sampled the same way off its scene's plan
+  (`patrolTracks`, `sledCrewAt`), each man only while he is on foot — sat on
+  a machine he is the machine's. A machine the skier takes changes the way
+  back to it, which nothing sampled can know, so each patrolman's track
+  names his machine and the moment the work no longer goes the same
+  whichever is taken (`CrewTrack.sled`): past it the engine meets him only
+  while his machine is as it was sampled. A replay's recipe carries the call
+  (`recipeOf`), so a replay meets the same people at the same places.
 - **The collision** past `PERSON_HIT.strike` is the amateur's: the exchange at
   the two real masses (`exchangeOf`, the person's mass `CROWD_SIZE`'s), the
   player slowed — or thrown past the crowd's own threshold — and struck on his
@@ -189,37 +212,77 @@ amateur, civilian, crew, sled).
   ladder. Under the strike speed the app's knock is the whole of it, as
   before. A person on foot is narrower than a skier (`PERSON_HIT.foot`), so
   he is met inside a skier's own reach of him.
-- **On the snowmobile** the machine strikes: its mass with its rider's
-  (`sledMass`), some 320 kg into a man of 85 — he takes nine tenths of the
-  closing speed (killed from about 40 km/h, crushed at 60), the machine a
-  fifth of it and keeps going, the rider not thrown and his body not dosed
-  (the hood and the bars take it). The amateurs on the snow are met as a
-  skier stood on the boards, as before.
+- **What strikes them** is everything that moves among them and is the
+  engine's (`foot.ts`' hitters):
+  - the player on his skis (above);
+  - HIS BODY THROWN, tumbling into them as a low round body of his own
+    weight (`PERSON_HIT.foot.thrown`), past the same strike speed: slowed
+    by what the blow took (every point of the ragdoll at once) and struck
+    on his body by it, as on his skis;
+  - his SNOWMOBILE: its mass with its rider's (`sledMass`), some 320 kg into
+    a man of 85 — he takes nine tenths of the closing speed (killed from
+    about 40 km/h, crushed at 60), the machine a fifth of it and keeps
+    going, the rider not thrown and his body not dosed (the hood and the
+    bars take it);
+  - a PISTE MACHINE (`GROOMER.mass`, its footprint's box) and the TRAFFIC's
+    cars, bus and bicycles (`VEHICLE_MASS`, each class's box), which never
+    notice. A machine strikes past the blow a skier gives a grown man at the
+    strike speed (`PERSON_HIT.foot.blow`, 3.4 m/s of his own change of
+    speed), so twelve tonnes of steel at a walking pace knock a man down
+    where a skier at that pace only shoves him. The player's body is not
+    dosed — not even in the cab he drives — and a meeting he had nothing to
+    do with (`StruckPerson.away`) is not felt and is heard from where it
+    happened.
+  The amateurs on the snow are met as before (`crowd.ts`); a struck event
+  says what struck him (`by`: `thrown`, `groomer`, `car`).
 - **After the blow** a person not hurt lies until his body is still, then is
   the app's knock again — he gets up and walks back (`civilian-knock.ts`) —
   and is no body to the engine for `PERSON_HIT.foot.back` (60 s) before he
   stands where his plan has him again. A hurt or dead one stays down for
-  good, one of `casualtiesOf`'s (`who`: `civilian` or `crew`, `id` his key,
-  the meeting's spot as `impact`), for the rescue and the police to collect.
+  good, one of `casualtiesOf`'s (`who`: `civilian` — a dog walker too — or
+  `crew`, `id` his key, the meeting's spot as `impact`, `cause` what struck
+  him: `skier`, `sled`, `groomer`, `car`), for the rescue and the police to
+  collect.
 - **As drawn**: the view's knock is launched with the engine's exchange
   (`civilian-hits.ts`' `fromEngine`: the engine's body copied each frame), so
   the engine and the picture agree; with INJURIES on he lies broken and a
   crushed one flatter (`crowd-broken.ts`' `footHurtOf`, `breakPose`, drawn by
-  `civilians-view.ts` and, for a crew member, `rescue-view.ts`), and the snow
-  is the crowd's (`crowd-gore.ts` reads every meeting, `allStruck`). The
-  civilians' clothes do not carry the blood the amateurs' do.
-  `make gore ARGS=--sheet=civilian` photographs it.
+  `civilians-view.ts` — the dog walkers too — and, for a crew member,
+  `rescue-view.ts` and `rescue-sleds-view.ts`), and the snow is the crowd's
+  (`crowd-gore.ts` reads every meeting, `allStruck`). The civilians' clothes
+  do not carry the blood the amateurs' do. `make gore ARGS=--sheet=civilian`
+  photographs it.
 
-| Run into at | A civilian or a crew member (INJURIES on) | The player | By the snowmobile |
+| Run into at | A civilian, a dog walker or a crew member (INJURIES on) | The player | By the snowmobile |
 | --- | --- | --- | --- |
 | 30 km/h | injured, down for good | bruised: whiplash, ribs, shoulders | injured |
 | 45 km/h | injured (a child killed) | down hurt: a broken neck, a concussion, a cracked pelvis | killed |
 | 60 km/h | killed | thrown and dead: the neck, a flail chest, the belly torn | killed, crushed (0.9) |
 | 90 km/h | killed and crushed (0.84) | thrown and dead | killed, crushed through |
 
-**Not bodies to the engine yet:** the village's dog walkers (their walks wait
-at the kerbs on the traffic, and the village is walked with the skis off),
-anyone met by the player's thrown body, a piste machine or the traffic (the
-app's knock), and a person already lying — the skier passes over a body on
-the snow. A crew member struck leaves his call's work to the others as its
-plan has it: the scoop and the carry go on with the men still standing.
+| Struck by | A grown man (INJURIES on) | A child | The player |
+| --- | --- | --- | --- |
+| His body thrown at 30 km/h | knocked, up again | injured | the fall's own bruises |
+| ... at 45 km/h | injured | injured | a sprained neck, a cracked pelvis |
+| ... at 60 km/h | injured | killed | dead (the throw and the blow) |
+| ... at 90 km/h | killed, crushed (0.38) | killed, crushed through | dead |
+| A piste machine at 9 km/h | the app's shove | the app's shove | untouched |
+| ... at 12 km/h (working) | knocked, up again | knocked, up again | untouched |
+| ... at 22 km/h (driven) | injured | injured | untouched |
+| A car at 15 km/h | injured | injured | untouched |
+| ... at 25 km/h (the village) | injured | injured | untouched |
+| ... at 45 km/h (the road out) | killed, crushed (0.70) | killed, crushed (0.78) | untouched |
+
+With INJURIES off every one of them is knocked down and gets up.
+
+**Not bodies to the engine yet:** the dogs themselves (a dog the skier
+meets is the view's, and goes on walking on its lead), a dog walker on a
+run stepped past `stepRun` (the engine stepped bare, as the suite and the
+sim do, meets the walkers only as far as their tracks were knotted), a
+patrolman past the work's end whose machine was taken after his track was
+sampled (the view's alone till the call is booked again), a person already
+lying — the skier, a piste machine or a car passes over a body on the
+snow, the machine's tracks crushing nobody — and an amateur met by a piste
+machine or the traffic (the crowd's own). A crew member struck leaves his
+call's work to the others as its plan has it: the scoop and the carry go on
+with the men still standing.

@@ -64,7 +64,7 @@ import { skydiveShapeOf } from "./skier-skydive.ts";
 import { wingsuitShapeOf } from "./skier-wingsuit.ts";
 import { createHoverScene, type HoverScene } from "./wingsuit-hover.ts";
 import { createRescueSledsScene, type RescueSledsScene } from "./rescue-sleds-view.ts";
-import type { Taken } from "./police-remains.ts";
+import type { Lying, Taken } from "./police-remains.ts";
 import { createRescueScene, type RescueScene } from "./rescue-view.ts";
 import { createPatrolView, patrolShown, type PatrolView } from "./patrol-view.ts";
 import { createBalloonScene, type BalloonScene } from "./balloon-scene.ts";
@@ -122,7 +122,7 @@ export type Machines = {
   lens(ladder: LensPose, dt: number): LensPose | null;
   /** THE POLICE'S CASUALTIES this frame (`police-remains.ts`), told where
    * the dead are left lying (`spots`), whom the call then draws not. */
-  police(spots: readonly { x: number; z: number }[]): readonly Taken[];
+  police(spots: readonly Lying[]): readonly Taken[];
   /** Whether his own figure is drawn under the lens `lens` handed back:
    * not while the skydive looks out of his own eyes. */
   figureShown(): boolean;

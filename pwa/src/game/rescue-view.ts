@@ -21,7 +21,8 @@
 // A POLICE call (after a death, `police-plan.ts`) is drawn by the same
 // hands: the police helicopter's own model (`scripts/blender/police.py`), three
 // officers in dark blue with high-visibility vests and two patrollers, him
-// lying where he died and then bagged, and the scene they lay
+// lying where he died (the body he was left as, `police-remains.ts`) and
+// then rolled into a body bag (`police-bag.ts`), and the scene they lay
 // (`police-view.ts`: the stakes, the tape, the numbered tents, the camera
 // and its flash).
 //
@@ -64,8 +65,10 @@ import { createHeliView, type HeliView, type WashPuff } from "./heli-view.ts";
 import { coloursOf, gearOf, type Outfit } from "./outfit.ts";
 import { OFFICERS, PHOTO } from "./police-defs.ts";
 import { freshPoliceFrame, planPolice, policeAt, type PolicePlan } from "./police-plan.ts";
-import { lyingNear, type Taken } from "./police-remains.ts";
-import { bagGeometries, createPoliceDressing, type PoliceDressing } from "./police-view.ts";
+import { bagGeometries, createBag, poseBag, statueDelta, type Bag } from "./police-bag.ts";
+import { bagAt } from "./police-carry.ts";
+import { lyingAt, type Lying, type Taken } from "./police-remains.ts";
+import { createPoliceDressing, type PoliceDressing } from "./police-view.ts";
 import {
   CREW_POSES,
   RESCUE_STRIDE,
@@ -73,7 +76,8 @@ import {
   crewDials,
   crewTargets,
 } from "./rescue-crew.ts";
-import { BEARERS, RESCUE } from "./rescue-defs.ts";
+import { BEARERS, RESCUE, freshRescueFrame, type RescueFrame } from "./rescue-defs.ts";
+import { scoopAt } from "./rescue-scoop.ts";
 import {
   flightAt,
   freshFlightFrame,
@@ -139,7 +143,7 @@ export type RescueScene = {
   /** Told where the dead are left lying (`police-remains.ts`): a police
    * call's casualty there is drawn by the remains until its crew have him.
    * Hands back each police call's casualty and whether they have him. */
-  police(spots: readonly { x: number; z: number }[]): readonly Taken[];
+  police(spots: readonly Lying[]): readonly Taken[];
   dispose(): void;
 };
 
@@ -349,13 +353,15 @@ type HeliRun = { heli: HeliState; level: Level; tick: number };
 const EMPTY_HAND = { tool: "hold", tip: 0 } as const;
 
 /** ONE TRIP's things: the stretcher, its straps, and him — and on a
- * police call the body bag closed over him (`bag`). */
+ * police call the body bag on its frame (`bag`), and where the scoop
+ * found him (`found`, what his body left lying is moved from). */
 type Litter = {
   group: THREE.Group;
   straps: THREE.Mesh[];
   casualty: THREE.Mesh | null;
   dressed: string;
-  bag: THREE.Mesh | null;
+  bag: Bag | null;
+  found: RescueFrame["casualty"] | null;
   /** His figure laid flat on the board, for his body's height. */
   lie: THREE.Matrix4;
 };
@@ -375,9 +381,11 @@ type Unit = {
   /** The frame a knock's `at` last asked for, and its clock. */
   asked: FlightFrame;
   askedAt: number;
-  /** A police call's plan and its scene. */
+  /** A police call's plan and its scene, and his body left lying as the
+   * recovery moves it (`police-remains.ts`). */
   police: PolicePlan | null;
   dressing: PoliceDressing | null;
+  statue: { delta: number[]; moved: boolean; shut: boolean };
 };
 
 export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene {
@@ -393,6 +401,17 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.1 }),
     haze,
     "rescue-kit",
+  );
+  // The body bag: heavy coated cloth, dark, with a sheen.
+  const bagMaterial = hazeMaterial(
+    new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.32,
+      metalness: 0.05,
+      side: THREE.DoubleSide,
+    }),
+    haze,
+    "police-bag",
   );
   const frameGeometry = stretcherGeometry();
   const bags = bagGeometries();
@@ -469,6 +488,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       askedAt: NaN,
       police: null,
       dressing,
+      statue: { delta: new Array<number>(16).fill(0), moved: false, shut: false },
     };
     units[i] = u;
     return u;
@@ -478,13 +498,12 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     if (u.litters[k]) return u.litters[k];
     const g = new THREE.Group();
     const police = u.kind === "police";
-    const frame = new THREE.Mesh(police ? bags.open : frameGeometry, kit);
-    frame.castShadow = true;
-    g.add(frame);
-    const bag = police ? new THREE.Mesh(bags.closed, kit) : null;
-    if (bag) {
-      bag.castShadow = true;
-      g.add(bag);
+    const bag = police ? createBag(bags, bagMaterial) : null;
+    if (bag) g.add(bag.tray, bag.hinge);
+    else {
+      const frame = new THREE.Mesh(frameGeometry, kit);
+      frame.castShadow = true;
+      g.add(frame);
     }
     const straps = (police ? [] : strapGeometries).map((geo) => {
       const m = new THREE.Mesh(geo, kit);
@@ -493,7 +512,15 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       return m;
     });
     group.add(g);
-    const l: Litter = { group: g, straps, casualty: null, dressed: "", bag, lie: lyingMatrix(1.8) };
+    const l: Litter = {
+      group: g,
+      straps,
+      casualty: null,
+      dressed: "",
+      bag,
+      found: null,
+      lie: lyingMatrix(1.8),
+    };
     u.litters[k] = l;
     return l;
   };
@@ -578,6 +605,9 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       }
       const at = c.casualties[0];
       u.police = planPolice(level, { x: at.x, z: at.z, evidence: c.evidence ?? [] });
+      u.statue.moved = false;
+      u.statue.shut = false;
+      for (const l of u.litters) l.found = null;
       u.dressing?.build(u.police);
       return u.police.flight;
     });
@@ -614,7 +644,8 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
   }
 
   /** Where the dead are left lying, and the police's casualties drawn. */
-  let statues: readonly { x: number; z: number }[] = [];
+  let statues: readonly Lying[] = [];
+  const moved = new THREE.Matrix4();
   const taken: Taken[] = [];
   let puffs = 0;
   const dummy = { x: 0, z: 0 };
@@ -728,16 +759,24 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       quat.setFromEuler(euler);
       l.group.quaternion.copy(quat);
       for (let s = 0; s < l.straps.length; s++) l.straps[s].visible = s < st.straps;
-      // Bagged once the first strap would go on: the bag closed over him.
-      const bagged = !!l.bag && st.straps > 0;
-      if (l.bag) l.bag.visible = bagged;
       const cs = tf.casualty;
       const mesh = l.casualty!;
-      // A police call's body is the one left lying until the crew have him.
-      const left =
-        !!u.police &&
-        callClock(calls[i], state.t) < flights[i].trips[k].offset &&
-        lyingNear(statues, cs.x, cs.z);
+      // ON A POLICE CALL: the bag's lid swung open beside him and back
+      // over him — and him the body he was left lying as, moved as the scoop
+      // rolls him onto it (`police-remains.ts`), the call's own figure drawn
+      // only where no such body lies (a call whose dead were cleared).
+      const trip = flights[i].trips[k];
+      const bag = l.bag ? bagAt(trip.plan, callClock(calls[i], state.t) - trip.offset) : null;
+      if (l.bag && bag) poseBag(l.bag, bag.open, bag.fill);
+      const bagged = !!bag?.shut;
+      const left = u.police ? lyingAt(statues, cs.x, cs.z) : null;
+      if (left && bag && k === 0) {
+        l.found ??= { ...scoopAt(level, trip.plan, 0, freshRescueFrame()).casualty };
+        statueDelta(l.found, cs, left.heading, bag.turn, moved);
+        moved.toArray(u.statue.delta);
+        u.statue.moved = true;
+        u.statue.shut = bagged;
+      }
       mesh.visible = cs.shown && !bagged && !left;
       euler.set(-cs.pitch, cs.heading, -cs.roll, "YXZ");
       quat.setFromEuler(euler);
@@ -823,13 +862,17 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
       statues = spots;
       taken.length = 0;
       for (let i = 0; i < calls.length; i++) {
-        if (!units[i]?.police || !last) continue;
+        const u = units[i];
+        if (!u?.police || !last) continue;
         const c = calls[i].casualties[0];
-        const t = last.t - calls[i].start;
+        const t = callClock(calls[i], last.t);
+        const on = t >= flights[i].trips[0].offset;
         taken.push({
           x: c.x,
           z: c.z,
-          taken: t >= flights[i].trips[0].offset && t < flights[i].gone,
+          taken: on,
+          delta: on && u.statue.moved ? u.statue.delta : null,
+          shut: on && u.statue.shut,
         });
       }
       return taken;
@@ -843,8 +886,9 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
         u.dressing?.dispose();
       }
       frameGeometry.dispose();
-      bags.open.dispose();
-      bags.closed.dispose();
+      bags.tray.dispose();
+      bags.lid.dispose();
+      bagMaterial.dispose();
       for (const g of strapGeometries) g.dispose();
       material.dispose();
       kit.dispose();

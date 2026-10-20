@@ -19,10 +19,12 @@ import {
   type StripBox,
 } from "@engine";
 
+import { bagAt } from "../pwa/src/game/police-carry.ts";
 import { OFFICERS, PHOTO, POLICE } from "../pwa/src/game/police-defs.ts";
 import { flashAt, freshPoliceFrame, planPolice, policeAt } from "../pwa/src/game/police-plan.ts";
 import { evidenceOf, toSeg } from "../pwa/src/game/police-scene.ts";
 import { bookRun, createRescueBook, noteImpact } from "../pwa/src/game/rescue-book.ts";
+import { RESCUE } from "../pwa/src/game/rescue-defs.ts";
 import { levelFor } from "./support/levels.ts";
 
 const cases = [1, 38].flatMap((seed) =>
@@ -102,9 +104,10 @@ describe("police plan", () => {
         for (let i = 1; i < order.length; i++) expect(order[i]).toBeGreaterThan(order[i - 1]);
         expect(a.marked).toBeLessThan(a.recover);
         expect(a.shot).toBeLessThan(a.recover);
+        // Landing to lift-off: two and a half to four minutes.
         const onSnow = a.lift - plan.flight.down;
         expect(onSnow).toBeGreaterThan(150);
-        expect(onSnow).toBeLessThan(360);
+        expect(onSnow).toBeLessThan(240);
         for (const acts of plan.acts)
           for (let i = 1; i < acts.length; i++) {
             expect(acts[i].t0).toBeCloseTo(acts[i - 1].t1, 6);
@@ -150,9 +153,87 @@ describe("police plan", () => {
         policeAt(level, plan, plan.at.recover - 4, f);
         expect(f.crew[2].shown && f.crew[3].shown).toBe(true);
         policeAt(level, plan, plan.at.recover + 1, f);
-        expect(f.crew[PHOTO].shown).toBe(false);
         expect(f.active).toBe(0);
+        const aboard = plan.acts[PHOTO].find((a) => a.kind === "still" && a.doing === "gone")!;
+        expect(aboard.t0).toBeLessThan(plan.at.lift);
+        policeAt(level, plan, aboard.t0 + 0.1, f);
+        expect(f.crew[PHOTO].shown).toBe(false);
         expect(OFFICERS).toHaveLength(3);
+      });
+
+      it("carries the bag in in the patrollers' hands, to where the scoop takes it up", () => {
+        const f = freshPoliceFrame();
+        const c = plan.carry;
+        expect(c.t1).toBeCloseTo(plan.at.recover - POLICE.gather, 6);
+        policeAt(level, plan, c.t0 - 0.5, f);
+        expect(f.trips[0].stretcher.shown).toBe(false);
+        // Every moment it is seen, it is between the two who carry it.
+        for (let t = c.t0 + 0.05; t < plan.at.recover; t += 0.5) {
+          policeAt(level, plan, t, f);
+          const st = f.trips[0].stretcher;
+          expect(st.shown).toBe(true);
+          const holders = t < c.t1 + POLICE.handover ? [2, 3] : [1, 3];
+          for (const j of holders) {
+            const p = f.crew[j];
+            expect(p.shown).toBe(true);
+            expect(Math.hypot(p.x - st.x, p.z - st.z)).toBeLessThan(1.3);
+          }
+          const gy = level.groundAt(st.x, st.z);
+          expect(st.y - gy).toBeGreaterThan(0.4);
+        }
+        // ...and where the scoop has it at its first moment, to the centimetre.
+        const before = { ...policeAt(level, plan, plan.at.recover - 0.01, f).trips[0].stretcher };
+        const after = policeAt(level, plan, plan.at.recover + 0.01, f).trips[0].stretcher;
+        expect(Math.hypot(after.x - before.x, after.z - before.z)).toBeLessThan(0.05);
+        expect(Math.abs(after.y - before.y)).toBeLessThan(0.06);
+        expect(Math.abs(after.heading - before.heading)).toBeLessThan(0.02);
+        // Every one of the four where the scoop has him then, too.
+        const was = policeAt(level, plan, plan.at.recover - 0.01, f).crew.map((p) => ({ ...p }));
+        const now = policeAt(level, plan, plan.at.recover + 0.01, f).crew;
+        for (let j = 0; j < 4; j++)
+          expect(Math.hypot(now[j].x - was[j].x, now[j].z - was[j].z)).toBeLessThan(0.05);
+      });
+
+      it("lifts the tape over the bag where it is carried in under it, and only there", () => {
+        const c = plan.carry;
+        // In from outside the cordon: it crosses the tape at least once.
+        expect(inside(plan.ring, c.path.pts[0])).toBe(false);
+        expect(c.gates.length).toBeGreaterThan(0);
+        const f = freshPoliceFrame();
+        for (const g of c.gates) {
+          // Up as the frame's middle passes under it — the tape run by then.
+          policeAt(level, plan, g.t, f);
+          expect(f.scene.tape[g.span]).toBe(1);
+          expect(f.scene.lift[g.span]).toBe(1);
+        }
+        const lifted = new Set(c.gates.map((g) => g.span));
+        // Never a span it does not cross, and down again once it is through.
+        for (let t = c.t0 - 2; t < plan.at.recover + 15; t += 0.5) {
+          policeAt(level, plan, t, f);
+          f.scene.lift.forEach((v, i) => {
+            if (!lifted.has(i)) expect(v).toBe(0);
+          });
+        }
+        const through = Math.max(...c.gates.map((g) => g.t)) + 5;
+        policeAt(level, plan, through, f);
+        expect(Math.max(...f.scene.lift)).toBe(0);
+      });
+
+      it("opens the bag beside him, and shuts it over him once he is rolled onto it", () => {
+        const trip = plan.flight.trips[0];
+        const A = trip.plan.at.scoop;
+        const T = RESCUE.scoop.time;
+        const carried = bagAt(trip.plan, -3);
+        expect([carried.open, carried.fill, carried.shut]).toEqual([0, 0, false]);
+        const sliding = bagAt(trip.plan, A.slide + T.slide / 2);
+        expect(sliding.open).toBeGreaterThan(0.99);
+        expect(sliding.shut).toBe(false);
+        const on = bagAt(trip.plan, A.back + T.back);
+        expect(on.turn).toBeCloseTo(1, 6);
+        expect(on.open).toBeGreaterThan(0.99);
+        expect(on.fill).toBe(0);
+        const done = bagAt(trip.plan, A.stand);
+        expect([done.open, done.fill, done.shut]).toEqual([0, 1, true]);
       });
 
       it("lays the cordon and the markers as it goes, and takes them away with it", () => {
@@ -173,7 +254,10 @@ describe("police plan", () => {
       });
 
       it("fires a flash at every exposure, bright and brief", () => {
-        expect(plan.flashes.length).toBe(2 * 4 + 4 * plan.markers.length);
+        // The four corners, a mid-range shot a pair of markers and a
+        // close-up of each, two exposures every one.
+        const n = plan.markers.length;
+        expect(plan.flashes.length).toBe(2 * (4 + Math.ceil(n / 2) + n));
         const out = { power: 0, x: 0, y: 0, z: 0 };
         const f0 = plan.flashes[0];
         expect(flashAt(plan, f0.t, out).power).toBeCloseTo(1, 5);

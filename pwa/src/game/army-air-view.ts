@@ -61,6 +61,8 @@ export type ArmyAirView = {
    * drawn for an eye at `eye`; the rotors' smear shaded to the light. */
   lamps(lit: number, eye: { x: number; y: number; z: number }): void;
   setPace(pace: number): void;
+  /** The primer's model in the group (`ArmyHeliView.ready`). */
+  ready: Promise<void>;
   dispose(): void;
 };
 
@@ -78,6 +80,15 @@ export function createArmyAirView(haze: HazeUniforms): ArmyAirView {
   const boom: Explosion = createExplosion();
   boom.clear();
   group.add(boom.group);
+  // A PRIMER, never shown: one machine with a gunner in its door, built
+  // with the view — which the free ride builds with the world — so the
+  // model is in and its programs are linked behind the loading card, not on
+  // the frame the first machine comes after him.
+  const primer = createArmyHeliView(haze);
+  primer.group.visible = false;
+  const primed = new SoldierView("gunner", "near", material);
+  primer.body.add(primed.mesh);
+  group.add(primer.group);
   let owner: GameState | null = null;
   let pace = 1;
   let frameNo = 0;
@@ -207,8 +218,11 @@ export function createArmyAirView(haze: HazeUniforms): ArmyAirView {
       pace = next > 0 ? next : 1;
       for (const d of drawn.values()) d.view.setPace(pace);
     },
+    ready: primer.ready,
     dispose() {
       for (const id of [...drawn.keys()]) drop(id);
+      primed.dispose();
+      primer.dispose();
       ground.dispose();
       sleds.dispose();
       vehicles.dispose();

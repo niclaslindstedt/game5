@@ -127,6 +127,7 @@
     "grimbear": "node scripts/grimbear-preview.mjs",
     "rescue": "node scripts/rescue-preview.mjs",
     "police": "node scripts/police-preview.mjs",
+    "hitches": "node scripts/hitches.mjs",
     "gore": "node scripts/gore-preview.mjs",
     "gore-cost": "node scripts/gore-cost.mjs",
     "bones": "node scripts/bones-preview.mjs",

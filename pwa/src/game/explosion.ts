@@ -22,6 +22,7 @@
 import * as THREE from "three";
 
 import { createBillboards } from "./billboards.ts";
+import { FlashPoint } from "./flash-lights.ts";
 import { BALL, createBall, fireballOf, lightBall, stepBall } from "./fireball.ts";
 import { createSparks } from "./sparks.ts";
 
@@ -430,7 +431,7 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
   group.add(scorch);
   let scorchAt: { x: number; y: number; z: number } | null = null;
   let scorchAge = 0;
-  const flash = new THREE.PointLight(0xffa050, 0, 260, 1.5);
+  const flash = new FlashPoint(0xffa050, 0, 260, 1.5); // a lamp lent it (`flash-lights.ts`)
   let dark = 1;
   group.add(flash);
   let flashAge = 99;
@@ -974,6 +975,7 @@ export function createExplosion(look: Partial<ExplosionLook> = {}): Explosion {
       halos.dispose();
       sparks.dispose();
       for (const m of mats) m.dispose();
+      flash.dispose();
     },
   };
 }

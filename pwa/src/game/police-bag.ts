@@ -70,15 +70,40 @@ function shapeAt(z: number): { half: number; high: number } {
   return { half: 0, high: 0 };
 }
 
-/** The bag's half-width at `z`: flat sides, the ends rounded. */
+/** THE BAG'S OUTLINE, from his feet (−1) to his head (+1) as a share of
+ * its half-length: its half-width there, m — narrow at the feet, widest
+ * across the shoulders, narrowing to the head — so it reads as a body's
+ * bag and not a box from any way off. */
+const OUTLINE: readonly (readonly [u: number, half: number])[] = [
+  [-1.0, 0.2],
+  [-0.75, 0.25],
+  [-0.4, 0.29],
+  [-0.05, 0.33],
+  [0.3, 0.36],
+  [0.55, 0.36],
+  [0.72, 0.31],
+  [1.0, 0.25],
+];
+/** How far in from each end the outline rounds off, as a share. */
+const ROUND = 0.16;
+
+/** The bag's half-width at `z`: the outline, its ends rounded off as an
+ * ellipse's. */
 function halfAt(z: number): number {
-  const L = S.length / 2;
-  const R = 0.2;
-  const e = Math.abs(z) - (L - R);
-  return e <= 0 ? BAG.half : BAG.half - R + Math.sqrt(Math.max(0, R * R - e * e));
+  const u = Math.max(-1, Math.min(1, z / (S.length / 2)));
+  let w = OUTLINE[OUTLINE.length - 1][1];
+  for (let i = 1; i < OUTLINE.length; i++) {
+    const [u1, w1] = OUTLINE[i];
+    if (u > u1) continue;
+    const [u0, w0] = OUTLINE[i - 1];
+    w = w0 + (w1 - w0) * ((u - u0) / (u1 - u0));
+    break;
+  }
+  const e = (Math.abs(u) - (1 - ROUND)) / ROUND;
+  return e <= 0 ? w : w * Math.sqrt(Math.max(0, 1 - e * e));
 }
 
-const NX = 14;
+const NX = 16;
 const NZ = 56;
 
 /** A grid over the bag's outline: `y(x, z)` high, painted by `paint(i, j)`
@@ -116,13 +141,50 @@ function sheet(
   return g;
 }
 
-/** How high the lid stands over the tray at (x, z) with him under it. */
+/** How high the lid stands over the tray at (x, z) with him under it: his
+ * height there, rounded across the whole width of the bag as cloth drawn
+ * over a body is, so the bag has no flat shelf along its sides. */
 function bulge(x: number, z: number): number {
   const s = shapeAt(z);
-  const r = Math.abs(x) / (s.half + 0.08);
-  const up = r < 1 ? s.high * Math.pow(1 - r * r, 0.55) : 0;
+  const w = halfAt(z);
+  const r = w > 1e-3 ? Math.min(1, Math.abs(x) / w) : 1;
+  const up = s.high * Math.sqrt(1 - r * r);
   // The cloth pulled into a soft crease along the zip's side.
-  return up + 0.006 * Math.cos(z * 9 + x * 4);
+  return up + 0.006 * Math.cos(z * 9 + x * 4) * (1 - r);
+}
+
+/** THE RIM: the bag's side wall round its outline, from the rails up to the
+ * lid's hinge, bellied a little outward so its edge reads round. */
+function rimGeometry(): THREE.BufferGeometry {
+  const L = S.length / 2 - 0.01;
+  const ring: [number, number][] = [];
+  for (let j = 0; j <= NZ; j++) {
+    const z = -L + (2 * L * j) / NZ;
+    ring.push([halfAt(z), z]);
+  }
+  for (let j = NZ; j >= 0; j--) {
+    const z = -L + (2 * L * j) / NZ;
+    ring.push([-halfAt(z), z]);
+  }
+  const rows: [y: number, out: number][] = [
+    [0, 0],
+    [HINGE / 2, 0.012],
+    [HINGE + 0.004, 0],
+  ];
+  const pos: number[] = [];
+  for (const [y, out] of rows) for (const [x, z] of ring) pos.push(x + Math.sign(x) * out, y, z);
+  const n = ring.length;
+  const idx: number[] = [];
+  for (let r = 0; r < rows.length - 1; r++)
+    for (let i = 0; i < n - 1; i++) {
+      const a = r * n + i;
+      idx.push(a, a + 1, a + n, a + 1, a + n + 1, a + n);
+    }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
 }
 
 function coloured(g: THREE.BufferGeometry, colour: number): THREE.BufferGeometry {
@@ -175,16 +237,11 @@ export function bagGeometries(): { tray: THREE.BufferGeometry; lid: THREE.Buffer
   parts.push(coloured(floor, BAG.inside));
   // Its edge, a rim of cloth round the floor, and the handles: three loops
   // of webbing a side.
-  const rim = new THREE.BoxGeometry(BAG.half * 2 + 0.01, 0.03, S.length - 0.06).translate(
-    0,
-    0.012,
-    0,
-  );
-  parts.push(coloured(rim, BAG.cloth));
+  parts.push(coloured(rimGeometry(), BAG.cloth));
   for (const s of [-1, 1])
     for (const z of [-0.6, 0, 0.6]) {
       const loop = new THREE.BoxGeometry(0.05, 0.018, 0.16).translate(
-        s * (BAG.half + 0.025),
+        s * (halfAt(z) + 0.025),
         0.02,
         z,
       );

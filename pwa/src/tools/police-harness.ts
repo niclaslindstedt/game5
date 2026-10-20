@@ -398,6 +398,8 @@ const VIEWS: Record<string, (s: GameState, plan: PolicePlan) => void> = {
     for (const [label, t] of [
       ["close: carried in", arrive - 2.5],
       ["close: taken over", arrive + 1.2],
+      ["close: kit gathered", plan.kit.t0 + 1.4],
+      ["close: kit carried off", plan.kit.t1 + 1.6],
       ["close: lying, crew up", T + A.scoop.turn - 0.3],
       ["close: bag open beside", T + A.scoop.assess + 1],
       ["close: rolled", T + A.scoop.slide + 0.6],

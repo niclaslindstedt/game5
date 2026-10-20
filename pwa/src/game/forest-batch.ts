@@ -32,7 +32,7 @@ export type Pass = typeof COLOUR | typeof CASTERS;
 /** Floats a tree's own numbers take in the data table: two texels. */
 export const TREE_DATA = 8;
 
-const TREE_BITS = 18;
+export const TREE_BITS = 18;
 const MAX_TREES = 1 << TREE_BITS;
 /** Texels a row of the list texture (four slots a texel). */
 const LIST_ROW = 512;
@@ -145,7 +145,9 @@ export type TreeTable = { readonly matrix: THREE.DataTexture; readonly data: THR
 export type BatchExtras = { table?: TreeTable };
 
 export type TreeBatch = {
-  readonly mesh: THREE.BatchedMesh;
+  /** What is added to the scene: the batch itself on WebGL, a group of
+   * instanced shapes on the node renderer (`forest-nodes.ts`). */
+  readonly mesh: THREE.Object3D;
   /** The tree table this batch reads. */
   readonly table: TreeTable;
   /** Triangles a shape has. */
@@ -166,7 +168,7 @@ export type TreeBatch = {
 /** THE TREE TABLE as two float textures: `matrices` 16 floats a tree, four
  * texels, rows a multiple of four wide so a tree's four never wrap; `data`
  * `TREE_DATA` floats a tree, two texels. */
-function buildTable(count: number, matrices: Float32Array, data: Float32Array): TreeTable {
+export function buildTable(count: number, matrices: Float32Array, data: Float32Array): TreeTable {
   const mw = Math.max(4, Math.ceil(Math.sqrt(count * 4) / 4) * 4);
   const mh = Math.max(1, Math.ceil((count * 4) / mw));
   const mArr = new Float32Array(mw * mh * 4);
@@ -290,8 +292,9 @@ export function createTreeBatch(
   mesh.customDepthMaterial = depth;
   mesh.frustumCulled = false;
   mesh.perObjectFrustumCulled = false;
-  // Drawn through WebGL's own multi-draw (`multi-draw.ts`): hidden on the
-  // webgpu paths until the woods are ported (`gpu-quarantine.ts`).
+  // Drawn through WebGL's own multi-draw (`multi-draw.ts`), so WebGL's
+  // alone: the node renderer draws the woods shape by shape instead
+  // (`forest-nodes.ts`) and never builds this batch.
   glslOnly(mesh, "forest-batch");
   mesh.sortObjects = false;
   drawn._multiDrawCount = 0;

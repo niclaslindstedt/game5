@@ -182,6 +182,7 @@ function gpuSeam(
         return { calls: r.drawCalls, triangles: r.triangles, points: r.points };
       },
     },
+    woods: () => dressing?.woods ?? null,
     endFrame: () => dressing?.end(),
     settled: () => (device ? device.queue.onSubmittedWorkDone() : glSettled(renderer)),
     info() {

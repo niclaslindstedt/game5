@@ -477,7 +477,7 @@ export function createWorldRenderer(
       told.at("forest");
       const plot = await told.sow(lv, () => rest(mine)); // counted on the card
       if (!plot) return;
-      forest = createForest(lv, env.haze, forestOptions(), plot);
+      forest = createForest(lv, env.haze, forestOptions(), plot, seam.woods());
       told.at("lifts");
       forest.group.name = "forest";
       scene.add(forest.group);

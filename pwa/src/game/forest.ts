@@ -86,7 +86,9 @@ import {
   createTreeBatch,
   graftBatch,
   type TreeBatch,
+  type TreeTable,
 } from "./forest-batch.ts";
+import { createNodeTreeBatch, roomOf, type ShapeRoom, type WoodsKit } from "./forest-nodes.ts";
 import { summerShown } from "./season-look.ts";
 import { buildTree, kindPaint, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
 import {
@@ -439,6 +441,9 @@ export function createForest(
   haze: HazeUniforms,
   initial: ForestOptions,
   sown?: Planting,
+  /** The node renderer's materials (`render-seam.ts`'s `woods`): each shape
+   * drawn instanced (`forest-nodes.ts`) in place of WebGL's one batch. */
+  woods: WoodsKit | null = null,
 ): Forest {
   let options = { ...initial };
   // The view aloft over the row's own (`setAloft`); on the snow, the row's.
@@ -472,15 +477,17 @@ export function createForest(
   const colourU = batchUniforms();
   const casterU = batchUniforms();
   const wind = { value: new THREE.Vector4() };
-  const material = hazeMaterial(
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
-    haze,
-    "tree",
-    (shader) => {
-      graftBatch(shader, colourU);
-      graftTree(shader, wind);
-    },
-  );
+  const material = woods
+    ? woods.tree(colourU, wind)
+    : hazeMaterial(
+        new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
+        haze,
+        "tree",
+        (shader) => {
+          graftBatch(shader, colourU);
+          graftTree(shader, wind);
+        },
+      );
   // The casters' depth, with the same girth: a veteran's trunk throws a
   // veteran's shadow. A tree the mountain already shades casts nothing
   // (`terrain-shade.ts`).
@@ -492,6 +499,7 @@ export function createForest(
     graftBatch(shader, casterU);
     graftCaster(shader, wind);
   };
+  const casterNode = woods?.casters(casterU, wind) ?? null;
   // THE CARD TREES' atlas and material (`tree-card-material.ts`): painted
   // and made the first time a row asks for the card woods, kept after.
   const cardU = batchUniforms();
@@ -499,10 +507,12 @@ export function createForest(
   let cardMat: THREE.Material | null = null;
   const cardsKit = (): { material: THREE.Material; atlas: THREE.Texture } => {
     atlas ??= atlasTexture();
-    cardMat ??= cardMaterial(haze, atlas, (shader) => {
-      graftBatch(shader, cardU);
-      graftCardTree(shader, wind);
-    });
+    cardMat ??= woods
+      ? woods.cards(cardU, wind, atlas)
+      : cardMaterial(haze, atlas, (shader) => {
+          graftBatch(shader, cardU);
+          graftCardTree(shader, wind);
+        });
     return { material: cardMat, atlas };
   };
   const region = treePaint(regionLookOf(regionOf(level).id));
@@ -534,6 +544,28 @@ export function createForest(
     cardFirst: [number, number, number];
     geometries: THREE.BufferGeometry[];
   };
+
+  /** One of the woods' batches over the table: WebGL's one multi-draw, or
+   * the node renderer's shapes drawn instanced (`forest-nodes.ts`), each
+   * with the room `room` says. */
+  const batchOf = (
+    geometries: THREE.BufferGeometry[],
+    colour: THREE.Material,
+    room: ShapeRoom,
+    table?: TreeTable,
+  ): TreeBatch =>
+    woods
+      ? createNodeTreeBatch(geometries, count, matrices, data, room, colour, casterNode, { table })
+      : createTreeBatch(
+          geometries,
+          count,
+          matrices,
+          data,
+          { colour: count * 2, casters: room.casters ? count : 0 },
+          colour,
+          casterDepth,
+          { table },
+        );
 
   /** THE SHAPES for `variants` of every kind (the FOREST row's): which
    * variant every tree is, the map's own variants built at each cut (only
@@ -585,15 +617,16 @@ export function createForest(
         ];
     const nN = nearRows.length;
     const nF = farRows.length;
-    const batch = createTreeBatch(
-      geometries,
-      count,
-      matrices,
-      data,
-      { colour: count * 2, casters: count },
-      material,
-      casterDepth,
-    );
+    // Each shape's room on the node renderer: every tree it can be drawn for.
+    const nearRoom = roomOf(near, nN, gone);
+    const farRoom = roomOf(far, nF, gone);
+    const none = (n: number): Int32Array => new Int32Array(n);
+    const cat = (...parts: Int32Array[]): Int32Array =>
+      Int32Array.from(parts.flatMap((p) => [...p]));
+    const batch = batchOf(geometries, material, {
+      colour: cards ? cat(farRoom, none(2 * nF)) : cat(nearRoom, nearRoom, farRoom, none(2 * nF)),
+      casters: cat(none(cards ? nF : 2 * nN + nF), farRoom, farRoom),
+    });
     batch.bind(colourU, casterU);
     group.add(batch.mesh);
     let cardBatch: TreeBatch | null = null;
@@ -605,15 +638,12 @@ export function createForest(
       const cut = (lod: CardLod): THREE.BufferGeometry[] =>
         nearRows.map((v) => packCards(buildCardTree(v, paint, lod)));
       cardGeometries = [...(nearest ? cut(0) : []), ...cut(1), ...cut(2)];
-      cardBatch = createTreeBatch(
+      const cardRoom = cat(...(nearest ? [nearRoom] : []), nearRoom, nearRoom);
+      cardBatch = batchOf(
         cardGeometries,
-        count,
-        matrices,
-        data,
-        { colour: count * 2, casters: 0 },
         kit.material,
-        casterDepth,
-        { table: batch.table },
+        { colour: cardRoom, casters: null },
+        batch.table,
       );
       cardBatch.bind(cardU, batchUniforms());
       cardBatch.mesh.userData.gpuBytes += atlasBytes(kit.atlas);
@@ -873,6 +903,7 @@ export function createForest(
       dropShapes(shapes);
       material.dispose();
       casterDepth.dispose();
+      casterNode?.dispose();
       atlas?.dispose();
       cardMat?.dispose();
     },

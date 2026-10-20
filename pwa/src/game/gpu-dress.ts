@@ -25,6 +25,9 @@
 //   - a ShaderMaterial flagged with a NODE TWIN (`nodeTwin`: the dome, the
 //     far ranges, the GPU sky's passes — part 3) is drawn by that twin
 //     (`sky-twins-tsl.ts`), made once over its own uniforms;
+//   - the WOODS are drawn by node materials of their own (`forest-tsl.ts`,
+//     handed to `forest.ts` as `woods`), their casters on a layer only the
+//     key's shadow camera sees (`WOODS_CASTERS`, `forest-nodes.ts`);
 //   - the SKIERS' passes' depth (`createShadeDepth`, `userData.shadeCast`)
 //     is drawn by `shadows-tsl.ts`'s twin, the mountain's shade discarded,
 //     and the atlas they fill is re-pointed each frame (`syncHero`).
@@ -37,6 +40,8 @@ import * as THREE from "three";
 import { materialOpacity, toneMappingExposure, uniform } from "three/tsl";
 import type { NodeMaterial, WebGPURenderer } from "three/webgpu";
 
+import { WOODS_CASTERS, type WoodsKit } from "./forest-nodes.ts";
+import { woodsKit } from "./forest-tsl.ts";
 import type { GlowFade } from "./glow-fade.ts";
 import { createGlowSprites, glowFade, insideWall } from "./glow-tsl.ts";
 import type { HazeUniforms } from "./haze.ts";
@@ -54,6 +59,8 @@ export type Dressing = {
   end(): void;
   /** Whether the haze mixes in display space this frame (`render-seam.ts`). */
   hazeInDisplay(on: boolean): void;
+  /** The woods' node materials (`forest-tsl.ts`). */
+  readonly woods: WoodsKit;
 };
 
 /** Finish the node renderer's copy of `material` (see the header). */
@@ -106,6 +113,8 @@ export function dressScene(
   scene.traverse((o) => {
     if ((o as KeyLight).isKeyLight) keys.push(o as KeyLight);
   });
+  // The woods' casters stand where only the key's shadow camera looks.
+  for (const key of keys) key.shadow.camera.layers.enable(WOODS_CASTERS);
   return {
     begin() {
       syncHaze(hs);
@@ -119,6 +128,7 @@ export function dressScene(
       glows.begin(scene);
     },
     end: () => glows.end(),
+    woods: woodsKit(haze, keys[0] ?? null),
     hazeInDisplay(on) {
       display.value = on && renderer.toneMapping === THREE.ACESFilmicToneMapping ? 1 : 0;
     },

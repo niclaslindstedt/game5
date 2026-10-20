@@ -94,13 +94,13 @@ webgpu paths.
 | `sky` | material | 3 | the dome, the far ranges and the sky's passes, each drawn by its node twin. Ported |
 | `shader` | material | 9 | every other `ShaderMaterial`: the spray first, then the clouds and the rest in their own parts |
 | `terrain` | material | 4 | the clipmap's every level, its snow, its rock and a summer's ground, drawn by its node twin. Ported |
-| `forest-batch` | material | 8 | the woods' multi-draw batch |
+| `forest-batch` | material | 8 | the woods' multi-draw batch, drawn shape by shape instanced on the node renderer (`forest-nodes.ts`). Ported |
 | `haze-graft` | material | 11 | a `hazeMaterial` with grafted GLSL of its own (the figures' gaits, the rock's keep, the tree cards…), each drawn again in its owner's part |
 | `model-merged` | material | 12 | the merged models (the skis) |
 | `wingsuit` | material | 12 | the wingsuit figure |
 | `gore-tree` | material | 11 | the gore on a tree |
 
-On the webgpu paths after part 7, the frame draws these:
+On the webgpu paths after part 8, the frame draws these:
 
 - the sky: the dome with the sun, the moon, the stars and the Milky Way,
   the contrails and LOW's cloud shell, and the far ranges
@@ -116,12 +116,15 @@ On the webgpu paths after part 7, the frame draws these:
 - the gate poles, the netting and the fences
 - the lifts, with their chairs and towers
 - the lamps' glows
+- the woods: the faceted cuts, the card trees at MEDIUM and HIGH, the
+  hand-over's dither between them, the snow on the boughs, the wind in the
+  crowns, and their shadows in the key's map
 - the region's grade over the whole frame, and the buzz and the blaze
 - the HUD
 
 All of it is hazed and lit by the key and the sky as WebGL lights them, and
-by the lamps at night. The frame does not draw the woods, the skis, the
-cabins or the crowd. The benchmark report and the
+by the lamps at night. The frame does not draw the skis, the cabins, the
+crags or the crowd. The benchmark report and the
 developer page list what is missing on the `RENDERER` line and on the
 `SKIPPED` / `QUARANTINED` lines under it.
 
@@ -667,6 +670,100 @@ built on plain Node as a `RenderPipeline` with its output transform off,
 every number of `GRADE_FRAGMENT` restated in the TSL, and the warm-up
 through a target's own scissor.
 
+## The woods (part 8)
+
+The woods now draw on the webgpu paths: the faceted cuts, the card trees,
+the hand-over between bands, the snow on the boughs, the wind in the crowns
+and the trees' shadows in the key's map. WebGL's code path is untouched, so
+its picture is the same to the bit.
+
+| Piece | WebGL | Node renderer |
+| --- | --- | --- |
+| The draw | one `BatchedMesh` a batch, sent as one `multiDraw*InstancedWEBGL` a pass (`forest-batch.ts`, `multi-draw.ts`): a sub-draw a shape, each drawn once a tree | `forest-nodes.ts`: every shape a mesh of its own in each pass that draws it, an `InstancedBufferGeometry` drawn once a tree listed for it — one draw a shape in use |
+| Which tree a vertex is | `gl_DrawID` finds the shape's run of the list, `gl_InstanceID` the slot in it | the shape's own instanced `treeWord`, the same 32-bit word (`slotWord`: the tree, the dither window) |
+| The tree table | every tree's matrix and numbers in two float textures, written once a map | the same two textures, read by texel (`forest-tsl.ts`'s `treeFrame`) |
+| The girth, the wind | `GIRTH_VERTEX`, `TREE_WIND_VERTEX` | `treeFrame`; the matrix's inverse is its columns over their squared lengths, since a tree's matrix is a turn and a stretch |
+| The faceted cuts' snow and tint, the dither | `TREE_SNOW_VERTEX`, `graftTree` | `TreeMaterial`: the tint a varying, the dither the `maskNode` |
+| The card trees | `tree-card-material.ts`'s `graftCards`, `graftCardTree` | `CardTreeMaterial`: the atlas's four channels, the snow by the sky and the load, the edge-on fade, the underside, the backlight as the `emissiveNode` off the key's colour and direction |
+| The casters | the batch's second list, drawn through `createShadeDepth` with the batch's graft | meshes of their own, on a layer only the key's shadow camera sees (`WOODS_CASTERS`), drawn by a `positionNode` and cut by `castMask` |
+| How the materials reach the forest | `forest.ts` makes them | the dressing makes a kit (`woodsKit`) and the seam hands it to `forest.ts` (`RenderSeam.woods`); `forest.ts` imports nothing of three's node half |
+
+**What stays the same:** the bands, the draw distance, the far share, the
+variants, the card band and the casters by the FOREST, DISTANCE and SHADOWS
+rows (`settings-video.ts`); the cells, the frustum test, the hand-over and
+the casters' set (`forest.ts`). Both back ends fill the same lists from the
+same code, and `tests/forest_tsl_test.ts` holds that they list the same
+trees at every FOREST stop. The tree wells' trunks are a plain hazed
+instanced mesh and drew from part 2; the wells in the snow are the
+ground's (part 5).
+
+**A shape's room is counted, never grown.** Each shape's draw holds every
+tree that can be drawn as it (`roomOf` over the map's trees and their rows),
+so its buffer is made once with the batch and only its first `n` words are
+sent each refill.
+
+**The traps:**
+
+- **A `BatchedMesh` draws one instance a sub-draw on the node renderer.**
+  The multi-draw's instanced twin has no path in three's node back ends, so
+  the woods are drawn shape by shape. That is a draw a shape in use (see
+  the counts below) where WebGL makes one a pass. Indirect draws off a
+  compute cull (part 17) take it back to a few.
+- **The shadow pass reads its position off the material it is handed**,
+  the object's own, not its node copy (`Renderer.renderObject`). A classic
+  material flagged for a twin would be drawn into the key's map without its
+  vertex. So the woods' materials are node materials from the start,
+  made by the dressing, and the casters' material carries its
+  `positionNode` and its `maskShadowNode`.
+- **A picture's mesh that must not cast, and a caster that must not be
+  seen.** WebGL's batch draws two lists off one object. Here the casters
+  are meshes of their own with `castShadow` on, on a layer the lens never
+  enables. Three's shadow pass keeps a shadow camera's own layers once any
+  layer past the first is on, so the dressing enables `WOODS_CASTERS` on the
+  key's shadow camera. The skiers' atlas (layers 7 to 10) never sees them.
+- **A void `Fn` adds itself to the stack when it is called.** Calling
+  `.toStack()` on it as well would run the vertex twice.
+
+**What the draw costs in calls.** The benchmark's race on seed 20 counts the
+woods as 34 objects at LOW (25 254 triangles, as WebGL's one batch) and 147
+at HIGH (162 382 triangles against WebGL's two objects of 150 694; the extra
+is the casters, which WebGL's tally does not count apart). The frame's draw
+calls go from 79 to 114 at LOW and from 85 to 223 at HIGH, where the card
+band, the faceted bands and the casters each draw a shape at a time.
+
+**How near the picture came.** `make world SEED=38` on webgpu against WebGL,
+the mean absolute difference per channel (0 to 255) over 9, 12 and 16.5 h,
+before this part and after it:
+
+| FOREST | spawn | chase-6 | track | far | forest |
+| --- | --- | --- | --- | --- | --- |
+| LOW | 4.5 → 3.3 | 4.0 → 2.5 | 6.6 → 3.0 | 4.7 → 2.8 | 52.6 → 1.9 |
+| HIGH | 9.1 → 4.7 | 12.1 → 4.5 | 10.5 → 4.7 | 14.4 → 4.0 | 41.8 → 2.1 |
+
+What is left is what the other parts still owe (the cabins, the crags, the
+crowd, the particles and the clouds). The 30 WebGL shots are pixel-identical
+to part 7's.
+
+**What a draw binds after part 8**, counted on `webgpu-gl` the same way
+(sampler uniforms per stage of every linked program, race on seed 20):
+
+| Program | LOW | HIGH |
+| --- | --- | --- |
+| The faceted cuts, vertex / fragment | 2 / 4 | 2 / 7 |
+| The card trees, vertex / fragment | — | 2 / 8 |
+| The casters, vertex / fragment | — (LOW casts no trees) | 2 / 1 |
+| The most any program binds, vertex / fragment | 8 / 12 (the ground, as before) | 8 / 15 (the ground, as before) |
+
+The vertex reads the tree table's two textures. The card trees' fragment
+adds the atlas to what a lit object binds. The casters' fragment reads the
+mountain's shade. Every program stays under WebGL2's 16.
+
+`tests/forest_tsl_test.ts` holds the register row, a forest handed the
+kit holding no batch, its picture's meshes casting nothing and its casters
+on their own layer, the same trees listed as WebGL's batch at every FOREST
+stop, each shape's room and words, and the kit's materials made on plain
+Node.
+
 ## Measuring both paths
 
 Every browser lab takes `--renderer=webgl|webgpu|webgpu-gl`
@@ -710,12 +807,14 @@ lines.
 | 5 Trails and deform | 2026-10-20 | webgpu | 80 (80 before) | 144 327 (144 327) | 54 programs, 35 pipelines (50, 33 before) | 2 641.54 (1 200.00 before) | 2 636.21 (1 195.36 before) | 8 passes / 29 meshes (10 / 29 before) | The trail maps' passes and the deformable snow's shade run, and the ground draws every mark off them. The steady readings are 7–12 ms; the mean is one frame compiling the larger ground and the passes' pipelines on SwiftShader (6 776 ms; 3 863 before). At HIGH: 83 draws (82), 467 545 triangles (345 591: the deformable snow's mesh is kept fine where a tool has touched it), 81 programs and 52 pipelines (75, 49), 7 595.57 ms (2 873.97) with steady readings of 9–18 ms and one compiling frame of 28 194 ms (11 717) |
 | 6 Shadows and the warm-up | 2026-10-20 | webgl | 100 | 231 882 | 51 programs | 12.18 | 5.77 | 0 / 0 | the 24 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, track, far) are pixel-identical to part 5's. At HIGH: 110 draws, 686 162 triangles, 67 programs, 18.43 ms |
 | 6 Shadows and the warm-up | 2026-10-20 | webgpu | 80 (80 before) | 144 327 (144 327) | 62 programs, 40 pipelines (54, 35 before) | 2 459.63 (1 849.30 before) | 2 453.48 (1 842.99) | 6 passes / 29 meshes (8 / 29 before) | The key's map with the mountain's cut, the skiers' atlas and the warm-up. The warm-up builds every pipeline before the run, so more are counted (the cut ground and what was hidden at the start). The steady readings are 8–19 ms; the mean is the device's queue on SwiftShader, and the last reading drains it (7 842 ms; 7 800 before). Two runs of the same build differ by a third here, as WebGL's own mean does (1 371 and 981 ms for one code path). At HIGH: 83 draws (100), 460 791 triangles (497 357), 121 programs and 89 pipelines (81, 52), 9 472.08 ms (9 416.62) with steady readings of 17–27 ms and a last reading of 43 689 ms (36 624). The game's own race builds no pipeline after the card lifts (see part 6) |
-
 | 7 Grade and post | 2026-10-20 | webgl | 100 | 231 877 | 51 programs | 12.60 (13.86 before) | 5.83 (6.21) | 0 / 0 | the 24 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, track, far) are pixel-identical to part 6's. At HIGH: 110 draws, 686 187 triangles, 67 programs, 19.66 ms (20.16) |
 | 7 Grade and post | 2026-10-20 | webgpu | 79 (80 before) | 143 958 (144 327) | 62 programs, 40 pipelines (62, 40 before) | 1 333.19 (2 422.07 before) | 1 325.83 (2 415.02) | 5 passes / 29 meshes (6 / 29 before) | The grade, the buzz and the blaze draw, and the blue deficit is closed. The grade's pipeline takes the place of three's output pass, so the counts hold. The steady readings are 10–12 ms; the mean is the device's queue on SwiftShader, which the last reading drains (4 078 ms; 8 194 before), and two runs of one build differ by that much (part 6). At HIGH: 85 draws (83), 464 052 triangles (460 791), 121 programs and 89 pipelines (121, 89), 9 951.81 ms (10 389.35) with steady readings of 17–24 ms (12–19) and a last reading of 40 829 ms (41 815) |
+| 8 Forest | 2026-10-20 | webgl | 100 | 231 883 | 51 programs | 15.51 (14.74 before) | 7.11 (6.93) | 0 / 0 | the 30 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, track, far, forest) are pixel-identical to part 7's. At HIGH: 110 draws, 686 042 triangles, 67 programs, 21.24 ms (20.13) |
+| 8 Forest | 2026-10-20 | webgpu | 114 (79 before) | 170 808 (144 326) | 64 programs, 41 pipelines (62, 40 before) | 969.29 (979.56 before) | 962.21 (972.75) | 5 passes / 28 meshes (5 / 29 before) | The woods draw, a shape at a time, and cast into the key's map. The steady readings are 9–10 ms (10–12); the mean is the device's queue on SwiftShader, which the last reading drains (5 000 ms). At HIGH: 223 draws (85), 610 385 triangles (464 052), 126 programs and 92 pipelines (121, 89), 10 375.37 ms (10 319.44) with steady readings of 24–37 ms (14–22) and a last reading of 58 728 ms (44 918). Indirect draws off a compute cull (part 17) take the draws back |
 
-Parts 1 to 7 were measured with `make bench ARGS="--renderer=both --frames 60 --width
-640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis).
+Parts 1 to 8 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis), and from
+part 3 again with `--video high` for the numbers under "At HIGH".
 
 ## Systems ported
 
@@ -726,7 +825,7 @@ Parts 1 to 7 were measured with `make bench ARGS="--renderer=both --frames 60 --
 - [x] 5 Trails and deform (`trail-map`, `deform`): the trail maps' four passes and the deformable snow's shade as node twins; the furrows, grooves, piste tracks, tree wells, avalanche and deformable snow in the ground's twin
 - [x] 6 Shadows and the warm-up (`hero-shadow`, `env-warm`): the key's map with the mountain's cut, the skiers' atlas, every pipeline built behind the card; `shadow-depth` kept for WebGL until part 16
 - [x] 7 Grade and post (`grade-pass`): the region's grade, the buzz and the blaze as a `RenderPipeline` over the pass's own uniforms, the tone map and the sRGB curve by hand in WebGL's order; the warm-up through the grade's target
-- [ ] 8 Forest (`forest-batch`)
+- [x] 8 Forest (`forest-batch`): every shape drawn instanced over WebGL's tree table, the faceted, card and casters' materials in TSL, the casters on a layer of their own in the key's map
 - [ ] 9 Particles and air
 - [ ] 10 Clouds (`clouds`)
 - [ ] 11 Figures (`gore-tree`)

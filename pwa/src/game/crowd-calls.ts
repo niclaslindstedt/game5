@@ -35,6 +35,7 @@ import { dispatchRescue, sledCall } from "./rescue-dispatch.ts";
 import { canTake, planFlight, type RescueFlight } from "./rescue-flight.ts";
 import { crewTracks } from "./rescue-tracks.ts";
 import { walkersAhead } from "./dog-foot.ts";
+import { cutTape } from "./police-tape.ts";
 
 /** How long his body lies still before the call is made, s (thrown). */
 export const SETTLE = 3;
@@ -124,10 +125,13 @@ export function callCrowd(state: GameState): number {
 }
 
 /** ONE STEP OF A RUN as the app takes it: the engine's, then the crowd's
- * calls made — the one door every host of a run steps it through. */
+ * calls made and the police's tape broken — the one door every host of a
+ * run steps it through. */
 export function stepRun(state: GameState, input: SkierInput): void {
   // The dog walkers' ways knotted on ahead of the clock (`dog-foot.ts`).
   walkersAhead(state.foot?.call, state.t);
   step(state, input);
   callCrowd(state);
+  // The police's tape broken by whatever went through it (`police-tape.ts`).
+  cutTape(state);
 }

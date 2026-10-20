@@ -23,10 +23,12 @@ export {
   copyCall,
   rescueBoxes,
   withRescue,
+  type Cordon,
   type Evidence,
   type RescueCall,
   type RescueCasualty,
   type RescueSite,
+  type TapeCut,
 } from "./rescue-call.ts";
 // A machine not his, taken (the air ambulance first): the sources, the press.
 export * from "./steal.ts";

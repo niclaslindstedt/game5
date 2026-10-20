@@ -21,6 +21,10 @@
 //   above    above (the whole scene from overhead and obliquely, as it is
 //            taped and when it is all laid out)
 //   night    night (the flashes and the overview at hour 21)
+//   tape     tape (the skier sent through the tape at 12 m/s, frame by frame
+//            as it bows, snaps, whips back and falls, then the halves lying
+//            close and from mid range), tape-slow (pushed through at a
+//            walk, torn off the nearer stake)
 //
 // Each GROUP is one contact sheet, previews/police-<group>.png, and every
 // frame is also written alone, previews/police-<view>-<label>.png. The
@@ -51,7 +55,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (arrive, survey, cordon, markers, flash, recover, above, night); every one when left out",
+      help: "which sheets, comma-separated (arrive, survey, cordon, markers, flash, recover, above, night, tape); every one when left out",
     },
     views: {
       kind: "string",

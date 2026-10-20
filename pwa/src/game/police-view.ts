@@ -10,11 +10,22 @@
 // the plan and the frame it is handed and writes nothing.
 
 import * as THREE from "three";
-import type { Level } from "@engine";
+import type { Level, TapeCut } from "@engine";
 
 import { CROWD_LOOKS } from "./crowd-rig.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { TAPE_LIFT } from "./police-carry.ts";
+import {
+  TAPE_SHAPE,
+  cutsAt,
+  leanAt,
+  ribbonOf,
+  ropeOf,
+  ropeTo,
+  spanPoint,
+  stripesOf,
+  type Rope,
+} from "./police-tape.ts";
 import { OFFICERS, POLICE } from "./police-defs.ts";
 import type { PolicePlan } from "./police-plan.ts";
 import type { SceneFrame } from "./police-defs.ts";
@@ -24,19 +35,9 @@ import type { CrewPose } from "./rescue-defs.ts";
 const C = POLICE.cordon;
 const M = POLICE.marker;
 
-/** The tape's red and white (sRGB), the length of a stripe and the tape's
- * width, m; and its twist along a span (as real tape hangs, turning its
- * face up and over): its lean off its edge, rad, about `lean` by up to
- * `turn` either way, a turn every `every` m. */
-const TAPE = {
-  red: 0xd21f1f,
-  white: 0xf4f4f2,
-  stripe: 0.3,
-  width: 0.075,
-  lean: 0.8,
-  turn: 0.6,
-  every: 2.6,
-} as const;
+/** The tape's red and white (sRGB); its shape (width, stripes, twist) is
+ * `police-tape.ts`' `TAPE_SHAPE`, which its broken halves are drawn from. */
+const TAPE = { red: 0xd21f1f, white: 0xf4f4f2, width: TAPE_SHAPE.width } as const;
 /** THE TAPE SEEN FROM FAR OFF: real tape is under a pixel wide from a
  * machine overhead, so past about 14 m a span is drawn wider with its
  * distance from the lens — `perMetre` m of width a metre off (about four
@@ -52,13 +53,17 @@ const TENT = { yellow: "#ffd60a", ink: "#111111" } as const;
  * glare's size at full, m. */
 const FLASH = { colour: 0xf2f5ff, peak: 900, reach: 30, glare: 0.9 } as const;
 
+/** The tape broken so far and the call's clock to draw it at (the run's
+ * less the call's start, never held at a theft: the tape falls on). */
+export type TapeAt = { tape: readonly TapeCut[] | undefined; t: number };
+
 export type PoliceDressing = {
   group: THREE.Group;
   /** The scene of `plan` laid out (its stakes, spans and markers built). */
   build(plan: PolicePlan | null): void;
   /** One frame: what is up, the tape run out, the markers, the flash, the
    * photographer's camera (his pose, crew slot `PHOTO`). */
-  update(scene: SceneFrame, photo: CrewPose): void;
+  update(scene: SceneFrame, photo: CrewPose, cut?: TapeAt): void;
   dispose(): void;
 };
 
@@ -196,16 +201,8 @@ function spanGeometry(
   lift: number | null,
 ): { geo: THREE.BufferGeometry; stripes: number } {
   const len = Math.hypot(b.x - a.x, b.z - a.z);
-  const n = Math.max(2, Math.ceil(len / TAPE.stripe));
-  const ya = level.groundAt(a.x, a.z) + C.tape;
-  const yb = level.groundAt(b.x, b.z) + C.tape;
-  const sag = Math.min(C.sagMost, C.sag * len);
-  const at = (u: number) => {
-    const x = a.x + (b.x - a.x) * u;
-    const z = a.z + (b.z - a.z) * u;
-    const y = Math.max(ya + (yb - ya) * u - 4 * sag * u * (1 - u), level.groundAt(x, z) + 0.25);
-    return [x, y, z];
-  };
+  const n = stripesOf(len);
+  const at = (u: number) => spanPoint(level, a, b, u, [0, 0, 0]);
   const pos: number[] = [];
   const col: number[] = [];
   const raise: number[] = [];
@@ -224,9 +221,8 @@ function spanGeometry(
   // vertical toward it by its twist there (each span its own phase).
   const sx = -(b.z - a.z) / (len || 1);
   const sz = (b.x - a.x) / (len || 1);
-  const phase = (a.x * 0.37 + a.z * 0.71) % (Math.PI * 2);
   const half = (u: number): number[] => {
-    const t = TAPE.lean + TAPE.turn * Math.sin(((u * len) / TAPE.every) * Math.PI * 2 + phase);
+    const t = leanAt(a, len, u);
     const c = Math.cos(t) * h;
     const k = Math.sin(t) * h;
     return [sx * k, c, sz * k];
@@ -288,6 +284,73 @@ function widenFromAfar(
     const w = (d * TAPE_FAR.perMetre) / TAPE.width - 1;
     mesh.morphTargetInfluences![0] = Math.max(0, Math.min(TAPE_FAR.most - 1, w));
   };
+}
+
+/** A BROKEN SPAN DRAWN: its rope (`police-tape.ts`) as a ribbon striped as
+ * the span was, written afresh each frame it moves and left alone once it
+ * lies still; the span's ends for the far-off widening. */
+type Torn = {
+  rope: Rope;
+  mesh: THREE.Mesh;
+  mid: Float32Array;
+  half: Float32Array;
+  /** The rope's steps when the ribbon was last written. */
+  drawn: number;
+};
+
+/** The ribbon for a rope of `n` points: non-indexed, a segment six
+ * vertices, striped red and white two segments a stripe from the span's
+ * first stake (as the span was), its far-off widening a morph. */
+function tornGeometry(n: number): THREE.BufferGeometry {
+  const segs = n - 1;
+  const col = new Float32Array(segs * 18);
+  const red = new THREE.Color(TAPE.red);
+  const white = new THREE.Color(TAPE.white);
+  for (let i = 0; i < segs; i++) {
+    const c = Math.floor(i / 2) % 2 ? white : red;
+    for (let k = 0; k < 6; k++) col.set([c.r, c.g, c.b], 18 * i + 3 * k);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(segs * 18), 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(new Float32Array(segs * 18), 3));
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  geo.morphAttributes.position = [new THREE.Float32BufferAttribute(new Float32Array(segs * 18), 3)];
+  geo.morphTargetsRelative = true;
+  return geo;
+}
+
+/** Write a torn span's ribbon off its rope as it stands. */
+function writeTorn(level: Level, t: Torn): void {
+  const { rope, mid, half } = t;
+  ribbonOf(level, rope, mid, half);
+  const geo = t.mesh.geometry;
+  const pos = geo.getAttribute("position") as THREE.BufferAttribute;
+  const wide = geo.morphAttributes.position![0] as THREE.BufferAttribute;
+  const p = pos.array as Float32Array;
+  const w = wide.array as Float32Array;
+  for (let i = 0; i < rope.n - 1; i++) {
+    const a = 3 * i;
+    const b = a + 3;
+    const o = 18 * i;
+    if (!rope.linked[i]) {
+      // Parted here: nothing drawn across the gap.
+      for (let k = 0; k < 6; k++) p.set([mid[a], mid[a + 1], mid[a + 2]], o + 3 * k);
+      w.fill(0, o, o + 18);
+      continue;
+    }
+    const lo0 = [mid[a] - half[a], mid[a + 1] - half[a + 1], mid[a + 2] - half[a + 2]];
+    const hi0 = [mid[a] + half[a], mid[a + 1] + half[a + 1], mid[a + 2] + half[a + 2]];
+    const lo1 = [mid[b] - half[b], mid[b + 1] - half[b + 1], mid[b + 2] - half[b + 2]];
+    const hi1 = [mid[b] + half[b], mid[b + 1] + half[b + 1], mid[b + 2] + half[b + 2]];
+    p.set([...lo0, ...lo1, ...hi1, ...lo0, ...hi1, ...hi0], o);
+    const [ax, ay, az] = [half[a], half[a + 1], half[a + 2]];
+    const [bx, by, bz] = [half[b], half[b + 1], half[b + 2]];
+    w.set([-ax, -ay, -az, -bx, -by, -bz, bx, by, bz, -ax, -ay, -az, bx, by, bz, ax, ay, az], o);
+  }
+  pos.needsUpdate = true;
+  wide.needsUpdate = true;
+  geo.computeVertexNormals();
+  t.drawn = rope.steps;
 }
 
 /** A soft round glare, white at its heart. */
@@ -361,7 +424,19 @@ export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDr
   let stakes: THREE.Mesh[] = [];
   let spans: { mesh: THREE.Mesh; stripes: number }[] = [];
   let tents: THREE.Mesh[] = [];
+  let ring: { x: number; z: number }[] = [];
+  /** The broken spans drawn, by span. */
+  const torn = new Map<number, Torn>();
+  const untear = (i: number): void => {
+    const t = torn.get(i);
+    if (!t) return;
+    group.remove(t.mesh);
+    t.mesh.geometry.dispose();
+    torn.delete(i);
+  };
   const clear = (): void => {
+    for (const i of [...torn.keys()]) untear(i);
+    ring = [];
     for (const s of stakes) group.remove(s);
     for (const s of spans) {
       group.remove(s.mesh);
@@ -382,6 +457,7 @@ export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDr
     build(plan) {
       clear();
       if (!plan) return;
+      ring = plan.ring.map((p) => ({ x: p.x, z: p.z }));
       for (const p of plan.ring) {
         const m = new THREE.Mesh(stakeGeo, kit);
         m.position.set(p.x, level.groundAt(p.x, p.z) - 0.05, p.z);
@@ -411,7 +487,7 @@ export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDr
         tents.push(t);
       }
     },
-    update(scene, photo) {
+    update(scene, photo, cut) {
       group.visible = scene.up;
       if (!scene.up) {
         light.intensity = 0;
@@ -419,9 +495,38 @@ export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDr
       }
       // The stakes driven in, in their order of planting round the ring.
       stakes.forEach((s, i) => (s.visible = !!scene.planted[i]));
+      // THE TAPE BROKEN: each broken span its rope, stepped on to the
+      // call's clock (from its break again where the clock went back).
+      const cuts = cutsAt(cut?.tape, cut?.t ?? -Infinity);
+      for (const i of [...torn.keys()]) if (torn.get(i)!.rope.cut !== cuts.get(i)) untear(i);
+      for (const [i, c] of cuts) {
+        if (!spans[i]) continue;
+        let t = torn.get(i);
+        if (!t) {
+          const n = ring.length;
+          const [a, b] = [ring[i], ring[(i + 1) % n]];
+          const rope = ropeOf(level, a, b, c);
+          const mesh = new THREE.Mesh(tornGeometry(rope.n), kit);
+          mesh.morphTargetInfluences = [0];
+          widenFromAfar(mesh, a, b, level);
+          mesh.castShadow = true;
+          mesh.frustumCulled = false;
+          group.add(mesh);
+          t = {
+            rope,
+            mesh,
+            mid: new Float32Array(3 * rope.n),
+            half: new Float32Array(3 * rope.n),
+            drawn: -1,
+          };
+          torn.set(i, t);
+        }
+        ropeTo(level, t.rope, cut!.t);
+        if (t.rope.steps !== t.drawn) writeTorn(level, t);
+      }
       spans.forEach((s, i) => {
         const run = scene.tape[i] ?? 0;
-        s.mesh.visible = run > 0;
+        s.mesh.visible = run > 0 && !torn.has(i);
         s.mesh.geometry.setDrawRange(0, 6 * Math.ceil(s.stripes * run));
         const w = s.mesh.morphTargetInfluences!;
         if (w.length > 1) w[1] = scene.lift[i] ?? 0;

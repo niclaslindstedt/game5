@@ -18,7 +18,8 @@ import { sledCallGone, type CrewTrack, type Level, type RescueCall } from "@engi
 
 import { BEARERS } from "./rescue-defs.ts";
 import { OFFICERS } from "./police-defs.ts";
-import { freshPoliceFrame, planPolice, policeAt } from "./police-plan.ts";
+import { freshPoliceFrame, planPolice, policeAt, type PolicePlan } from "./police-plan.ts";
+import { cordonOf } from "./police-tape.ts";
 import { flightAt, freshFlightFrame, planFlight, type FlightFrame } from "./rescue-flight.ts";
 import { SLED_SEATS, crewPlanOf, freshSledCrewFrame, sledCrewAt } from "./rescue-sleds-crew.ts";
 
@@ -36,12 +37,16 @@ const cm = (v: number): number => Math.round(v * 100) / 100;
 
 /** THE CREW OF CALL `call` on `level`, each man's way from the run's 0 (or
  * the touch-down, later) to the lift, as the view plans and draws them. */
-export function crewTracks(level: Level, call: RescueCall): CrewTrack[] {
+export function crewTracks(
+  level: Level,
+  call: RescueCall,
+  planned: PolicePlan | null = null,
+): CrewTrack[] {
   if (call.kind === "sled") return patrolTracks(level, call);
   const police = call.kind === "police";
   const at = call.casualties[0];
   const plan = police
-    ? planPolice(level, { x: at.x, z: at.z, evidence: call.evidence ?? [] })
+    ? (planned ?? planPolice(level, { x: at.x, z: at.z, evidence: call.evidence ?? [] }))
     : null;
   const flight = plan ? plan.flight : planFlight(level, call.casualties);
   const frame: FlightFrame = plan ? freshPoliceFrame() : freshFlightFrame();
@@ -94,8 +99,17 @@ export function patrolTracks(level: Level, call: RescueCall): CrewTrack[] {
   return tracks;
 }
 
-/** Every call of `calls` with its crew's tracks on it. */
+/** Every call of `calls` with its crew's tracks on it — and a police
+ * call's cordon, so its tape can be broken (`police-tape.ts`). */
 export function withCrewTracks(level: Level, calls: RescueCall[]): RescueCall[] {
-  for (const c of calls) c.crew = crewTracks(level, c);
+  for (const c of calls) {
+    const at = c.casualties[0];
+    const plan =
+      c.kind === "police"
+        ? planPolice(level, { x: at.x, z: at.z, evidence: c.evidence ?? [] })
+        : null;
+    c.crew = crewTracks(level, c, plan);
+    if (plan) c.cordon = cordonOf(plan);
+  }
   return calls;
 }

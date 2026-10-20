@@ -67,6 +67,7 @@ import { OFFICERS, PHOTO } from "./police-defs.ts";
 import { freshPoliceFrame, planPolice, policeAt, type PolicePlan } from "./police-plan.ts";
 import { bagGeometries, createBag, poseBag, statueDelta, type Bag } from "./police-bag.ts";
 import { bagAt } from "./police-carry.ts";
+import { kitOf } from "./police-kit.ts";
 import { lyingAt, type Lying, type Taken } from "./police-remains.ts";
 import { createPoliceDressing, type PoliceDressing } from "./police-view.ts";
 import {
@@ -873,6 +874,7 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
           taken: on,
           delta: on && u.statue.moved ? u.statue.delta : null,
           shut: on && u.statue.shut,
+          kit: kitOf(u.police, u.now.crew[PHOTO], t),
         });
       }
       return taken;

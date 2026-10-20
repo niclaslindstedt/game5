@@ -71,6 +71,11 @@ export const POLICE = {
    * than `far` m from him is left out of the cordon; at most `most`
    * markers. */
   evidence: { near: 1.45, merge: 1.0, far: 80, most: 14 },
+  /** HIS KIT IN THE BAG'S WAY: once the last photograph is taken, the
+   * photographer kneels `out` m past the outer edge of where the bag will
+   * be laid for `kneel` s, gathers up the skis and poles lying there, and
+   * carries them aboard as evidence. */
+  kit: { kneel: 2.2, out: 0.35 },
   /** The room kept from the machine's cabin past its skin, m, and from its
    * boom's line, m (the boom's taking in the tail rotor). */
   machine: { cabin: 1.0, boom: 1.4 },

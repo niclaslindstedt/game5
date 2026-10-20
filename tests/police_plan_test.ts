@@ -236,6 +236,25 @@ describe("police plan", () => {
         expect([done.open, done.fill, done.shut]).toEqual([0, 1, true]);
       });
 
+      it("gathers his kit off where the bag will lie, after the photographs and before the bag", () => {
+        const trip = plan.flight.trips[0];
+        const k = plan.kit;
+        expect(k.t0).toBeGreaterThanOrEqual(plan.at.shot);
+        expect(k.t1 - k.t0).toBeCloseTo(POLICE.kit.kneel, 6);
+        // Done before the four reach him with the bag.
+        expect(k.t1).toBeLessThan(trip.offset + trip.plan.at.scoop.down);
+        // Knelt beside where the bag will lie, the photographer.
+        const f = policeAt(level, plan, (k.t0 + k.t1) / 2, freshPoliceFrame());
+        const ph = f.crew[PHOTO];
+        expect(ph.shown).toBe(true);
+        expect(Math.hypot(ph.x - k.x, ph.z - k.z)).toBeLessThan(1.2);
+        expect(ph.move.work).toBe("tend");
+        // And aboard before the machine lifts.
+        expect(policeAt(level, plan, plan.at.lift - 1, freshPoliceFrame()).crew[PHOTO].shown).toBe(
+          false,
+        );
+      });
+
       it("lays the cordon and the markers as it goes, and takes them away with it", () => {
         const f = freshPoliceFrame();
         policeAt(level, plan, plan.at.cordon - 1, f);

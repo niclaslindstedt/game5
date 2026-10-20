@@ -272,3 +272,23 @@ export const GUNFIRE_BANK: SoundBank = {
     ],
   },
 };
+
+/** THE REPORT each weapon makes (`route.ts` plays it where it fired). */
+export const GUN_REPORT = {
+  rifle: "gun_rifle",
+  lmg: "gun_rifle",
+  doorGun: "gun_mg",
+  heavyGun: "gun_heavy",
+  rocket: "rocket_launch",
+  tankGun: "tank_gun",
+} as const;
+
+/** What a round strikes sounds like. */
+export const GUN_STRIKE = {
+  snow: "gun_puff",
+  trunk: "gun_wood",
+  steel: "gun_ping",
+  rock: "gun_ping",
+  machine: "gun_ping",
+  body: "gun_hit",
+} as const;

@@ -20,11 +20,14 @@ import { ARMY_HELI, armyHelis, armyQuat, type ArmyHeli, type GameState } from "@
 import { gunnerSeat, type Side } from "./army-heli-plan.ts";
 import { createArmyGroundView } from "./army-ground-view.ts";
 import { createArmySledView } from "./army-sled-view.ts";
+import { createArmyVehicleView } from "./army-vehicle-view.ts";
 import { createArmyHeliView, type ArmyHeliPose, type ArmyHeliView } from "./army-heli-view.ts";
 import { createExplosion, type Explosion } from "./explosion.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { gunnerPosed } from "./soldier-pose.ts";
+import type { SnowCloud } from "./snow-cloud.ts";
 import { SoldierView, soldierMaterial } from "./soldier-shapes.ts";
+import type { Stamp } from "./trail-stamp.ts";
 
 /** How far a gun must turn before its gunner is posed afresh, rad — a
  * pose solved outright is a few hundred vertices moved. */
@@ -44,8 +47,16 @@ type Drawn = {
 export type ArmyAirView = {
   group: THREE.Group;
   /** Draw `state`'s army helicopters, `alpha` the share of a step (`simDt`
-   * s) the picture is past it; `dt` s of the picture on. */
-  frame(state: GameState, alpha: number, dt: number, simDt: number): void;
+   * s) the picture is past it; `dt` s of the picture on — with the waves'
+   * vehicles' prints pressed into `stamps` and their snow into `cloud`. */
+  frame(
+    state: GameState,
+    alpha: number,
+    dt: number,
+    simDt: number,
+    stamps?: Stamp[] | null,
+    cloud?: SnowCloud | null,
+  ): void;
   /** The fire's light at `lit` (the sky's lamps), the wrecks' smoke
    * drawn for an eye at `eye`; the rotors' smear shaded to the light. */
   lamps(lit: number, eye: { x: number; y: number; z: number }): void;
@@ -62,6 +73,8 @@ export function createArmyAirView(haze: HazeUniforms): ArmyAirView {
   group.add(ground.group);
   const sleds = createArmySledView(haze, material);
   group.add(sleds.group);
+  const vehicles = createArmyVehicleView(material);
+  group.add(vehicles.group);
   const boom: Explosion = createExplosion();
   boom.clear();
   group.add(boom.group);
@@ -108,7 +121,7 @@ export function createArmyAirView(haze: HazeUniforms): ArmyAirView {
 
   return {
     group,
-    frame(state, alpha, dt, simDt) {
+    frame(state, alpha, dt, simDt, stamps = null, cloud = null) {
       lastDt = dt;
       frameNo++;
       groundAt = (x, z) => state.level.groundAt(x, z);
@@ -180,6 +193,7 @@ export function createArmyAirView(haze: HazeUniforms): ArmyAirView {
       for (const [id, d] of drawn) if (d.seen !== frameNo) drop(id);
       ground.frame(state, alpha, simDt);
       sleds.frame(state, alpha, simDt);
+      vehicles.frame(state, alpha, dt, simDt, stamps, cloud);
       if (burning) boom.burning(true, burning.x, burning.y, burning.z, 0.8);
       else boom.burning(false, 0, 0, 0);
     },
@@ -197,6 +211,7 @@ export function createArmyAirView(haze: HazeUniforms): ArmyAirView {
       for (const id of [...drawn.keys()]) drop(id);
       ground.dispose();
       sleds.dispose();
+      vehicles.dispose();
       boom.dispose();
       material.dispose();
     },

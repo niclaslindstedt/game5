@@ -21,8 +21,8 @@
 //
 // THE SNOWMOBILES a wave brings are the army's own (`army-sled.ts`): a
 // wave raises how many it keeps out on top of the roster's (`waveSleds`).
-// The carriers, the trucks and the tanks a wave's mix names are not on the
-// map yet.
+// The carriers, the trucks and the tanks a wave's mix names come up the
+// same way from further down it (`army-vehicle.ts`).
 //
 // THE COST is bounded: `ARMY_WAVE.most` men of the waves out at once by
 // stars, a man left far behind (`behind`) taken off the map, and — the
@@ -38,6 +38,7 @@ import { ARMY_WAVE } from "./defs/army-wave.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { enlist, goToward } from "./army-troop.ts";
 import { fit } from "./army-lift.ts";
+import { callVehicles } from "./army-vehicle.ts";
 import { groundWave, quarryOf, seesQuarry, wavesSent } from "./wanted.ts";
 import type { ArmyState, Soldier, WaveRoute } from "./army-state.ts";
 import type { Run } from "../mapgen/types.ts";
@@ -209,6 +210,8 @@ function sendWave(state: GameState, a: ArmyState, w: WantedState, events: GameEv
     inHisSight(state, down[k0].x, down[k0].z, q)
   )
     k0++;
+  // THE VEHICLES it brings, up the same way from further down it.
+  callVehicles(state, a, w, mix, id, down, path, k0, events);
   const head = down[k0];
   events.push({
     kind: "army",

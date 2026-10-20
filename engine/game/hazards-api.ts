@@ -120,5 +120,17 @@ export {
   sledPad,
   sledPoint,
   stepArmySleds,
-  wayCost,
 } from "./army-sled.ts";
+export { chooseWay, wayCost, type DriveRead, type TerrainRead } from "./army-drive.ts";
+// THE GROUND WAVES' VEHICLES (`army-vehicle.ts`): carriers, trucks, tanks.
+export { ARMY_VEHICLE, type ArmyVehicleKind, type VehicleSpec } from "./defs/army-vehicle.ts";
+export {
+  VEHICLE_SQUAD,
+  armyVehicles,
+  callVehicles,
+  muzzleOf,
+  stepArmyVehicles,
+} from "./army-vehicle.ts";
+export { rearOf } from "./army-vehicle-body.ts";
+// THE BLAST (`blast.ts`): what a burst does where it goes off.
+export { blastAt, type BlastSpec } from "./blast.ts";

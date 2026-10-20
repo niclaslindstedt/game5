@@ -8,7 +8,8 @@ Nothing in it runs without a shooter. `GameState.gunfire` is absent until a gun 
 | --- | --- |
 | The weapons' numbers, the hit tests' sizes, what a machine takes | `engine/game/defs/weapons.ts` (`WEAPONS`, `GUNFIRE`) |
 | The wounds a round leaves, part by part | `engine/game/defs/wounds.ts` (`WOUNDS`, spread into `INJURIES`) |
-| Arming, aiming, firing, flying the rounds, the hits, the bursts | `engine/game/gunfire.ts` |
+| Arming, aiming, firing, flying the rounds, the hits | `engine/game/gunfire.ts` |
+| THE BLAST LAYER: one burst at a point — the event, the machines it damages, the throw, the fragments and the tearing apart | `engine/game/blast.ts` (`blastAt`, `BlastSpec`) |
 | The state and the event | `engine/game/gunfire-state.ts` (`GunfireState`, `Gun`, `Round`, `GunfireEvent`), `GameState.gunfire` |
 | The body as a target (bone by bone, as capsules) | `engine/game/gunfire-body.ts` |
 | The machines as targets, and what their damage does | `engine/game/gunfire-machine.ts` |
@@ -54,7 +55,7 @@ Every step, each round is flown along its path. The first thing that path crosse
 
 **A WOUND** is a penetrating injury on the part struck. Its dose is the round's kinetic energy there (½mv² at the speed it still has), read by `body.ts` against the `pierce` rungs of that part's ladder (`defs/wounds.ts`): a graze, a wound through the muscle, a bone broken, an organ hit, a great vessel opened. The rungs are set so that WHERE a round strikes decides the wound: any service round through the trunk is a serious wound (AIS 3) at once, and one carrying a rifle round's energy has an even chance of the severe one under it (the chest filling with blood). Through the head a round is critical (AIS 5). A spent round or a fragment's edge may only graze a limb. From there it is the body's machinery like any other blow (`pierceBody`): the injury score, the bleeding (`gore.ts`' `bleedsOf`, every penetrating wound OPEN), the hurt skiing (`hurt.ts`) and, with the INJURIES switch on, death. A run that dies of rounds dies `"shot"` (`DeathCause`); the card reads SHOT DEAD.
 
-**A BURST** (a rocket or a shell going off where it struck) is the event `blast`:
+**A BURST** (a rocket or a shell going off where it struck) is the event `blast`. It goes off through the BLAST LAYER, `blastAt(state, stream, def, x, y, z, weapon, key, events)` in `engine/game/blast.ts`: one call for a burst at a point, whatever fired it, so a tank's shell and a rocket share it and a later weapon calls it the same way. Its numbers are the weapon's `BlastDef`, with the CRATER it leaves (`crater`: a bowl `radius` m across and `depth` m deep — a rocket's 0.9 by 0.3, a tank shell's 1.8 by 0.55), which the app presses into the snow:
 
 - inside `kill` metres, with the INJURIES switch on, he is TORN APART: pieces are dealt off a hash with a chance that grows nearer the burst, and `gore.ts`' `sever` takes them, the trunk opened;
 - inside `wound`, fragments strike him (a `pierce` dose falling with the distance);
@@ -97,7 +98,7 @@ disarmGun(state, id);
 - **Tracers:** a red-orange streak about twenty metres long (the eye's hold of a dot going by at 800 m/s) with a bright line at its heart. By day, the flash's and the tracer's hot cores are laid over the snow rather than added to it, or white on white they would not be seen.
 - **The rocket:** its body, the motor's flame and a trail of white-grey smoke; the backblast's fan of dust and the snow thrown up behind the tube.
 - **Strikes:** a puff of snow in the snow (the snow's own cloud), bark chips and snow shaken off a trunk, sparks off steel and rock.
-- **A burst:** the game's explosion (`explosion.ts`), small and short. Its light is a blink beside a fuel tank's (`ExplosionLook.flash`), the snow round it is thrown up, and the snow under it is scorched.
+- **A burst:** the game's explosion (`explosion.ts`), small and short (a tank's shell bigger). Its light is a blink beside a fuel tank's (`ExplosionLook.flash`), the snow round it is thrown up, the snow under it is scorched, and its crater is pressed into the trail map (a bowl with its rim thrown up round it).
 - **A round in him:** a puff of red mist, only with the INJURIES switch on.
 
 ## As heard

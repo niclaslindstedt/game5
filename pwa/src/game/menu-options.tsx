@@ -24,6 +24,11 @@
 // are judged by looking at the woods, and the woods are right there behind
 // the card. What each row buys is `settings-video.ts`; this page only asks.
 //
+// THE PAUSE CARD OPENS THIS SAME PAGE (`menu-pause.tsx`), every row of it:
+// a picture row is judged against the snow behind the card, so the one place
+// it is worth moving is over a run. The pause adds one group on top — the
+// CAMERA, the lens the held frame is seen through — and nothing else.
+//
 // Every word is `strings.ts`'s, and the rows are `menu-knobs.tsx`'s.
 
 import { useState } from "preact/hooks";
@@ -51,6 +56,7 @@ import {
   injuriesShown,
   MISHAP_SETTINGS,
   RESTART_AFTER,
+  RUN_CAMERAS,
   type AssistLevel,
   type MishapSetting,
   type AudioLevels,
@@ -81,6 +87,7 @@ import {
   type TrailLevel,
   type VideoSettings,
 } from "./settings-video.ts";
+import type { CameraRung } from "./renderer-api.ts";
 import { STRINGS } from "./strings.ts";
 import { APPS_PAGE_URL } from "../apps-page.ts";
 import { GORE_BUILD } from "./edition.ts";
@@ -235,6 +242,12 @@ export function SoundRows({
   );
 }
 
+/** The camera ladder in words, the C key's own rungs in its own order. */
+const CAMERA_STOPS: Stop<CameraRung>[] = RUN_CAMERAS.map((id) => ({
+  id,
+  label: STRINGS.cameraWords[id as Exclude<CameraRung, "orbit">],
+}));
+
 /** The INJURIES row under a parental control: OFF and nowhere else. */
 const OFF_ONLY = ON_OFF.filter((stop) => stop.id === "off");
 
@@ -245,6 +258,8 @@ export function OptionsPage({
   onSettings,
   onBack,
   onKeys,
+  camera = null,
+  backLabel = STRINGS.menuBack,
 }: {
   settings: Settings;
   /** Whether this machine has keys worth binding. */
@@ -254,6 +269,11 @@ export function OptionsPage({
   onSettings: (settings: Settings) => void;
   onBack: () => void;
   onKeys: () => void;
+  /** Over a held run (the pause card): the lens it is seen through now, and
+   * a rung picked — stored AND put on the lens, so the frame behind the card
+   * is the answer. Null on the front door, where there is no run's lens. */
+  camera?: { rung: CameraRung; onCamera: (rung: CameraRung) => void } | null;
+  backLabel?: string;
 }) {
   const [hint, setHint] = useState<Hint | null>(null);
   const video = settings.video;
@@ -270,10 +290,22 @@ export function OptionsPage({
   const T = TOUCH_SENSITIVITY;
   return (
     <div class="menu-card menu-card-options" onPointerLeave={() => setHint(null)}>
-      <MenuHead back={onBack} backLabel={STRINGS.menuBack} title={STRINGS.menuOptions} />
+      <MenuHead back={onBack} backLabel={backLabel} title={STRINGS.menuOptions} />
       <MenuBody>
         <div class="knob-groups">
           <div class="knob-col">
+            {camera && (
+              <KnobGroup title={STRINGS.optCameraGroup} glyph="display">
+                <StepRow
+                  label={STRINGS.optCamera}
+                  hint={STRINGS.optCameraHint}
+                  stops={CAMERA_STOPS}
+                  value={camera.rung}
+                  onPick={camera.onCamera}
+                  onHint={setHint}
+                />
+              </KnobGroup>
+            )}
             {(keys || touch) && (
               <KnobGroup title={STRINGS.optControlsGroup} glyph="keyboard">
                 {keys && (

@@ -113,17 +113,21 @@ export type CanopyPaint = {
   tips: readonly number[];
   under: number;
   mouth: readonly number[];
+  /** Every line, riser and the cage's net in one colour, else the
+   * cascades' own (`LINE_PAINT`). */
+  rigging?: readonly number[];
 };
 
 /** THE ARMY'S WING (`army-craft-view.ts`): the same panels in its
  * low-visibility colours — an olive drab base, the swoosh a shade of grey
- * green, dark tips. */
+ * green, dark tips, and the lines and the cage's net a dull olive. */
 export const ARMY_CANOPY_PAINT: CanopyPaint = {
   base: [0.2, 0.23, 0.13],
   swoosh: [0.36, 0.38, 0.3],
   tips: [0.07, 0.08, 0.06],
   under: 0.72,
   mouth: [0.03, 0.03, 0.03],
+  rigging: [0.16, 0.17, 0.13],
 };
 
 /** THE LINES' COLOURS, by row — a line plan's coding, dulled a little, as

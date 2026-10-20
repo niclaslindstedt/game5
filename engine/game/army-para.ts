@@ -379,6 +379,12 @@ function heightFor(state: GameState, p: ArmyPara, cx: number, cy: number, cz: nu
   const look = K.clear.look;
   for (let s = 0; s <= look; s += 1.5)
     want = Math.max(want, clearAt(state, p.x + p.vx * s, p.z + p.vz * s));
+  const dx = cx - p.x;
+  const dz = cz - p.z;
+  const d = hypot(dx, dz);
+  const reach = Math.min(K.clear.toward, Math.max(0, d - R));
+  for (let s = 50; s <= reach; s += 50)
+    want = Math.max(want, clearAt(state, p.x + (dx / d) * s, p.z + (dz / d) * s));
   return want;
 }
 
@@ -399,11 +405,14 @@ function handsFor(
   const ground = level.groundAt(p.x, p.z);
   // THE SNOW RISING AHEAD faster than he can climb over it: turned off it,
   // down the fall line, as hard as the toggles go.
-  const look = K.clear.look;
-  const rising =
-    p.y - topAt(state, p.x, p.z) < K.clear.snow &&
-    topAt(state, p.x + p.vx * look, p.z + p.vz * look) + K.clear.floor >
-      p.y + Math.max(0, p.vy) * look;
+  // Read at three points of the next `clear.look` s, so a face steeper
+  // than his climb is turned off while there is still room to turn.
+  const climb = Math.max(0, p.vy);
+  let rising = false;
+  for (let k = 1; k <= 3 && !rising; k++) {
+    const s = (K.clear.look * k) / 2;
+    rising = topAt(state, p.x + p.vx * s, p.z + p.vz * s) + K.clear.floor > p.y + climb * s;
+  }
   if (rising) {
     level.normalAt(p.x, p.z, N);
     const fall = hypot(N.x, N.z);

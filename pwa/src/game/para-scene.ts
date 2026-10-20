@@ -150,12 +150,13 @@ export function createParaScene(haze: HazeUniforms, paint?: CanopyPaint): ParaSc
   const linePos = new Float32Array(segments * 6);
   const lineCol = new Float32Array(segments * 6);
   plan.forEach((n, i) => {
-    lineCol.set(LINE_PAINT[n.paint], i * 6);
-    lineCol.set(LINE_PAINT[n.paint], i * 6 + 3);
+    const rgb = paint?.rigging ?? LINE_PAINT[n.paint];
+    lineCol.set(rgb, i * 6);
+    lineCol.set(rgb, i * 6 + 3);
   });
   for (let r = 0; r < risers; r++) {
     // The webbing: the A risers in the A's red, the rest dark.
-    const rgb = r % 4 === 0 ? LINE_PAINT.A : [0.1, 0.1, 0.12];
+    const rgb = paint?.rigging ?? (r % 4 === 0 ? LINE_PAINT.A : [0.1, 0.1, 0.12]);
     lineCol.set(rgb, (plan.length + r) * 6);
     lineCol.set(rgb, (plan.length + r) * 6 + 3);
   }
@@ -173,7 +174,7 @@ export function createParaScene(haze: HazeUniforms, paint?: CanopyPaint): ParaSc
   group.add(lines);
 
   // THE MOTOR UNIT on his back.
-  const motor = createMotor(haze, lineLight);
+  const motor = createMotor(haze, lineLight, paint?.rigging);
   group.add(motor.group);
 
   const pilotTrack = createTrack();

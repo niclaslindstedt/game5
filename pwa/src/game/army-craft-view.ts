@@ -249,10 +249,9 @@ export function createArmyCraftView(haze: HazeUniforms, state: GameState): ArmyC
         s.reserve.visible = false;
         if (!liveParas.has(s.id)) s.id = -1;
       }
-      for (const s of balloons) {
-        s.scene.group.visible = false;
-        if (!liveBalloons.has(s.id)) s.id = -1;
-      }
+      // A balloon's scene shows and hides its own rig (`frame`, below);
+      // its root stays shown.
+      for (const s of balloons) if (!liveBalloons.has(s.id)) s.id = -1;
       shown = false;
       for (const p of ps) {
         if (!liveParas.has(p.id)) continue;

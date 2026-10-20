@@ -150,7 +150,11 @@ export function litLine(
   });
 }
 
-export function createMotor(haze: HazeUniforms, light: LineLight): MotorUnit {
+export function createMotor(
+  haze: HazeUniforms,
+  light: LineLight,
+  netRgb?: readonly number[],
+): MotorUnit {
   const group = new THREE.Group();
   group.name = "para-motor";
   const C = MOTOR.cage;
@@ -171,7 +175,9 @@ export function createMotor(haze: HazeUniforms, light: LineLight): MotorUnit {
     opacity: 0.85,
   });
   const netMat = litLine(
-    new THREE.LineBasicMaterial({ color: 0xe8d23a }),
+    new THREE.LineBasicMaterial({
+      color: netRgb ? new THREE.Color(netRgb[0], netRgb[1], netRgb[2]) : 0xe8d23a,
+    }),
     haze,
     "para-line",
     light,

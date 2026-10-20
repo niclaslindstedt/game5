@@ -64,10 +64,12 @@ export const ARMY_AIR = {
     search: { wider: 1.6, height: 90 },
     /** THE GROUND, THE WOODS AND THE LIFTS: the least height it holds
      * over the snow, over a crown and over a lift's rope, m, read round
-     * the circle it flies (`ring` points) and `look` s ahead along its
-     * way; and the hard floor under that it never sinks below, m (full
-     * throttle, the brakes off, turned for the lower side). */
-    clear: { snow: 40, crowns: 22, rope: 25, ring: 12, look: 6, floor: 18 },
+     * the circle it flies (`ring` points), `look` s ahead along its way
+     * and `toward` m of the way toward the circle (a ridge between him and
+     * it is climbed over before it is reached, not met); and the hard
+     * floor under that it never sinks below, m (full throttle, the brakes
+     * off, turned for the lower side). */
+    clear: { snow: 40, crowns: 22, rope: 25, ring: 12, look: 6, toward: 400, floor: 18 },
     /** Two paramotors keep this far apart, m: each pushed off the other's
      * track; and this far from an army helicopter's disc, m. */
     separate: 70,

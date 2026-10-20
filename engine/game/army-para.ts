@@ -194,9 +194,15 @@ export function launchPara(state: GameState, p: ArmyPara, events: GameEvent[]): 
   const sx = Math.sin(p.bearing);
   const sz = Math.cos(p.bearing);
   const r = (size / 2 - K.inset) / Math.max(Math.abs(sx), Math.abs(sz), 1e-6);
+  const q = quarryOf(state);
   p.x = size / 2 + sx * r;
   p.z = size / 2 + sz * r;
-  const q = quarryOf(state);
+  // No further than `near` from him, on the line in from the edge.
+  const far = hypot(p.x - q.x, p.z - q.z);
+  if (far > K.near) {
+    p.x = q.x + ((p.x - q.x) / far) * K.near;
+    p.z = q.z + ((p.z - q.z) / far) * K.near;
+  }
   // Over the snow under him and well over the man, whose slope may stand
   // higher than the edge it comes in at.
   p.y = Math.max(state.level.groundAt(p.x, p.z) + K.enter, q.y + K.orbit.height);

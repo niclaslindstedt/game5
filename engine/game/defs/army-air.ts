@@ -30,13 +30,15 @@ export const ARMY_AIR = {
 
   /** THE PARAMOTOR. */
   para: {
-    /** THE CALL: seconds from the roster asking to the first coming in at
-     * the map's edge (launched off a road beyond it), and between one and
-     * the next; m inside the edge, and the height over the snow it comes
-     * in at, m. */
+    /** THE CALL: seconds from the roster asking to the first coming in
+     * (launched off a road or a ridge on its bearing), and between one and
+     * the next; m inside the map's edge at the most, and no further than
+     * `near` m from him — a wing that crawls at 15 m/s is launched within
+     * reach — and the height over the snow it comes in at, m. */
     respond: 20,
     stagger: 6,
     inset: 70,
+    near: 750,
     enter: 90,
     /** THE WIND IT FLIES IN: a wing trimmed near 15 m/s cannot hold a
      * circle in a wind past about two thirds of that — a pilot stays on

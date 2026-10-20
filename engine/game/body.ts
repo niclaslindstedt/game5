@@ -583,11 +583,8 @@ function fall(c: SkierState, cause: string, speed: number): void {
     const s = c.roll > 0 ? 1 : -1;
     charge(sided("knee", s), "twist", speed * I.rollTwist);
     charge(sided("knee", -s), "twist", speed * I.rollTwist * 0.5);
-  } else if (cause === "groomer") {
-    steel(speed, GROOMER.strike, "groomer");
-  } else if (cause === "armour") {
-    // An army vehicle's front is a piste machine's steel, and heavier.
-    steel(speed, ARMY_VEHICLE.strike, "groomer");
+  } else if (cause === "groomer" || cause === "armour") {
+    steel(speed, cause === "armour" ? ARMY_VEHICLE.strike : GROOMER.strike, "groomer");
   } else if (cause === "car") {
     steel(speed, { least: TRAFFIC_STRIKE.least, hard: 1, give: TRAFFIC_STRIKE.give }, "car");
   } else if (cause === "straddle") {

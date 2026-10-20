@@ -10,7 +10,7 @@
 // from the START GATE to the FINISH; the equipment is a PAIR of SKIS; the
 // body on them is THE SKIER. Nothing here is a lap, a vehicle or a machine.
 
-import type { MapStage, SpinTag, TrickKind, TrickPart } from "@engine";
+import type { CrashCause, MapStage, SpinTag, TrickKind, TrickPart } from "@engine";
 
 import { formatTime, ordinal } from "@niclaslindstedt/oss-game-framework/hud/format";
 import { BODY_STRINGS } from "./strings-body.ts";
@@ -302,37 +302,9 @@ export const STRINGS = {
    * stake hit fast,
    * the empty chair off a lift run into his legs, a downhill's A-nets
    * driven into, the grimbear, a piste machine ridden into, a balloon's
-   * basket gone over, a wall's rock struck head on. */
-  newsWipeout: (
-    cause:
-      | "tree"
-      | "nose"
-      | "roll"
-      | "catch"
-      | "slam"
-      | "faceplant"
-      | "landing"
-      | "skier"
-      | "heli"
-      | "grip"
-      | "sled"
-      | "stake"
-      | "chair"
-      | "cable"
-      | "straddle"
-      | "wire"
-      | "net"
-      | "maul"
-      | "groomer"
-      | "armour"
-      | "car"
-      | "balloon"
-      | "plane"
-      | "rock"
-      | "wingsuit"
-      | "bike"
-      | "beast",
-  ): string =>
+   * basket gone over, a wall's rock struck head on, an army vehicle's
+   * front. */
+  newsWipeout: (cause: CrashCause): string =>
     cause === "beast"
       ? "YARD SALE! ANIMAL"
       : cause === "bike"
@@ -351,39 +323,39 @@ export const STRINGS = {
                     ? "BONK! PISTE MACHINE"
                     : cause === "armour"
                       ? "RUN DOWN BY ARMOUR!"
-                    : cause === "heli" || cause === "plane"
-                      ? "THROWN CLEAR!"
-                      : cause === "grip"
-                        ? "LOST HIS GRIP!"
-                        : cause === "chair"
-                          ? "SWEPT BY THE CHAIR!"
-                          : cause === "cable"
-                            ? "KNOCKED OFF THE CABLE!"
-                            : cause === "straddle"
-                              ? "RACKED ON THE CABLE!"
-                              : cause === "wire"
-                                ? "SLICED BY THE CABLE!"
-                                : cause === "net"
-                                  ? "INTO THE NETS!"
-                                  : cause === "stake"
-                                    ? "YARD SALE! STAKE"
-                                    : cause === "sled"
-                                      ? "OFF THE SLED!"
-                                      : cause === "tree"
-                                        ? "YARD SALE! TREE"
-                                        : cause === "skier"
-                                          ? "YARD SALE! TAKEN OUT"
-                                          : cause === "nose"
-                                            ? "OVER THE TIPS"
-                                            : cause === "roll"
-                                              ? "YARD SALE"
-                                              : cause === "landing"
-                                                ? "CRASH LANDING"
-                                                : cause === "slam"
-                                                  ? "SLAMMED! HEEL EDGE"
-                                                  : cause === "faceplant"
-                                                    ? "FACEPLANT! TOE EDGE"
-                                                    : "EDGE CAUGHT",
+                      : cause === "heli" || cause === "plane"
+                        ? "THROWN CLEAR!"
+                        : cause === "grip"
+                          ? "LOST HIS GRIP!"
+                          : cause === "chair"
+                            ? "SWEPT BY THE CHAIR!"
+                            : cause === "cable"
+                              ? "KNOCKED OFF THE CABLE!"
+                              : cause === "straddle"
+                                ? "RACKED ON THE CABLE!"
+                                : cause === "wire"
+                                  ? "SLICED BY THE CABLE!"
+                                  : cause === "net"
+                                    ? "INTO THE NETS!"
+                                    : cause === "stake"
+                                      ? "YARD SALE! STAKE"
+                                      : cause === "sled"
+                                        ? "OFF THE SLED!"
+                                        : cause === "tree"
+                                          ? "YARD SALE! TREE"
+                                          : cause === "skier"
+                                            ? "YARD SALE! TAKEN OUT"
+                                            : cause === "nose"
+                                              ? "OVER THE TIPS"
+                                              : cause === "roll"
+                                                ? "YARD SALE"
+                                                : cause === "landing"
+                                                  ? "CRASH LANDING"
+                                                  : cause === "slam"
+                                                    ? "SLAMMED! HEEL EDGE"
+                                                    : cause === "faceplant"
+                                                      ? "FACEPLANT! TOE EDGE"
+                                                      : "EDGE CAUGHT",
   /** A snowboarder's skis-off word: nothing comes off a board, so a
    * YARD SALE is a WIPEOUT. */
   newsBoardDown: "WIPEOUT",

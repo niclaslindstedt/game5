@@ -26,6 +26,7 @@ import {
   type GameEvent,
   type GameState,
   type GunfireEvent,
+  type Level,
   type WantedRoster,
   type WaveMix,
 } from "@engine";
@@ -64,7 +65,7 @@ function vehiclesAlone<T>(fn: () => T, fire: WantedRoster["fire"] = "aim", waves
   }
 }
 
-function hunted(on: typeof level, stars: number, sfw = false): GameState {
+function hunted(on: Level, stars: number, sfw = false): GameState {
   const s = createGame({ level: on, mode: "free", quiet: true, crowd: 0, gore: !sfw, sfw });
   setWanted(s, stars);
   step(s, NEUTRAL_INPUT);

@@ -32,9 +32,9 @@ import type { LayerSpec, LayerTarget } from "@niclaslindstedt/oss-game-framework
  * pitch of its tracks (m; none on wheels) and how loud it is against the
  * rest of the game. */
 export const VEHICLE_ENGINES = {
-  carrier: { idle: 750, max: 2600, cylinders: 6, link: 0.11, loud: 1.2 },
-  truck: { idle: 650, max: 2300, cylinders: 6, link: 0, loud: 1.1 },
-  tank: { idle: 800, max: 2600, cylinders: 12, link: 0.16, loud: 1.7 },
+  carrier: { idle: 750, max: 2600, cylinders: 6, link: 0.11, loud: 2 },
+  truck: { idle: 650, max: 2300, cylinders: 6, link: 0, loud: 1.8 },
+  tank: { idle: 800, max: 2600, cylinders: 12, link: 0.16, loud: 3 },
 } as const;
 
 export type VehicleEngineKind = keyof typeof VEHICLE_ENGINES;

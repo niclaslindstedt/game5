@@ -208,6 +208,8 @@ export function createShadeDepth(
     ...params,
   });
   material.customProgramCacheKey = (): string => "terrain-shade-depth";
+  // What the node renderer draws it and its casters by (`shadows-tsl.ts`).
+  material.userData.shadeCast = true;
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uSunDir: haze.uSunDir,

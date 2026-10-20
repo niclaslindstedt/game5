@@ -82,9 +82,9 @@ webgpu paths.
 | `clouds` | pass | 10 | the cloud shadow, slab and volume |
 | `trail-map` | pass | 5 | the stamps rasterised into the trail maps, the window's copy and the new snow's fill, each drawn by its node twin. Ported |
 | `deform` | pass | 5 | the deform field's upload and its shade, drawn by its node twin. Ported |
-| `hero-shadow` | pass | 6 | the skiers' own shadow maps |
-| `shadow-depth` | pass | 6 | the shadow depth sort and kinds |
-| `env-warm` | pass | 14 | the shader warm-up |
+| `hero-shadow` | pass | 6 | the skiers' own shadow maps, one depth atlas, read by the key's light. Ported |
+| `shadow-depth` | pass | 16 | WebGL's sun-map depth by kind and its opaque sort. The node renderer's shadow pass does not need it, so it stays WebGL-only until the GLSL goes |
+| `env-warm` | pass | 6 | the warm-up: every pipeline built behind the card (`warmNode`). Ported |
 | `grade-pass` | pass | 7 | the region's grade (the frame draws straight to the canvas instead) |
 | `snow-under` | pass | 14 | the snow under the skis |
 | `trail-overlay` | pass | 14 | the trail overlay |
@@ -99,7 +99,7 @@ webgpu paths.
 | `wingsuit` | material | 12 | the wingsuit figure |
 | `gore-tree` | material | 11 | the gore on a tree |
 
-On the webgpu paths after part 5, the frame draws these:
+On the webgpu paths after part 6, the frame draws these:
 
 - the sky: the dome with the sun, the moon, the stars and the Milky Way,
   the contrails and LOW's cloud shell, and the far ranges
@@ -109,6 +109,8 @@ On the webgpu paths after part 5, the frame draws these:
   and belts the machines lay, the other skiers' lines through the
   corduroy, the tree wells, the avalanche's bed and debris, and the
   deformable snow's cuts, heaps and craters with the sun they hide
+- the shadows: the key's (cut where the mountain already shades the
+  ground) and every skier's own at HIGH
 - the skier's body
 - the gate poles, the netting and the fences
 - the lifts, with their chairs and towers
@@ -223,7 +225,7 @@ second copy.
 - The aerial-perspective volume (`aerialShade`) is read since part 3, as
   WebGL reads it.
 - The clouds' shadow on the key (part 10) is 1.
-- The skiers' own shadow maps (part 6) take nothing from the key.
+- The skiers' own shadow maps are read since part 6.
 - A material's own share of colour through the haze (`HAZE_KEEP`) is read
   by the ground since part 4 (`hazeOver`'s `keep`). The rock's own graft
   waits for its part (11).
@@ -345,7 +347,8 @@ the same to the bit.
 - Part 5 (done; see the next section): the trail map's relief in the
   vertex and the furrows, grooves and wear per pixel; the piste tracks; the
   tree wells; the avalanche; the deformable snow's field.
-- Part 6: the skiers' own shadow maps. Three's own shadow of the key is read.
+- Part 6 (done; see its section): the skiers' own shadow maps, and the
+  mountain's cut in the key's.
 
 **What the twin binds**, counted off the generated shaders of seed 38's
 level material:
@@ -418,8 +421,8 @@ fill. WebGL never reads either, so its picture is the same to the bit.
   `trailAt`, `trailRelief`, `deformAt`, `wellDepth`, `pisteLine`, `slideAt`
   and the rest). The vertex reads the relief nine times and the fragment
   reads it a dozen times. Inlined, each read would be that many copies.
-  Each set of functions is made once per uniforms object, so no builder
-  meets two functions of one name.
+  Each set of functions is made once per uniforms object and, since part 6,
+  once per ground material (see part 6's traps).
 - **The vertex has its own set of those functions** (`trailSlots(t,
   true)`, named with a `V`). A function is generated once per material, and
   the textures it reads are named after the stage that built it first. Read
@@ -453,6 +456,125 @@ units under WebGL2's cap at HIGH.
 `tests/trail_tsl_test.ts` holds the register, every pass's flag and family,
 the targets on each renderer, and every twin built on plain Node with its
 blending.
+
+## The shadows and the warm-up (part 6)
+
+The key's shadow, the mountain's cut in it and the skiers' own shadow maps
+now draw on the webgpu paths, and the warm-up builds every pipeline behind
+the loading card. WebGL's code path is untouched, so its picture is the same
+to the bit.
+
+| Piece | WebGL | Node renderer |
+| --- | --- | --- |
+| The key's shadow map: PCF (three's Vogel disk under interleaved gradient noise on both renderers), the key's bias and normal bias, the size the SHADOWS stop gives it, its cadence (`autoUpdate` / `needsUpdate`), the shadow box's fit and its rim fade | three's `WebGLShadowMap`, `shadow-box.ts`, `haze.ts` | three's `ShadowNode`, read by `lights-tsl.ts`'s key through `shadowFaded`, over the same light and the same box |
+| A caster cut where the mountain already shades it, so a lift's shadow does not double the mountain's | `terrain-shade.ts`'s `createShadeDepth` graft on each caster's `customDepthMaterial` | `shadows-tsl.ts`'s `KeyShadowNode`: each caster `castInLight` dressed gets the mountain's mask as its `maskShadowNode` (`castMask`) |
+| The skiers' own shadow maps: a quarter each of one depth atlas, nine comparing taps, the darkest of them and the key's | `hero-shadow.ts`, `HERO_SHADOW_GLSL` | `hero-shadow.ts` (a node `RenderTarget`, the matrices from `heroBias`), `shadows-tsl.ts`'s `heroShadowed`, folded into the key's light |
+| The depth the skiers' passes draw with | `createShadeDepth` | `shadeDepthTwin`, picked by the dressing off the material's `shadeCast` flag |
+| The warm-up | `environment.ts`'s `warm` (three's `compile` by parts, the trail passes' compile, the shadow map drawn once) | `environment.ts`'s `warmNode`, then `RenderSeam.settled` |
+
+`shadow-depth` stays a WebGL-only pass, and its row now names part 16. On
+WebGL it sorts the sun map's depth by kind and draws the opaque casters in
+order. The node renderer draws its shadow pass with an override material of
+its own and reads each caster's mask off it, so the pass has nothing to do
+there. It is deleted with the GLSL.
+
+**How the warm-up works.** The node renderer builds a pipeline the first
+frame a draw needs it, on the thread that draws. A frame that meets a new
+material stalls for as long as the device takes to compile it. That was
+seconds on SwiftShader and is a hitch on a phone. So `warmNode` draws the
+whole scene once, behind the card, through one pixel of the canvas (a 1×1
+scissor). Every mesh is shown and none is culled. What the quarantine hides
+is left out, and so is the deformable snow's mesh (see the traps). The key's shadow pass is drawn into it with its box opened over
+the whole map. Then `RenderSeam.settled` waits for the device to finish:
+`onSubmittedWorkDone` on WebGPU, and a polled fence on `webgpu-gl`. That
+wait matters as much as the draw. A software device compiles a pipeline's
+code the first time it RUNS it, not when it is made. Without the wait, the
+first frame of the run paid for the warm-up's queue: no pipeline was made
+mid-run, but the first frame took 31 s at LOW.
+
+**The traps:**
+
+- **Three keeps a function's code once per renderer.** A layout `Fn`'s
+  WGSL is cached by the function node, back end wide, and the uniforms it
+  names are declared only in the first program that built it. The plain,
+  the cut and the summer ground are three programs. When they shared one
+  set of trail, well and slide functions, the second one to build failed
+  with `struct member nodeUniformN not found`. This was latent since part 4:
+  it bites the first frame a cut or summer ground appears mid-run, and the
+  warm-up, which shows every variant at once, made it certain. So each ground
+  material builds its own set (`trailSlots(t, vertex, own)`, `wellReader`,
+  `slideSlots`).
+- **A shadow map's depth texture is made twice.** Three makes it as a
+  plain texture the first time a material binds it, and makes it again
+  under the bindings the first time its pass draws into it. Every pipeline
+  built in between stays bound to the texture destroyed, and the device
+  refuses every frame after. The first frame of a run hides this, because
+  it draws the map before it binds it. The warm-up binds first. So
+  `KeyShadowNode` makes the map as a target on the GPU in the same breath
+  (`initRenderTarget`).
+- **The deformable snow's mesh is not warmed.** It is hidden until the
+  field is on and the lens is over it. When the warm-up drew it, the
+  clipmap's far levels were drawn grey and unhazed for the rest of the run
+  (the far ranges at HIGH, the far disc at LOW). It made no difference
+  whether it was drawn before the levels or after them in a second pass, or
+  whether it had a program of its own. Drawing the same mesh with a level's
+  material left the picture right, so the cause is in the mesh's own
+  material. The cause is not pinned. The mesh asks to be left out
+  (`userData.warmApart`) and is built the first frame it is drawn, as before
+  part 6.
+- **`compileAsync` is not a warm-up here.** In r186 it skips the shadow
+  pass (`_isPreCompiling`). It also applies each object's overrides
+  straight away but builds their nodes later, so the ground's shadow twin
+  is built without its mask. A real draw through one pixel builds the
+  real thing.
+- **`.element(i)` on a `vec4` slot is the whole vector**, read as an
+  array. The atlas's per-slot switches and biases are read with `.x`, `.y`,
+  `.z` and `.w`.
+- **The node atlas is top down.** A quarter's viewport is counted from the
+  top on both node back ends, and a sampled v runs down. `heroBias` writes
+  the matrices with v flipped, and with WebGPU's clip z in 0..1. A target's
+  scissor applies only with the canvas's scissor test on, so the atlas
+  draws by viewport alone on the node renderer.
+
+**What a draw binds after part 6**, counted on `webgpu-gl` (sampler
+uniforms per stage of every linked program, race on seed 20; WebGL2's floor,
+and a phone's, is 16 a stage):
+
+| Program | LOW, before | LOW, after | HIGH, before | HIGH, after |
+| --- | --- | --- | --- | --- |
+| The ground, fragment | 12 | 12 | 14 | 15 |
+| The ground, vertex | 8 | 8 | 8 | 8 |
+| A lit object (the gates, the lifts, the skier's body), fragment: the most common, and the most | 4, 5 at most | 4, 5 at most | 6, 6 at most | 7, 8 at most |
+
+At HIGH the ground reads the skiers' atlas besides the key's map, and a lit
+object reads it too. Below HIGH the atlas is off and LOW binds nothing more than
+before. The ground stays a unit under the cap.
+
+**The warm-up, measured.** The race on seed 20 at 640×360, from the moment
+the card lifts, on SwiftShader's WebGPU:
+
+| | LOW, before | LOW, after | HIGH, before | HIGH, after |
+| --- | --- | --- | --- | --- |
+| Pipelines built mid-run | 6 | 0 | 2 | 0 |
+| First frame after the card | 17 672 ms | 3 258 ms | 24 509 ms | 7 717 ms |
+| Worst frame of the run | 18 822 ms | 3 475 ms | 25 521 ms | 11 154 ms |
+| Median frame | 1 420 ms | 1 481 ms | 5 639 ms | 5 583 ms |
+| Load, to the card lifting | 69 s | 108 s | 72 s | 122 s |
+
+The race is watched for 90 s (LOW) and 150 s (HIGH) after the card lifts,
+at 640×360. The compiles move under the card, and the load is longer by
+what they cost. At HIGH the worst frame left comes two minutes in and is
+the device's steady work, not a compile. `webgpu-gl` at HIGH builds no
+program mid-run either (207 are linked before the card).
+
+**Stand-ins left:** the clouds' shadow on the key (`cloudShadow`, part 10)
+is 1.
+
+`tests/shadows_tsl_test.ts` holds the register rows, `heroBias` (WebGL's
+literal, and both node layouts), the atlas on each renderer, the
+`shadeCast` flag, the node half built on plain Node and re-pointed, the
+key's map masking only a dressed caster, and `warmNode`'s draw and
+everything it puts back.
 
 ## Measuring both paths
 
@@ -495,8 +617,10 @@ lines.
 | 4 Terrain and snow I | 2026-10-19 | webgpu | 80 (75 before) | 143 959 (101 667) | 50 programs, 33 pipelines (48, 32 before) | 1 205.50 (863.36 before) | 1 200.86 (857.04 before) | 10 passes / 29 meshes (10 / 35 before) | The ground draws: every clipmap level, the warm-up mesh and the deformable snow's mesh. The steady readings are 7–12 ms; the mean is two frames compiling the ground's pipelines on SwiftShader (3 607 and 3 928 ms). At HIGH: 99 draws (76), 382 157 triangles (128 069), 75 programs and 49 pipelines (73, 48), 3 918.37 ms (1 168.06) with steady readings of 8–14 ms and one compiling frame of 11 669 ms |
 | 5 Trails and deform | 2026-10-20 | webgl | 100 | 231 883 | 51 programs | 11.37 | 4.98 | 0 / 0 | the 14 WebGL world shots (seed 38; LOW and HIGH; track, furrow, tips, powder, lookback, chase-6, chase-10) are pixel-identical to part 4's. At HIGH: 110 draws, 686 010 triangles, 67 programs, 15.87 ms |
 | 5 Trails and deform | 2026-10-20 | webgpu | 80 (80 before) | 144 327 (144 327) | 54 programs, 35 pipelines (50, 33 before) | 2 641.54 (1 200.00 before) | 2 636.21 (1 195.36 before) | 8 passes / 29 meshes (10 / 29 before) | The trail maps' passes and the deformable snow's shade run, and the ground draws every mark off them. The steady readings are 7–12 ms; the mean is one frame compiling the larger ground and the passes' pipelines on SwiftShader (6 776 ms; 3 863 before). At HIGH: 83 draws (82), 467 545 triangles (345 591: the deformable snow's mesh is kept fine where a tool has touched it), 81 programs and 52 pipelines (75, 49), 7 595.57 ms (2 873.97) with steady readings of 9–18 ms and one compiling frame of 28 194 ms (11 717) |
+| 6 Shadows and the warm-up | 2026-10-20 | webgl | 100 | 231 882 | 51 programs | 12.18 | 5.77 | 0 / 0 | the 24 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, track, far) are pixel-identical to part 5's. At HIGH: 110 draws, 686 162 triangles, 67 programs, 18.43 ms |
+| 6 Shadows and the warm-up | 2026-10-20 | webgpu | 80 (80 before) | 144 327 (144 327) | 62 programs, 40 pipelines (54, 35 before) | 2 459.63 (1 849.30 before) | 2 453.48 (1 842.99) | 6 passes / 29 meshes (8 / 29 before) | The key's map with the mountain's cut, the skiers' atlas and the warm-up. The warm-up builds every pipeline before the run, so more are counted (the cut ground and what was hidden at the start). The steady readings are 8–19 ms; the mean is the device's queue on SwiftShader, and the last reading drains it (7 842 ms; 7 800 before). Two runs of the same build differ by a third here, as WebGL's own mean does (1 371 and 981 ms for one code path). At HIGH: 83 draws (100), 460 791 triangles (497 357), 121 programs and 89 pipelines (81, 52), 9 472.08 ms (9 416.62) with steady readings of 17–27 ms and a last reading of 43 689 ms (36 624). The game's own race builds no pipeline after the card lifts (see part 6) |
 
-Parts 1 to 5 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+Parts 1 to 6 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis).
 
 ## Systems ported
@@ -506,7 +630,7 @@ Parts 1 to 5 were measured with `make bench ARGS="--renderer=both --frames 60 --
 - [x] 3 Sky (`sky-gpu`, `sky`): the dome, the night sky, the contrails, LOW's cloud shell, the far ranges, the LUT passes and the aerial volume, each as a node twin
 - [x] 4 Terrain and snow I (`terrain`): the clipmap's vertices, the snow's sample, colour and light, the strata, summer, the room cut, each as the ground's node twin
 - [x] 5 Trails and deform (`trail-map`, `deform`): the trail maps' four passes and the deformable snow's shade as node twins; the furrows, grooves, piste tracks, tree wells, avalanche and deformable snow in the ground's twin
-- [ ] 6 Shadows (`hero-shadow`, `shadow-depth`)
+- [x] 6 Shadows and the warm-up (`hero-shadow`, `env-warm`): the key's map with the mountain's cut, the skiers' atlas, every pipeline built behind the card; `shadow-depth` kept for WebGL until part 16
 - [ ] 7 Grade and post (`grade-pass`)
 - [ ] 8 Forest (`forest-batch`)
 - [ ] 9 Particles and air
@@ -514,8 +638,8 @@ Parts 1 to 5 were measured with `make bench ARGS="--renderer=both --frames 60 --
 - [ ] 11 Figures (`gore-tree`)
 - [ ] 12 Skier, models, effects (`model-merged`, `wingsuit`)
 - [ ] 13 Buildings and props
-- [ ] 14 Instruments and tools (`env-warm`, `snow-under`, `trail-overlay`, `gpu-timer`)
+- [ ] 14 Instruments and tools (`snow-under`, `trail-overlay`, `gpu-timer`)
 - [ ] 15 The flip: webgpu by default, `?renderer=webgl` kept as the way back, the picture's prices re-measured
-- [ ] 16 The GLSL deleted, and the quarantine with it
+- [ ] 16 The GLSL deleted, and the quarantine with it (`shadow-depth` too)
 - [ ] 17 Compute (WebGPU only)
 - [ ] 18 Ray-marched effects

@@ -24,7 +24,10 @@
 //     faded and its mask — its points drawn as sprites (`glow-tsl.ts`);
 //   - a ShaderMaterial flagged with a NODE TWIN (`nodeTwin`: the dome, the
 //     far ranges, the GPU sky's passes — part 3) is drawn by that twin
-//     (`sky-twins-tsl.ts`), made once over its own uniforms.
+//     (`sky-twins-tsl.ts`), made once over its own uniforms;
+//   - the SKIERS' passes' depth (`createShadeDepth`, `userData.shadeCast`)
+//     is drawn by `shadows-tsl.ts`'s twin, the mountain's shade discarded,
+//     and the atlas they fill is re-pointed each frame (`syncHero`).
 //
 // Each material is copied into a node material by the renderer's library
 // (`fromMaterial`) whenever its pipeline is built; the hook below finishes
@@ -39,6 +42,7 @@ import { createGlowSprites, glowFade, insideWall } from "./glow-tsl.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { hazeFog, hazeSlots, syncHaze } from "./haze-tsl.ts";
 import { LampsLight, lightSlots, registerLights, syncLights } from "./lights-tsl.ts";
+import { heroSlots, shadeDepthTwin, syncHero } from "./shadows-tsl.ts";
 import { createTwins } from "./sky-twins-tsl.ts";
 import type { KeyLight } from "./world-lights.ts";
 
@@ -80,9 +84,15 @@ export function dressScene(
   const twins = createTwins(haze, how);
   const library = renderer.library;
   const from = library.fromMaterial.bind(library);
+  const depths = new WeakMap<THREE.Material, NodeMaterial>();
   library.fromMaterial = (material: THREE.Material): NodeMaterial => {
     const twin = twins.of(material);
     if (twin) return twin;
+    if (material.userData.shadeCast === true) {
+      let depth = depths.get(material);
+      if (!depth) depths.set(material, (depth = shadeDepthTwin(material, haze)));
+      return depth;
+    }
     const copy = from(material) as NodeMaterial | null;
     if (copy && copy !== (material as unknown)) finish(copy, material, haze);
     return copy as NodeMaterial; // null where three has no node twin, as it returns
@@ -91,6 +101,7 @@ export function dressScene(
   scene.add(new LampsLight(haze));
   const hs = hazeSlots(haze);
   const ls = lightSlots(haze);
+  const hero = heroSlots(haze);
   const glows = createGlowSprites(haze);
   const keys: THREE.DirectionalLight[] = [];
   scene.traverse((o) => {
@@ -100,6 +111,7 @@ export function dressScene(
     begin() {
       syncHaze(hs);
       syncLights(ls);
+      syncHero(hero);
       for (const key of keys) {
         const map = key.shadow.map as THREE.RenderTarget | null;
         if (key.castShadow && (!map || map.depthTexture?.version === 0))

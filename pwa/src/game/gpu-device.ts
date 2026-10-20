@@ -173,6 +173,7 @@ function gpuSeam(
     },
     hazeInDisplay: (on) => dressing?.hazeInDisplay(on),
     endFrame: () => dressing?.end(),
+    settled: () => (device ? device.queue.onSubmittedWorkDone() : glSettled(renderer)),
     info() {
       const r = renderer.info.render;
       const m = renderer.info.memory;
@@ -190,4 +191,21 @@ function gpuSeam(
       renderer.dispose();
     },
   };
+}
+
+/** The WebGL back end's queue drained: a fence, polled a frame apart so the
+ * loading card keeps drawing while the driver works. */
+function glSettled(renderer: WebGPURenderer): Promise<void> {
+  const gl = (renderer.backend as unknown as { gl?: WebGL2RenderingContext }).gl;
+  const sync = gl?.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+  if (!gl || !sync) return Promise.resolve();
+  gl.flush();
+  return new Promise((done) => {
+    const poll = (): void => {
+      if (gl.clientWaitSync(sync, 0, 0) === gl.TIMEOUT_EXPIRED) return void setTimeout(poll, 16);
+      gl.deleteSync(sync);
+      done();
+    };
+    poll();
+  });
 }

@@ -159,21 +159,14 @@ function warmShadows(
       shown.push(p);
     }
   });
-  const cam = sun.shadow.camera;
-  const { left, right, top, bottom, near, far } = cam;
-  cam.left = cam.bottom = -span;
-  cam.right = cam.top = span;
-  cam.near = -2 * span;
-  cam.far = 2 * span;
-  cam.updateProjectionMatrix();
+  const close = openBox(sun, span);
   scene.updateMatrixWorld();
   const wanted = gl.shadowMap.needsUpdate;
   gl.shadowMap.needsUpdate = true;
   sun.shadow.needsUpdate = true; // whatever the cadence (`sunDue`) last said
-  gl.shadowMap.render([sun], scene, cam);
+  gl.shadowMap.render([sun], scene, sun.shadow.camera);
   gl.shadowMap.needsUpdate = wanted;
-  Object.assign(cam, { left, right, top, bottom, near, far });
-  cam.updateProjectionMatrix();
+  close();
   for (const p of shown) p.visible = false;
 }
 
@@ -191,21 +184,7 @@ function warmShadows(
  * the draw: the renderer runs the skiers' shadow pass (empty) first.
  */
 function warmPicture(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): void {
-  const shown: THREE.Object3D[] = [];
-  const culled: THREE.Object3D[] = [];
-  scene.traverse((o) => {
-    if (!(o as THREE.Mesh).isMesh && !(o as THREE.Points).isPoints && !(o as THREE.Sprite).isSprite)
-      return;
-    if (o.frustumCulled) {
-      o.frustumCulled = false;
-      culled.push(o);
-    }
-    for (let p: THREE.Object3D | null = o; p; p = p.parent) {
-      if (p.visible) continue;
-      p.visible = true;
-      shown.push(p);
-    }
-  });
+  const back = standAll(scene);
   // A target carries its own scissor; the canvas's is the renderer's.
   const target = gl.getRenderTarget();
   const scissor = target ? target.scissorTest : gl.getScissorTest();
@@ -230,8 +209,105 @@ function warmPicture(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.
     gl.setScissor(box);
   }
   gl.shadowMap.autoUpdate = auto;
-  for (const o of culled) o.frustumCulled = true;
-  for (const p of shown) p.visible = false;
+  back();
+}
+
+/** Every mesh, points and sprite under `scene` shown and none culled, as a
+ * warm-up draws them (but, with `apart`, what asks to be left out); the call
+ * returned puts each back as it was. */
+function standAll(scene: THREE.Scene, apart = false): () => void {
+  const shown: THREE.Object3D[] = [];
+  const culled: THREE.Object3D[] = [];
+  scene.traverse((o) => {
+    if (!(o as THREE.Mesh).isMesh && !(o as THREE.Points).isPoints && !(o as THREE.Sprite).isSprite)
+      return;
+    if (apart && o.userData.warmApart === true) return;
+    if (o.frustumCulled) {
+      o.frustumCulled = false;
+      culled.push(o);
+    }
+    for (let p: THREE.Object3D | null = o; p; p = p.parent) {
+      if (p.visible) continue;
+      p.visible = true;
+      shown.push(p);
+    }
+  });
+  return () => {
+    for (const o of culled) o.frustumCulled = true;
+    for (const p of shown) p.visible = false;
+  };
+}
+
+/** The key's shadow box opened over `span` m round the scene, for a pass
+ * that has to meet every caster; the call returned closes it again. */
+function openBox(sun: THREE.DirectionalLight, span: number): () => void {
+  const cam = sun.shadow.camera;
+  const { left, right, top, bottom, near, far } = cam;
+  cam.left = cam.bottom = -span;
+  cam.right = cam.top = span;
+  cam.near = -2 * span;
+  cam.far = 2 * span;
+  cam.updateProjectionMatrix();
+  return () => {
+    Object.assign(cam, { left, right, top, bottom, near, far });
+    cam.updateProjectionMatrix();
+  };
+}
+
+/** The two ends of a node renderer's frame (`render-seam.ts`) and what it
+ * hides there (`gpu-quarantine.ts`). */
+type NodeFrame = { beginFrame(): void; endFrame(): void };
+type Hider = { hide(scene: THREE.Object3D): void; restore(): void };
+
+/**
+ * THE NODE RENDERER'S PIPELINES, BUILT BEFORE THE RUN (`docs/webgpu.md`,
+ * part 6). The node renderer builds a pipeline the frame it first draws
+ * with it, on the thread that draws: a frame that meets a new material
+ * stalls for as long as the device takes to compile it — seconds on a
+ * software device, and a visible hitch on a phone. So, behind the card,
+ * the whole scene is drawn once through a single pixel of the canvas, every
+ * mesh shown and none culled (what the quarantine hides left out), with the
+ * key's shadow pass drawn into it, its box opened over the whole map: every
+ * pipeline the picture and the sun's map can ask for is built there. What
+ * it showed is hidden again and the box put back; the next frame paints
+ * over the pixel.
+ *
+ * WHAT IS LEFT HIDDEN (`userData.warmApart`): the deformable snow's mesh,
+ * hidden until the field is on and the lens over it. Drawn here, it left
+ * the clipmap's far levels grey and unhazed for the rest of the run (the
+ * cause is not pinned: `docs/webgpu.md`, part 6). It is left for the frame
+ * that first needs it, as before part 6.
+ *
+ * NOT THREE'S `compileAsync`: it skips the shadow pass, and it builds each
+ * object's nodes after the overrides it applied are gone (r186). The draw
+ * builds both as a frame would.
+ */
+export function warmNode(
+  gl: THREE.WebGLRenderer,
+  scene: THREE.Scene,
+  camera: THREE.Camera,
+  sun: THREE.DirectionalLight,
+  span: number,
+  frame: NodeFrame,
+  quarantine: Hider,
+): void {
+  const back = standAll(scene, true);
+  const close = openBox(sun, span);
+  if (sun.castShadow && gl.shadowMap.enabled) sun.shadow.needsUpdate = true;
+  const scissor = gl.getScissorTest();
+  const box = gl.getScissor(new THREE.Vector4());
+  gl.setRenderTarget(null);
+  gl.setScissorTest(true);
+  gl.setScissor(0, 0, 1, 1);
+  frame.beginFrame();
+  quarantine.hide(scene);
+  gl.render(scene, camera);
+  quarantine.restore();
+  frame.endFrame();
+  gl.setScissorTest(scissor);
+  gl.setScissor(box);
+  close();
+  back();
 }
 
 export function createEnvironment(

@@ -77,21 +77,25 @@ export const GPU_PORTS: readonly GpuPort[] = [
     kind: "pass",
     part: 6,
     what: "the skiers' own shadow atlas",
-    ported: false,
+    ported: true,
   },
   {
+    // WebGL's own economy (a depth program a kind of caster, the opaque
+    // list grouped by material): the node renderer keys its shadow
+    // pipelines by the caster already, so nothing replaces it, and it goes
+    // with the GLSL (part 16).
     id: "shadow-depth",
     kind: "pass",
-    part: 6,
-    what: "the sun map's depth by kind and the opaque sort",
+    part: 16,
+    what: "WebGL's sun-map depth by kind and opaque sort, not needed on the node renderer",
     ported: false,
   },
   {
     id: "env-warm",
     kind: "pass",
-    part: 14,
+    part: 6,
     what: "the first frame's shaders compiled behind the card",
-    ported: false,
+    ported: true,
   },
   {
     id: "grade-pass",

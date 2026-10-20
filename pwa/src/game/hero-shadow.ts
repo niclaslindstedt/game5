@@ -15,6 +15,14 @@
 // with only his meshes on its layer, through the depth material the trees'
 // casters use (the mountain's own shade discarded) — and the snow reads the
 // DEPTH ATTACHMENT back through a comparing sampler, the GPU's own PCF.
+//
+// ON THE NODE RENDERER (`docs/webgpu.md`, part 6) the same passes draw into
+// three's own `RenderTarget`, through the depth's node twin
+// (`shadows-tsl.ts`), and are read by the key's node (`heroShadowed`). Its
+// targets are laid out top down and its depth runs 0..1 on WebGPU, so the
+// matrices are written for that (`heroBias`); a quarter's viewport is the
+// only clip it needs, three's node renderer taking a target's scissor only
+// with the canvas's own switched on.
 
 import * as THREE from "three";
 
@@ -42,15 +50,33 @@ export type HeroShadow = {
   dispose(): void;
 };
 
-export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
-  let target: THREE.WebGLRenderTarget | null = null;
+/** Clip space to a quarter's own 0..1 (x, y and depth): WebGL's, or — on
+ * the node renderer (`node`) — with v running down, and with depth already
+ * 0..1 where `system` is WebGPU's. */
+export function heroBias(
+  out: THREE.Matrix4,
+  node = false,
+  system: THREE.CoordinateSystem = THREE.WebGLCoordinateSystem,
+): THREE.Matrix4 {
+  const [zs, zo] = system === THREE.WebGPUCoordinateSystem ? [1, 0] : [0.5, 0.5];
+  const vs = node ? -0.5 : 0.5;
+  return out.set(0.5, 0, 0, 0.5, 0, vs, 0, 0.5, 0, 0, zs, zo, 0, 0, 0, 1);
+}
+
+export function createHeroShadow(
+  haze: HazeUniforms,
+  size: number,
+  /** Drawn by the node renderer (`render-seam.ts`): three's own target. */
+  node = false,
+): HeroShadow {
+  let target: THREE.RenderTarget | null = null;
   let slotSize = 0;
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.5, HERO_BACK + HERO_DEPTH);
   // What the mountain already shades casts nothing (`terrain-shade.ts`).
   const depth = createShadeDepth(haze, { side: THREE.DoubleSide });
   // Only the depth attachment is read: the colour is never written.
   depth.colorWrite = false;
-  const bias = new THREE.Matrix4().set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1);
+  const bias = heroBias(new THREE.Matrix4());
   const sphere = new THREE.Sphere();
   /** The scene's children switched off for the passes. */
   const hid: THREE.Object3D[] = [];
@@ -104,12 +130,15 @@ export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
     depthTexture.minFilter = THREE.LinearFilter;
     depthTexture.magFilter = THREE.LinearFilter;
     depthTexture.name = "riders.shadowMap";
-    target = new THREE.WebGLRenderTarget(side, side, {
+    const options = {
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
       generateMipmaps: false,
       depthTexture,
-    });
+    };
+    target = node
+      ? new THREE.RenderTarget(side, side, options)
+      : new THREE.WebGLRenderTarget(side, side, options);
     haze.uHeroMap.value = depthTexture;
   };
   setSize(size);
@@ -128,7 +157,7 @@ export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
       // Made on the GPU before any frame can sample it, drawn into or not —
       // a target never drawn into is no texture at all to the sampler.
       if (target && !made) {
-        gl.initRenderTarget(target);
+        gl.initRenderTarget(target as THREE.WebGLRenderTarget);
         made = true;
       }
       if (!active || !target || !box) return off();
@@ -148,7 +177,15 @@ export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
       scene.overrideMaterial = depth;
       target.viewport.set(0, 0, 2 * slotSize, 2 * slotSize);
       target.scissorTest = false;
-      gl.setRenderTarget(target);
+      gl.setRenderTarget(target as THREE.WebGLRenderTarget);
+      // The node renderer's lens in its own clip space before it is aimed:
+      // the matrices are written off the projection the pass draws with.
+      if (node) {
+        cam.coordinateSystem = (
+          gl as unknown as { coordinateSystem: THREE.CoordinateSystem }
+        ).coordinateSystem;
+        heroBias(bias, true, cam.coordinateSystem);
+      }
       gl.setClearColor(0xffffff, 1);
       gl.clear(true, true, false);
       gl.autoClear = false;
@@ -207,8 +244,8 @@ export function createHeroShadow(haze: HazeUniforms, size: number): HeroShadow {
         const y = Math.floor(i / 2) * slotSize;
         target.viewport.set(x, y, slotSize, slotSize);
         target.scissor.set(x, y, slotSize, slotSize);
-        target.scissorTest = true;
-        gl.setRenderTarget(target);
+        target.scissorTest = !node;
+        gl.setRenderTarget(target as THREE.WebGLRenderTarget);
         gl.render(scene, cam);
       }
       haze.uHero.value.x = any;

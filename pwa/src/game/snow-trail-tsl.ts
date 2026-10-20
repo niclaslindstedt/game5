@@ -126,7 +126,7 @@ const RING = Array.from({ length: 6 }, (_, i) => [
 export function trailSample(
   t: TrailSlots,
   trail: Record<string, THREE.IUniform>,
-  o: { p: N; y: N; dist: N; grad: N; sunDir: N; skipW: N },
+  o: { p: N; y: N; dist: N; grad: N; sunDir: N; skipW: N; rock: N },
 ): TrailHere {
   const { p, dist, grad } = o;
   const tr = t.trailAt(p).toVar();
@@ -165,11 +165,13 @@ export function trailSample(
       grad.addAssign(tg);
     },
   );
-  // THE GROOVE UNDER THE PLAYER'S SKIS, where the trail map holds none.
+  // THE GROOVE UNDER THE PLAYER'S SKIS, where the trail map holds none —
+  // and none on bare rock.
   If(dist.lessThan(40), () => {
     const sg = skiGroove(trail, p, o.y).toVar();
     const fade = one(smoothstep(0.01, 0.03, tr.x))
       .mul(one(smoothstep(20, 40, dist)))
+      .mul(one(o.rock))
       .toVar();
     grad.addAssign(sg.yz.mul(fade));
     here.press.assign(max(here.press, sg.x.mul(0.55).mul(fade)));

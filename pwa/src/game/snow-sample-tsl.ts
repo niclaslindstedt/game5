@@ -352,6 +352,7 @@ export function snowSample(s: GroundSlots, world: N, vNormal: N): SnowState {
     grad,
     sunDir: s.sunDir,
     skipW: s.skip.w,
+    rock,
   });
   const { press, wall, self, scuff } = trail;
   // THE PADDLES' PRINT across a belt's floor.

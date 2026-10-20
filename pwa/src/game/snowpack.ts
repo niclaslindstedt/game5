@@ -22,6 +22,8 @@
 //     off the skis in CLUMPS that arc and fall, lifts almost no cloud, and
 //     leaves crisp walls and a real berm beside a furrow.
 //   * ICE — the frozen river (R21): nothing to throw, nothing pressed.
+//     BARE ROCK, where a steep face is drawn as stone (`bare-rock.ts`),
+//     reads as the ice does: no snow on it to throw or to press.
 //
 // A POINT IS A BLEND, weighted from what the map already says and nothing
 // else: the groomer's share of the packed field (`packedAt`), the wind
@@ -38,6 +40,7 @@
 
 import { pisteDayOf, regionOf, sampleField, weatherOf, type Level, type Weather } from "@engine";
 
+import type { BareRock } from "./bare-rock.ts";
 import { NO_TRACKS, tracksOf, type Tracks } from "./piste-tracks.ts";
 import { snowAgeOf, snowAirOf, THAW, wetIn, type SnowAge, type SnowAgeKind } from "./snow-age.ts";
 
@@ -190,6 +193,8 @@ export type Snowpack = {
   /** THE OTHER SKIERS' TRACKS on the piste (`piste-tracks.ts`), off the
    * hours of traffic the runs have taken by the map's hour. */
   tracks: Tracks;
+  /** Where the ground is drawn as bare rock (`bare-rock.ts`), or null. */
+  bare: BareRock | null;
 };
 
 export type SnowpackOptions = {
@@ -209,6 +214,9 @@ export type SnowpackOptions = {
   /** The run's piste through the day (`GameState.piste`); none when left
    * out. */
   piste?: { worn: number };
+  /** Where the ground is drawn as bare rock (`bareRockOf`); none when left
+   * out. */
+  bare?: BareRock | null;
 };
 
 const smooth = (a: number, b: number, x: number): number => {
@@ -251,6 +259,7 @@ export function snowpackOf(
     tracks: level.sun
       ? tracksOf(pisteDayOf({ sun: level.sun, weather: level.weather }).skied)
       : NO_TRACKS,
+    bare: options.bare ?? null,
   };
 }
 
@@ -310,6 +319,12 @@ const scratch = emptyMix();
  * dial scales how much loose snow there is to throw and to press. */
 export function snowAt(pack: Snowpack, x: number, z: number, out?: SnowProps): SnowProps {
   const mix = snowMix(pack, x, z, scratch);
+  // Bare rock holds no snow to throw or to press: it reads as the ice.
+  const rock = pack.bare && !pack.force ? pack.bare(x, z) : 0;
+  if (rock > 0) {
+    for (const k of SNOW_KINDS) mix[k] *= 1 - rock;
+    mix.ice += rock;
+  }
   return blend(mix, pack.depth, out);
 }
 

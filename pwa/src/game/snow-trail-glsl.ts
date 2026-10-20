@@ -28,10 +28,12 @@ export const SNOW_TRAIL_SAMPLE = /* glsl */ `
   // THE GROOVE UNDER THE PLAYER'S SKIS (\`ski-clear.ts\`): where the trail
   // map holds none (TRAILS off, or a groove the grid is too coarse for), the
   // dip the ground is let down into under each base is drawn as the base's
-  // own pressed groove — its shoulders in the normal, its floor pressed.
+  // own pressed groove — its shoulders in the normal, its floor pressed —
+  // and none on bare rock.
   if (snowDist < 40.0) {
     vec3 sg = skiGroove(p, vSnowWorld.y);
-    float fade = (1.0 - smoothstep(0.01, 0.03, tr.x)) * (1.0 - smoothstep(20.0, 40.0, snowDist));
+    float fade = (1.0 - smoothstep(0.01, 0.03, tr.x)) * (1.0 - smoothstep(20.0, 40.0, snowDist))
+      * (1.0 - snowRock);
     grad += sg.yz * fade;
     snowPress = max(snowPress, 0.55 * sg.x * fade);
   }

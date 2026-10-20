@@ -17,12 +17,15 @@
 //               down, each bone breaking as its part meets the snow
 //   post        skied at a steel upright (a lamp's pole, a lift's tower)
 //   cable       flown across a chair's rope at 90 km/h, his chest to it
+//   person-60   skied into an amateur stopped on his run at 60 km/h
+//   person-90   the same at 90 km/h
 //   anatomy     no blow: he stands still under the glass, the lens circling
 //               the ribs, the spine, the skull, the pelvis and the whole of
 //               him in turn — the skeleton and the organs judged at rest
 //
 // `--impact` runs them with the X-RAY CAM switch OFF: the IMPACT cam's
-// side-on slow motion of a body crushed on a solid or sliced by a rope,
+// side-on slow motion of a body crushed on a solid, sliced by a rope or
+// run into a person (`person-60`, `person-90`),
 // previews/impact-<scene>.png.
 //
 // Each scene is one contact sheet, previews/xray-<scene>.png. The page
@@ -36,7 +39,7 @@
 //   node scripts/xray-preview.mjs --scene=trunk
 //   node scripts/xray-preview.mjs --impact --scene=trunk-fast,post,cable
 
-import { cpSync, existsSync, mkdirSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
@@ -55,7 +58,7 @@ const args = parseArgs(
     scene: {
       kind: "string",
       default: "",
-      help: "which scenes, comma-separated (trunk-fast, post, head, slam, fall, fall-high, spike, spike-post, groomer, maul, heli, cable, cable-shins, rotor, anatomy); every one when left out",
+      help: "which scenes, comma-separated (trunk-fast, post, head, slam, fall, fall-high, spike, spike-post, groomer, maul, heli, cable, cable-shins, rotor, person-60, person-90, anatomy); every one when left out",
     },
     seed: { kind: "number", default: 2, help: "the map's seed" },
     every: { kind: "number", default: 0.5, help: "wall seconds between two frames shot" },
@@ -70,6 +73,11 @@ const args = parseArgs(
     cols: { kind: "number", default: 4, help: "tiles a row on a sheet" },
     scale: { kind: "number", default: 0.4, help: "a tile's size as a share of the frame" },
     impact: { kind: "flag", help: "the X-ray switch off: the impact cam alone" },
+    frames: {
+      kind: "string",
+      default: "",
+      help: "a folder to write every frame shot into as well, full size (<kind>-<scene>-<n>.png)",
+    },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 1800, help: "how long a sheet may take to draw, s" },
   },
@@ -169,6 +177,13 @@ for (const scene of scenes) {
     height: Math.ceil(box.y + box.height),
   });
   const out = join(outDir, `${args.impact ? "impact" : "xray"}-${scene}.png`);
+  if (args.frames) {
+    mkdirSync(args.frames, { recursive: true });
+    frames.forEach((f, n) => {
+      const name = `${args.impact ? "impact" : "xray"}-${scene}-${String(n).padStart(2, "0")}.png`;
+      writeFileSync(join(args.frames, name), Buffer.from(f.png.split(",")[1], "base64"));
+    });
+  }
   await page.locator("#sheet").screenshot({ path: out });
   await page.setViewportSize(viewport);
   console.log(

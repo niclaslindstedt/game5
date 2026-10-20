@@ -11,11 +11,13 @@
 // is the blow coming — read on past it a moment (`FORECAST.after`), through
 // the tumble, for whether his wounds will be MORTAL (`GoreState.mortal`):
 // the X-ray cam is shot only for a fall he clearly dies of. The copy is the
-// player's alone — the field and the
-// crowd are left behind (a shoulder into one of them is the one blow this
-// cannot see) — shares the map, which nothing in a step writes but its
-// memos, and takes a stream of its own wherever the run carries one, so the
-// run itself is never touched: its digests do not move.
+// player's and the people on foot's — the field and the crowd are left
+// behind, the crowd's amateurs met instead as GHOSTS dead-reckoned off where
+// they go (`impact-people.ts`), so a person struck is seen coming as the
+// impact cam's strike too — shares the map and the plan of the people on
+// foot, which nothing in a step writes but its memos, and takes a stream of
+// its own wherever the run carries one, so the run itself is never
+// touched: its digests do not move.
 
 import {
   bonesOf,
@@ -30,6 +32,15 @@ import {
   type GorePiece,
   type SkierInput,
 } from "@engine";
+
+import {
+  ghostsOf,
+  hardStrike,
+  meetGhosts,
+  PERSON_AHEAD,
+  struckOnFoot,
+  type Ghost,
+} from "./impact-people.ts";
 
 /** How far ahead, how often, and what is worth slowing down for. */
 export const FORECAST = {
@@ -54,6 +65,7 @@ export const FORECAST = {
 } as const;
 
 const STRIKE_AFTER = Math.round(FORECAST.strikeAfter / TUNING.dt);
+const PERSON_WAIT = Math.round(PERSON_AHEAD.wait / TUNING.dt);
 
 /** A blow seen coming: how many seconds off, the part it lands on, the
  * bones it breaks (none: an organ, a ligament, a wound) and whether it
@@ -78,21 +90,25 @@ export type Forecast = {
    * on the machine going up and never goes after him. */
   wrecked: boolean;
   /** Whether he is CRUSHED on a solid (`gore-smash.ts`: a trunk, a mast, a
-   * lift's tower, bare rock) or SLICED by a lift's rope (`cable-cut.ts`) —
-   * the strikes the IMPACT CAM is shot for with the X-ray switch off — and
-   * how far off, where and which way he is going. */
+   * lift's tower, bare rock), SLICED by a lift's rope (`cable-cut.ts`) or
+   * runs hard into a PERSON (`impact-people.ts`) — the strikes the IMPACT
+   * CAM is shot for with the X-ray switch off — and how far off, where and
+   * which way he is going. A person struck may be the whole of a forecast:
+   * no blow of his own worth the X-ray (`part` null, no bones). */
   strike?: Strike;
 };
 
-/** A body met by a solid or a rope too fast to hold together: what, how
- * many seconds off, where (world, m), his way then (world, m/s) and, for
- * a solid, its middle. */
+/** A body met by a solid or a rope too fast to hold together, or run hard
+ * into a person: what, how many seconds off, where (world, m), his way
+ * then (world, m/s) and, for a solid, its middle; for a person, where he
+ * stands. */
 export type Strike = {
-  kind: "crush" | "slice";
+  kind: "crush" | "slice" | "person";
   in: number;
   at: { x: number; y: number; z: number };
   way: { x: number; y: number; z: number };
   solid?: { x: number; z: number };
+  person?: { x: number; z: number };
 };
 
 /** A strike as a step finds it, before it is put off the run as it stands. */
@@ -109,12 +125,15 @@ const middleOf = (s: GameState): { x: number; y: number; z: number } => {
 };
 
 /** THE STRIKE IN ONE STEP: a point of him smeared on a solid this step (a
- * smear more than `smears`), or the rope's cut heard; `way` is his way
- * before the step. */
+ * smear more than `smears`), the rope's cut heard, or a person struck hard
+ * — one on foot by the step itself, an amateur's ghost `t` s into the read
+ * (`impact-people.ts`); `way` is his way before the step. */
 function struckIn(
   run: GameState,
   smears: number,
   way: { x: number; y: number; z: number },
+  ghosts: readonly Ghost[],
+  t: number,
 ): Struck | null {
   const g = run.gore;
   if (!g) return null;
@@ -124,8 +143,13 @@ function struckIn(
   }
   for (const e of run.events)
     if (e.kind === "grind" && e.phase === "cut") return { kind: "slice", at: middleOf(run), way };
+  const met = struckOnFoot(run.events) ?? meetGhosts(run, ghosts, t);
+  if (met && hardStrike(met)) return { kind: "person", at: met.at, way, person: met.person };
   return null;
 }
+
+/** No blow of his own: a forecast that is a person struck and nothing more. */
+const UNHURT: Found = { part: null, bones: [], gore: false };
 
 /** The deaths that TAKE A BODY APART rather than break it: under a piste
  * machine, into a helicopter's rotor. (Blown off its skid is the crash's
@@ -190,9 +214,12 @@ function copy(v: unknown, seen: Map<object, unknown>, seed: { n: number }): unkn
 
 /** THE RUN COPIED for reading ahead: the player's own, on the same map,
  * the field and the crowd left out; nothing in it shared with the run but
- * the map and the pure functions. */
+ * the map, the people on foot's plan (read, never written, in a run) and
+ * the pure functions. */
 export function forkRun(state: GameState): GameState {
   const seen = new Map<object, unknown>([[state.level, state.level]]);
+  const call = state.foot?.call;
+  if (call) seen.set(call, call);
   const bare = { ...state, rivals: [], crowd: undefined, field: undefined };
   return copy(bare, seen, { n: (state.seed ^ state.tick) >>> 0 }) as GameState;
 }
@@ -265,18 +292,34 @@ export function forecast(
   const run = forkRun(state);
   const steps = Math.round(horizon / TUNING.dt);
   const worst = Math.round(FORECAST.worst / TUNING.dt);
+  const ghosts = ghostsOf(state, horizon);
   let strike: Strike | undefined;
+  let struckAt = 0;
   /** One step on, the strike in it kept (the first). */
   const on = (i: number): void => {
     const smears = run.gore?.smears.length ?? 0;
     const way = wayOf(run);
     step(run, input);
-    const s = strike ? null : struckIn(run, smears, way);
-    if (s) strike = { ...s, in: i * TUNING.dt };
+    const s = strike ? null : struckIn(run, smears, way, ghosts, i * TUNING.dt);
+    if (s) {
+      strike = { ...s, in: i * TUNING.dt };
+      struckAt = i;
+    }
   };
+  /** A person struck and no blow of his own come of it: the strike alone. */
+  const alone = (): Forecast => ({
+    in: strike!.in,
+    ...UNHURT,
+    fatal: diesOf(run),
+    mangled: false,
+    cause: run.gore?.cause ?? null,
+    wrecked: false,
+    strike: strike!,
+  });
   for (let i = 1; i <= steps; i++) {
     on(i);
     let found = worse(run.events, null);
+    if (!found && strike?.kind === "person" && i - struckAt >= PERSON_WAIT) return alone();
     if (found) {
       const first = i;
       // On through the tumble for whether he dies of it — and through the
@@ -298,7 +341,7 @@ export function forecast(
     }
     if (run.progress.finished) break;
   }
-  return null;
+  return strike?.kind === "person" ? alone() : null;
 }
 
 /** Whether a run's skier is dying (`GoreState.mortal`, or dead). */
@@ -328,11 +371,14 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
   /** The strike found in the read, and the step it comes on. */
   let strike: Struck | null = null;
   let struckAt = 0;
+  /** The amateurs the read meets as ghosts, and the run time it began at. */
+  let ghosts: Ghost[] = [];
+  let t0 = 0;
   const dies = diesOf;
   const verdict = (state: GameState, fatal: boolean): Forecast => {
     const f: Forecast = {
-      ...found!,
-      in: Math.max(0, (at - state.tick) * TUNING.dt),
+      ...(found ?? UNHURT),
+      in: Math.max(0, ((found ? at : struckAt) - state.tick) * TUNING.dt),
       fatal,
       mangled: !!run && mangled(run),
       cause: run?.gore?.cause ?? null,
@@ -350,6 +396,8 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
     frame(state, held) {
       if (!run || level !== state.level || run.tick < state.tick) {
         run = forkRun(state);
+        ghosts = ghostsOf(state, horizon);
+        t0 = state.t;
         level = state.level;
         input = { ...held };
         left = Math.round(horizon / TUNING.dt);
@@ -362,7 +410,7 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
         const way = wayOf(run);
         step(run, input!);
         if (!strike) {
-          strike = struckIn(run, smears, way);
+          strike = struckIn(run, smears, way, ghosts, run.t - t0);
           if (strike) struckAt = run.tick;
         }
         const settled = !!found && run.tick - at >= Math.round(FORECAST.worst / TUNING.dt);
@@ -378,10 +426,13 @@ export function createForecaster(per = 10, horizon: number = FORECAST.horizon): 
           at = run.tick;
           left = Math.round(FORECAST.after / TUNING.dt);
         }
+        // A person struck with no blow of his own come of it: the strike alone.
+        if (!found && strike?.kind === "person" && run.tick - struckAt >= PERSON_WAIT)
+          return verdict(state, dies(run));
         if (!found && run.progress.finished) left = 0;
       }
       if (left <= 0) {
-        if (found) return verdict(state, false);
+        if (found || strike?.kind === "person") return verdict(state, !found && dies(run));
         run = null;
       }
       return null;

@@ -16,7 +16,8 @@
 //
 // With the X-RAY CAM switch OFF the same run reads ahead for one thing only,
 // and only while he goes fast enough for it: a body about to be CRUSHED on
-// a solid or SLICED by a rope (the IMPACT cam, `xray-shots.ts`) — and a
+// a solid or SLICED by a rope, or a PERSON about to be run into hard while
+// anyone is near enough to be (the IMPACT cam, `xray-shots.ts`) — and a
 // RECORDING watched back plays that cam too, whatever the switch: the
 // replay is the run again, so the strike is read ahead off it the same way.
 
@@ -24,7 +25,8 @@ import { CABLE, disablingOf, GORE, type GameState } from "@engine";
 
 import type { KeyBindings } from "./settings-input.ts";
 
-import { createForecaster, wrecked } from "./impact-forecast.ts";
+import { createForecaster, FORECAST, wrecked } from "./impact-forecast.ts";
+import { peopleAhead } from "./impact-people.ts";
 import { createSkipCount, createXrayDirector, type XrayLook } from "./xray-shots.ts";
 
 /** A skier this slow, on the snow and on his skis, is not read ahead:
@@ -142,7 +144,8 @@ export function createXrayRun(
       const b = s.thrown;
       const moving = glass
         ? s.speed > STILL || s.airborne || s.thrown !== null || !!state.heli?.rider
-        : (b ? Math.hypot(b.vx, b.vy, b.vz) : s.speed) > STRIKING;
+        : (b ? Math.hypot(b.vx, b.vy, b.vz) : s.speed) > STRIKING ||
+          (!b && peopleAhead(state, FORECAST.horizon));
       // A machine come down with him on it is the crash's own lens's
       // (`Forecast.wrecked`): nothing to read ahead for, and a copy of the
       // run stepped through a wreck every frame is a frame's budget.

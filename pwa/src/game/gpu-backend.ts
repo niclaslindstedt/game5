@@ -151,8 +151,8 @@ export const GPU_PORTS: readonly GpuPort[] = [
     id: "forest-batch",
     kind: "material",
     part: 8,
-    what: "the woods' multi-draw batches",
-    ported: false,
+    what: "the woods' multi-draw batches, drawn shape by shape instanced on the node renderer",
+    ported: true,
   },
   {
     id: "haze-graft",

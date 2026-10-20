@@ -18,7 +18,8 @@
 //     flags `haze-graft`; the terrain, the merged models, the wingsuit and the
 //     blooded tree flag their own);
 //   - every object flagged the same way (`userData.glsl`), for a draw
-//     three's WebGPU path cannot make at all (the woods' multi-draw).
+//     three's WebGPU path cannot make at all (the woods' multi-draw, which
+//     the node renderer never builds since part 8: `forest-nodes.ts`).
 //
 // A family whose register row is ported is drawn again. Nothing here runs
 // on WebGL. The walk is the visible graph's, every frame; a material's

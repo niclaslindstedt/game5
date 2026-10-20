@@ -16,6 +16,7 @@
 import * as THREE from "three";
 
 import { freshBackend, type BackendState } from "./gpu-backend.ts";
+import type { WoodsKit } from "./forest-nodes.ts";
 import type { HazeUniforms } from "./haze.ts";
 import type { NodePicture } from "./region-picture.ts";
 
@@ -52,6 +53,10 @@ export type RenderSeam = {
    * canvas's samples, the grade's node pass (`grade-tsl.ts`), where the
    * haze mixes and the counters. Null on WebGL, whose picture is its own. */
   readonly post: NodePicture | null;
+  /** The node renderer's materials for the woods (`forest-tsl.ts`), made
+   * by the dressing: null on WebGL, whose woods are one batch of GLSL
+   * (`forest-batch.ts`), and before `dress`. */
+  woods(): WoodsKit | null;
   /** After a frame's draws: what `beginFrame` stood in for put back. */
   endFrame(): void;
   /** Resolves once the device has run every draw handed to it so far: a
@@ -104,6 +109,7 @@ function webglSeam(canvas: HTMLCanvasElement, options: SeamOptions): RenderSeam 
     dress: () => {},
     beginFrame: () => {},
     post: null,
+    woods: () => null,
     endFrame: () => {},
     settled: () => Promise.resolve(),
     info: () => none,

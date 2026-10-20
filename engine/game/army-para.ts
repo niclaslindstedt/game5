@@ -426,7 +426,7 @@ function handsFor(
   const err = angleDiff(w.heading, Math.atan2(nx, nz));
   // A wing banked hard sinks: well under the height he wants, he turns
   // gently and climbs first — unless the snow ahead leaves him no room.
-  const most = p.y < p.want - H.under && !rising ? H.climbing : H.most;
+  const most = rising ? H.escape : p.y < p.want - H.under ? H.climbing : H.most;
   // NEAR THE STALL (the thrust pitching the wing back, a gust): hands up,
   // the bar out and the engine eased until it flies again — the stall
   // drops a wing out of the sky far faster than any climb gains.

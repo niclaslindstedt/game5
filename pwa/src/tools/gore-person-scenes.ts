@@ -20,6 +20,10 @@
 // crowd's (`crowd-gore.ts`). Its `civilian-walker-` views are the same
 // over a dog walker on the village's sidewalks (`dog-foot.ts`), met at the
 // first moment of the run one is out where the player meets him square.
+//
+// The LYING sheet (`lying`) is a grown man laid dead on the snow and gone
+// over at 60 km/h on skis and on the snowmobile (`engine/game/lying.ts`):
+// the moment before, the pass, and his body pushed on.
 
 import {
   NEUTRAL_INPUT,
@@ -28,8 +32,10 @@ import {
   feelBumps,
   markFall,
   placeRun,
+  standSled,
   step,
   struckPerson,
+  throwAmateur,
   type Amateur,
   type GameEvent,
   type GameState,
@@ -304,7 +310,62 @@ function shootMeeting(
   st.shoot(s, "+4s above", (q) => planted(q.level, him(q), side + 0.2, 0.8, 3.8, 55, 0.15));
 }
 
+/** A BODY LYING GONE OVER (`engine/game/lying.ts`): a grown man laid dead
+ * on the snow of the flat spot (thrown over and come to rest while the
+ * player waits well up the line), then the player sent over him at `kmh`
+ * on his skis or on the snowmobile — the moment before, the pass, and the
+ * body pushed on, from the side and from above. */
+function overLying(st: Stage, kmh: number, sled: boolean): void {
+  const s = st.fresh({ crowd: 30, ...(sled ? { sled: true } : {}) });
+  const crowd = s.crowd!;
+  for (const o of crowd.amateurs) o.mode = "lift";
+  const spot = flatSpot(s.level);
+  const h = spot.heading;
+  const fx = Math.sin(h);
+  const fz = Math.cos(h);
+  const a = crowd.amateurs[0];
+  a.body = "man";
+  a.board = null;
+  a.x = spot.x + fx * 30;
+  a.z = spot.z + fz * 30;
+  a.y = s.level.groundAt(a.x, a.z);
+  a.heading = h + Math.PI / 2;
+  throwAmateur(a, 1, "skier", 0, 0, 0);
+  a.dead = true;
+  a.timer = 600;
+  const from = (back: number) => ({ x: a.x - fx * back, z: a.z - fz * back });
+  const park = from(40);
+  if (sled) standSled(s, s.sled!, park.x, park.z, h);
+  else placeRun(s, { x: park.x, z: park.z, heading: h, speed: 0 });
+  st.run(s, 4, still);
+  const b = a.thrown!;
+  const start = from(7);
+  if (sled) {
+    const m = s.sled!;
+    standSled(s, m, start.x, start.z, h);
+    m.vx = fx * (kmh / 3.6);
+    m.vz = fz * (kmh / 3.6);
+    m.treadSpeed = kmh / 3.6;
+  } else placeRun(s, { x: start.x, z: start.z, heading: h, speed: kmh / 3.6 });
+  const side = h + Math.PI / 2;
+  const lying = { x: b.x, z: b.z };
+  st.shoot(s, "the moment before", planted(s.level, lying, side, 7, 1.4, 50, 0.3));
+  const over = (q: GameState) => q.events.some((e) => e.kind === "struck" && e.lying);
+  st.until(s, over, 1.5, still);
+  const e = s.events.find((x) => x.kind === "struck");
+  const line =
+    e?.kind === "struck"
+      ? `taken ${(e.taken * 3.6).toFixed(1)} km/h${e.thrown ? " · thrown" : ""} · crush ${(a.crush ?? 0).toFixed(2)}`
+      : "not met";
+  st.shoot(s, `the pass ${line}`, planted(s.level, lying, side, 7, 1.6, 50, 0.3));
+  st.run(s, 1.5, still);
+  st.shoot(s, "+1.5s pushed on", onAmateur(a, side + 0.5, 4, 2.2, 50));
+  st.shoot(s, "+1.5s above", onAmateur(a, side + 0.2, 0.8, 3.8, 55));
+}
+
 export const PERSON_VIEWS: Record<string, (st: Stage) => void | Promise<void>> = {
+  "lying-skis-60": (st) => overLying(st, 60, false),
+  "lying-sled-60": (st) => overLying(st, 60, true),
   "civilian-60": (st) => civilianInto(st, 60),
   "civilian-90": (st) => civilianInto(st, 90),
   "civilian-60-safe": (st) => civilianInto(st, 60, true),
@@ -321,4 +382,5 @@ export const PERSON_VIEWS: Record<string, (st: Stage) => void | Promise<void>> =
 export const PERSON_GROUPS: Record<string, readonly string[]> = {
   person: Object.keys(PERSON_VIEWS).filter((v) => v.startsWith("person-")),
   civilian: Object.keys(PERSON_VIEWS).filter((v) => v.startsWith("civilian-")),
+  lying: Object.keys(PERSON_VIEWS).filter((v) => v.startsWith("lying-")),
 };

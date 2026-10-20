@@ -19,6 +19,9 @@
 //   skate   SKATING AND POLING on the flat — the V's diagonal strokes each
 //           ski leaves, on the groomer and in powder, from overhead, from
 //           above to the side and behind him.
+//   rock    a face too steep to hold snow, where the ground is drawn as
+//           bare rock (the region's `rock`): skied across, it should take
+//           no furrow, no groove and throw no spray.
 //
 // A track is cut by the engine itself (`step` under a scripted steer, so
 // the stations, the sink, the edge and the skid are the physics' own) on a
@@ -32,6 +35,8 @@
 
 import {
   createGame,
+  regionOf,
+  ROCKS,
   generateLevel,
   NEUTRAL_INPUT,
   nearestTrackPoint,
@@ -48,6 +53,7 @@ import {
 } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
+import { regionLookOf } from "../game/region-look.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 
@@ -68,6 +74,7 @@ const GROUPS: Record<string, readonly string[]> = {
   night: ["deep-night"],
   speed: ["speed-powder", "speed-deep"],
   skate: ["skate-groomed", "skate-powder"],
+  rock: ["rock"],
   rider: ["rider-skis-deep", "rider-board-powder", "rider-board-deep", "rider-board-crawl"],
   kinds: [
     "skis-groomed",
@@ -238,6 +245,61 @@ function powderStart(s: GameState): Start {
     }
   }
   if (!best) throw new Error("no open powder slope on this map");
+  return best;
+}
+
+/** ON BARE ROCK: an unpacked face steep enough that the ground is drawn
+ * as rock (most of the way up the region's `rock` ramp, `snow-glsl.ts`'s
+ * `snowRock`) and not yet a wall the rock's skin is laid on
+ * (`ROCKS.wall`), along the way it is skied, clear of trunks, run across
+ * and down it. */
+function rockStart(s: GameState): Start {
+  const lv = s.level;
+  const rock = regionLookOf(regionOf(lv).id).rock;
+  if (!rock) throw new Error("this region draws no rock (try --region=continental)");
+  const n = { x: 0, y: 1, z: 0 };
+  const grad = (x: number, z: number): number => {
+    lv.normalAt(x, z, n);
+    return Math.hypot(n.x, n.z) / n.y;
+  };
+  let best: Start | null = null;
+  let score = -Infinity;
+  for (let gx = 80; gx < lv.size - 80; gx += 7) {
+    for (let gz = 80; gz < lv.size - 80; gz += 7) {
+      if (lv.packedAt(gx, gz) > 0.02) continue;
+      const g0 = grad(gx, gz);
+      const lo = rock.from + 0.55 * (rock.to - rock.from);
+      if (g0 < lo || g0 > ROCKS.wall) continue;
+      lv.normalAt(gx, gz, n);
+      const heading = Math.atan2(n.x, n.z) + 0.7;
+      const fx = Math.sin(heading);
+      const fz = Math.cos(heading);
+      let least = g0;
+      for (let k = 3; k <= 30; k += 3) {
+        const x = gx + fx * k;
+        const z = gz + fz * k;
+        if (lv.packedAt(x, z) > 0.02) least = 0;
+        least = Math.min(least, grad(x, z));
+      }
+      if (least < lo) continue;
+      let clear = true;
+      for (const t of lv.trees) {
+        const dx = t.x - gx;
+        const dz = t.z - gz;
+        const along = dx * fx + dz * fz;
+        const across = dx * fz - dz * fx;
+        if (along > -16 && along < 50 && Math.abs(across) < 14) {
+          clear = false;
+          break;
+        }
+      }
+      if (clear && least > score) {
+        score = least;
+        best = { x: gx, z: gz, heading };
+      }
+    }
+  }
+  if (!best) throw new Error("no bare rock face on this map");
   return best;
 }
 
@@ -525,7 +587,48 @@ async function skate(b: "groomed" | "powder"): Promise<void> {
   shoot(s, "the chase lens", chase(s), extra, true);
 }
 
+/** ACROSS BARE ROCK: skied across a face drawn as rock, then shot from
+ * below, from above to the side, and from the chase lens with him and his
+ * spray in it. */
+async function rockFace(): Promise<void> {
+  const s = fresh(1);
+  await renderer.load(s);
+  const at = rockStart(s);
+  const path = cut(s, at, 2.5, { brake: 0.4, speed: 8, steer: 0.35, tuck: 0 });
+  const k = s.skier;
+  const last = path[path.length - 1];
+  const mid = path[Math.floor(path.length * 0.5)];
+  const early = path[Math.floor(path.length * 0.1)];
+  const fx = Math.sin(at.heading);
+  const fz = Math.cos(at.heading);
+  const g = (x: number, z: number) => s.level.groundAt(x, z);
+  const n = { x: 0, y: 1, z: 0 };
+  s.level.normalAt(mid.x, mid.z, n);
+  const deg = (Math.atan(Math.hypot(n.x, n.z) / n.y) * 180) / Math.PI;
+  const extra = `bare rock, ${deg.toFixed(0)}° — ${(k.speed * 3.6).toFixed(0)} km/h`;
+  shoot(s, "the chase lens", chase(s), extra, true);
+  const below = { x: last.x + fx * 4, z: last.z + fz * 4 };
+  shoot(
+    s,
+    "from below, looking back along it",
+    lens(
+      { ...below, y: g(below.x, below.z) + 1.7 },
+      { x: early.x, y: g(early.x, early.z), z: early.z },
+    ),
+    extra,
+  );
+  const side = { x: mid.x - fz * 7 - fx * 2, z: mid.z + fx * 7 - fz * 2 };
+  shoot(
+    s,
+    "from above, to the side",
+    lens({ ...side, y: g(side.x, side.z) + 6 }, { x: mid.x, y: g(mid.x, mid.z), z: mid.z }, 55),
+    extra,
+  );
+  notes.push(`rock: start ${at.x.toFixed(0)}, ${at.z.toFixed(0)}`);
+}
+
 const VIEWS: Record<string, () => Promise<void>> = {
+  rock: () => rockFace(),
   "skate-groomed": () => skate("groomed"),
   "skate-powder": () => skate("powder"),
   "rider-skis-deep": () => rider("skis", "deep", 9),

@@ -15,8 +15,10 @@
 //     round (`carrierPlace`).
 //   * THE ROPE: the up and the down rope, straight between two supports
 //     save for their sag, drawn as LINES — a rope is a few centimetres
-//     thick, a pixel wide at any distance a skier sees it from, and a
-//     tube that thin would flicker in and out of the picture.
+//     thick, a pixel wide at most distances a skier sees it from — and
+//     under them a thin tube its real thickness (`rope-tube.ts`), which is
+//     what reads from a chair under the grip; the line over it keeps the
+//     rope whole where the tube thins under a pixel.
 //   * WHAT RIDES IT (`lift-carriers.ts`): a gondola's cabins, a chair's
 //     four-seat chairs (the up side facing up the line, the down side
 //     facing down it) with their safety bars lowered over the laps out on
@@ -48,6 +50,7 @@ import { smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING, type Level, type LiftRide, type Thrown } from "@engine";
 
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
+import { ropeTube } from "./rope-tube.ts";
 import { createMapBoards } from "./map-board.ts";
 import { createPadGive, type PadSpot } from "./pad-give.ts";
 import {
@@ -557,6 +560,14 @@ export function createLifts(
   const ropes = new THREE.LineSegments(ropeGeo, ropeMat);
   ropes.frustumCulled = false;
   group.add(ropes);
+  const tubeGeo = ropeTube(rope);
+  geos.push(tubeGeo);
+  const tube = new THREE.Mesh(
+    tubeGeo,
+    std({ color: PAINT.rope, roughness: 0.45, metalness: 0.7 }, "lift"),
+  );
+  tube.frustumCulled = false;
+  group.add(tube);
 
   // WHAT RIDES THE ROPE, MOVING: every carrier round its loop where the
   // clock has it (`carrierAt`) — creeping through the terminals, its grip

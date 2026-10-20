@@ -64,12 +64,14 @@ function meetBlows(h: BodyHands, all: readonly StruckPerson[]): boolean {
     e.dosed = true;
     any = true;
     const give = personGive(e.taken);
+    // A body lying on the snow meets only his shins and knees (`lying.ts`).
+    const reach = e.lying ? PERSON_HIT.lying.top : e.height;
     let most = 0;
     let worst: BodyPart = "chest";
     for (const [part, sided, lo, hi, share] of BANDS) {
-      if (lo > e.height) continue;
+      if (lo > reach) continue;
       // A band only partly under his height takes that part of its share.
-      const s = share * Math.min(1, (e.height - lo) / Math.max(0.01, hi - lo));
+      const s = share * Math.min(1, (reach - lo) / Math.max(0.01, hi - lo));
       const names: BodyPart[] =
         part === "sides" ? [`${sided}L` as BodyPart, `${sided}R` as BodyPart] : [part];
       for (const name of names) {

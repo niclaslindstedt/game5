@@ -41,13 +41,16 @@ import type { FootDown } from "./foot.ts";
  * he is, and — when it was not the player on his skis or his snowmobile —
  * what struck him (`by`: the player's body thrown, a piste machine, a car)
  * and whether the player had nothing to do with it (`away`: a machine he
- * was not driving, heard from where it happened and never felt). */
+ * was not driving, heard from where it happened and never felt) — and
+ * whether he was LYING on the snow and gone over (`lying.ts`: `killed`,
+ * `injured` and `crush` then what that pass did to him, nothing before). */
 export type StruckPerson = {
   amateur: number;
   foot?: number;
   who?: FootDown["who"];
   by?: "thrown" | "groomer" | "car";
   away?: true;
+  lying?: true;
   t: number;
   x: number;
   y: number;
@@ -144,12 +147,19 @@ export function strikePerson(
   };
 }
 
-/** The latest meeting with amateur `id`, if any. */
+/** The latest meeting with amateur `id` stood, or — when he was only ever
+ * gone over lying (`lying.ts`: fallen on his own, then run over) — the
+ * first of those; undefined when none. */
 export function struckPerson(state: GameState, id: number): StruckPerson | undefined {
   const all = state.crowd?.struck;
   if (!all) return undefined;
-  for (let k = all.length - 1; k >= 0; k--) if (all[k].amateur === id) return all[k];
-  return undefined;
+  let over: StruckPerson | undefined;
+  for (let k = all.length - 1; k >= 0; k--) {
+    if (all[k].amateur !== id) continue;
+    if (!all[k].lying) return all[k];
+    over = all[k];
+  }
+  return over;
 }
 
 /** A BODY ON THE SNOW THAT NEEDS COLLECTING: the player (`id` −1), an

@@ -58,6 +58,7 @@ import { exchangeOf, type StruckPerson } from "./person-hit.ts";
 import { stepRagdoll } from "./ragdoll.ts";
 import type { RescueCall } from "./rescue-call.ts";
 import type { CrashCause, GameEvent, GameState } from "./state.ts";
+import type { LyingOver } from "./lying.ts";
 import type { Thrown } from "./thrown-state.ts";
 import { freshVehiclePose, trafficOf, vehicleAt } from "./traffic.ts";
 
@@ -160,7 +161,9 @@ export const crewKey = (i: number, j: number): number => CREW_KEYS + 8 * i + j;
 /** ONE PERSON STRUCK and taken over by the engine: who, his body thrown
  * (a ragdoll of his own), the meeting, what it did to him, the run's clock
  * from which he is a body to meet again (Infinity: hurt, never) and
- * whether the body has come to rest. */
+ * whether the body has come to rest — and, once something has gone over
+ * him lying there (`lying.ts`), when each kind last touched him and the
+ * run's clock his body is stepped to again after the push. */
 export type FootDown = {
   key: number;
   who: "civilian" | "crew" | "soldier";
@@ -173,6 +176,8 @@ export type FootDown = {
   crush: number;
   until: number;
   settled: boolean;
+  over?: LyingOver;
+  stir?: number;
 };
 
 /** THE PEOPLE ON FOOT ON A RUN: the call handed in (null: only crews), the
@@ -250,9 +255,10 @@ export const footRadius = (body: CrowdBody): number =>
  * the bike), his body THROWN and tumbling, the snowmobile he rides, a
  * piste machine or a vehicle of the village's traffic — where, how fast,
  * how heavy, its front (a round body `r` m round its middle, or a box
- * `front` and `back` m along its heading and `half` across), what it is
- * and whether the player is on it or is it. */
-type Hitter = {
+ * `front` and `back` m along its heading and `half` across), what it is,
+ * whether the player is on it or is it, and — a vehicle of the traffic —
+ * the wheels its weight stands on (0 on anything else). */
+export type Hitter = {
   x: number;
   z: number;
   feet: number;
@@ -266,6 +272,7 @@ type Hitter = {
   half: number;
   kind: "skier" | "thrown" | "sled" | "groomer" | "car";
   ridden: boolean;
+  wheels: number;
 };
 
 const freshHitter = (): Hitter => ({
@@ -282,16 +289,20 @@ const freshHitter = (): Hitter => ({
   half: 0,
   kind: "skier",
   ridden: false,
+  wheels: 0,
 });
 
 const pool: Hitter[] = [];
+/** The hitters `hittersOf` filled, read by the bodies lying on the snow
+ * (`lying.ts`). */
+export const HITTERS: readonly Hitter[] = pool;
 const vehicle = freshVehiclePose();
 
 /** The hitter at `pool[n]`, made when the pool is short of it. */
 function slot(n: number): Hitter {
   while (pool.length <= n) pool.push(freshHitter());
   const h = pool[n];
-  h.r = h.front = h.back = h.half = 0;
+  h.r = h.front = h.back = h.half = h.wheels = 0;
   h.ridden = false;
   return h;
 }
@@ -356,13 +367,15 @@ const canStrike = (speed: number): boolean => (1 + K.restitution) * Math.abs(spe
 /** EVERYTHING THAT STRIKES THE PEOPLE ON FOOT this step, into `pool`: the
  * player (on his skis, thrown, or on the snowmobile) and, every
  * `PERSON_HIT.foot.every` steps, every piste machine moving and every
- * vehicle of the traffic driving fast enough to. How many. */
-function hittersOf(state: GameState): number {
+ * vehicle of the traffic driving fast enough to (`fast`: whether a machine
+ * at that speed counts — for a person stood, whether it can strike him).
+ * How many. */
+export function hittersOf(state: GameState, fast: (speed: number) => boolean = canStrike): number {
   let n = playerHitter(state, 0) ? 1 : 0;
   // The machines only every few steps: each is longer than it goes in them.
   if (state.tick % K.foot.every !== 0) return n;
   for (const g of state.groomers ?? []) {
-    if (!canStrike(g.speed)) continue;
+    if (!fast(g.speed)) continue;
     const h = slot(n++);
     h.x = g.x;
     h.z = g.z;
@@ -380,7 +393,7 @@ function hittersOf(state: GameState): number {
   const plan = state.rules.traffic ? trafficOf(state.level) : null;
   for (let k = 0; k < (plan?.vehicles.length ?? 0); k++) {
     vehicleAt(plan!, k, state.t, vehicle);
-    if (!vehicle.shown || !canStrike(vehicle.speed)) continue;
+    if (!vehicle.shown || !fast(vehicle.speed)) continue;
     const V = VEHICLES[vehicle.kind];
     const h = slot(n++);
     h.x = vehicle.x;
@@ -393,6 +406,7 @@ function hittersOf(state: GameState): number {
     h.front = h.back = V.length / 2;
     h.half = V.width / 2;
     h.kind = "car";
+    h.wheels = vehicle.kind === "bike" ? 2 : 4;
   }
   return n;
 }
@@ -709,10 +723,13 @@ export function stepFoot(state: GameState): void {
       foot.down.splice(k, 1);
       continue;
     }
-    if (d.settled) continue;
+    // Pushed or dragged by something going over him (`lying.ts`), his body
+    // is stepped again until the push has run out.
+    const stirred = d.stir !== undefined && state.t < d.stir;
+    if (d.settled && !stirred) continue;
     d.thrown.t += dt;
     stepRagdoll(state, d.thrown);
-    if (crashOver(d.thrown)) d.settled = true;
+    if (!stirred && crashOver(d.thrown)) d.settled = true;
   }
 }
 

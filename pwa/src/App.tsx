@@ -727,9 +727,8 @@ export function App() {
         warmRef.current = true;
         setWarm(true);
       }
-      // The frame above is presented on the NEXT animation frame; the flag
-      // waits for it, and for the race to be up, so a screenshot never
-      // captures a card over it.
+      // The frame above is presented on the NEXT animation frame; the flag waits
+      // for it, and for the race to be up, so a screenshot never captures a card.
       if (!ready && hudOver(shellRef.current)) {
         ready = true;
         requestAnimationFrame(() => {
@@ -922,6 +921,8 @@ export function App() {
         <PauseMenu
           snap={snap}
           settings={settings}
+          keys={keys}
+          touch={touch}
           onSettings={setSettings}
           rung={rendererRef.current?.camera()}
           onCamera={(camera) => {

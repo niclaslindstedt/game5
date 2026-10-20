@@ -69,7 +69,8 @@ type Body = { key: string; hit: StruckPerson; sx: number; sz: number; ran: numbe
 function thrownOf(state: GameState, hit: StruckPerson): Thrown | null | undefined {
   if (hit.foot === undefined) return state.crowd?.amateurs[hit.amateur]?.thrown;
   const d = footDown(state, hit.foot);
-  return d?.hit === hit ? d.thrown : null;
+  // A body gone over lying (`lying.ts`) is still the one that meeting threw.
+  return d && (d.hit === hit || hit.lying) ? d.thrown : null;
 }
 
 /** The view's name for a meeting: who, and when. */

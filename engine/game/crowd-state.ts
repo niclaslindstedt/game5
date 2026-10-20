@@ -5,6 +5,7 @@
 
 import type { Rng } from "@niclaslindstedt/oss-game-framework/core/prng";
 import type { AmateurKnobs, CrowdBody, CrowdKind, GroupKind, GroupFollow } from "./defs/crowd.ts";
+import type { LyingOver } from "./lying.ts";
 import type { StruckPerson } from "./person-hit.ts";
 import type { Thrown } from "./thrown-state.ts";
 
@@ -118,6 +119,9 @@ export type Amateur = {
   /** FALLEN BADLY on his own (`crowd-hurt.ts`): hurt past getting up, no
    * wound to show — the air ambulance's to fetch. Absent while he is sound. */
   hurt?: boolean;
+  /** LYING ON THE SNOW and gone over (`lying.ts`): when each kind of
+   * thing last touched him, the run's clock. Absent until one has. */
+  over?: LyingOver;
   /** ON A SNOWBOARD (`CROWD.board`): the foot he rides with forward, or
    * null on skis. Stood, he SITS in the snow: how far down, 0..1, and
    * whether this stop is sat (`crowd-board.ts`). */

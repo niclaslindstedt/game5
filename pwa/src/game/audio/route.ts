@@ -377,8 +377,10 @@ export function soundForEvent(
     // going; one a piste machine or a car struck is heard by its distance.
     // The shoulder's `bump` in the same step is this blow said smaller and
     // is left out (`soundsForStep`); thrown, the wipeout's tumble follows it.
+    // A body lying gone over (`lying`) thuds by the speed it took off him.
     case "struck": {
-      const hard = ramp(event.speed, PERSON_HIT.strike, STRUCK_FULL);
+      const meet = event.lying ? event.taken * 4 : event.speed;
+      const hard = ramp(meet, PERSON_HIT.strike, STRUCK_FULL);
       const small = ramp(1.8 - event.height, 0, 0.7);
       // Struck by a machine he was not driving (`away`): heard from where.
       const far = event.away ? heardAt(event, contact.ear, STRUCK_HEARD) : null;

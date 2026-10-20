@@ -54,6 +54,9 @@
 //            engine's body, broken and flattened, the blood on the snow),
 //            civilian-60-safe, civilian-90-safe (the injuries off: the
 //            app's knock, knocked down and up again)
+//   lying    lying-skis-60, lying-sled-60 (a grown man laid dead on the
+//            snow, gone over at 60 km/h on skis and on the snowmobile: the
+//            moment before, the pass, his body pushed on)
 //   hud      wreck (the HUD over a fatal crash: the jolt,
 //            the readouts fading away, DIED and the dark — each frame
 //            an iframe of `pwa/gore-hud.html` at the frame's own size)
@@ -89,7 +92,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, rotor, blood, leak, pools, close, bones, cable, replay, beast, person, civilian, hud, remains); every one when left out",
+      help: "which sheets, comma-separated (trunk, snow, spike, maul, machines, rotor, blood, leak, pools, close, bones, cable, replay, beast, person, civilian, lying, hud, remains); every one when left out",
     },
     views: {
       kind: "string",

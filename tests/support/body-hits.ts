@@ -147,7 +147,7 @@ export type FootWho =
 export const WALKER_KEY = 900_000;
 
 /** A piste machine stood at (`x`, `y`, `z`) heading +z at `speed` m/s. */
-function groomerAt(x: number, y: number, z: number, speed: number): GroomerState {
+export function groomerAt(x: number, y: number, z: number, speed: number): GroomerState {
   return {
     id: 0,
     mode: "groom",

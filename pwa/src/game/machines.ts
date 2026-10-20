@@ -342,7 +342,7 @@ export function createMachines(
   let sledFire: SledFireView | null = null;
   // THE ARMY'S GUNS (`gunfire-view.ts`), built the first time a gun is armed.
   let gunfire: GunfireView | null = null;
-  // THE ARMY'S HELICOPTERS (`army-air-view.ts`), built the first time one flies.
+  // THE ARMY'S MACHINES (`army-air-view.ts`), built the first time one is out.
   let army: ArmyAirView | null = null;
   let armyPace = 1;
   let blastLensed = false;
@@ -430,7 +430,9 @@ export function createMachines(
       if (
         !army &&
         s.army &&
-        (s.army.helis.some((h) => h.phase !== "due") || s.army.troops.length > 0)
+        (s.army.helis.some((h) => h.phase !== "due") ||
+          s.army.troops.length > 0 ||
+          s.army.sleds.length > 0)
       ) {
         army = createArmyAirView(haze);
         army.setPace(armyPace);

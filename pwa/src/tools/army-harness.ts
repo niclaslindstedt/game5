@@ -42,6 +42,7 @@ import * as THREE from "three";
 import {
   NEUTRAL_INPUT,
   armyHelis,
+  armySleds,
   armyTroops,
   arrestedOf,
   botInput,
@@ -99,6 +100,7 @@ const GROUPS = {
   hunt: ["hunt-2", "hunt-4", "hunt-heli"],
   ground: ["ground-land", "ground-file", "ground-fire", "ground-lift", "ground-arrest"],
   soldiers: ["ski", "foot", "rocket", "gunner", "lods"],
+  sleds: ["sled-chase", "sled-halt", "sled-arrest"],
 } as const;
 
 declare global {
@@ -812,7 +814,63 @@ async function groundArrest(): Promise<void> {
   shoot("the ring", clearRound(c, face, -Math.PI / 2 - 0.4, 14, 5, 55), note, run);
 }
 
+/** THE ARMY'S SNOWMOBILES (`army-sled.ts`): one out in the open at `stars`
+ * stepped until `until` finds it, then three lenses round it. */
+async function sledScene(
+  stars: number,
+  sfw: boolean,
+  until: (m: ReturnType<typeof armySleds>[number], r: GameState) => boolean,
+  lenses: readonly (readonly [string, number, number, number, number])[],
+  fire = false,
+): Promise<void> {
+  const open = (b: { x: number; z: number }) =>
+    !level.trees.some((t) => Math.hypot(t.x - b.x, t.z - b.z) < 5);
+  const pick = (r: GameState) => armySleds(r).find((m) => open(m.body) && until(m, r));
+  const run = await groundRun(stars, sfw, (r) => !!pick(r), 300);
+  if (!run) return;
+  // The army's view is built on the first draw a machine is out in, and the
+  // fleet's model lands on a promise after it: a moment for it.
+  renderer.draw(run, 1, STILL);
+  await new Promise((r) => setTimeout(r, 400));
+  const id = pick(run)!.id;
+  // On a few steps, so a burst's muzzle flash and tracers are in the shot.
+  for (let i = 0; i < (fire ? 3 : 24); i++) step(run, NEUTRAL_INPUT);
+  const m = armySleds(run).find((s) => s.id === id) ?? armySleds(run)[0];
+  const b = m.body;
+  const c = new THREE.Vector3(b.x, b.y + 1, b.z);
+  const note = `${groundNote(run)} · sled ${m.mode} ${b.speed.toFixed(1)} m/s`;
+  for (const [label, bearing, d, up, fov] of lenses)
+    shoot(label, clearRound(c, b.heading, bearing, d, up, fov), note, run);
+}
+
 const VIEWS: Record<string, () => void | Promise<void>> = {
+  "sled-chase": () =>
+    sledScene(4, true, (m) => m.mode === "drive" && m.body.speed > 8 && m.driver && m.gunner, [
+      ["beside", Math.PI / 2 + 0.3, 7, 1.6, 50],
+      ["ahead", 0.35, 9, 2.2, 50],
+      ["behind", Math.PI - 0.3, 8, 2.5, 50],
+      ["the crew", -Math.PI / 2 - 0.25, 3.4, 0.9, 50],
+    ]),
+  "sled-halt": () =>
+    sledScene(
+      3,
+      true,
+      (m, r) =>
+        m.mode === "halt" &&
+        r.events.some((e) => e.kind === "gunfire" && e.phase === "shot" && e.weapon === "lmg"),
+      [
+        ["the gunner", -Math.PI / 2 - 0.5, 3.6, 0.8, 50],
+        ["broadside", Math.PI / 2, 7, 1.2, 50],
+        ["down his aim", Math.PI - 0.6, 4, 1.4, 55],
+      ],
+      true,
+    ),
+  "sled-arrest": () =>
+    sledScene(3, true, (m, r) => m.mode === "empty" && (arrestedOf(r) ?? 0) > 3, [
+      ["the empty sled", Math.PI / 2 + 0.4, 5, 1.4, 50],
+      ["from above", 0.6, 9, 6, 55],
+      ["wide", -Math.PI / 2 - 0.4, 22, 7, 55],
+    ]),
   "ground-land": groundLand,
   "ground-file": groundFile,
   "ground-fire": groundFire,
@@ -855,6 +913,9 @@ const COLS: Record<string, number> = {
   rocket: 3,
   gunner: 3,
   lods: 2,
+  "sled-chase": 3,
+  "sled-halt": 3,
+  "sled-arrest": 3,
 };
 
 const ready = (async () => {

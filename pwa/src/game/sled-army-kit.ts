@@ -27,7 +27,7 @@ type P = readonly [number, number];
  * (`LIVERIES.army`), the white daubed over it, the seat's and the rack's
  * black, the canvas of the packs, the fuel can's darker green. */
 export const ARMY_SLED_COLOURS = {
-  olive: 0x4b5233,
+  olive: 0x5a6340,
   white: 0xe7e9e6,
   black: 0x1b1c1a,
   canvas: 0xd9dcd6,
@@ -115,9 +115,9 @@ function blotch(
  * the nose), and the tunnel's, m — just proud of the panel. */
 const hoodSide = (z: number): number => {
   const k = Math.min(1, Math.max(0, (z - 1.7) / (2.9 - 1.7)));
-  return (SLED_LOOK.hoodWidth / 2) * (1 - k) + (SLED_LOOK.noseWidth / 2) * k + 0.006;
+  return (SLED_LOOK.hoodWidth / 2) * (1 - k) + (SLED_LOOK.noseWidth / 2) * k + 0.05;
 };
-const tunnelSide = (): number => SLED_LOOK.tunnelWidth / 2 + 0.006;
+const tunnelSide = (): number => SLED_LOOK.tunnelWidth / 2 + 0.02;
 
 /** The tunnel's side as a closed outline in (z, y): its top edge back to
  * front, its bottom front to back. */

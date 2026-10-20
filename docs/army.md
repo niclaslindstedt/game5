@@ -101,6 +101,7 @@ Ski troops move on long, wide, plain white touring skis with a cable binding and
 - The webbing is off-white and the helmet cover white.
 - The goggles are dark, and the boots and weapons are the only other dark things on him.
 - The ski tops are white and their edges grey, so the skis still read on the snow.
+- The pack is a large-volume patrol rucksack (some 80 to 100 litres: about 0.6 m tall, 0.35 m wide and 0.25 m deep loaded) under a white snow cover. Its frame holds it close to the back from the small of it to the shoulders. So it is lofted as a soft, rounded bag whose face lies on the smock and whose belly stands out, with a domed lid a shade greyer over its top and a compression strap round each side, low and high (`PACK`, `emitPack`). Sat on a chair, the figure is set forward by the pack's depth, so the bag sits against the backrest rather than through it.
 
 There are four figures (`SoldierKind`), each at three cuts (`CrowdLod`: about 500, 440 and 160 triangles). Every pose of a figure is a morph target, so one draw call can hold a whole squad. A pose no morph target holds can be set outright on the same mesh with `poseSoldierFigure` or `SoldierView.posed`. The gunner at an arbitrary aim is drawn this way.
 

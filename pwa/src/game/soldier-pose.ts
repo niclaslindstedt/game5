@@ -147,9 +147,12 @@ function rifleInHands(P: Posed, up: V3): Carried {
   return { rear, front: add(rear, mul(ahead, RIFLE.length)), up: top };
 }
 
-/** How far out from the chest's back a pack stands (its depth), m — what
- * a rifle or a launcher slung on the back lies over. */
-export const PACK = { depth: 0.24, width: 0.4, height: 0.5, drop: 0.06 } as const;
+/** THE PACK, m: how far out from the chest's back it stands at its belly
+ * (its depth — what a rifle or a launcher slung on the back lies over),
+ * how wide and how tall it is (a large-volume patrol rucksack, some 80 to
+ * 100 litres: about 0.6 m tall, 0.35 wide and 0.25 deep loaded), and how
+ * far under the chest's middle its middle sits. */
+export const PACK = { depth: 0.25, width: 0.34, height: 0.6, drop: 0.04 } as const;
 
 /** SLUNG ACROSS THE BACK, over the pack: the rear end low on his right,
  * the front high over his left shoulder (a launcher the other way, so the

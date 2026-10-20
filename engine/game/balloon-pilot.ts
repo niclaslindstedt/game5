@@ -11,7 +11,7 @@
 
 import { clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { balloonTrim } from "./balloon.ts";
-import { NEUTRAL_INPUT, type GameState, type SkierInput } from "./state.ts";
+import { NEUTRAL_INPUT, type BalloonState, type GameState, type SkierInput } from "./state.ts";
 
 /** The height it holds over the snow, m, when not asked another. */
 export const PILOT_HOLD = 120;
@@ -35,6 +35,18 @@ const OVER = 3;
 export function balloonPilot(state: GameState, hold = PILOT_HOLD): SkierInput {
   const b = state.balloon;
   if (!b || !b.aboard) return NEUTRAL_INPUT;
+  const { tuck, brake } = balloonHands(state, b, hold);
+  return { ...NEUTRAL_INPUT, tuck, brake };
+}
+
+/** THE PILOT'S HANDS on balloon `b` (the free ride's, or the army's —
+ * `army-balloon.ts`), holding `hold` m over the snow ahead: the blast
+ * valve (`tuck`, 0 or 1) and the parachute valve's cord (`brake`, 0..1). */
+export function balloonHands(
+  state: GameState,
+  b: BalloonState,
+  hold: number,
+): { tuck: number; brake: number } {
   // THE GROUND AHEAD: the highest snow under where the drift carries it in
   // the next `AHEAD` s — the slope rises into a balloon faster than it climbs.
   let ground = state.level.groundAt(b.x, b.z);
@@ -46,5 +58,5 @@ export function balloonPilot(state: GameState, hold = PILOT_HOLD): SkierInput {
   const aim = balloonTrim(state, b) + PER_CLIMB * want + PER_SHORT * (want - b.climb);
   const tuck = b.temp < aim ? 1 : 0;
   const brake = b.temp > aim + OVER ? clamp((b.temp - aim - OVER) / 4, 0, 1) : 0;
-  return { ...NEUTRAL_INPUT, tuck, brake };
+  return { tuck, brake };
 }

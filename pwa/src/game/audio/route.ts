@@ -896,6 +896,14 @@ export function soundForEvent(
       };
     }
 
+    // THE ARMY'S PARAMOTORS AND BALLOONS (`army-air.ts`): heard by their bed;
+    // one of the army's own vehicles knocked out by a burst goes up.
+    case "army-air": {
+      if (event.change !== "knocked") return null;
+      const at = heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR);
+      return { id: "heli_crash", shape: { ...at, pitch: at.pitch! * 0.85 } };
+    }
+
     // A BUILDING'S DOOR (`door-bank.ts`): opened and shut, by what its leaf
     // is made of — heard at the door from the skier's head.
     case "door": {

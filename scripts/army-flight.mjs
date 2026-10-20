@@ -22,9 +22,28 @@
 // Nothing drawn; tens of seconds. The rows are the before and after of any
 // change to the army's flight or guns.
 //
+// `--table=air` is THE PARAMOTORS AND BALLOONS' table instead
+// (`engine/game/army-air.ts`, `army-para.ts`, `army-balloon.ts`), a row a
+// star and a quarry — `skier` (the bot skiing away), `still` (stood where
+// the hunt found him) and `chase` (him in the stolen helicopter, the bot's
+// hands flying it at the nearest paramotor, to bring it down): the
+// paramotors and the balloons out and the most at once, when the first was
+// on the map and when one first fired (the first contact); the rifle
+// bursts and the rockets fired, the rockets that burst within their throw
+// of him and the times he was thrown; the army's own vehicles knocked out
+// by a burst; the paramotors brought down by him; the paramotors and
+// balloons LOST BY MISTAKE (flown into the snow or a crown, crashed or
+// burnt — always 0); the least height of a paramotor over the snow and
+// over the crowns; his death or arrest; and the step's cost (the wall time
+// of a whole engine step while hunted, its mean and its 99th percentile).
+// `--alone` holds back the rest of the roster (the door gunners, the
+// soldiers, the lifts, the snowmobiles and the ground waves), so what the
+// row shows is the air's own.
+//
 //   node scripts/army-flight.mjs
 //   node scripts/army-flight.mjs --stars=2,4 --quarry=heli --seconds=180
 //   node scripts/army-flight.mjs --sfw --json=previews/army-flight.json
+//   node scripts/army-flight.mjs --table=air --stars=4,5 --alone
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -44,9 +63,15 @@ const args = parseArgs(
     quarry: { kind: "string", default: "skier,heli", help: "who is hunted: skier, heli" },
     seconds: { kind: "number", default: 150, help: "how long each hunt is run, s" },
     sfw: { kind: "flag", default: false, help: "SAFE FOR WORK on (the INJURIES switch off)" },
+    table: { kind: "string", default: "heli", help: "the table: heli, or air (paramotors and balloons)" },
+    alone: {
+      kind: "flag",
+      default: false,
+      help: "the air table: the rest of the roster held back (gunners, soldiers, lifts, snowmobiles, waves)",
+    },
     json: { kind: "string", default: "", help: "write the table as JSON to this file" },
   },
-  "usage: node scripts/army-flight.mjs [--seed=n] [--stars=a,b] [--quarry=skier,heli] [--seconds=s] [--sfw] [--json=FILE]",
+  "usage: node scripts/army-flight.mjs [--seed=n] [--stars=a,b] [--quarry=skier,heli] [--seconds=s] [--sfw] [--table=heli|air] [--alone] [--json=FILE]",
 );
 
 aliasEngine(root);
@@ -158,6 +183,12 @@ function hunt(stars, quarry) {
   row.fired = g ? g.fired : 0;
   row.hits = g ? g.hits : 0;
   return row;
+}
+
+if (args.table === "air") {
+  const { airTable } = await import("./lib/army-air-table.mjs");
+  airTable(E, level, args, list);
+  process.exit(0);
 }
 
 const rows = [];

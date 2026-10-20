@@ -92,10 +92,10 @@ const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
 const normal = { x: 0, y: 1, z: 0 };
 const near: number[] = [];
 
-/** The whole weight's mass, kg: the balloon, the fuel left and the skier
- * aboard. */
+/** The whole weight's mass, kg: the balloon, the fuel left, the skier
+ * aboard and any crew it carries (`BalloonState.crew` — the army's). */
 function massOf(state: GameState, b: BalloonState): number {
-  return BALLOON_EMPTY + b.fuel + (b.aboard ? totalMass(state.skier.spec) : 0);
+  return BALLOON_EMPTY + b.fuel + (b.aboard ? totalMass(state.skier.spec) : 0) + (b.crew ?? 0);
 }
 
 /** THE TRIM: the envelope's temperature, °C, at which the balloon `b`
@@ -192,8 +192,13 @@ export function balloonDown(state: GameState): boolean {
   return !!b && b.wreck && b.mode === "down" && !!state.skier.thrown;
 }
 
-function say(state: GameState, events: GameEvent[], phase: BalloonPhaseEvent, speed: number) {
-  const b = state.balloon!;
+function say(
+  state: GameState,
+  events: GameEvent[],
+  phase: BalloonPhaseEvent,
+  speed: number,
+  b: BalloonState = state.balloon!,
+) {
   events.push({ kind: "balloon", t: state.t, phase, x: b.x, y: b.y, z: b.z, speed });
 }
 
@@ -231,7 +236,7 @@ export function stepBalloon(run: GameState, input: SkierInput, events: GameEvent
   }
   const valve = b.aboard && input.tuck >= B.burner.open;
   const vent = b.aboard ? clamp(input.brake, 0, 1) : 0;
-  fly(run, b, valve, vent, events);
+  flyBalloon(run, b, valve, vent, events);
   if (!b.aboard) return false;
   if (input.machine) {
     if (b.grounded && hypot3(b.vx, b.vy, b.vz) <= B.land.stepOut) {
@@ -247,8 +252,10 @@ export function stepBalloon(run: GameState, input: SkierInput, events: GameEvent
 }
 
 /** THE FLIGHT: the burner, the valve, the envelope's heat, the forces, the
- * snow and the crowns, the fire. */
-function fly(
+ * snow and the crowns, the fire — of the free ride's balloon, or of any
+ * other the run flies on the same air (the army's, `army-balloon.ts`,
+ * which hands it a list of its own for the events it says). */
+export function flyBalloon(
   run: GameState,
   b: BalloonState,
   valve: boolean,
@@ -312,7 +319,7 @@ function fly(
   }
   const hot = Ti - KELVIN > B.temp.limit && b.temp <= B.temp.limit;
   b.temp = Ti - KELVIN;
-  if (hot) say(run, events, "hot", 0);
+  if (hot) say(run, events, "hot", 0, b);
   // THE FORCES: the lift less the weight, the drag on the climb, the drag of
   // the air past the envelope's side.
   const mass = massOf(run, b);
@@ -334,7 +341,7 @@ function fly(
     if (b.scorch >= 1) {
       b.scorch = 1;
       b.burning = true;
-      say(run, events, "fire", rel);
+      say(run, events, "fire", rel, b);
     }
   } else b.burnt = Math.min(1, b.burnt + dt / B.fire.burnFor);
   // TETHERED: held on the snow until it is light, then let go.
@@ -347,7 +354,7 @@ function fly(
     if (b.lift > B.tether.release) {
       b.mode = "flown";
       b.t = 0;
-      say(run, events, "launch", 0);
+      say(run, events, "launch", 0, b);
     }
     return;
   }
@@ -388,17 +395,17 @@ function fly(
     const slide = along * keep;
     if (!b.grounded) {
       b.grounded = true;
-      say(run, events, "touch", -vn);
+      say(run, events, "touch", -vn, b);
       if (b.mode === "adrift") {
         b.mode = "down";
         b.t = 0;
-        say(run, events, "down", -vn);
+        say(run, events, "down", -vn, b);
       }
     }
     b.dragging = slide > 0.3;
     if (slide > B.land.dragMost && !sfw) return crash(run, b, events, slide);
   } else if (b.y > ground + CLEAR) {
-    if (b.grounded) say(run, events, "liftoff", 0);
+    if (b.grounded) say(run, events, "liftoff", 0, b);
     b.grounded = false;
     b.dragging = false;
   }
@@ -566,7 +573,7 @@ function stepOut(run: GameState, b: BalloonState, events: GameEvent[]): void {
 function crash(run: GameState, b: BalloonState, events: GameEvent[], speed: number): void {
   const v = { x: b.vx, y: b.vy, z: b.vz };
   b.y = Math.max(b.y, run.level.groundAt(b.x, b.z));
-  say(run, events, "crash", speed);
+  say(run, events, "crash", speed, b);
   b.mode = "down";
   b.t = 0;
   b.grounded = true;

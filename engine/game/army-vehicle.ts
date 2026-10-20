@@ -142,7 +142,7 @@ export function callVehicles(
   }
   if (kinds.length === 0) return;
   let live = 0;
-  for (const v of a.vehicles) if (v.mode !== "gone") live++;
+  for (const v of a.vehicles) if (v.mode !== "gone" && v.mode !== "wreck") live++;
   const room = Math.max(0, (K.most[w.stars] ?? 0) - live);
   // Where they set off: `back` m further down than the column forms.
   let k = head;
@@ -601,6 +601,10 @@ export function stepArmyVehicles(state: GameState, events: GameEvent[]): void {
     v.t += dt;
     // Sent home: far behind him, or the hunt over and him well away.
     const far = on ? hypot(v.x - w.lastSeen.x, v.z - w.lastSeen.z) : hypot(v.x - q.x, v.z - q.z);
+    if (v.mode === "wreck") {
+      if (v.t > K.wreck) v.mode = "gone";
+      continue;
+    }
     if (v.mode !== "due" && v.mode !== "gone" && far > (on ? K.behind : K.home)) {
       v.mode = "gone";
       sayVehicle(state, events, "gone", v);
@@ -637,7 +641,7 @@ export function stepArmyVehicles(state: GameState, events: GameEvent[]): void {
   }
   holdOffVehicles(state, a.vehicles, events);
   for (const v of a.vehicles)
-    if (v.mode === "gone" && v.kind === "tank") disarmGun(state, gunOf(v));
+    if ((v.mode === "gone" || v.mode === "wreck") && v.kind === "tank") disarmGun(state, gunOf(v));
   a.vehicles = a.vehicles.filter((v) => v.mode !== "gone");
   writeCrews(a, w);
 }
@@ -648,7 +652,7 @@ function writeCrews(a: ArmyState, w: WantedState): void {
   const lo = K.ids.pursuer;
   const kept = w.pursuers.filter((p) => p.id < lo || p.id >= lo + 1000);
   for (const v of a.vehicles) {
-    if (v.mode === "due" || v.mode === "leave") continue;
+    if (v.mode === "due" || v.mode === "leave" || v.mode === "wreck") continue;
     kept.push({ id: lo + (v.id % 1000), kind: "vehicle", x: v.x, y: v.y + specOf(v).eyes, z: v.z });
   }
   w.pursuers = kept;

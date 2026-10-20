@@ -177,6 +177,7 @@ describe("the node renderer's warm-up (warmNode)", () => {
         );
       }),
       setRenderTarget: vi.fn(),
+      getRenderTarget: () => null, // the canvas: an ungraded picture
       getScissorTest: () => scissor,
       setScissorTest: (on: boolean) => void (scissor = on),
       getScissor: (v: THREE.Vector4) => v.copy(box),

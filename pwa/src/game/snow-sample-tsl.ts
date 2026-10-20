@@ -142,14 +142,19 @@ export function groundSlots(spec: GroundSpec) {
     worked: opt(t, "uWorked", "float", 0),
     deformOn: opt(t, "uDeformOn", "float", 0),
     deformBox: slot(t.uDeformBox, "vec4"),
-    /** The trail map's reads (`trail-tsl.ts`), the wells' and the slide's. */
-    trail: trailSlots(t),
-    well: wellReader(s),
+    /** The trail map's reads (`trail-tsl.ts`), the wells' and the slide's,
+     * this material's own (`trailSlots` says why). */
+    trail: trailSlots(t, false, true),
+    well: wellReader(s, false, true),
     wellFrame: slot(s.uWellFrame, "vec4"),
-    slide: slideSlots(h),
+    slide: slideSlots(h, false, true),
     tracks: trackSlots(h, s),
-    /** ...and the vertex's own set of them (`trailSlots` says why). */
-    vertex: { trail: trailSlots(t, true), well: wellReader(s, true), slide: slideSlots(h, true) },
+    /** ...and the vertex's own set of them. */
+    vertex: {
+      trail: trailSlots(t, true, true),
+      well: wellReader(s, true, true),
+      slide: slideSlots(h, true, true),
+    },
   };
 }
 export type GroundSlots = ReturnType<typeof groundSlots>;

@@ -52,7 +52,7 @@ import { createJumpBroadcast } from "./camera-skijump.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
 import { compileByParts, compiled } from "./scene-compile.ts";
 import { byMaterial } from "./shadow-depth.ts";
-import { createEnvironment, type Environment } from "./environment.ts";
+import { createEnvironment, warmNode, type Environment } from "./environment.ts";
 import { createForest, forestOptionsOf, type Forest, type ForestOptions } from "./forest.ts";
 import { createBuildCount } from "./build-count.ts";
 import { createHurtLens } from "./xray-scene.ts";
@@ -222,12 +222,12 @@ export function createWorldRenderer(
     native || passOn("sky-gpu") ? gl : null,
     !native,
   );
+  /** Under SHADOWS HIGH every skier casts into a map of his own (before the dressing reads it). */
+  const hero = createHeroShadow(env.haze, shadowLook().hero, !native);
   seam.dress(scene, env.haze); // the node renderer's haze and lights (`gpu-dress.ts`)
   env.setDistance(video.distance);
   env.setSky(video.sky);
   env.setHorizon(video.horizon);
-  /** Under SHADOWS HIGH every skier casts into a map of his own. */
-  const hero = createHeroShadow(env.haze, shadowLook().hero);
   const heroModels: SkisModel[] = [];
   /** The other skiers sat on chairs this frame (`lifts.ts`). */
   const seated: SeatedRider[] = [];
@@ -241,8 +241,7 @@ export function createWorldRenderer(
   const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
 
   let level: Level | null = null;
-  /** Where the map's ground is drawn as bare rock (`bare-rock.ts`). */
-  let bare: BareRock | null = null;
+  let bare: BareRock | null = null; // where the ground is drawn as bare rock (`bare-rock.ts`)
   let terrain: Terrain | null = null;
   let forest: Forest | null = null;
   let gates: Gates | null = null;
@@ -435,11 +434,17 @@ export function createWorldRenderer(
     lens.camera.position.set(skier.x, skier.y + 3, skier.z - 6);
     lens.camera.lookAt(skier.x, skier.y, skier.z);
     terrain.follow(skier.x, skier.z);
-    // A part of the scene at a time (`scene-compile.ts`), its trail maps' passes beside it.
     gl.setRenderTarget(picture.load(lv));
     // THE MOUNTAIN'S SHADOW, baked off the thread meanwhile for the run's key.
     const shade = env.setGround(lv, skyLookAt(skyLevel, state.t).key);
-    if (!passOn("env-warm")) return void (await shade); // the node renderer compiles on its first frame
+    if (!native) {
+      await shade; // the node renderer's pipelines, built behind the card (`warmNode`)
+      if (mine === loads) hero.render(gl, scene, [], null);
+      if (mine === loads) warmNode(gl, scene, lens.camera, env.sun, lv.size, seam, quarantine);
+      gl.setRenderTarget(null);
+      return seam.settled(); // the device's own compiles, still under the card
+    }
+    // A part of the scene at a time (`scene-compile.ts`), its trail maps' passes beside it.
     const parts = compileByParts(gl, scene, lens.camera, () => mine === loads);
     await Promise.all([parts, compiled(gl, trail.compile(gl)), shade]);
     if (mine === loads) hero.render(gl, scene, [], null);

@@ -59,6 +59,10 @@ export type RenderSeam = {
   hazeInDisplay(on: boolean): void;
   /** After a frame's draws: what `beginFrame` stood in for put back. */
   endFrame(): void;
+  /** Resolves once the device has run every draw handed to it so far: a
+   * software device builds a pipeline's code the first time it runs it, so
+   * the warm-up waits here under the card (`warmNode`). At once on WebGL. */
+  settled(): Promise<void>;
   /** The node renderer's counters since `beginFrame` (unused on WebGL,
    * whose picture reports its own). */
   info(): SeamInfo;
@@ -106,6 +110,7 @@ function webglSeam(canvas: HTMLCanvasElement, options: SeamOptions): RenderSeam 
     beginFrame: () => {},
     hazeInDisplay: () => {},
     endFrame: () => {},
+    settled: () => Promise.resolve(),
     info: () => none,
     dispose() {
       gl.dispose();

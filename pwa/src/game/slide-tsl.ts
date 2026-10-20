@@ -137,8 +137,10 @@ function makeSlide(u: HazeUniforms, tag: string) {
 export type SlideSlots = ReturnType<typeof makeSlide>;
 const slidesOf = [new WeakMap<HazeUniforms, SlideSlots>(), new WeakMap<HazeUniforms, SlideSlots>()];
 /** The slide's reads over `u`, made once a stage and shared by every node
- * over it (the vertex's apart, as `trail-tsl.ts`' `trailSlots` says). */
-export function slideSlots(u: HazeUniforms, vertex = false): SlideSlots {
+ * over it (the vertex's apart, as `trail-tsl.ts`' `trailSlots` says) — or,
+ * with `own`, for one material alone (`trailSlots` says why). */
+export function slideSlots(u: HazeUniforms, vertex = false, own = false): SlideSlots {
+  if (own) return makeSlide(u, vertex ? "V" : "");
   const of = slidesOf[vertex ? 1 : 0];
   let s = of.get(u);
   if (!s) of.set(u, (s = makeSlide(u, vertex ? "V" : "")));

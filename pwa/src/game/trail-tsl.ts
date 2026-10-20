@@ -218,13 +218,23 @@ function makeTrail(t: U, tag: string) {
 
 /** The trail map's reads over uniforms `t` (`TrailUniforms`, or a pass's
  * own record of them), made once a record and stage and shared by every
- * node built over it. The VERTEX's are a set of their own (`vertex`), with
- * their own names: a function is generated once a material, and the
- * texture it reads is named by the stage that built it first — read from
- * the other stage it names a binding that stage does not have. */
+ * node built over it — or, with `own`, a set for one material alone. The
+ * VERTEX's are a set of their own (`vertex`), with their own names: a
+ * function is generated once a material, and the texture it reads is named
+ * by the stage that built it first — read from the other stage it names a
+ * binding that stage does not have.
+ *
+ * THREE KEEPS A FUNCTION'S CODE ONCE A RENDERER (`buildFunctionNode`), with
+ * the names of the uniforms and the textures it reads as the first program
+ * to build it numbered them, and it declares those in that program alone.
+ * A second program built over the same set (the ground's cut and plain
+ * levels, a summer's) reads members its own struct does not have, and the
+ * device refuses it. So every ground material makes its own (`own`): the
+ * levels that share one program still build it once. */
 export type TrailSlots = ReturnType<typeof makeTrail>;
 const trailsOf = [new WeakMap<U, TrailSlots>(), new WeakMap<U, TrailSlots>()];
-export function trailSlots(t: U, vertex = false): TrailSlots {
+export function trailSlots(t: U, vertex = false, own = false): TrailSlots {
+  if (own) return makeTrail(t, vertex ? "V" : "");
   const of = trailsOf[vertex ? 1 : 0];
   let s = of.get(t);
   if (!s) of.set(t, (s = makeTrail(t, vertex ? "V" : "")));
@@ -235,7 +245,8 @@ export function trailSlots(t: U, vertex = false): TrailSlots {
  * m, off the well map (`tree-wells.ts`) in `u` (`uWell`, `uWellFrame`) —
  * made once a map and stage (`trailSlots` says why). */
 const wellsOf = [new WeakMap<THREE.IUniform, N>(), new WeakMap<THREE.IUniform, N>()];
-export function wellReader(u: U, vertex = false): N {
+export function wellReader(u: U, vertex = false, own = false): N {
+  if (own) return makeWell(u, vertex ? "V" : "");
   const of = wellsOf[vertex ? 1 : 0];
   let read = of.get(u.uWell);
   if (!read) of.set(u.uWell, (read = makeWell(u, vertex ? "V" : "")));

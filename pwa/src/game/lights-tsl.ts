@@ -10,19 +10,20 @@
 //                  the point's height (`keyAtHeight`, the peaks'
 //                  alpenglow) and through the clouds (`cloudShadow`), its
 //                  shadow faded out over the shadow box's rim
-//                  (`shadowFaded`) and taken with the mountain's own
-//                  (`terrainLit`), the darker of the two — and the
-//                  mountain's alone on a material that takes no shadow.
+//                  (`shadowFaded`), taken with the skiers' own maps
+//                  (`heroShadowed`, `shadows-tsl.ts`) and with the
+//                  mountain's own (`terrainLit`), the darkest of them —
+//                  and the mountain's alone on a material that takes no
+//                  shadow. Its map is `shadows-tsl.ts`'s `KeyShadowNode`.
 //   SkyLightNode   the hemisphere (`SkyLight`): its light lifted in the
 //                  mountain's shade at a low sun (`uShadeLift`).
 //   LampsLight     the six lamp slots and the piste lights' map, on the
 //                  side of a surface that faces each (`LAMP_FRAGMENT`).
 //
 // The mountain's shadow map (`terrain-shade.ts`) is baked on the CPU and
-// uploaded, so it is read here as on WebGL. STAND-INS for the passes not
-// ported yet, each a hook its part replaces: the clouds' shadow map
-// (`cloudShadow`, part 10) is 1, and the skiers' own maps (`heroShadowed`,
-// part 6) take nothing from the key.
+// uploaded, so it is read here as on WebGL. The STAND-IN for the pass not
+// ported yet, a hook its part replaces: the clouds' shadow map
+// (`cloudShadow`, part 10) is 1.
 
 import * as THREE from "three";
 import {
@@ -56,6 +57,7 @@ import {
 
 import { LAMP_SLOTS, type HazeUniforms } from "./haze.ts";
 import { slot, standIn, tap, type N } from "./haze-tsl.ts";
+import { KeyShadowNode, heroShadowed } from "./shadows-tsl.ts";
 import { KEY_BANDS } from "./sky-light.ts";
 import { TERRAIN_SHADOW } from "./terrain-shadow.ts";
 import { SkyLight, KeyLight } from "./world-lights.ts";
@@ -160,6 +162,11 @@ export class KeyLightNode extends DirectionalLightNode {
     return "KeyLightNode";
   }
 
+  /** The key's map is ours (`shadows-tsl.ts`), on every material it lights. */
+  setupShadowNode(): N {
+    return new KeyShadowNode(this.light as KeyLight);
+  }
+
   setup(builder: NodeBuilder): N {
     const light = this.light as KeyLight;
     if (!light.haze || !hazed(builder)) return super.setup(builder);
@@ -175,8 +182,8 @@ export class KeyLightNode extends DirectionalLightNode {
         kept.shadowColorNode = kept.colorNode.mul(kept.shadowNode!);
         kept.baseColorNode = kept.colorNode;
       }
-      // `heroShadowed` is the skiers' own maps' (part 6).
-      colour = colour.mul(min(terrainLit(s, positionWorld), shadowFaded(s, kept.shadowNode!)));
+      const shadow = heroShadowed(light.haze, shadowFaded(s, kept.shadowNode!));
+      colour = colour.mul(min(terrainLit(s, positionWorld), shadow));
     } else if (casts) {
       colour = colour.mul(terrainLit(s, positionWorld));
     } else if (kept.shadowNode !== null) {

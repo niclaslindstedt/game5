@@ -21,7 +21,10 @@
 //     smoke thrown back), the body flying with its motor's flame behind it
 //     and a trail of white-grey smoke hanging on the wind; its BURST the
 //     game's explosion (`explosion.ts`, a small, short fireball, its
-//     sparks and fragments, a scorch) with the snow round it thrown up.
+//     sparks and fragments, a scorch) with the snow round it thrown up;
+//     a tank's shell bursts the same way, bigger. Every burst presses its
+//     CRATER into the snow (the weapon's `crater`, a bowl with its rim
+//     thrown up round it, stamped into the trail map).
 //   * A ROUND IN HIM: a puff of red mist — only with the INJURIES switch on
 //     (`GameState.gore`); without it, nothing of it is drawn.
 //
@@ -32,7 +35,7 @@
 // once built. Presentation only.
 
 import * as THREE from "three";
-import type { GameState, GunfireEvent, Round, WeaponKind } from "@engine";
+import { WEAPONS, type GameState, type GunfireEvent, type Round, type WeaponKind } from "@engine";
 
 import { createBillboards } from "./billboards.ts";
 import { billowStrip, createExplosion, POOL, type BallSize, type Explosion } from "./explosion.ts";
@@ -40,7 +43,7 @@ import { glow } from "./glow-sprite.ts";
 import type { Flood } from "./headlamp.ts";
 import type { SnowCloud } from "./snow-cloud.ts";
 import { createSparks } from "./sparks.ts";
-import type { SnowSampler } from "./trail-stamp.ts";
+import type { SnowSampler, Stamp } from "./trail-stamp.ts";
 
 /** HOW IT READS. */
 export const GUNFIRE_LOOK = {
@@ -95,6 +98,7 @@ export type GunfireView = {
     simDt: number,
     cloud: SnowCloud | null,
     snowAt: SnowSampler,
+    stamps?: Stamp[] | null,
   ): void;
   /** The flashes' light after dark (`lit` how dark, 0..1) for the eye. */
   lamps(lit: number, eye: { x: number; y: number; z: number }, out: Flood[]): void;
@@ -267,6 +271,7 @@ export function createGunfireView(): GunfireView {
   let owner: GameState | null = null;
   let groundAt: (x: number, z: number) => number = () => 0;
   let lastDt = 0;
+  let marks: Stamp[] | null = null;
   const eye = { x: 0, y: 0, z: 0 };
   const flood: Flood = {
     x: 0,
@@ -440,6 +445,19 @@ export function createGunfireView(): GunfireView {
         nextBoom = (nextBoom + 1) % booms.length;
         boom.clear();
         boom.burst(e.x, e.y, e.z, 20, 0, 0, L.ball[e.weapon] ?? L.ball.rocket);
+        // THE CRATER: a bowl pressed into the snow, its rim thrown up.
+        const def = WEAPONS[e.weapon];
+        if (marks && def.kind === "blast")
+          marks.push({
+            ax: e.x - 0.05,
+            az: e.z,
+            bx: e.x + 0.05,
+            bz: e.z,
+            half: def.crater.radius,
+            depth: def.crater.depth,
+            berm: def.crater.depth * 0.4,
+            wall: 0.3,
+          });
         if (cloud) cloud.burst(e.x, e.y, e.z, 0, 0, L.snowBurst, snowAt(e.x, e.z));
         // The snow and the smoke thrown up in a column.
         for (let i = 0; i < 26; i++) {
@@ -588,8 +606,9 @@ export function createGunfireView(): GunfireView {
 
   return {
     group,
-    frame(state, alpha, dt, simDt, cloud, snowAt) {
+    frame(state, alpha, dt, simDt, cloud, snowAt, stamps = null) {
       lastDt = dt;
+      marks = stamps;
       groundAt = (x, z) => state.level.groundAt(x, z);
       const g = state.gunfire;
       if (owner !== state) {

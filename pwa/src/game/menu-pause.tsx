@@ -5,9 +5,9 @@
 // carries the ways on and nothing else:
 //
 //   RESUME        back to the snow, on the very frame it was left.
-//   OPTIONS       the handful of settings a skier actually stops mid-race
-//                 for, ON A PANEL OF THEIR OWN rather than inline under
-//                 RESUME.
+//   OPTIONS       the front door's OPTIONS page itself, every row of it,
+//                 with the camera on top — ON A PANEL OF ITS OWN rather
+//                 than inline under RESUME.
 //   RESTART       the run again from the start line, on the same map — the B
 //                 key's own line. Over a free ride, START AGAIN: the same
 //                 ride from where it started.
@@ -33,12 +33,12 @@
 //
 // THE SETTINGS ARE BEHIND A DOOR, NOT SPREAD ACROSS THE CARD. Nine people in
 // ten open this card to RESUME, and every row above that press is a row in
-// the way of it; one word costs the card one row. IT IS STILL NOT THE
-// OPTIONS PAGE: the picture rows and the assists wait for the front door —
-// the assists are dealt when a race is stood up, and a picture row is judged
-// against snow that is MOVING. What is here is what is about the FRAME in
-// front of you and reads perfectly well held still: where the eye rides, and
-// the sound.
+// the way of it; one word costs the card one row. Behind the door is THE
+// OPTIONS PAGE, the very component the front door opens (`OptionsPage`), so
+// the two can never drift: the picture rows apply to the held frame the
+// moment they are pressed, and the frame behind the card is the answer. Its
+// KEYS row opens the keys page on a panel of its own, one press back to the
+// options.
 //
 // THE PRESSES THAT END THE RACE ARE THE QUIET ONES. RESUME and OPTIONS are
 // rows; RESTART, WATCH REPLAY and MAIN MENU share ONE strip at the foot, a
@@ -64,78 +64,17 @@ import { useState } from "preact/hooks";
 import type { FreeRide } from "./free-ride.ts";
 
 import { Glyph } from "./menu-glyphs.tsx";
-import {
-  Caption,
-  KnobGroup,
-  MenuBody,
-  MenuHead,
-  StepRow,
-  type Hint,
-  type Stop,
-} from "./menu-knobs.tsx";
-import { SoundRows } from "./menu-options.tsx";
+import { KeysPage } from "./menu-keys.tsx";
+import { OptionsPage } from "./menu-options.tsx";
 import { PauseChallenges } from "./menu-pause-challenges.tsx";
 import { PauseSlopes } from "./menu-pause-slopes.tsx";
 import { pauseStats } from "./pause-stats.ts";
 import type { CameraRung } from "./renderer-api.ts";
-import { RUN_CAMERAS, type Settings } from "./settings.ts";
+import type { Settings } from "./settings.ts";
 import type { HudSnapshot } from "./snapshot.ts";
 import { STRINGS } from "./strings.ts";
 
-/** The camera ladder in words, the C key's own rungs in its own order. */
-const CAMERA_STOPS: Stop<CameraRung>[] = RUN_CAMERAS.map((id) => ({
-  id,
-  label: STRINGS.cameraWords[id as Exclude<CameraRung, "orbit">],
-}));
-
-/** The pause card's OPTIONS panel: the camera and the sound, on the card's
- * own narrow plate. It keeps the caption bar — a skier who has stopped
- * mid-race is exactly the one with a moment to read what a row does. */
-function PauseOptions({
-  settings,
-  rung,
-  onSettings,
-  onCamera,
-  onBack,
-}: {
-  settings: Settings;
-  rung: CameraRung;
-  onSettings: (settings: Settings) => void;
-  onCamera: (rung: CameraRung) => void;
-  onBack: () => void;
-}) {
-  const [hint, setHint] = useState<Hint | null>(null);
-  return (
-    <div
-      class="menu-card menu-card-pause menu-card-pause-options"
-      onPointerDown={(e) => e.stopPropagation()}
-      onPointerLeave={() => setHint(null)}
-      role="presentation"
-    >
-      <MenuHead back={onBack} backLabel={STRINGS.pauseBack} title={STRINGS.menuOptions} />
-      <MenuBody>
-        <div class="knob-groups">
-          <KnobGroup title={STRINGS.optCameraGroup} glyph="display">
-            <StepRow
-              label={STRINGS.optCamera}
-              hint={STRINGS.optCameraHint}
-              stops={CAMERA_STOPS}
-              value={rung}
-              onPick={onCamera}
-              onHint={setHint}
-            />
-          </KnobGroup>
-          <KnobGroup title={STRINGS.optSoundGroup} glyph={settings.sound ? "speaker" : "mute"}>
-            <SoundRows settings={settings} onSettings={onSettings} onHint={setHint} />
-          </KnobGroup>
-        </div>
-      </MenuBody>
-      <Caption hint={hint} />
-    </div>
-  );
-}
-
-type PausePanel = "card" | "options" | "slopes" | "challenges";
+type PausePanel = "card" | "options" | "keys" | "slopes" | "challenges";
 
 /** The face the NEXT pause card opens on, taken once by it: the card's own
  * face unless a press asked for another (`pauseOnSlopes`). */
@@ -150,6 +89,8 @@ export function pauseOnSlopes(): void {
 export function PauseMenu({
   snap,
   settings,
+  keys,
+  touch,
   rung = settings.camera,
   onSettings,
   onCamera,
@@ -164,6 +105,10 @@ export function PauseMenu({
    * card bills it by, the figures chosen from it by rule (`pause-stats.ts`). */
   snap: HudSnapshot;
   settings: Settings;
+  /** Whether this machine has keys worth binding, and a touchscreen — the
+   * OPTIONS page's own two questions. */
+  keys: boolean;
+  touch: boolean;
   /** The rung he is seen on now: his own, or his machine's while he rides one. */
   rung?: CameraRung;
   onSettings: (settings: Settings) => void;
@@ -195,17 +140,34 @@ export function PauseMenu({
       class="menu"
       // The backdrop presses whatever the card's own way out is: one step
       // back off a panel, and off the card back to the snow.
-      onPointerDown={() => (panel === "card" ? onResume() : back())}
+      onPointerDown={() =>
+        panel === "card" ? onResume() : panel === "keys" ? setPanel("options") : back()
+      }
       role="presentation"
     >
-      {panel === "options" ? (
-        <PauseOptions
-          settings={settings}
-          rung={rung}
-          onSettings={onSettings}
-          onCamera={onCamera}
-          onBack={back}
-        />
+      {panel === "options" || panel === "keys" ? (
+        // A box that draws nothing, so the page is the menu's own child as
+        // on the front door, and a press on it never reaches the backdrop.
+        <div class="pause-panel" onPointerDown={(e) => e.stopPropagation()} role="presentation">
+          {panel === "options" ? (
+            <OptionsPage
+              settings={settings}
+              keys={keys}
+              touch={touch}
+              onSettings={onSettings}
+              onBack={back}
+              backLabel={STRINGS.pauseBack}
+              onKeys={() => setPanel("keys")}
+              camera={{ rung, onCamera }}
+            />
+          ) : (
+            <KeysPage
+              settings={settings}
+              onSettings={onSettings}
+              onBack={() => setPanel("options")}
+            />
+          )}
+        </div>
       ) : panel === "slopes" && onSlopes ? (
         <PauseSlopes
           snap={snap}
@@ -293,7 +255,12 @@ export function PauseMenu({
                 where there is one: half a row each, so the card is no taller
                 for it. */}
             <div class={(!onSlopes && onMaps) || snap.challenges ? "pause-pair" : "pause-single"}>
-              <button type="button" class="menu-item" onClick={() => setPanel("options")}>
+              <button
+                type="button"
+                class="menu-item"
+                data-menu="options"
+                onClick={() => setPanel("options")}
+              >
                 <Glyph name="sliders" />
                 <span class="menu-item-name">{STRINGS.pauseOptions}</span>
               </button>

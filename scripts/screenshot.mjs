@@ -108,6 +108,7 @@ import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist
 import { challengeShots } from "./lib/challenge-shots.mjs";
 import { FILM_SURFACES } from "./lib/film-shots.mjs";
 import { SUMMER_SURFACES } from "./lib/summer-shots.mjs";
+import { PAUSE_SURFACES } from "./lib/pause-shots.mjs";
 import { WINGSUIT_SURFACES } from "./lib/wingsuit-shots.mjs";
 import { DRESS, RIDER_SURFACES } from "./lib/rider-shots.mjs";
 import { holdThumbs } from "./lib/hold-thumbs.mjs";
@@ -146,6 +147,7 @@ const SCENES = {
 const SURFACES = {
   ...WINGSUIT_SURFACES,
   ...SUMMER_SURFACES,
+  ...PAUSE_SURFACES,
   ...FILM_SURFACES,
   ...RIDER_SURFACES,
   // The title and the invitation, over the title scene's first frames.
@@ -170,22 +172,6 @@ const SURFACES = {
     pressAfter: 1500,
     wait: ".loading-card",
     settle: 60,
-  },
-  pause: { params: { paused: "1", t: "14" }, wait: ".menu-card-pause", settle: 700 },
-  // ...over a FREE RIDE, and its PISTE MAP: another run on the same mountain.
-  "pause-free": {
-    params: { start: "free", t: "20" },
-    open: ["Escape"],
-    wait: ".menu-card-pause",
-    settle: 700,
-  },
-  "pause-slopes": {
-    params: { start: "free", t: "20" },
-    open: ["Escape"],
-    press: ".pause-slopes-press",
-    pressAfter: 700,
-    wait: ".menu-card-pause-slopes .seed-preview-map image",
-    settle: 1200,
   },
   // THE REPLAY of the run so far, off the pause card's WATCH REPLAY: the bar
   // as it opens, held still by SPACE (the bar never steps out while paused),

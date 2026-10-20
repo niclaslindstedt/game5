@@ -106,8 +106,11 @@ export const ARMY_AIR = {
      * m/s. Down, he lies `lie` s before he is taken off. */
     downed: { disc: 4, wash: 1.6, under: 25, reserve: 5.5, lie: 60 },
     /** LEAVING: the height over the snow it climbs to on the way out, m,
-     * and how far past the map's edge it is gone, m. */
-    leave: { height: 120, past: 80 },
+     * and how far past the map's edge it is gone, m; the way out read
+     * among `ways` bearings as the one whose snow is lowest over the next
+     * `look` m (a wing climbs slower than a face rises), kept unless
+     * another is `keep` m lower. */
+    leave: { height: 120, past: 80, ways: 12, look: 400, keep: 25 },
   },
 
   /** THE BALLOON. */

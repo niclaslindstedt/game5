@@ -525,19 +525,38 @@ export function huntPara(
   fireRifle(state, p, w, q, events);
 }
 
-/** FLY ONE HOME: out over the edge on its bearing, climbing. */
+/** The highest snow over the next `look` m on bearing `b` from (x, z). */
+function rise(state: GameState, x: number, z: number, b: number): number {
+  let most = -Infinity;
+  for (let s = 100; s <= K.leave.look; s += 100)
+    most = Math.max(most, state.level.groundAt(x + Math.sin(b) * s, z + Math.cos(b) * s));
+  return most;
+}
+
+/** FLY ONE HOME: out the lowest way, climbing. */
 export function leavePara(state: GameState, p: ArmyPara, events: GameEvent[]): void {
   p.firing = false;
   disarmGun(state, gunOf(p));
   const size = state.level.size;
-  const gx = Math.sin(p.bearing) * K.trim;
-  const gz = Math.cos(p.bearing) * K.trim;
   if (state.t - p.read >= READ) {
     p.read = state.t;
+    // The way out: the bearing whose snow ahead is lowest, kept unless
+    // another is clearly lower.
+    let best = p.bearing;
+    let low = rise(state, p.x, p.z, p.bearing) - K.leave.keep;
+    for (let i = 0; i < K.leave.ways; i++) {
+      const b = (i / K.leave.ways) * 2 * Math.PI;
+      const r = rise(state, p.x, p.z, b);
+      if (r < low) {
+        low = r;
+        best = b;
+      }
+    }
+    p.bearing = best;
     p.want = Math.max(state.level.groundAt(p.x, p.z) + K.leave.height, heightFor(state, p, p.x, p.y, p.z, 0, 0));
   }
   paraAirAt(state.level, state.t, p.wing.x, p.wing.y, p.wing.z, air);
-  const hands = handsFor(state, p, gx, gz);
+  const hands = handsFor(state, p, Math.sin(p.bearing) * K.trim, Math.cos(p.bearing) * K.trim);
   flyPara(state, p, hands.steer, hands.throttle, 0, hands.bar);
   const past = K.leave.past;
   if (p.x < -past || p.z < -past || p.x > size + past || p.z > size + past) {

@@ -82,6 +82,7 @@ import { astride, bikeBlows, hardOpening, type BodyHands } from "./body-steel.ts
 import { beastBlow } from "./body-beast.ts";
 import { PERSON_CAP, personBlows, struckHard } from "./body-person.ts";
 import { CROWD_SIZE } from "./defs/crowd.ts";
+import { ARMY_VEHICLE } from "./defs/army-vehicle.ts";
 import { GROOMER } from "./defs/groomer.ts";
 import { TRAFFIC_STRIKE } from "./defs/traffic.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -584,6 +585,9 @@ function fall(c: SkierState, cause: string, speed: number): void {
     charge(sided("knee", -s), "twist", speed * I.rollTwist * 0.5);
   } else if (cause === "groomer") {
     steel(speed, GROOMER.strike, "groomer");
+  } else if (cause === "armour") {
+    // An army vehicle's front is a piste machine's steel, and heavier.
+    steel(speed, ARMY_VEHICLE.strike, "groomer");
   } else if (cause === "car") {
     steel(speed, { least: TRAFFIC_STRIKE.least, hard: 1, give: TRAFFIC_STRIKE.give }, "car");
   } else if (cause === "straddle") {

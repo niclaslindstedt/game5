@@ -14,7 +14,7 @@
 // is knocked off is called again.
 //
 // READING THE SNOW. Ten times a second each machine weighs a fan of
-// headings either side of the way to him (`wayCost`): how far each runs
+// headings either side of the way to him (`army-drive.ts`): how far each runs
 // before a rise too steep to climb, a drop too steep to ride off, open
 // water or the map's edge stops it, how many trunks stand near its line,
 // and how far it is off the way to him — and steers the cheapest, slowing
@@ -55,6 +55,7 @@ import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/cor
 import { rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { waterWithin } from "../mapgen/real-water.ts";
 import { meetBoxes, type StripBox } from "./airstrip-solids.ts";
+import { chooseWay } from "./army-drive.ts";
 import { enlist } from "./army-troop.ts";
 import { ARMY_GROUND } from "./defs/army-ground.ts";
 import { ARMY_SLED } from "./defs/army-sled.ts";
@@ -227,76 +228,13 @@ function goHome(state: GameState, m: ArmySled): void {
 
 // ─── reading the snow ──────────────────────────────────────────────────
 
-/** WHAT A HEADING COSTS from where the machine is: the way it is stopped
- * short of `look` (a rise too steep, a drop too sheer, water, the edge),
- * the trunks near its line, how far it is off the way to him and off the
- * way it holds — and how many trunks stand within the first stretch (the
- * woods it would be driving into). */
-export function wayCost(
-  state: GameState,
-  b: Pick<SledState, "x" | "z">,
-  heading: number,
-  want: number,
-  keep: number,
-): { cost: number; trees: number } {
-  const level = state.level;
-  const T = K.terrain;
-  const D = K.drive;
-  const fx = Math.sin(heading);
-  const fz = Math.cos(heading);
-  const n = Math.round(D.look / D.step);
-  let g0 = level.groundAt(b.x, b.z);
-  let reach = D.look;
-  let trees = 0;
-  let near = 0;
-  const lo = T.edge;
-  const hi = level.size - T.edge;
-  for (let i = 1; i <= n; i++) {
-    const x = b.x + fx * D.step * i;
-    const z = b.z + fz * D.step * i;
-    const g = level.groundAt(x, z);
-    const rise = (g - g0) / D.step;
-    g0 = g;
-    if (
-      x < lo ||
-      z < lo ||
-      x > hi ||
-      z > hi ||
-      rise > T.climb ||
-      rise < -T.cliff ||
-      waterWithin(level.water, x, z, T.water)
-    ) {
-      reach = D.step * (i - 1);
-      break;
-    }
-    const k = treesNear(level, x, z, T.trunk, trunks).length;
-    trees += k / i;
-    if (i <= 3) near += k;
-  }
-  const cost =
-    T.turn * Math.abs(angleDiff(heading, want)) +
-    T.blocked * (D.look - reach) +
-    T.tree * trees +
-    T.keep * Math.abs(angleDiff(heading, keep));
-  return { cost, trees: near };
-}
-
 /** THE WAY TO STEER: the cheapest of the fan either side of the way to him
- * (and the way it holds), and whether it is among trees. */
-function chooseWay(state: GameState, m: ArmySled, want: number): boolean {
-  const D = K.drive;
-  let best = wayCost(state, m.body, m.way, want, m.way);
-  let way = m.way;
-  for (let k = -D.fan; k <= D.fan; k++) {
-    const h = want + (D.spread * k) / D.fan;
-    const c = wayCost(state, m.body, h, want, m.way);
-    if (c.cost < best.cost) {
-      best = c;
-      way = h;
-    }
-  }
-  m.way = Math.atan2(Math.sin(way), Math.cos(way));
-  return best.trees > 0;
+ * (and the way it holds), read off the snow as every army machine reads
+ * it (`army-drive.ts`), and whether it is among trees. */
+function steerWay(state: GameState, m: ArmySled, want: number): boolean {
+  const c = chooseWay(state, m.body.x, m.body.z, m.way, want, K.terrain, K.drive, K.terrain.trunk);
+  m.way = c.way;
+  return c.woods;
 }
 
 // ─── the crew's eyes ───────────────────────────────────────────────────
@@ -445,7 +383,7 @@ function chase(
     }
   }
   if (Math.floor(state.t / D.decide) !== Math.floor((state.t - dt) / D.decide)) {
-    const woods = chooseWay(state, m, toward);
+    const woods = steerWay(state, m, toward);
     m.pace = woods ? D.woods : D.cruise;
   }
   // Swung off to a side, it holds that side a while.
@@ -526,7 +464,7 @@ function home(state: GameState, m: ArmySled, events: GameEvent[]): void {
   }
   const toward = Math.atan2(m.home.x - b.x, m.home.z - b.z);
   if (Math.floor(state.t / K.drive.decide) !== Math.floor((state.t - dt) / K.drive.decide)) {
-    const woods = chooseWay(state, m, toward);
+    const woods = steerWay(state, m, toward);
     m.pace = woods ? K.drive.woods : K.drive.cruise;
   }
   if (state.t < m.until) m.way = toward + m.side * 1.3;

@@ -37,6 +37,12 @@ const TAPE = {
   turn: 0.6,
   every: 2.6,
 } as const;
+/** THE TAPE SEEN FROM FAR OFF: real tape is under a pixel wide from a
+ * machine overhead, so past about 14 m a span is drawn wider with its
+ * distance from the lens — `perMetre` m of width a metre off (about four
+ * pixels of a 55° lens at 720 lines seen square, whatever the range), never
+ * narrower than the tape itself and at most `most` times it. */
+const TAPE_FAR = { perMetre: 0.0055, most: 6 } as const;
 /** A stake: its colours, its girth, m. */
 const STAKE = { body: 0xe8e6df, band: 0xd21f1f, girth: 0.025 } as const;
 /** The marker tents' yellow and their numbers' black (CSS): a bright
@@ -203,6 +209,7 @@ function spanGeometry(
   const pos: number[] = [];
   const col: number[] = [];
   const raise: number[] = [];
+  const wide: number[] = [];
   // The lifted tape: up at the crossing, falling to the stakes either side.
   const up = (u: number): number => {
     if (lift === null) return 0;
@@ -234,6 +241,8 @@ function spanGeometry(
     const lo1 = [x1 - bx, y1 - by, z1 - bz];
     const hi1 = [x1 + bx, y1 + by, z1 + bz];
     pos.push(...lo0, ...lo1, ...hi1, ...lo0, ...hi1, ...hi0);
+    // Widened from its middle: each edge out by a half-width a unit.
+    wide.push(-ax, -ay, -az, -bx, -by, -bz, bx, by, bz, -ax, -ay, -az, bx, by, bz, ax, ay, az);
     const r0 = up(i / n);
     const r1 = up((i + 1) / n);
     for (const y of [r0, r1, r1, r0, r1, r0]) raise.push(0, y, 0);
@@ -244,11 +253,41 @@ function spanGeometry(
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
   geo.computeVertexNormals();
-  if (lift !== null) {
-    geo.morphAttributes.position = [new THREE.Float32BufferAttribute(raise, 3)];
-    geo.morphTargetsRelative = true;
-  }
+  // Morph 0 widens it seen from afar; morph 1 lifts it over the bag.
+  geo.morphAttributes.position = [
+    new THREE.Float32BufferAttribute(wide, 3),
+    ...(lift !== null ? [new THREE.Float32BufferAttribute(raise, 3)] : []),
+  ];
+  geo.morphTargetsRelative = true;
   return { geo, stripes: n };
+}
+
+const lensAt = new THREE.Vector3();
+
+/** A span drawn wider the further the lens is from it (`TAPE_FAR`), set as
+ * it is drawn by the lens that draws it — the shadow's own (a light's, far
+ * off and square) leaves it as the picture's lens last had it, so the tape's
+ * shadow is the tape's width. */
+function widenFromAfar(
+  mesh: THREE.Mesh,
+  a: { x: number; z: number },
+  b: { x: number; z: number },
+  level: Level,
+): void {
+  const mid = new THREE.Vector3(
+    (a.x + b.x) / 2,
+    level.groundAt((a.x + b.x) / 2, (a.z + b.z) / 2) + C.tape,
+    (a.z + b.z) / 2,
+  );
+  const half = Math.hypot(b.x - a.x, b.z - a.z) / 2;
+  mesh.onBeforeRender = (_r, _s, camera) => {
+    if ((camera as THREE.OrthographicCamera).isOrthographicCamera) return;
+    lensAt.setFromMatrixPosition(camera.matrixWorld);
+    // The span's nearest reach to the lens, roughly: its middle less half.
+    const d = Math.max(0, lensAt.distanceTo(mid) - half);
+    const w = (d * TAPE_FAR.perMetre) / TAPE.width - 1;
+    mesh.morphTargetInfluences![0] = Math.max(0, Math.min(TAPE_FAR.most - 1, w));
+  };
 }
 
 /** A soft round glare, white at its heart. */
@@ -356,7 +395,8 @@ export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDr
         const ends = [plan.ring[i], plan.ring[(i + 1) % n]] as const;
         const { geo, stripes } = spanGeometry(level, ends[0], ends[1], gate ? gate.u : null);
         const mesh = new THREE.Mesh(geo, kit);
-        if (gate) mesh.morphTargetInfluences = [0];
+        mesh.morphTargetInfluences = gate ? [0, 0] : [0];
+        widenFromAfar(mesh, ends[0], ends[1], level);
         mesh.castShadow = true;
         mesh.frustumCulled = false;
         group.add(mesh);
@@ -383,7 +423,8 @@ export function createPoliceDressing(level: Level, haze: HazeUniforms): PoliceDr
         const run = scene.tape[i] ?? 0;
         s.mesh.visible = run > 0;
         s.mesh.geometry.setDrawRange(0, 6 * Math.ceil(s.stripes * run));
-        if (s.mesh.morphTargetInfluences) s.mesh.morphTargetInfluences[0] = scene.lift[i] ?? 0;
+        const w = s.mesh.morphTargetInfluences!;
+        if (w.length > 1) w[1] = scene.lift[i] ?? 0;
       });
       tents.forEach((t, i) => (t.visible = i < scene.markers));
       // The camera in his hands: up at his eye, down at his chest.

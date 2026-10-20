@@ -101,6 +101,10 @@ export type PolicePlan = {
   flashes: { t: number; x: number; y: number; z: number }[];
   /** The bag carried in by the two patrollers (`police-carry.ts`). */
   carry: CarryIn;
+  /** HIS KIT GATHERED out of the bag's way by the photographer (crew slot
+   * `PHOTO`): where the bag will lie (its middle and the way its head end
+   * points), and the moments he kneels there and stands with the kit. */
+  kit: { x: number; z: number; heading: number; t0: number; t1: number };
   flight: RescueFlight;
   at: {
     out: number;
@@ -405,6 +409,19 @@ export function planPolice(
     shoot(photo, markers[m], true);
   }
   const shot = photo.t;
+  // ...and once the last is taken, his kit lying where the bag will be laid
+  // (`scoopAt` with the bag down) gathered up off the snow, to be carried
+  // aboard as evidence — long before the bag comes to it.
+  const laid = scoopAt(level, plan, plan.at.scoop.turn, freshRescueFrame()).stretcher;
+  const bagSide = unit(laid.x - spot.x, laid.z - spot.z);
+  const kneelAt = clear({
+    x: laid.x + bagSide.x * (RESCUE.stretcher.rail + POLICE.kit.out),
+    z: laid.z + bagSide.z * (RESCUE.stretcher.rail + POLICE.kit.out),
+  });
+  walk(photo, kneelAt, POLICE.pace, keeps);
+  const kit = { x: laid.x, z: laid.z, heading: laid.heading, t0: photo.t, t1: 0 };
+  still(photo, POLICE.kit.kneel, "kneel", headingTo(kneelAt, laid));
+  kit.t1 = photo.t;
   // 5. THE RECOVERY: the photographer back aboard (walking there as it
   // starts); the lead, the marker officer and the two patrollers (down the
   // hill with the bag) gathered where the ambulance's crew start their
@@ -473,6 +490,7 @@ export function planPolice(
     acts: [lead.acts, mark.acts, patrols[0].acts, patrols[1].acts, photo.acts],
     flashes,
     carry,
+    kit,
     flight,
     at: {
       out: t0,

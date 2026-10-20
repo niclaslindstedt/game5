@@ -10,22 +10,26 @@
 // casualty (`police-bag.ts`' `statueDelta`, handed back by the call), and
 // once the bag's lid is down over him that part goes out of sight for good:
 // the bag carries him from there. His blood and what was torn off him stay
-// on the snow. Presentation only: `renderer.ts` hands the one view's answer
-// to the other every frame.
+// on the snow. His KIT lying where the bag is to be laid (a ski, a pole —
+// the statue's parts that are not him) is gathered up by the photographer
+// once the last photograph is taken and carried aboard as evidence
+// (`police-kit.ts`, timed by `police-plan.ts`' `kit`), so the bag is
+// never laid over it.
+// Presentation only: `renderer.ts` hands the one view's answer to the other
+// every frame.
 
 import * as THREE from "three";
 import { RAGDOLL, type GameState } from "@engine";
 
 import type { Remains } from "./gore-remains.ts";
+import { SMALL, gatherKit, type KitFrame } from "./police-kit.ts";
 import { LOOSE } from "./trail-stamp.ts";
 
 /** How near a body left lying must be to a call's casualty to be his, m. */
 const SAME = 2.5;
-/** How far from his hips a part of the statue is still him, m, and the
- * largest a part that is not his skin can be and still be on him (a stump,
- * a wound — not a ski or a pole), m. */
+/** How far from his hips a part of the statue is still him, m (the largest
+ * a part that is not his skin can be and still be on him is `SMALL`). */
 const REACH = 1.5;
-const SMALL = 0.45;
 
 /** A police call's casualty this frame: where he lay; whether its crew
  * have begun on him (`taken`); the world matrix his body is moved by (16
@@ -37,6 +41,8 @@ export type Taken = {
   taken: boolean;
   delta: readonly number[] | null;
   shut: boolean;
+  /** His kit gathered out of the bag's way (`kitOf`), or null. */
+  kit: KitFrame | null;
 };
 
 /** Where a body lies: his hips, and the way his head points from his feet. */
@@ -136,5 +142,7 @@ export function bagRemains(all: readonly Remains[], calls: readonly Taken[]): vo
       him.matrix.copy(base).invert().multiply(delta).multiply(base).multiply(rest);
     } else him.matrix.copy(rest);
     him.matrixWorldNeedsUpdate = true;
+    const k = calls.find((q) => q.kit && Math.hypot(q.x - at.x, q.z - at.z) < SAME)?.kit;
+    if (k) gatherKit(r, k, him);
   }
 }

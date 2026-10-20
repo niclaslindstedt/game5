@@ -46,7 +46,7 @@ export function helipadOf(level: Level): Helipad {
 
 /** The ground's steepest lean over the pad's circle, as a slope (rise over
  * run) read off its rim against its middle. */
-function leanOver(level: Level, x: number, z: number, r: number): number {
+export function leanOver(level: Level, x: number, z: number, r: number): number {
   const g = level.groundAt(x, z);
   let most = 0;
   for (let i = 0; i < 8; i++) {
@@ -59,7 +59,7 @@ function leanOver(level: Level, x: number, z: number, r: number): number {
 
 /** Whether (x, z) is clear: no trunk within `room`, off every lift's line
  * and station, and out of the tunnels' lanes. */
-function clearAt(level: Level, x: number, z: number, room: number): boolean {
+export function clearAt(level: Level, x: number, z: number, room: number): boolean {
   if (waterWithin(level.water, x, z, room)) return false;
   if (treesNear(level, x, z, room, near).length > 0) return false;
   for (const p of liftPlans(level)) {

@@ -427,7 +427,11 @@ export function createMachines(
         group.add(gunfire.group);
       }
       gunfire?.frame(s, alpha, dt, simDt, cloud, fx.snowAt);
-      if (!army && s.army && s.army.helis.some((h) => h.phase !== "due")) {
+      if (
+        !army &&
+        s.army &&
+        (s.army.helis.some((h) => h.phase !== "due") || s.army.troops.length > 0)
+      ) {
         army = createArmyAirView(haze);
         army.setPace(armyPace);
         group.add(army.group);

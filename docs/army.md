@@ -133,6 +133,7 @@ The weapons are placed after the body is posed, so they follow the hands:
 | `heli` | `turntable` (eight bearings round it landed), `close` (the door gun and its gunner, the doorway, the nose, the tail rotor, the skids, the rope bar), `doors` (both doors open, the gunners on their guns, a section in the doorways), `squad` (landed, its section out on the snow round it) |
 | `flight` | `flight-day`, `flight-dusk`: in the air over the slope, the rotors turning, the gunner on his gun, a man on the fast rope |
 | `hunt` | the army in the game, a hunted free ride run on the real engine with the bot: `hunt-2` (two stars, warning fire), `hunt-4` (four stars, two machines, aimed fire), `hunt-heli` (him in the stolen air ambulance, chased); each from behind him at the machine after him, beside its door, and wide |
+| `ground` | the soldiers in the game, a hunted free ride run on the real engine, him stood still: `ground-land` (a machine set down, its squad spilling out and kneeling), `ground-file` (the squad skiing in file after him), `ground-fire` (a soldier knelt on his skis firing), `ground-lift` (a squad on a chair), `ground-arrest` (SAFE FOR WORK: him face down and held, the squad round him) |
 | `soldiers` | `ski`, `foot`, `rocket` (every pose from the front, the side and behind at the chase camera's range), `gunner` (sat at his gun at each aim), `lods` (the three cuts) |
 
 Pass `--poses=aim,kneel` to shoot a few poses and `--smock=whites` for plain whites. Each sheet is `previews/army-<view>.png`, and every frame is also written alone.
@@ -231,6 +232,108 @@ The army lab's `hunt` sheet (`make army ARGS="--sheet=hunt"`) photographs the sa
 
 ### Not yet
 
-- The machines do not land, and nothing comes down the rope: the section on the ground is the next part's.
 - They cannot be shot down; a ram is the one way to bring one down.
-- The woods do not hide him from them.
+
+## On the ground
+
+`engine/game/army-ground.ts` puts the roster's soldiers (`rosterOf(stars).soldiers`: four at two stars, eight at three and four, twelve at five) on the snow and sends them after him. Its numbers are `ARMY_GROUND` in `engine/game/defs/army-ground.ts`; the soldiers live in `ArmyState.troops`. Nothing on the ground draws from any stream, `state.rng` included: every choice is a pure function of the state, so a hunt replays and no digest moves. All of it waits for the wanted level to ask: a run nobody hunts, or a hunt at one star, puts nobody down.
+
+**What the real thing does.** A utility helicopter of this class lands on a slope of up to about 5 to 8 degrees across or along it, depending on the manual. Steeper, a side slope rolls it over on its skids at about 15 to 18. Where it cannot land, troops come down a FAST ROPE from a hover of about 10 to 15 m: a thick braided rope from a bar over the door, gripped with gloves and boots and slid, one man a second or so behind the next. Out of a machine on the ground they run out to the edge of the rotor disc, clear of the tail rotor, and **kneel facing outward**, rifles out, until it lifts; then they move. Ski troops fight from a stop: off one knee or prone, the poles planted. A squad left behind is **leapfrogged**: picked up and set down again ahead.
+
+**The landing.** A machine with men aboard asks for a place to put them down while he is on the snow, seen, and the roster is short of men (`askLandings`, once a second). `landingSpot` (`army-land.ts`) searches a ring round him, 60 to 280 m out on an 8 m grid. It prefers 120 m off, a place AHEAD of him (where he is going), and one not far below him. A place it lands on must be:
+
+- no steeper than 0.12 over the disc's circle (about 7°, `heli-pad.ts`' `leanOver`);
+- clear under the whole disc and 4 m past it of trunks, posts, lifts and water (`clearAt`, `solidsNear`).
+
+Where nothing in the ring is, a **fast rope's** place will do: 5 m clear round a man's drop, under a hover the rope reaches (22 m at most). Where neither is, it asks again a second later.
+
+The machine flies its approach as a pilot flares into a landing: in along the way at no more than the speed that stops it over the spot at 4 m/s² of braking (`sqrt(2·a·d)`), held over the snow and the crowns until it is within 6 m and slowed under 3 m/s, then down at up to 4 m/s, onto the snow (`set`) or to the rope's hover (`rope`). Its doors slide open on the way down. A drop he has skied 450 m from before a man is out is given up, and a nearer place asked for.
+
+With more than one machine out, the first not already set on a landing stays up as the **overwatch**: it never lands, and its door guns cover the men on the ground.
+
+**Out of the doors.** One man every 0.7 s, from each door in turn (a man every 1.2 s down the rope from either hook). At four stars and up the second man out is the **rocketeer** (`rocketFrom`). Each runs 9 m out square to the machine, spread along its length, and kneels facing away from it. Once every man is out and knelt it lingers 1.5 s more and lifts (`rise`), and back on the hunt it says `lifted`. Only then does the squad move. A man down a rope slides at 4 m/s and lands on his skis.
+
+**The chase.** Each soldier is a point on the heightfield with the crowd's numbers for a man on skis (`army-troop.ts`):
+
+- gravity along the way he faces, the snow's drag and the air's;
+- a turn no tighter than his speed allows, and the skid that scrubs speed off when he turns harder;
+- a pace he brakes to (16 m/s);
+- a working floor: up a rise he skates and herringbones at 3.4 m/s, or traverses in zig-zags of 7 m when it is steeper than 0.45;
+- trunks, posts and lift towers pushed round, and the other men kept 2.5 m apart.
+
+A **watchdog** counts the windows of 4 s in which a man meaning to move barely did, and side-steps him round whatever holds him. The anti-armour man walks, at 1.6 m/s.
+
+**Firing.** A soldier who has him in sight within 260 m (the rocketeer 300) **stops**: a hockey stop, a settle of 0.7 s, then he fires off one knee where the snow is flat enough (under 0.35) and stood on his skis where it is not. He fires a few bursts through the gunfire layer (`armGun`, `fireAt`, the `rifle` or the `rocket`) under the wanted level's rules of fire, then skis on for 5 s before he may stop again. He shouts once within 60 m. His view is staggered across the squad, a look every quarter second.
+
+**Safe for work.** The soldiers never wound him. Their fire is the gunfire's warning fire, never at him, and inside 45 m they stop firing and **run him down**. A soldier who reaches him (`WANTED.arrest.reach`, 2 m) while he is slow (under 3 m/s) or down **arrests** him (`arrestSkier`). He is thrown face down (crash cause `arrest`) and held there: his body is drawn over 0.8 s into a prone lay, his hands at the small of his back, and held still while the soldier kneels at his side with his hands on him. `run.ts` never stands him up while the hunt has ended `arrested`. The rest of the squad close round him in a ring 3.5 m out, facing him (`cover`). The ARRESTED card takes the run from there (`wanted.md`).
+
+**Body on body.** A soldier is one of the people on foot to the skier (`foot.ts`' `meetPerson`, 105 kg with his kit). The player skiing into one knocks him down on the same ragdoll as a civilian, raises the heat (`hit-soldier`), and the soldier gets up again when his body has come to rest. With the INJURIES on a hard enough blow hurts or kills him, and he lies there.
+
+**Leapfrog and re-embark.** A machine whose squad are all far (350 m) from where he was last seen, and have not seen him for 15 s, picks them up: a landing near them (10 to 160 m out), its men waiting clear of the disc until it is down, then in at its nearer door. It then hunts again with them aboard, and drops them where he is.
+
+**Up the lifts.** At three stars and up, squads of four are sent up the ski area's own lifts (`army-lift.ts`, the roster's `lifted`): 20 s after the call, then one every 30 s while the roster is short of lifted men. Each takes the lift whose top is nearest him and at least 30 m above him. It walks into the queue at the bottom, boards the next carrier after the crowd's riders, rides it on the crowd's own sums (`carrierAt`, `carrierGripAt`, `loadAt`, `offAt`), is let go at the top and chases from there. In a gondola's cabin a soldier is not drawn and not a pursuer.
+
+**The woods hide him.** Every soldier on the snow or on a lift (not one knocked down, nor one in a gondola's cabin) is a pursuer the wanted level sees through (`WantedState.pursuers`, ids from 2000). A soldier's line of sight is blocked by the terrain as before, and now by three or more crowns along it (`wanted.ts`' `throughWoods`, for every pursuer on the snow), so a man skiing into a forest can lose them; the machines in the air still look down through the trees.
+
+**Events.** One `soldier` event, its `change` saying what happened: `out` (on the snow), `aim` (stopped to fire), `down`, `up`, `dead`, `aboard`, `lift` (sent up one), `arrest`, `shout`. `army` gains `landed` and `lifted`. The soldiers are heard by their rifles (the gunfire's) and their bodies struck (`struck`); they have no voices yet.
+
+### As drawn
+
+`army-ground-view.ts` (held by `army-air-view.ts`) draws every soldier as the part-3 figures (`soldier-shapes.ts`), in the pose his mode says, where he is this frame:
+
+- a rifleman on his skis (the `skier` figure): tucked, leant into his turn or poling up a rise as he goes; stood or knelt on his skis to aim (`skiAim`, `skiKneel`); knelt facing out at the dismount; sat on a chair (`seat`); knelt over the man he arrests (`pin`);
+- down a fast rope (the `foot` figure's `rope`), the rope itself hung from the door's hook to the snow;
+- the anti-armour man walking, and the launcher on his shoulder stood or knelt;
+- knocked down or killed: hung on his body's ragdoll (`crowd-fall.ts`' `lyingPose`, sized to the soldier), posed outright while it moves;
+- aboard a machine or in a gondola's cabin: not drawn.
+
+A kneel on skis keeps both skis flat on the snow (`flatSkis`): a key's boot is squared to its shin, which would stand a ski on its tail. His muzzle flashes, tracers and strikes are the gunfire's (`gunfire-view.ts`).
+
+### The labs
+
+`make army-ground` is pure Node and takes a minute or two. On a real map (seed 38) it runs each star against two quarries: the bot skiing away, and a man stood still where the hunt found him. Each row gives:
+
+- when the first machine set down, and how many landed and roped;
+- the men put down;
+- the first contact (the first stop to fire), the rounds and the rounds in him;
+- his death, or (with `--sfw`) his arrest;
+- the men picked up again, the men who rode a lift and the most at once;
+- the men knocked down, and the men STUCK — always 0.
+
+A run of `make army-ground ARGS="--seconds=150"`:
+
+Seed 38, 150 s a hunt, INJURIES on.
+
+| Quarry | Stars | Set down, s | Landed / roped | Men put down | First contact, s | Rounds | In him | Dead, s | Arrested, s | Picked up | Rode a lift (most at once) | Knocked down | Stuck |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 51 | 2 / 0 | 8 | 87 | 20 | 2 | 99 | — | 0 | 4 (4) | 0 | 0 |
+| skier | 3 | 51 | 1 / 0 | 8 | — | 0 | 0 | — | — | 8 | 8 (8) | 0 | 0 |
+| skier | 4 | 50 | 1 / 0 | 8 | — | 0 | 0 | 70 | — | 0 | 8 (8) | 0 | 0 |
+| skier | 5 | 51 | 2 / 0 | 16 | — | 0 | 0 | 70 | — | 0 | 8 (8) | 0 | 0 |
+| still | 2 | 58 | 2 / 0 | 8 | 74 | 31 | 3 | 90 | — | 0 | 0 (0) | 0 | 0 |
+| still | 3 | 49 | 1 / 0 | 8 | 63 | 23 | 3 | 75 | — | 0 | 4 (4) | 0 | 0 |
+| still | 4 | 50 | 1 / 0 | 3 | — | 0 | 0 | 52 | — | 0 | 4 (4) | 0 | 0 |
+| still | 5 | 51 | 1 / 0 | 2 | — | 0 | 0 | 52 | — | 0 | 4 (4) | 0 | 0 |
+
+The same with `--sfw`:
+
+| Quarry | Stars | Set down, s | Landed / roped | Men put down | First contact, s | Rounds | In him | Dead, s | Arrested, s | Picked up | Rode a lift (most at once) | Knocked down | Stuck |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 51 | 2 / 0 | 8 | 87 | 228 | 0 | — | — | 0 | 4 (4) | 0 | 0 |
+| skier | 3 | 51 | 1 / 0 | 8 | — | 0 | 0 | — | — | 8 | 8 (8) | 0 | 0 |
+| skier | 4 | 50 | 3 / 0 | 16 | 106 | 141 | 0 | — | — | 0 | 12 (12) | 0 | 0 |
+| skier | 5 | 51 | 2 / 0 | 16 | 106 | 85 | 0 | — | — | 4 | 12 (12) | 0 | 0 |
+| still | 2 | 58 | 2 / 0 | 8 | 70 | 35 | 0 | — | 92 | 0 | 0 (0) | 0 | 0 |
+| still | 3 | 49 | 1 / 0 | 8 | 64 | 108 | 0 | — | 94 | 0 | 4 (4) | 0 | 0 |
+| still | 4 | 50 | 1 / 0 | 8 | 70 | 54 | 0 | — | 90 | 0 | 8 (8) | 0 | 0 |
+| still | 5 | 51 | 2 / 0 | 16 | 71 | 113 | 0 | — | 89 | 0 | 10 (10) | 0 | 0 |
+
+The rounds and the rounds in him are the soldiers' alone (the rifle and the launcher); the door guns are `make army-flight`'s. With the INJURIES on at four and five stars the door gunners kill a man stood still before a squad is near him, so those rows show no contact. A skier at speed outruns a squad on skis: the leapfrog (picked up) and the lifts are how they keep up. No fast rope was flown on seed 38; `tests/army_ground_test.ts` flies one over a forest.
+
+The army lab's `ground` sheet (`make army ARGS="--sheet=ground"`) photographs the same hunts through the game's own renderer: `ground-land` (a machine set down, its squad spilling out and kneeling), `ground-file` (the squad skiing in file after him), `ground-fire` (a soldier knelt on his skis firing), `ground-lift` (a squad on a chair), `ground-arrest` (SAFE FOR WORK: him face down and held, the squad round him).
+
+### Not yet
+
+- The soldiers have no voices: the shout and the arrest are events only.
+- They do not go prone, take cover behind a trunk, or ski a drop-off on purpose.
+- The rocketeer walks; he has no skis.

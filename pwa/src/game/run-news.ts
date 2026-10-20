@@ -91,6 +91,8 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       if (e.cause === "fire") return null;
       // Blown off a snowmobile: its own `boom` says so.
       if (e.cause === "blast") return null;
+      // Taken down under arrest: the wanted level's own word says so.
+      if (e.cause === "arrest") return null;
       // Over the leading end riding switch is over the TAILS (`switch.ts`).
       if (e.cause === "nose" && state.skier.switched)
         return { text: STRINGS.newsTailDug, tone: "bad" };

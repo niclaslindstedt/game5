@@ -20,7 +20,15 @@
 
 import { CROWD, type Amateur } from "@engine";
 
-import { CROWD_LOOKS, fromPlayer, mapPosed, poseCrowd, type Posed, type V3 } from "./crowd-rig.ts";
+import {
+  CROWD_LOOKS,
+  fromPlayer,
+  mapPosed,
+  poseCrowd,
+  type CrowdLook,
+  type Posed,
+  type V3,
+} from "./crowd-rig.ts";
 import { boardUnderFeet } from "./board-thrown.ts";
 import { breakPose, type Hurt } from "./crowd-broken.ts";
 import { boardPosed, CROWD_BOARD, poseBoard } from "./crowd-board.ts";
@@ -81,14 +89,15 @@ const frame: BodyFrame = {
 };
 
 /** THE BODY AS IT LIES: the ragdoll's `points` (world frame) read as the
- * crowd's joints of `body`, in the world frame less `anchor`. */
+ * crowd's joints of `body` (or of a `look` of its own — a soldier's), in
+ * the world frame less `anchor`. */
 export function lyingPose(
   points: readonly number[],
   body: Amateur["body"],
   anchor: V3,
   board = false,
+  look: CrowdLook = CROWD_LOOKS[body],
 ): Posed {
-  const look = CROWD_LOOKS[body];
   const pose = ragdollPose(points, frame);
   // A rider's board stays on: laid along his feet, its top square to his
   // shins (`boardUnderFeet`, the player's own).

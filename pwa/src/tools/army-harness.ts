@@ -21,6 +21,14 @@
 //     ambulance flown away corner to corner by the bot's hands, chased; each
 //     drawn as the run draws it (`army-air-view.ts`), from behind him at
 //     the machine after him, from beside the machine's door, and wide;
+//   * GROUND — the soldiers IN THE GAME (`army-ground.ts`, drawn by
+//     `army-ground-view.ts`): a hunted free ride run on the real engine,
+//     him stood still where it found him, stepped to a moment and
+//     photographed — `ground-land` (a machine set down, its squad spilling
+//     out of the doors and kneeling), `ground-file` (the squad skiing in
+//     file after him), `ground-fire` (a soldier knelt on his skis firing),
+//     `ground-lift` (a lift's squad on a chair, riding up), `ground-arrest`
+//     (SAFE FOR WORK: him face down, held, the squad round him);
 //   * SOLDIERS — every pose of every figure (`SOLDIER_POSES`) from the
 //     front, the side and behind at the chase camera's range, a row a pose:
 //     `ski`, `foot`, `rocket`, and `gunner` (sat at his door gun in the
@@ -32,8 +40,12 @@
 
 import * as THREE from "three";
 import {
+  NEUTRAL_INPUT,
   armyHelis,
+  armyTroops,
+  arrestedOf,
   botInput,
+  liftPlans,
   createGame,
   generateLevel,
   pilotInput,
@@ -85,6 +97,7 @@ const GROUPS = {
   heli: ["turntable", "close", "doors", "squad"],
   flight: ["flight-day", "flight-dusk"],
   hunt: ["hunt-2", "hunt-4", "hunt-heli"],
+  ground: ["ground-land", "ground-file", "ground-fire", "ground-lift", "ground-arrest"],
   soldiers: ["ski", "foot", "rocket", "gunner", "lods"],
 } as const;
 
@@ -613,7 +626,198 @@ async function hunt(stars: number, heli: boolean, at: number[]): Promise<void> {
   }
 }
 
+// ── on the ground ────────────────────────────────────────────────────────
+
+/** THE MODELS' FIRST LOAD: a moment for them the first time a hunt draws. */
+let modelsIn = false;
+
+/** A HUNTED FREE RIDE at `stars`, him stood still where it found him (the
+ * INJURIES on, or SAFE FOR WORK with `sfw`), stepped until `until` says
+ * so (at most `most` s); null when it never did. */
+async function groundRun(
+  stars: number,
+  sfw: boolean,
+  until: (run: GameState) => boolean,
+  most = 240,
+  at?: { x: number; z: number; heading: number },
+): Promise<GameState | null> {
+  clear();
+  const run = createGame({
+    level,
+    seed,
+    region,
+    mode: "free",
+    crowd: 0,
+    quiet: true,
+    gore: !sfw,
+    sfw,
+  });
+  if (at) placeRun(run, { ...at, speed: 0 });
+  setWanted(run, stars);
+  const t0 = run.t;
+  while (!until(run)) {
+    if (run.t - t0 > most) return null;
+    step(run, NEUTRAL_INPUT);
+  }
+  await renderer.load(run);
+  if (!modelsIn) {
+    renderer.draw(run, 1, STILL);
+    await new Promise((r) => setTimeout(r, 2500));
+    modelsIn = true;
+  }
+  return run;
+}
+
+/** The note under a ground frame: the run's clock, the stars, the men. */
+function groundNote(run: GameState): string {
+  const men = armyTroops(run);
+  const by = (m: string) => men.filter((s) => s.mode === m).length;
+  return `${run.t.toFixed(0)} s · ${run.wanted?.stars ?? 0}★ · ${men.length} men (${by("chase")} chasing, ${by("aim")} aiming, ${by("ride")} riding)`;
+}
+
+/** Draw the frame a fifth of a second back first, so the muzzles' flashes
+ * and the tracers since are in the one shot. */
+function settleGround(run: GameState): void {
+  renderer.draw(run, 1, STILL);
+  for (let i = 0; i < 24; i++) step(run, NEUTRAL_INPUT);
+}
+
+/** A LENS ROUND `c` with nothing in the way: the first of a few bearings
+ * either side of `bearing` whose sight line passes clear of every tree's
+ * boughs. */
+function clearRound(
+  c: THREE.Vector3,
+  facing: number,
+  bearing: number,
+  d: number,
+  up: number,
+  fov = 50,
+): LensPose {
+  for (const turn of [0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9, 1.2, -1.2, 1.6, -1.6]) {
+    const h = facing + bearing + turn;
+    const ex = c.x + Math.sin(h) * d;
+    const ez = c.z + Math.cos(h) * d;
+    const blocked = level.trees.some((t) => {
+      const vx = c.x - ex;
+      const vz = c.z - ez;
+      const k = Math.max(0, Math.min(1, ((t.x - ex) * vx + (t.z - ez) * vz) / (vx * vx + vz * vz)));
+      // A crown's boughs reach about a quarter of the tree's height out.
+      return Math.hypot(ex + vx * k - t.x, ez + vz * k - t.z) < 1 + 0.25 * t.height;
+    });
+    if (!blocked) return round(c, facing, bearing + turn, d, up, fov);
+  }
+  return round(c, facing, bearing, d, up, fov);
+}
+
+const centre = (men: readonly { x: number; y: number; z: number }[]): THREE.Vector3 => {
+  const c = new THREE.Vector3();
+  for (const m of men) c.add(new THREE.Vector3(m.x, m.y, m.z));
+  return c.multiplyScalar(1 / Math.max(1, men.length));
+};
+
+async function groundLand(): Promise<void> {
+  const run = await groundRun(3, false, (r) =>
+    armyHelis(r).some(
+      (h) => h.phase === "set" && armyTroops(r).filter((m) => m.squad === h.id).length >= 4,
+    ),
+  );
+  if (!run) return;
+  settleGround(run);
+  const h = armyHelis(run).find((m) => m.phase === "set") ?? armyHelis(run)[0];
+  const c = new THREE.Vector3(h.x, h.y + 1.4, h.z);
+  const note = groundNote(run);
+  shoot("beside its doors", clearRound(c, h.heading, Math.PI / 2 + 0.35, 15, 2.5, 55), note, run);
+  shoot("from the nose", round(c, h.heading, 0.5, 18, 4, 55), note, run);
+  shoot("from above", round(c, h.heading, -Math.PI / 2 - 0.4, 22, 13, 55), note, run);
+}
+
+async function groundFile(): Promise<void> {
+  const moving = (r: GameState) =>
+    armyTroops(r).filter((m) => m.mode === "chase" && m.speed > 2.5 && m.role === "rifle");
+  const run = await groundRun(3, false, (r) => moving(r).length >= 3);
+  if (!run) return;
+  for (let i = 0; i < 120; i++) step(run, NEUTRAL_INPUT);
+  settleGround(run);
+  const men = moving(run).length ? moving(run) : armyTroops(run);
+  const c = centre(men).add(new THREE.Vector3(0, 1.2, 0));
+  const lead = men[0];
+  const note = groundNote(run);
+  shoot("beside the file", round(c, lead.heading, Math.PI / 2 + 0.2, 18, 3, 55), note, run);
+  shoot("ahead of them", round(c, lead.heading, 0.25, 20, 4, 55), note, run);
+  shoot("behind them", round(c, lead.heading, Math.PI - 0.2, 16, 4, 55), note, run);
+}
+
+async function groundFire(): Promise<void> {
+  // A rifleman stopped to fire out in the open, where a lens can see him.
+  const open = (m: { x: number; z: number }) =>
+    !level.trees.some((t) => Math.hypot(t.x - m.x, t.z - m.z) < 9);
+  const firing = (r: GameState) =>
+    armyTroops(r).find((m) => m.mode === "aim" && m.role === "rifle" && m.t > 0.8 && open(m));
+  // SAFE FOR WORK: the door guns never kill him before a squad is near.
+  const run = await groundRun(3, true, (r) => !!firing(r));
+  if (!run) return;
+  renderer.draw(run, 1, STILL);
+  // To the moment a round leaves his muzzle.
+  for (let i = 0; i < 600; i++) {
+    step(run, NEUTRAL_INPUT);
+    if (run.events.some((e) => e.kind === "gunfire" && e.phase === "shot")) break;
+  }
+  step(run, NEUTRAL_INPUT);
+  const m = firing(run) ?? armyTroops(run).find((s) => s.mode === "aim") ?? armyTroops(run)[0];
+  const c = new THREE.Vector3(m.x, m.y + 0.9, m.z);
+  const note = groundNote(run);
+  shoot("from his right", clearRound(c, m.aimH, Math.PI / 2 + 0.5, 5, 0.6, 50), note, run);
+  shoot("from his left", clearRound(c, m.aimH, -Math.PI / 2 - 0.3, 6, 1, 50), note, run);
+  shoot("down his aim", clearRound(c, m.aimH, Math.PI - 0.25, 4.5, 1, 55), note, run);
+}
+
+async function groundLift(): Promise<void> {
+  const riding = (r: GameState) =>
+    armyTroops(r).filter(
+      (m) => m.mode === "ride" && m.y - level.groundAt(m.x, m.z) > 3 && m.from === "lift",
+    );
+  // Stood beside a chairlift two thirds of the way up it, so its top is the
+  // one above him the squads are sent up.
+  const chair = liftPlans(level).find((p) => p.lift.kind === "chair");
+  const at = chair
+    ? {
+        x: chair.lift.bottom.x + chair.dx * chair.length * 0.6 + chair.dz * 30,
+        z: chair.lift.bottom.z + chair.dz * chair.length * 0.6 - chair.dx * 30,
+        heading: chair.heading + Math.PI,
+      }
+    : undefined;
+  const run = await groundRun(4, true, (r) => riding(r).length >= 2, 300, at);
+  if (!run) return;
+  settleGround(run);
+  const men = riding(run).length ? riding(run) : armyTroops(run);
+  const c = centre(men).add(new THREE.Vector3(0, 0.4, 0));
+  const h = men[0].heading;
+  const note = groundNote(run);
+  shoot("beside the chair", round(c, h, Math.PI / 2 + 0.4, 9, 1.5, 50), note, run);
+  shoot("from below", round(c, h, Math.PI / 2, 14, -7, 55), note, run);
+  shoot("behind", round(c, h, Math.PI - 0.3, 10, 2, 55), note, run);
+}
+
+async function groundArrest(): Promise<void> {
+  const run = await groundRun(3, true, (r) => (arrestedOf(r) ?? 0) > 4);
+  if (!run) return;
+  renderer.draw(run, 1, STILL);
+  const q = quarryOf(run);
+  const by = armyTroops(run).find((m) => m.mode === "arrest");
+  const c = new THREE.Vector3(q.x, q.y + 0.4, q.z);
+  const face = by ? Math.atan2(q.x - by.x, q.z - by.z) : run.skier.heading;
+  const note = `${groundNote(run)} · arrested ${(arrestedOf(run) ?? 0).toFixed(0)} s`;
+  shoot("held", clearRound(c, face, Math.PI / 2 + 0.3, 4.5, 1.6, 50), note, run);
+  shoot("from above", round(c, face, 0.6, 5, 4, 55), note, run);
+  shoot("the ring", clearRound(c, face, -Math.PI / 2 - 0.4, 14, 5, 55), note, run);
+}
+
 const VIEWS: Record<string, () => void | Promise<void>> = {
+  "ground-land": groundLand,
+  "ground-file": groundFile,
+  "ground-fire": groundFire,
+  "ground-lift": groundLift,
+  "ground-arrest": groundArrest,
   "hunt-2": () => hunt(2, false, [32, 40, 50]),
   "hunt-4": () => hunt(4, false, [32, 40, 50]),
   "hunt-heli": () => hunt(3, true, [26, 32, 38]),
@@ -641,6 +845,11 @@ const COLS: Record<string, number> = {
   "hunt-2": 3,
   "hunt-4": 3,
   "hunt-heli": 3,
+  "ground-land": 3,
+  "ground-file": 3,
+  "ground-fire": 3,
+  "ground-lift": 3,
+  "ground-arrest": 3,
   ski: 3,
   foot: 3,
   rocket: 3,

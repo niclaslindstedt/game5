@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn gunfire gunfire-table army army-flight water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
+.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn gunfire gunfire-table army army-flight army-ground water tree-wells trails piste-day snow summer judder menu-stalls trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
 
 build:
 	npm run build
@@ -1236,6 +1236,18 @@ gunfire-table:
 # "--quarry=heli", "--seconds=180", "--sfw", "--json=previews/army-flight.json".
 army-flight:
 	npm run army-flight -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
+
+# THE ARMY ON THE GROUND TABLE: the soldiers the wanted level sets down and
+# sends up the lifts, hunting a man on a real map off the real engine, pure
+# Node — a row a star and a quarry (the bot skiing away; a man stood
+# still): when the first machine set down and how many landed and roped,
+# the men put down, the first contact, the soldiers' rounds and the rounds
+# in him, his death or (--sfw) his arrest, the men picked up again, the
+# men on the lifts, the men knocked down and the men stuck (always 0).
+# ARGS="--stars=3,5", "--quarry=still", "--seconds=180", "--sfw",
+# "--json=previews/army-ground.json".
+army-ground:
+	npm run army-ground -- $(if $(SEED),--seed=$(SEED),) $(ARGS)
 
 # THE WATER LAB: the lakes and the streams through the game's own renderer,
 # on a map with placeholder water laid on it — the valley lake and the tarn

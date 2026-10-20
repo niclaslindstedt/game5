@@ -24,7 +24,7 @@ const args = parseArgs(
   process.argv.slice(2),
   {
     only: { kind: "string", default: "", help: "the turns to run, by id, comma-separated" },
-    left: { kind: "boolean", default: false, help: "turn to the left (the right by default)" },
+    left: { kind: "flag", default: false, help: "turn to the left (the right by default)" },
     json: { kind: "string", default: "", help: "write the table to this file" },
     compare: { kind: "string", default: "", help: "a kept --json to print beside this run" },
   },

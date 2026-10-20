@@ -214,6 +214,10 @@ export const CRASH = {
     // into it, turned over toward it — it catches him low, so he barely
     // leaves the snow.
     net: { pitch: 0.35, side: 0.7, up: 0.3 },
+    // ARRESTED (`army-ground.ts`, SAFE FOR WORK on): taken down forward
+    // onto his front by the soldier who reached him, barely off the snow —
+    // then laid out and held.
+    arrest: { pitch: 0.8, side: 0.1, up: 0 },
     // Taken by the grimbear (`grimbear.ts`): knocked back off his feet
     // and down on a side.
     maul: { pitch: -0.5, side: 0.7, up: 0.6 },

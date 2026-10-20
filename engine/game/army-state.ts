@@ -9,12 +9,38 @@ import type { WantedEvent } from "./wanted-state.ts";
  *   * `due`: called, not yet on the map (it comes in at `due`);
  *   * `hunt`: on the map, after him — orbiting him, sat off his tail, or
  *     combing where he was last seen while they search;
+ *   * `land`: flying to a landing's spot and down onto it (or to the
+ *     hover over it, for a fast rope); `set`: on the snow, its doors open;
+ *     `rope`: hovering, the men sliding down; `rise`: climbing back off it
+ *     to the hunt;
  *   * `leave`: flying out over the map's edge, the hunt over;
  *   * `fall`: rammed, its tail gone, spinning down;
  *   * `wreck`: on the snow, burning;
  *   * `gone`: out over the edge, or the wreck burnt out — dropped at the
  *     end of the step. */
-export type ArmyHeliPhase = "due" | "hunt" | "leave" | "fall" | "wreck" | "gone";
+export type ArmyHeliPhase =
+  "due" | "hunt" | "land" | "set" | "rope" | "rise" | "leave" | "fall" | "wreck" | "gone";
+
+/** A LANDING the ground's part (`army-ground.ts`) has asked of a machine:
+ * to put men DOWN near him (`drop`) or to PICK UP a squad left behind
+ * (`pick`), at a spot on the snow (x, y, z, m, the skid datum's place) —
+ * set down on it, or (`rope`) hovered over it and the men down a fast
+ * rope; `heading` the way it is set down facing, rad. The ground's part
+ * says when it is `done` (every man out, or in), and the flight lifts off. */
+export type LandTask = {
+  kind: "drop" | "pick";
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+  rope: boolean;
+  /** How many it is to put down (a drop), how many are out, and the run
+   * time the last of them was clear (NaN: not yet). */
+  count: number;
+  put: number;
+  clear: number;
+  done: boolean;
+};
 
 /** A door gun's aim, rad: `yaw` from square out of the door (toward the
  * nose positive), `pitch` above level — as `ARMY_HELI.gun` states its
@@ -62,6 +88,99 @@ export type ArmyHeli = {
   guns: { r: ArmyGunAim; l: ArmyGunAim };
   /** Whether a gun bore on him this step (it fires whenever it may). */
   bears: { r: boolean; l: boolean };
+  /** The men aboard to put down (`ARMY_GROUND.section` when called), and
+   * the landing it has been asked for (null: none). */
+  aboard: number;
+  task: LandTask | null;
+};
+
+/** What a soldier on the ground is doing (`army-ground.ts`):
+ *   * `rope`: sliding down a hovering machine's fast rope;
+ *   * `out`: off a landed machine — run out to his side and knelt facing
+ *     out until it has lifted;
+ *   * `chase`: after him on his skis (or his feet), downhill, skating the
+ *     flats and climbing the rises;
+ *   * `aim`: stopped — stood or knelt — and firing;
+ *   * `board`: skiing to a machine come to pick his squad up;
+ *   * `walk`: to a lift's load line (`army-lift.ts`); `wait`: at it;
+ *     `ride`: on a carrier of it, up;
+ *   * `down`: knocked off his feet (the person on foot `foot.ts` keeps);
+ *     `hurt`: past getting up; `dead`;
+ *   * `arrest`: holding the man he took (SAFE FOR WORK on); `cover`: his
+ *     rifle on him while another does;
+ *   * `gone`: aboard a machine — dropped at the end of the step. */
+export type SoldierMode =
+  | "rope"
+  | "out"
+  | "chase"
+  | "aim"
+  | "board"
+  | "walk"
+  | "wait"
+  | "ride"
+  | "down"
+  | "hurt"
+  | "dead"
+  | "arrest"
+  | "cover"
+  | "gone";
+
+/** ONE SOLDIER ON THE GROUND: his feet's place (m), his way over the snow
+ * (m/s, plan) and his heading (rad); his `role` (a rifleman on skis or the
+ * anti-armour man on foot) and where he came from (a machine's squad is
+ * its id; a lift's squad is numbered past `LIFT_SQUAD`); what he is doing
+ * and for how long; the stance he fires from and the way he aims; and the
+ * bookkeeping his decisions run on. */
+export type Soldier = {
+  id: number;
+  role: "rifle" | "rocket";
+  from: "heli" | "lift";
+  squad: number;
+  mode: SoldierMode;
+  /** Seconds in his mode. */
+  t: number;
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vz: number;
+  heading: number;
+  speed: number;
+  /** Working up a rise (skating, a herringbone, a traverse) rather than
+   * gliding: what the figure is drawn doing. */
+  climb: boolean;
+  /** The turn he leans into, −1..1 (positive right), and his tuck, 0..1. */
+  lean: number;
+  tuck: number;
+  /** Where he is going when it is not after him (the spot he runs out to,
+   * the machine's door, a lift's load line), m. */
+  tx: number;
+  tz: number;
+  /** His stance and the way he aims (`aim`), rad: the heading and the
+   * pitch of his weapon. */
+  kneel: boolean;
+  aimH: number;
+  aimP: number;
+  /** Bursts fired this stop, and the run time he may next stop to fire. */
+  bursts: number;
+  next: number;
+  /** The run time he last had him in sight, and last shouted at him. */
+  saw: number;
+  shout: number;
+  /** ON A LIFT: which (its place among the map's lifts), the carrier and
+   * his seat on it. */
+  lift: number;
+  carrier: number;
+  seat: number;
+  /** NOT GETTING STUCK: where he was at the last check and when, how many
+   * checks in a row he barely moved, and the side he steps off to and until
+   * when. */
+  wx: number;
+  wz: number;
+  wt: number;
+  slow: number;
+  side: number;
+  until: number;
 };
 
 /** THE ARMY'S AIR on a run hunted at a star that sends helicopters —
@@ -78,6 +197,19 @@ export type ArmyState = {
   /** Counts the labs read: machines called, machines rammed down. */
   called: number;
   downed: number;
+  /** THE SOLDIERS ON THE GROUND (`army-ground.ts`), the next one's id,
+   * the lifts' squads sent, and the run time the next is due (NaN: none
+   * asked for). */
+  troops: Soldier[];
+  nextSoldier: number;
+  liftSquads: number;
+  liftDue: number;
+  /** Counts the labs read: soldiers put down, picked up again. */
+  dropped: number;
+  picked: number;
+  /** THE ARREST: the soldier holding him, when it was made, and where and
+   * which way he was put down — absent until one is. */
+  arrest?: { by: number; t: number; x: number; z: number; heading: number };
   /** KEPT HOME (`CreateGameOptions.army` false): the hunt runs with no
    * machine sent — the wanted level alone, as its own tests read it. */
   home?: true;
@@ -85,17 +217,33 @@ export type ArmyState = {
 
 /** THE ARMY'S EVENT: a machine called in (`called`, at its `due`), on
  * the map (`arrived`), turned for home (`leaving`), out over the edge
- * (`gone`), rammed (`rammed`) and come down burning (`down`). */
+ * (`gone`), rammed (`rammed`), come down burning (`down`), set down on the
+ * snow or hovered for the rope (`landed`), and off it again (`lifted`). */
 export type ArmyEvent = {
   kind: "army";
   t: number;
-  change: "called" | "arrived" | "leaving" | "gone" | "rammed" | "down";
+  change: "called" | "arrived" | "leaving" | "gone" | "rammed" | "down" | "landed" | "lifted";
   id: number;
   x: number;
   y: number;
   z: number;
 };
 
-/** THE HUNT'S EVENTS — the wanted level's, the gunfire's and the army's
- * machines' — as one row of `GameEvent`. */
-export type HuntEvent = WantedEvent | GunfireEvent | ArmyEvent;
+/** A SOLDIER'S EVENT: put down on the snow off a landing or a rope
+ * (`out`), stopped to fire (`aim`), knocked down by the player (`down`),
+ * up again (`up`), killed (`dead`), aboard a machine again (`aboard`), on
+ * a lift's carrier (`lift`), the man taken (`arrest`), and the order
+ * shouted at him to stop (`shout`). */
+export type SoldierEvent = {
+  kind: "soldier";
+  t: number;
+  change: "out" | "aim" | "down" | "up" | "dead" | "aboard" | "lift" | "arrest" | "shout";
+  id: number;
+  x: number;
+  y: number;
+  z: number;
+};
+
+/** THE HUNT'S EVENTS — the wanted level's, the gunfire's, the army's
+ * machines' and its soldiers' — as one row of `GameEvent`. */
+export type HuntEvent = WantedEvent | GunfireEvent | ArmyEvent | SoldierEvent;

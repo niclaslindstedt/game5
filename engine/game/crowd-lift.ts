@@ -53,12 +53,12 @@ export type LiftRuns = {
 
 /** Where along the line a carrier takes the queue's front, m: a chair's
  * and a drag's load line, a cabin as it leaves the station. */
-function loadAt(plan: LiftPlan): number {
+export function loadAt(plan: LiftPlan): number {
   return plan.lift.kind === "gondola" ? 2 : plan.look.entry.at;
 }
 
 /** Where along the line a carrier lets its riders go, m. */
-function offAt(plan: LiftPlan): number {
+export function offAt(plan: LiftPlan): number {
   return plan.length - Math.max(plan.look.off, plan.lift.kind === "gondola" ? 8 : 0);
 }
 

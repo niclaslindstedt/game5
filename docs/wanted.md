@@ -55,7 +55,7 @@ The hunt itself climbs the heat: from each star to the next takes `WANTED.climb`
 
 ## Seen or searching
 
-Every `lookEvery` (0.25 s) each pursuer looks. He sees the man if he is near enough for his kind (`WANTED.sight`: a helicopter crew or a door gunner 900 m, a soldier 350 m, a snowmobile's crew 400 m, a ground vehicle 500 m, a balloon's basket 1.2 km, a paramotor 900 m) and **no ground rises between his eyes and the man's chest** (`seesQuarry`: the line marched every 6 m over `groundAt`, blocked where the snow comes within 0.4 m of it). Inside `close` (25 m) he is heard whatever is between. The woods do not hide him yet. The quarry is the man himself, or the machine he rides (`quarryOf`).
+Every `lookEvery` (0.25 s) each pursuer looks. He sees the man if he is near enough for his kind (`WANTED.sight`: a helicopter crew or a door gunner 900 m, a soldier 350 m, a snowmobile's crew 400 m, a ground vehicle 500 m, a balloon's basket 1.2 km, a paramotor 900 m) and **no ground rises between his eyes and the man's chest** (`seesQuarry`: the line marched every 6 m over `groundAt`, blocked where the snow comes within 0.4 m of it). Inside `close` (25 m) he is heard whatever is between. **The woods hide him from the ground**: a soldier, a snowmobile or a vehicle on the snow does not see through three or more crowns along the line (`throughWoods`, marched every 3 m, each crown counted once; `WANTED.line.woods`), while a machine or a basket in the air looks down through them. The quarry is the man himself, or the machine he rides (`quarryOf`).
 
 Out of every pursuer's sight for `WANTED.lose` seconds (12, 18, 25, 32 and 40 s for one to five stars) and the stars are dropped: the hunt ends `escaped`, the survival timer stops, and a `lost` event says so. `WANTED.searchRadius` is the circle round `lastSeen` the pursuers comb while they look for him.
 
@@ -86,13 +86,13 @@ From two stars the army also comes **up the mountain from the valley** in waves 
 | 4 | 45 | 50 | 2, 2, 2, 0, 16 | 5, 4, 3, 1, 40 |
 | 5 | 30 | 40 | 3, 2, 2, 1, 24 | 6, 6, 4, 3, 64 |
 
-The helicopters and their door gunners fly ([`army.md`](army.md#in-flight)); the rest of the roster and the ground waves are data the later parts read.
+The helicopters and their door gunners fly ([`army.md`](army.md#in-flight)), and the soldiers on skis and on the lifts are set down and chase him ([`army.md`](army.md#on-the-ground)); the rest of the roster and the ground waves are data the later parts read.
 
 ## How a hunt ends
 
 - **Escaped:** the search ran out. The timer stops; the stars and the stopped timer stay on the HUD a few seconds (`LOST_HOLD`), then go. Another offence starts a new hunt with a new timer.
 - **Killed:** he died (`GameState.gore`'s death). The timer stops.
-- **Arrested:** with SAFE FOR WORK on the army does not kill. A soldier who reaches him (`WANTED.arrest.reach`, 2 m) calls `arrestSkier(state)`: the hunt ends `arrested`, the timer stops, and the run ends the way a death does: the HUD fades, ARRESTED comes up over the picture going dark, and a new rider starts (`hud-wreck.ts`'s `deathOver` reads `arrestedOf`). `arrestSkier` refuses where the army shoots to kill.
+- **Arrested:** with SAFE FOR WORK on the army does not kill. A soldier who reaches him (`WANTED.arrest.reach`, 2 m) while he is slow or down calls `arrestSkier(state)` (`army-ground.ts`): he is thrown face down and held there, his hands at the small of his back, the soldier knelt at his side and the squad round him, and he is never stood back up. The hunt ends `arrested`, the timer stops, and the run ends the way a death does: the HUD fades, ARRESTED comes up over the picture going dark, and a new rider starts (`hud-wreck.ts`'s `deathOver` reads `arrestedOf`). `arrestSkier` refuses where the army shoots to kill.
 
 An arrest or a death ends the hunt for the run: no offence raises it again.
 
@@ -118,6 +118,5 @@ The death card and the arrest card carry the hunt's line, SURVIVED against the B
 
 ## Not yet
 
-- The woods do not block sight, and the night does not shorten it.
-- Of the roster only the helicopters and their door gunners move on the map ([`army.md`](army.md#in-flight)), and they write `pursuers`; the soldiers, the vehicles, the balloons and the paramotors are the later parts'.
-- An arrest does not yet hold the skier still; the soldier who makes it will.
+- The night does not shorten sight.
+- Of the roster the helicopters, their door gunners and the soldiers move on the map ([`army.md`](army.md)), and they write `pursuers`; the vehicles, the balloons and the paramotors are the later parts'.

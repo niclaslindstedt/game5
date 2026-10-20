@@ -95,6 +95,7 @@ import { freshAvalanche, stepAvalanche } from "./avalanche.ts";
 import { setWanted, stepWanted } from "./wanted.ts";
 import { stepGunfire } from "./gunfire.ts";
 import { freshArmy, stepArmy } from "./army.ts";
+import { stepGround } from "./army-ground.ts";
 import { freshMishaps, type MishapAsk } from "./mishaps.ts";
 import { freshGroomers, groomersOut, type GroomerAsk } from "./groomer.ts";
 import { machineSnowOf, snowGunsRun } from "./snow-guns.ts";
@@ -872,6 +873,8 @@ export function step(state: GameState, input: SkierInput): GameState {
   if (state.wanted) stepWanted(state, events);
   // THE ARMY'S HELICOPTERS (`army.ts`), once the hunt sends them.
   if (state.wanted) stepArmy(state, events);
+  // ...and its soldiers on the ground (`army-ground.ts`).
+  if (state.wanted) stepGround(state, events);
   // THE GUNFIRE (`gunfire.ts`), once a gun is armed.
   if (state.gunfire) stepGunfire(state, events);
   // THE BODY (`body.ts`): what a shoulder into a rival or an amateur did.

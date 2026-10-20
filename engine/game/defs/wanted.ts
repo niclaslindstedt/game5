@@ -214,8 +214,12 @@ export const WANTED = {
   lookEvery: 0.25,
   /** THE SIGHT LINE over the terrain: sampled every `step` m, and blocked
    * where the ground rises within `clear` m of it. The line ends at his
-   * chest, `chest` m over the point he stands on. */
-  line: { step: 6, clear: 0.4, chest: 1.1 },
+   * chest, `chest` m over the point he stands on. THE WOODS: from the snow
+   * (a soldier's, a crew's, a vehicle's eyes) a line through the crowns of
+   * `woods` trees is blocked — read every `woodStep` m, a crown a cone
+   * `crown` of its tree's height across at its foot (a snow-loaded spruce's
+   * is about a fifth of it). */
+  line: { step: 6, clear: 0.4, chest: 1.1, woods: 3, woodStep: 3, crown: 0.22 },
   /** THE ARREST: with SAFE FOR WORK on (`RunRules.sfw`, the INJURIES
    * switch off) the army does not kill — a soldier who reaches him within
    * `reach` m takes him in (`arrestSkier`), which ends the run. */

@@ -19,6 +19,12 @@
 //             the bot skiing away, the army's helicopters after him at two
 //             and four stars), hunt-heli (him in the stolen air ambulance,
 //             chased): from behind him at the machine, beside its door, wide
+//   ground    ground-land (a machine set down, its squad spilling out and
+//             kneeling), ground-file (skiing in file after him),
+//             ground-fire (a soldier knelt on his skis firing), ground-lift
+//             (a lift's squad on a chair), ground-arrest (SAFE FOR WORK:
+//             him face down, held, the squad round him) — a hunted free
+//             ride on the real engine, him stood still
 //   soldiers  ski, foot, rocket (every pose from the front, the side and
 //             behind at the chase camera's range, a row a pose), gunner
 //             (sat at his door gun at each aim), lods (the three cuts)
@@ -52,12 +58,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (heli, flight, hunt, soldiers); every one when left out",
+      help: "which sheets, comma-separated (heli, flight, hunt, ground, soldiers); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (turntable, close, doors, squad, flight-day, flight-dusk, hunt-2, hunt-4, hunt-heli, ski, foot, rocket, gunner, lods)",
+      help: "only these views, comma-separated (turntable, close, doors, squad, flight-day, flight-dusk, hunt-2, hunt-4, hunt-heli, ground-land, ground-file, ground-fire, ground-lift, ground-arrest, ski, foot, rocket, gunner, lods)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

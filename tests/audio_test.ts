@@ -234,6 +234,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   grind: { kind: "grind", t: 1, id: "L1", phase: "on" },
   gunfire: { kind: "gunfire", t: 1, phase: "shot", weapon: "rifle", x: 0, y: 0, z: 0 },
   army: { kind: "army", t: 1, change: "down", id: 0, x: 0, y: 0, z: 0 },
+  soldier: { kind: "soldier", t: 1, change: "shout", id: 0, x: 0, y: 0, z: 0 },
   steal: {
     kind: "steal",
     t: 1,
@@ -255,7 +256,8 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
  * moments are heard in the events beside them (the take-off's `air`, the
  * touch's `land`); a machine taken from its owners is heard in its own
  * boarding (the `heli` event's `board` beside it); and the wanted level's
- * stars are read, not heard — the army is heard by its own machines and guns. */
+ * stars are read, not heard — the army is heard by its own machines and guns,
+ * and a soldier by his rifle and his body struck (`gunfire`, `struck`). */
 const SILENT_KINDS: GameEvent["kind"][] = [
   "air",
   "stuck",
@@ -267,6 +269,7 @@ const SILENT_KINDS: GameEvent["kind"][] = [
   "skiJump",
   "steal",
   "wanted",
+  "soldier",
 ];
 
 /** The ceiling a context at 16 kHz holds a cutoff under. */

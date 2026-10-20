@@ -57,6 +57,16 @@ function run(
 
 const hunting = (s: GameState): ArmyHeli[] => armyHelis(s).filter((h) => h.phase === "hunt");
 
+/** The machines called with nobody aboard to put down, so a hunt whose heat
+ * climbs past one star keeps them in the air (the landings are
+ * `army_ground_test.ts`'s). */
+function noMen(s: GameState): GameState {
+  step(s, NEUTRAL_INPUT);
+  // Every machine called, the ones still on their way in included.
+  for (const h of s.army!.helis) h.aboard = 0;
+  return s;
+}
+
 describe("absent until a hunt sends them", () => {
   it("never makes the army's air on a run nobody hunts", () => {
     const s = createGame({ level, mode: "free", quiet: true, crowd: 0 });
@@ -89,7 +99,7 @@ describe("the call", () => {
 
 describe("the hunt", () => {
   it("holds a pylon turn off a man standing still, the gunner's door toward him", () => {
-    const s = hunted(1);
+    const s = noMen(hunted(1));
     run(s, 40);
     const R = ARMY.orbit.radius;
     let samples = 0;
@@ -131,7 +141,7 @@ describe("the hunt", () => {
   });
 
   it("writes every machine and every gunner in an open door into the pursuers", () => {
-    const s = hunted(2);
+    const s = noMen(hunted(2));
     run(s, 45);
     const w = s.wanted!;
     const helis = hunting(s);

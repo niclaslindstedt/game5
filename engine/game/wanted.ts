@@ -27,7 +27,9 @@
 // until the heat is first raised, so a run that never raises it moves no
 // digest.
 
+import { hypot } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING } from "./defs/tuning.ts";
+import { treesNear } from "./upright-grid.ts";
 import {
   WANTED,
   type GroundWaves,
@@ -233,7 +235,8 @@ export function wavesSent(w: WantedState, t: number): number {
 /** WHETHER PURSUER `p` SEES THE MAN at `q` (his feet, world frame, m):
  * within his kind's sight (`WANTED.sight`), or near enough to hear
  * (`WANTED.close`), with no ground rising between his eyes and the man's
- * chest. The woods do not hide him yet. */
+ * chest — and from a man on the snow, no woods between them
+ * (`throughWoods`). */
 export function seesQuarry(
   level: Pick<Level, "groundAt">,
   p: Pick<Pursuer, "kind" | "x" | "y" | "z">,
@@ -257,7 +260,54 @@ export function seesQuarry(
     const z = p.z + dz * k;
     if (level.groundAt(x, z) + L.clear > p.y + dy * k) return false;
   }
+  // THE WOODS hide him from a man on the snow: a line through `woods`
+  // crowns is blocked. From the air a man under the trees is seen between
+  // them, so the woods hide nothing from aloft.
+  if (LOW.has(p.kind) && "trees" in level) {
+    if (throughWoods(level as Level, p.x, p.y, p.z, tx, ty, tz)) return false;
+  }
   return true;
+}
+
+/** The pursuers who look from the snow, whom the woods hide him from. */
+const LOW: ReadonlySet<Pursuer["kind"]> = new Set(["soldier", "snowmobile", "vehicle"]);
+const crowns: number[] = [];
+
+/** WHETHER THE LINE from (x0, y0, z0) to (x1, y1, z1) PASSES THROUGH THE
+ * WOODS: through the crowns of `WANTED.line.woods` trees or more — a
+ * crown read as a cone from the trunk's foot, `crown` of its height
+ * across at its base. */
+export function throughWoods(
+  level: Level,
+  x0: number,
+  y0: number,
+  z0: number,
+  x1: number,
+  y1: number,
+  z1: number,
+): boolean {
+  const L = WANTED.line;
+  const run = hypot(x1 - x0, z1 - z0);
+  const n = Math.floor(run / L.woodStep);
+  const met: number[] = [];
+  for (let i = 1; i < n; i++) {
+    const k = i / n;
+    const x = x0 + (x1 - x0) * k;
+    const z = z0 + (z1 - z0) * k;
+    const y = y0 + (y1 - y0) * k;
+    for (const t of treesNear(level, x, z, L.woodStep, crowns)) {
+      if (met.includes(t)) continue;
+      const tree = level.trees[t];
+      const up = y - tree.y;
+      if (up < 0.5 || up > tree.height) continue;
+      // The cone narrows to its tip: its reach at this height.
+      const reach = Math.max(tree.radius, L.crown * tree.height * (1 - up / tree.height));
+      if (hypot(tree.x - x, tree.z - z) > reach) continue;
+      met.push(t);
+      if (met.length >= L.woods) return true;
+    }
+  }
+  return false;
 }
 
 /** Whether any pursuer out has him in sight. */

@@ -100,3 +100,10 @@ export type * from "./gunfire-state.ts";
 export { ARMY } from "./defs/army.ts";
 export { armyFloor, armyHelis, armyPoint, armyQuat, freshArmy, stepArmy } from "./army.ts";
 export type * from "./army-state.ts";
+// THE ARMY ON THE GROUND (`army-ground.ts`): the landings, the soldiers,
+// the lifts' squads, the arrest.
+export { ARMY_GROUND } from "./defs/army-ground.ts";
+export { landing, ropeHover } from "./army.ts";
+export { landingSpot, type LandSpot } from "./army-land.ts";
+export { armyTroops, liftSquad, onTheGround, soldierKey, stepGround } from "./army-ground.ts";
+export { LIFT_SQUAD, inGondola, liftFor } from "./army-lift.ts";

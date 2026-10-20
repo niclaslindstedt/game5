@@ -18,10 +18,14 @@
 // its pitch moved by the Doppler shift of its closing speed, panned across
 // his heading. A wreck burns with the heli's fire layers.
 //
+// THE ARMY'S SNOWMOBILES (`army-sled.ts`) are heard by the free ride's
+// sled's own engine bed (`sled-voice.ts`, read through `sled-bed.ts`'
+// `sledVoiceOf`): one of its racks a machine, from where the skier is.
+//
 // Built only on a run whose hunt brought the army's air; anywhere else it
 // builds nothing and costs nothing.
 
-import { ARMY, ARMY_HELI, armyHelis, type ArmyHeli, type GameState } from "@engine";
+import { ARMY, ARMY_HELI, armyHelis, armySleds, type ArmyHeli, type GameState } from "@engine";
 
 import type { Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
 import type { LayerTarget } from "@niclaslindstedt/oss-game-framework/audio/voice";
@@ -38,6 +42,8 @@ import {
   type HeliVoice,
 } from "./heli-voice.ts";
 import { listenerFor, type Listener } from "./listener.ts";
+import { SLED_GLIDE, SLED_LAYERS, sledHeard, sledTargets, type SledLayer } from "./sled-voice.ts";
+import { sledVoiceOf } from "./sled-bed.ts";
 import { SCREEN_TO_ENGINE } from "../input-model.ts";
 
 /** The class's own rotors, as the ear hears them. */
@@ -126,19 +132,57 @@ export function createArmyBed(synth: Synth): ArmyBed {
   // One rack a slot; a machine keeps its slot while it is out.
   const racks: (Rack<HeliLayer> | null)[] = Array.from({ length: MOST }, () => null);
   const slots: (number | null)[] = Array.from({ length: MOST }, () => null);
+  // THE SNOWMOBILES, heard as the free ride's is (`sled-bed.ts`): one of
+  // its racks a machine, a slot each.
+  const sledRacks: (Rack<SledLayer> | null)[] = Array.from({ length: MOST }, () => null);
+  const sledSlots: (number | null)[] = Array.from({ length: MOST }, () => null);
   let listener: Listener = listenerFor("chase");
 
+  const hushSleds = (): void => {
+    for (let i = 0; i < MOST; i++) {
+      sledRacks[i]?.stop();
+      sledRacks[i] = null;
+      sledSlots[i] = null;
+    }
+  };
   const hush = (): void => {
     for (let i = 0; i < MOST; i++) {
       racks[i]?.stop();
       racks[i] = null;
       slots[i] = null;
     }
+    hushSleds();
+  };
+
+  /** Every army snowmobile out, its engine steered as the free ride's. */
+  const sleds = (state: GameState, duck: number): void => {
+    const out = armySleds(state).filter((m) => m.body.running);
+    for (let i = 0; i < MOST; i++) {
+      if (sledSlots[i] !== null && !out.some((m) => m.id === sledSlots[i])) {
+        sledRacks[i]?.stop();
+        sledRacks[i] = null;
+        sledSlots[i] = null;
+      }
+    }
+    for (const m of out) {
+      let i = sledSlots.indexOf(m.id);
+      if (i < 0) i = sledSlots.indexOf(null);
+      if (i < 0) continue;
+      sledSlots[i] = m.id;
+      const rack = (sledRacks[i] ??= createRack(synth, SLED_LAYERS, SLED_GLIDE));
+      const { voice, distance, pan } = sledVoiceOf(state, m.body);
+      const heard = sledHeard(distance);
+      const machine = listener.machine * duck * heard.gain;
+      const targets = sledTargets(voice, { engine: machine, exhaust: machine, tone: heard.bright });
+      for (const k of Object.keys(targets) as SledLayer[]) targets[k].pan = pan * listener.side;
+      rack.apply(targets);
+    }
   };
 
   return {
     update(state, _dt, duck = 1) {
       const helis = armyHelis(state);
+      if (synth.now() !== null) sleds(state, duck);
       if (helis.length === 0) {
         if (racks.some((r) => r)) hush();
         return;
@@ -168,6 +212,8 @@ export function createArmyBed(synth: Synth): ArmyBed {
     },
     silence: hush,
     reset: hush,
-    live: () => racks.reduce((n, r) => n + (r ? r.live() : 0), 0),
+    live: () =>
+      racks.reduce((n, r) => n + (r ? r.live() : 0), 0) +
+      sledRacks.reduce((n, r) => n + (r ? r.live() : 0), 0),
   };
 }

@@ -26,6 +26,7 @@ import { SLED, type Level, type SledState } from "@engine";
 import { glow } from "./glow-sprite.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { mergeParts } from "./model-merge.ts";
+import { armyKitMaterials, armySledKit, type ArmySledKit } from "./sled-army-kit.ts";
 import { SLED_LOOK } from "./sled-look.ts";
 import { sledModelUrl } from "./skier-models.ts";
 
@@ -296,6 +297,10 @@ export function domeGlow(mats: KitMaterials, t: number, lit: number): void {
   mats.dome.emissiveIntensity = 0.6 + (1.4 + 2.5 * lit) * Math.pow(Math.sin(u * Math.PI), 6);
 }
 
+// THE ARMY'S livery is olive drab on the model's paint with its own kit
+// (`sled-army-kit.ts`): white daubed over the panels, the pillion, the
+// rack and what it carries.
+
 // ── THE MACHINES STOOD STILL ──────────────────────────────────────────────
 
 /** The model, fetched once for every fleet (each clones what it draws). */
@@ -353,6 +358,8 @@ export function createSledFleet(haze: HazeUniforms): SledFleet {
   const geometries: THREE.BufferGeometry[] = [];
   const kitMats = kitMaterials(haze);
   const kits: PatrolKit[] = [];
+  const armyMats = armyKitMaterials(haze);
+  const armyKits: ArmySledKit[] = [];
   const sleds: { sled: FleetSled; livery: SledLivery | undefined }[] = [];
   const templates = new Map<string, THREE.Object3D>();
   let gltf: GLTF | null = null;
@@ -450,6 +457,11 @@ export function createSledFleet(haze: HazeUniforms): SledFleet {
         frame.add(kit.group);
         kits.push(kit);
       }
+      if (livery === "army") {
+        const army = armySledKit(armyMats);
+        frame.add(army.group);
+        armyKits.push(army);
+      }
       const L = SLED_LOOK.lamps;
       const lamps = [-1, 1].map((sx) => {
         const s = new THREE.Sprite(lampMat);
@@ -473,8 +485,9 @@ export function createSledFleet(haze: HazeUniforms): SledFleet {
     dispose() {
       disposed = true;
       for (const k of kits) k.dispose();
+      for (const k of armyKits) k.dispose();
       for (const g of geometries) g.dispose();
-      for (const m of [...made, ...kitMats.all]) m.dispose();
+      for (const m of [...made, ...kitMats.all, ...armyMats.all]) m.dispose();
       lampMat.dispose();
     },
   };

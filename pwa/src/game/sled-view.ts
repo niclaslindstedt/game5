@@ -35,6 +35,7 @@ import {
   type FleetSled,
   type SledLivery,
 } from "./sled-livery.ts";
+import { armyKitMaterials, armySledKit } from "./sled-army-kit.ts";
 import { SLED_LOOK } from "./sled-look.ts";
 import { createSledRack, type SledRack } from "./sled-rack.ts";
 import { createSledCockpit } from "./sled-cockpit.ts";
@@ -271,6 +272,11 @@ export function createSledView(haze: HazeUniforms): SledView {
   const kit = patrolKit(kitMats);
   kit.group.visible = false;
   frame.add(kit.group);
+  // THE ARMY'S KIT, shown while he rides one of theirs.
+  const armyMats = armyKitMaterials(haze);
+  const armyKit = armySledKit(armyMats);
+  armyKit.group.visible = false;
+  frame.add(armyKit.group);
   const ownPaint = new Map<THREE.Material, THREE.Color>();
   let livery: SledLivery | undefined;
   // THE ONES HE LEFT STANDING, a fleet's copies by livery.
@@ -458,6 +464,7 @@ export function createSledView(haze: HazeUniforms): SledView {
       for (const l of lampGlow) l.visible = running;
       for (const m of lampMats) m.emissiveIntensity = running ? 1 : 0.05;
       kit.group.visible = s.livery === "patrol";
+      armyKit.group.visible = s.livery === "army";
       if (kit.group.visible) {
         kit.update(clock, 0.3, null, running);
         domeGlow(kitMats, running ? clock : 0, 0.3);
@@ -497,7 +504,8 @@ export function createSledView(haze: HazeUniforms): SledView {
       disposed = true;
       fleet.dispose();
       kit.dispose();
-      for (const m of kitMats.all) m.dispose();
+      armyKit.dispose();
+      for (const m of [...kitMats.all, ...armyMats.all]) m.dispose();
       cockpit.dispose();
       rack?.dispose();
       group.traverse((o) => {

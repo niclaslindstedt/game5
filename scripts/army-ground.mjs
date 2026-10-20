@@ -20,11 +20,23 @@
 // three windows running — which must be 0. With `--sfw`, a round of
 // theirs in him is a failure: that column must read 0.
 //
+// THE SNOWMOBILES' TABLE (`engine/game/army-sled.ts`, their numbers
+// `engine/game/defs/army-sled.ts`), from the same hunts: how many machines
+// came out of the village and the most at once, when the first did and
+// when the first made a short halt to fire, the halts, the gunners' rounds
+// and the rounds of theirs in him, his death or his arrest, the crews off
+// to take him in, the machines dug out, and the machines STUCK — one that
+// barely moved for three windows running, digging included — which must
+// be 0. `--alone` hunts him with the snowmobiles alone: the roster's door
+// gunners, soldiers and lifts held back for the run (the helicopters fly
+// unarmed overhead), so what the table measures is the machines.
+//
 // Nothing drawn; tens of seconds.
 //
 //   node scripts/army-ground.mjs
 //   node scripts/army-ground.mjs --stars=3,5 --quarry=still --sfw
 //   node scripts/army-ground.mjs --json=previews/army-ground.json
+//   node scripts/army-ground.mjs --table=sleds --alone
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -44,9 +56,15 @@ const args = parseArgs(
     quarry: { kind: "string", default: "skier,still", help: "who is hunted: skier, still" },
     seconds: { kind: "number", default: 180, help: "how long each hunt is run, s" },
     sfw: { kind: "flag", default: false, help: "SAFE FOR WORK on (the INJURIES switch off)" },
+    table: { kind: "string", default: "troops,sleds", help: "the tables: troops, sleds" },
+    alone: {
+      kind: "flag",
+      default: false,
+      help: "the snowmobiles alone: no door gunners, soldiers or lifts",
+    },
     json: { kind: "string", default: "", help: "write the table as JSON to this file" },
   },
-  "usage: node scripts/army-ground.mjs [--seed=n] [--stars=a,b] [--quarry=skier,still] [--seconds=s] [--sfw] [--json=FILE]",
+  "usage: node scripts/army-ground.mjs [--seed=n] [--stars=a,b] [--quarry=skier,still] [--seconds=s] [--sfw] [--table=troops,sleds] [--alone] [--json=FILE]",
 );
 
 aliasEngine(root);
@@ -59,6 +77,15 @@ const list = (s) =>
     .filter(Boolean);
 const level = E.generateLevel(args.seed);
 const dt = E.TUNING.dt;
+const tables = new Set(list(args.table));
+// THE SNOWMOBILES ALONE: every row's men but theirs held back for the run.
+if (args.alone) {
+  for (const row of E.WANTED.roster) {
+    row.gunners = 0;
+    row.soldiers = 0;
+    row.lifted = 0;
+  }
+}
 
 function hunt(stars, quarry) {
   const s = E.createGame({
@@ -91,9 +118,21 @@ function hunt(stars, quarry) {
     onLift: 0,
     down: 0,
     stuck: 0,
+    sleds: 0,
+    sledsAtOnce: 0,
+    sledOut: NaN,
+    sledHalt: NaN,
+    halts: 0,
+    sledFired: 0,
+    sledHits: 0,
+    dismounts: 0,
+    dug: 0,
+    sledStuck: 0,
   };
   const stuck = new Set();
   const rode = new Set();
+  const sledsOut = new Set();
+  const sledsStuck = new Set();
   for (let i = 0; i < args.seconds / dt; i++) {
     E.step(s, quarry === "still" ? E.NEUTRAL_INPUT : E.botInput(s));
     const t = s.t - t0;
@@ -114,6 +153,22 @@ function hunt(stars, quarry) {
         if (e.phase === "shot") row.fired++;
         if (e.phase === "hit") row.hits++;
       }
+      if (e.kind === "gunfire" && e.weapon === "lmg") {
+        if (e.phase === "shot") row.sledFired++;
+        if (e.phase === "hit") row.sledHits++;
+      }
+      if (e.kind === "army-sled") {
+        if (e.change === "out") {
+          sledsOut.add(e.id);
+          if (Number.isNaN(row.sledOut)) row.sledOut = t;
+        }
+        if (e.change === "halt") {
+          row.halts++;
+          if (Number.isNaN(row.sledHalt)) row.sledHalt = t;
+        }
+        if (e.change === "dismount") row.dismounts++;
+        if (e.change === "dug") row.dug++;
+      }
     }
     let riding = 0;
     for (const m of E.armyTroops(s)) {
@@ -124,6 +179,12 @@ function hunt(stars, quarry) {
       }
     }
     row.onLift = Math.max(row.onLift, riding);
+    let driving = 0;
+    for (const m of E.armySleds?.(s) ?? []) {
+      if (m.slow >= 3) sledsStuck.add(m.id);
+      if (m.mode === "drive" || m.mode === "halt") driving++;
+    }
+    row.sledsAtOnce = Math.max(row.sledsAtOnce, driving);
     if (Number.isNaN(row.dead) && s.gore && s.gore.dead >= 0) row.dead = t;
     if (s.wanted?.ended && s.wanted.ended !== "escaped" && t > (row.arrested || row.dead) + 8)
       break;
@@ -132,6 +193,8 @@ function hunt(stars, quarry) {
   row.picked = s.army?.picked ?? 0;
   row.lifted = rode.size;
   row.stuck = stuck.size;
+  row.sleds = sledsOut.size;
+  row.sledStuck = sledsStuck.size;
   return row;
 }
 
@@ -141,8 +204,13 @@ for (const quarry of list(args.quarry))
 
 const f = (v, d = 0) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 console.log(
-  `seed ${args.seed}, ${args.seconds} s a hunt, ${args.sfw ? "SAFE FOR WORK" : "INJURIES on"}\n`,
+  `seed ${args.seed}, ${args.seconds} s a hunt, ${args.sfw ? "SAFE FOR WORK" : "INJURIES on"}` +
+    `${args.alone ? ", the snowmobiles alone" : ""}\n`,
 );
+if (tables.has("troops")) troopTable();
+if (tables.has("sleds")) sledTable();
+
+function troopTable() {
 console.log(
   "| Quarry | Stars | Set down, s | Landed / roped | Men put down | First contact, s | Rounds | In him | Dead, s | Arrested, s | Picked up | Rode a lift (most at once) | Knocked down | Stuck |",
 );
@@ -153,6 +221,21 @@ for (const r of rows) {
   console.log(
     `| ${r.quarry} | ${r.stars} | ${f(r.landed)} | ${r.landings} / ${r.ropes} | ${r.put} | ${f(r.contact)} | ${r.fired} | ${r.hits} | ${f(r.dead)} | ${f(r.arrested)} | ${r.picked} | ${r.lifted} (${r.onLift}) | ${r.down} | ${r.stuck} |`,
   );
+}
+console.log("");
+}
+
+function sledTable() {
+  console.log(
+    "| Quarry | Stars | Snowmobiles out (most at once) | First out, s | First halt, s | Halts | Rounds | In him | Dead, s | Arrested, s | Crews off to arrest | Dug out | Stuck |",
+  );
+  console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  for (const r of rows) {
+    console.log(
+      `| ${r.quarry} | ${r.stars} | ${r.sleds} (${r.sledsAtOnce}) | ${f(r.sledOut)} | ${f(r.sledHalt)} | ${r.halts} | ${r.sledFired} | ${r.sledHits} | ${f(r.dead)} | ${f(r.arrested)} | ${r.dismounts} | ${r.dug} | ${r.sledStuck} |`,
+    );
+  }
+  console.log("");
 }
 if (args.json) {
   const out = join(root, args.json);

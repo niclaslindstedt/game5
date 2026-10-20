@@ -389,6 +389,15 @@ function watch(state: GameState, m: ArmySled, want: number, events: GameEvent[])
   say(state, events, "dug", m);
 }
 
+/** Stood off him on purpose, or halted: not stuck — the watch starts its
+ * window again from here. */
+function rest(state: GameState, m: ArmySled): void {
+  m.wt = state.t;
+  m.wx = m.body.x;
+  m.wz = m.body.z;
+  m.slow = 0;
+}
+
 /** THE CHASE: the way to him read off the snow, the pace by the woods and
  * by how near he is, a short halt to fire when he is in sight and range —
  * or, with SAFE FOR WORK on and him slow or down, the crew off to take him
@@ -418,15 +427,16 @@ function chase(
       return;
     }
   }
-  // THE SHORT HALT.
+  // THE SHORT HALT — never at a man already down.
   const H = K.halt;
-  if (sees && fire !== "hold" && d < H.range && d > H.least && state.t >= m.next) {
+  const down = !!state.skier.thrown;
+  if (sees && !down && fire !== "hold" && d < H.range && d > H.least && state.t >= m.next) {
     if (w.lethal || d > K.stand.sfw * 3) {
       m.mode = "halt";
       m.t = 0;
       m.bursts = 0;
       say(state, events, "halt", m);
-      drive(state, m, haltOn(m, toward));
+      drive(state, m, haltOn(m, toward - H.side));
       return;
     }
   }
@@ -437,11 +447,12 @@ function chase(
   // Swung off to a side, it holds that side a while.
   if (state.t < m.until) m.way = toward + m.side * 1.3;
   const stand = w.lethal ? K.stand.lethal : K.stand.sfw;
-  let pace = m.pace;
-  if (d < D.slow) pace = Math.min(pace, D.close + (pace - D.close) * Math.max(0, (d - stand) / (D.slow - stand)));
-  if (d < stand && (sees || w.seen)) pace = 0;
+  // Eased from its pace to a crawl over the last `slow` m to where it
+  // stands off him — and stopped there while its crew have him in sight.
+  const pace = sees && d < stand ? 0 : Math.min(m.pace, D.close + (m.pace - D.close) * clamp((d - stand) / D.slow, 0, 1));
   drive(state, m, handsTo(state, m, pace));
-  watch(state, m, toward, events);
+  if (pace > 2) watch(state, m, toward, events);
+  else rest(state, m);
 }
 
 /** THE HALT: stopped, the nose at him, the gun laid on him and fired a few
@@ -450,7 +461,7 @@ function halt(state: GameState, m: ArmySled, w: WantedState, q: V, events: GameE
   const b = m.body;
   const H = K.halt;
   const sees = looks(state, m, q);
-  const face = Math.atan2(q.x - b.x, q.z - b.z);
+  const face = Math.atan2(q.x - b.x, q.z - b.z) - H.side;
   drive(state, m, haltOn(m, face));
   const muzzle = sledPoint(b, K.gun.muzzle);
   const flat = hypot(q.x - muzzle.x, q.z - muzzle.z);
@@ -465,6 +476,7 @@ function halt(state: GameState, m: ArmySled, w: WantedState, q: V, events: GameE
     m.mode = "drive";
     m.t = 0;
     m.next = state.t + H.move + H.spread * ((m.id * 0.618) % 1);
+    rest(state, m);
     return;
   }
   if (m.t < H.settle || b.speed > H.still || !sees) return;

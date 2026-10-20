@@ -75,10 +75,12 @@ export const ARMY_SLED = {
    * under `still` m/s, the gunner settles `settle` s and fires up to
    * `bursts` bursts or for `hold` s, then they drive on for `move` to
    * `move` + `spread` s before stopping again. Out of sight `lost` s, the
-   * halt is broken off. */
+   * halt is broken off. It stops with him `side` rad off its nose to the
+   * right — the gunner's side, his line clear of the driver's head. */
   halt: {
-    range: 320,
-    least: 50,
+    range: 380,
+    side: 1.0,
+    least: 20,
     still: 1.5,
     settle: 1.5,
     bursts: 3,
@@ -91,7 +93,7 @@ export const ARMY_SLED = {
    * m off him (the gun does the work); with SAFE FOR WORK on it drives up
    * to `sfw` m and the crew get off to take him in — `dismount` m from
    * him once he is slower than `ARMY_GROUND.arrest.speed` or down. */
-  stand: { lethal: 50, sfw: 7, dismount: 14 },
+  stand: { lethal: 110, sfw: 7, dismount: 14 },
   /** THE GUN on the pillion: the gunner's light machine gun
    * (`WEAPONS.lmg`) at his shoulder — the muzzle over the sled's body
    * frame (`muzzle`, m: right, up, forward of its centre of gravity), how

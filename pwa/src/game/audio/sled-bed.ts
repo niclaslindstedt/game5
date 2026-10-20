@@ -13,7 +13,7 @@
 // Built only on a run with a snowmobile (`state.sled`, the free ride's);
 // anywhere else it builds nothing and costs nothing.
 
-import { SLED, type GameState } from "@engine";
+import { SLED, type GameState, type SledState } from "@engine";
 
 import type { Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
 import { createRack, type Rack } from "@niclaslindstedt/oss-game-framework/audio/rack";
@@ -34,21 +34,26 @@ import { SCREEN_TO_ENGINE } from "../input-model.ts";
 const PAN = 0.6;
 
 /** THE SNOWMOBILE AGAINST THE EAR — its voice read off the state, and how
- * far from the skier it is, m, and on which side. */
-export function sledVoiceOf(state: GameState): {
+ * far from the skier it is, m, and on which side: the free ride's (stood on
+ * it, he is on top of it), or `s`, any machine on the snow — the army's
+ * (`army-bed.ts`). */
+export function sledVoiceOf(
+  state: GameState,
+  s: SledState = state.sled!,
+): {
   voice: SledVoice;
   distance: number;
   pan: number;
 } {
-  const s = state.sled!;
   const c = state.skier;
   const dx = s.x - c.x;
   const dz = s.z - c.z;
-  const distance = s.rider ? 0 : Math.hypot(dx, s.y - (c.y + 0.6), dz);
+  const his = s === state.sled && s.rider;
+  const distance = his ? 0 : Math.hypot(dx, s.y - (c.y + 0.6), dz);
   const fx = Math.sin(c.heading);
   const fz = Math.cos(c.heading);
   const flat = Math.hypot(dx, dz);
-  const across = flat > 1 && !s.rider ? (dx * fz - dz * fx) / flat : 0;
+  const across = flat > 1 && !his ? (dx * fz - dz * fx) / flat : 0;
   // How much loose snow the paddles are in: none on the groomer.
   const loose = (1 - s.packed) * (s.contacts.some((k) => k.kind === "tread" && k.touching) ? 1 : 0);
   const grounded = !s.airborne;

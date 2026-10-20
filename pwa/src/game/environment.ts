@@ -265,8 +265,10 @@ type Hider = { hide(scene: THREE.Object3D): void; restore(): void };
  * with it, on the thread that draws: a frame that meets a new material
  * stalls for as long as the device takes to compile it — seconds on a
  * software device, and a visible hitch on a phone. So, behind the card,
- * the whole scene is drawn once through a single pixel of the canvas, every
- * mesh shown and none culled (what the quarantine hides left out), with the
+ * the whole scene is drawn once through a single pixel of the target it
+ * will be drawn into — the grade's (part 7) when the region is graded, the
+ * canvas when not, the target the caller set — every mesh shown and none
+ * culled (what the quarantine hides left out), with the
  * key's shadow pass drawn into it, its box opened over the whole map: every
  * pipeline the picture and the sun's map can ask for is built there. What
  * it showed is hidden again and the box put back; the next frame paints
@@ -296,7 +298,11 @@ export function warmNode(
   if (sun.castShadow && gl.shadowMap.enabled) sun.shadow.needsUpdate = true;
   const scissor = gl.getScissorTest();
   const box = gl.getScissor(new THREE.Vector4());
-  gl.setRenderTarget(null);
+  // A target's own scissor is the one the node renderer applies to it (with
+  // the canvas's test on): a pipeline is built for its format and samples.
+  const target = gl.getRenderTarget();
+  const own = target?.scissor.clone();
+  target?.scissor.set(0, 0, 1, 1);
   gl.setScissorTest(true);
   gl.setScissor(0, 0, 1, 1);
   frame.beginFrame();
@@ -306,6 +312,7 @@ export function warmNode(
   frame.endFrame();
   gl.setScissorTest(scissor);
   gl.setScissor(box);
+  if (target && own) target.scissor.copy(own);
   close();
   back();
 }

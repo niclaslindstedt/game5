@@ -172,6 +172,27 @@ void main() {
 }
 `;
 
+/** The pass's uniforms: the GLSL reads them by name, and the node
+ * renderer's grade (`grade-tsl.ts`) reads the same objects by reference, so
+ * one writer drives both. */
+export type GradeUniforms = {
+  uPicture: { value: THREE.Texture };
+  uContrast: { value: number };
+  uLift: { value: number };
+  uSaturation: { value: number };
+  uTint: { value: THREE.Vector3 };
+  uShade: { value: THREE.Vector3 };
+  uGlow: { value: THREE.Vector3 };
+  uSplit: { value: THREE.Vector2 };
+  uBuzz: { value: number };
+  uBlaze: { value: THREE.Vector3 };
+  uTime: { value: number };
+};
+
+/** How the node renderer draws the pass (`grade-tsl.ts`, handed in by the
+ * seam): the grade over `uniforms` written onto the canvas. Null on WebGL. */
+export type NodeGrade = (uniforms: GradeUniforms) => { render(): void; dispose(): void };
+
 export type GradePass = {
   /** Where the frame is drawn instead of the canvas. */
   readonly target: THREE.WebGLRenderTarget;
@@ -199,8 +220,11 @@ export function gradeSupported(renderer: THREE.WebGLRenderer): boolean {
   );
 }
 
-export function createGradePass(samples: number): GradePass {
-  const target = new THREE.WebGLRenderTarget(4, 4, {
+/** The pass, multisampled `samples` times a pixel. With `node` (the node
+ * renderer's grade) its target is three's own `RenderTarget` and the node
+ * grade draws it; the GLSL quad is never drawn. */
+export function createGradePass(samples: number, node: NodeGrade | null = null): GradePass {
+  const options = {
     type: THREE.HalfFloatType,
     generateMipmaps: false,
     minFilter: THREE.LinearFilter,
@@ -208,11 +232,14 @@ export function createGradePass(samples: number): GradePass {
     depthBuffer: true,
     stencilBuffer: false,
     samples,
-  });
+  };
+  const target = node
+    ? (new THREE.RenderTarget(4, 4, options) as THREE.WebGLRenderTarget)
+    : new THREE.WebGLRenderTarget(4, 4, options);
   // The picture's depth is the multisampled buffer's own and nothing reads
   // it once the scene is drawn: only the colour is resolved for the grade.
   target.resolveDepthBuffer = false;
-  const uniforms = {
+  const uniforms: GradeUniforms = {
     uPicture: { value: target.texture },
     uContrast: { value: 1 },
     uLift: { value: 0 },
@@ -225,6 +252,7 @@ export function createGradePass(samples: number): GradePass {
     uBlaze: { value: new THREE.Vector3(0, 0, 0) },
     uTime: { value: 0 },
   };
+  const drawn = node?.(uniforms) ?? null;
   const material = new THREE.ShaderMaterial({
     uniforms,
     vertexShader: VERTEX,
@@ -276,10 +304,12 @@ export function createGradePass(samples: number): GradePass {
       uniforms.uTime.value = t;
     },
     render(renderer) {
-      renderer.render(scene, camera);
+      if (drawn) drawn.render();
+      else renderer.render(scene, camera);
     },
     dispose() {
       target.dispose();
+      drawn?.dispose();
       mesh.geometry.dispose();
       material.dispose();
     },

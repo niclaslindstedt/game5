@@ -846,6 +846,9 @@ export function clipCrowd(state: GameState, events: GameEvent[]): void {
   for (const a of crowd.amateurs) {
     // One under the snow is no body on it: a searcher stands over him.
     if (onLift(a) || a.buried !== undefined) continue;
+    // One lying on the snow is a low body to go over, not one to shoulder
+    // (`lying.ts`).
+    if (a.mode === "down" && a.thrown && a.rise === 0) continue;
     if (Math.abs(a.x - c.x) > 3 || Math.abs(a.z - c.z) > 3 || Math.abs(a.y - feet) > 1.6) continue;
     const size = CROWD_SIZE[a.body];
     for (const side of [-1, 1]) {

@@ -5,7 +5,8 @@ snowmobile's boards or the bike) into one of the crowd's amateurs at speed —
 or into a PERSON ON FOOT: a civilian of the ski area, a dog walker of its
 village, a man of the air ambulance's, the police's or the ski patrol's
 crew — and what his body thrown, a piste machine or a car does to one of
-them (below, *People on foot*).
+them (below, *People on foot*) — and what going over one of them already
+lying on the snow does (*A body lying on the snow*).
 Under a brisk cruise it is still the crowd's SHOULDER — the bump, a knock
 down past a skill-scaled threshold, the player's shoulder and arm dosed
 (`crowd.ts`' `clipCrowd`, `body.ts`' `feelBumps`). Past
@@ -280,9 +281,86 @@ meets is the view's, and goes on walking on its lead), a dog walker on a
 run stepped past `stepRun` (the engine stepped bare, as the suite and the
 sim do, meets the walkers only as far as their tracks were knotted), a
 patrolman past the work's end whose machine was taken after his track was
-sampled (the view's alone till the call is booked again), a person already
-lying — the skier, a piste machine or a car passes over a body on the
-snow, the machine's tracks crushing nobody — and an amateur met by a piste
-machine or the traffic (the crowd's own). A crew member struck leaves his
-call's work to the others as its plan has it: the scoop and the carry go on
-with the men still standing.
+sampled (the view's alone till the call is booked again), and an amateur
+stood on the snow met by a piste machine or the traffic (the crowd's own;
+lying, he is met — below). A crew member struck leaves his call's work to
+the others as its plan has it: the scoop and the carry go on with the men
+still standing.
+
+## A body lying on the snow
+
+A person ALREADY DOWN — an amateur on his ragdoll (knocked and about to
+get up, hurt, killed), a civilian, a dog walker, a crew member or a
+soldier the engine has down (`FootDown`) — is a low, solid body to
+everything that goes over him: the player on his skis, his board or the
+bike, the snowmobile he rides, a piste machine and the traffic
+(`engine/game/lying.ts`, the numbers in `PERSON_HIT.lying`, held by
+`tests/lying_bodies_test.ts`, printed by `make body-hits ARGS=--who=lying`).
+What the research says, restated in our own words:
+
+- **A person lying is a low hump**: an adult's trunk lies some 22–25 cm
+  deep, the limbs half that.
+- **Skis ride up over a trunk; a tip hooks a limb.** A ski's front rides
+  up a hump; what throws a skier is a tip caught under something lying
+  across it — the forward fall over the tips any caught tip gives.
+- **A tracked machine on snow presses about as lightly as another**: a
+  loaded snowmobile some 5 kPa on its track, a working piste machine some
+  5.4 kPa (a walker's foot is 60–80 kPa). Over a hump the track is held off
+  the snow either side, and the body carries the stretch it holds up. Riders
+  run over by a snowmobile on record came away with broken bones and head
+  injuries, some critical, a few dead; a foot caught in a moving track was
+  torn off.
+- **Run over by a wheel, the weight on the wheel does the harm** more than
+  the speed: the chest, the belly and the pelvis are crushed, and most of
+  the children killed under a car were run over at a crawl.
+
+What the game makes of it: the body is its ragdoll's thirteen points, each
+a sphere of its own radius with the limbs' middles between them (a low
+capsule set), against the footprint of what goes over it — the skis' round
+the boots (`skis`), a machine's box. Once a PASS (nothing of that kind
+touching him for `gap` s before):
+
+- **Ridden over**: the thing going over carries along `ride` (0.4) of the
+  mass under its path and the two share that impulse by their masses — the
+  rider slowed by it and hopped up off it (`hop`), the body pushed and
+  dragged on its points under the path. Along his length a body slows a
+  skier twice what it does across it.
+- **A tip caught**: on skis, a limb lying across them (`across`) met in
+  their front `tip` m at `catchAt` (7 m/s, 25 km/h) or more throws him over
+  it (the `skier` cause); slower, the ski shoves it aside.
+- **The weight on him** (INJURIES on): the push's change of speed in him
+  plus `press` m/s for every 100 kg he bears past `hold` (30 kg: a man knelt
+  on him) — a skier's own weight on his edges, a tracked machine's ground
+  pressure over its track's width and the stretch the hump holds up (some
+  230 kg under the snowmobile, 925 under a piste machine), a car's on one
+  wheel — on `person-hit.ts`' ladder: a dead one crushed further, an
+  injured one killed past `kill`, a knocked one injured past `injure` (he
+  stays down for good, `casualtiesOf`'s). With them off nobody is hurt: the
+  bump and the push are all of it.
+- **What is felt and heard**: the rider's shins are struck through
+  `body-person.ts` (the body lies under `top`); the snowmobile's rider and a
+  machine's driver are not. Every pass is filed beside the meetings with
+  people stood (`CrowdState.struck`, `FootState.struck`, marked `lying`)
+  and is a `struck` event marked `lying`, so the sound (a thud by the speed
+  it took, `route.ts`), the rumble and the impact cam take it as any
+  meeting. An amateur lying is no longer shouldered as a man stood
+  (`clipCrowd` leaves him to `lying.ts`).
+
+`make body-hits ARGS=--who=lying` (a grown civilian on seed 3, over him 4 m
+down the line):
+
+| Gone over by | Lying | At | Thrown | Speed taken | Pushed | INJURIES on |
+| --- | --- | --- | --- | --- | --- | --- |
+| skis | across, his middle on the line | 20 / 45 / 90 km/h | no | 2.8 / 5.3 / 10.5 km/h | 0.2 / 0.5 / 1.5 m | a knocked man injured at 90 |
+| skis | along the line | 20 / 45 / 90 km/h | no | 5.4 / 11.0 / 21.9 km/h | 0.3 / 1.3 / 4.3 m | a knocked man injured from 45 |
+| skis | across, his legs under the tips | 20 / 45 / 90 km/h | from 45 | 1.1 / 2.0 / 4.1 km/h | 0.1–0.3 m | — |
+| the snowmobile | across | 20 / 45 / 90 km/h | never | 1.6 / 3.7 / 7.5 km/h | 0.4 / 1.9 / 5.4 m | a knocked man injured at any speed; an injured one killed, a dead one crushed (0.54), at 90 |
+| a piste machine | across | 9 / 22 km/h | — | — | 0.1 / 0.8 m | killed and crushed through at either |
+
+With INJURIES off every row is the same bump and push, and nobody is hurt.
+`make gore ARGS=--sheet=lying` photographs a dead man gone over at 60 km/h
+on skis and on the snowmobile. Still passed through: the player's own body
+thrown (his ragdoll meets the people stood, not the ones lying), an
+amateur lying met by another amateur or a rival, and in the impact cam's
+read ahead an amateur lying (the crowd is not copied; the people on foot
+are).

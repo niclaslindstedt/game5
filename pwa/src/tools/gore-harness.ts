@@ -134,6 +134,7 @@ function fresh(ask: Fresh = false): GameState {
     ...(grimbear ? { grimbear: "hunt" as const } : {}),
     ...(o.groomer ? { groomer: "on" as const } : {}),
     ...(o.heli ? { heli: true } : {}),
+    ...(o.sled ? { sled: true } : {}),
   });
 }
 

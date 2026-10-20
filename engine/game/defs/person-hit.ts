@@ -82,4 +82,63 @@ export const PERSON_HIT = {
    * car on the road out goes half a metre, an eighth of its own length, so
    * none goes through a person between two looks. */
   foot: { radius: 0.26, reach: 0.36, back: 60, thrown: 0.5, blow: 3.4, every: 4 },
+  /** A BODY LYING ON THE SNOW gone over (`lying.ts`) — an amateur down, a
+   * person on foot struck — by the player's skis, board or bike, his
+   * snowmobile, a piste machine or a car. `docs/body-hits.md` carries the
+   * research; in short: a person lying is a low hump, an adult's trunk
+   * some 22–25 cm deep; skis ride up over a trunk, but a tip that meets an
+   * arm or a leg lying across it hooks under it and the skier goes over
+   * his tips; a tracked machine on snow presses some 4–5.5 kPa on the
+   * ground (a loaded snowmobile and a working piste machine alike — a
+   * walker's foot is 60–80 kPa), but over a hump its track is held off the
+   * snow either side and the body carries the stretch of it it holds up;
+   * and a body run over by a wheel is hurt by the weight on the wheel far
+   * more than by the speed (most children killed under a car were run over
+   * at a crawl). */
+  lying: {
+    /** The body's top off the snow, m: the band of the rider's legs a pass
+     * strikes (`body-person.ts`), the shins and the knees. */
+    top: 0.3,
+    /** The skis' (or the board's, or the bike's) footprint round the
+     * boots, m: the tips ahead, the tails behind, half the stance across. */
+    skis: { front: 0.95, back: 0.8, half: 0.2 },
+    /** A TIP CAUGHT: a limb lying across the ski (its line at least
+     * `across` of square to it, as a sine) met in the front `tip` m of the
+     * footprint at `catchAt` m/s closing (a brisk cruise, 25 km/h) or more
+     * hooks the tip and throws him over it (the `skier` cause) — under it
+     * the ski shoves the limb aside and he rides on. */
+    tip: 0.3,
+    across: 0.6,
+    catchAt: 7,
+    /** RIDDEN OVER: the share of the mass under its footprint's path the
+     * thing going over carries along as its front rides up the hump —
+     * pushed ahead and dragged, never all of it (the rest passes under);
+     * an arcade dial, set so a skier at 90 km/h over a man loses some
+     * 10 km/h. The two share the impulse by their masses. */
+    ride: 0.4,
+    /** ...and the HOP it gives the rider: up at `share` of the closing
+     * speed, m/s, to at most `skis` on his skis and `sled` on the
+     * snowmobile (the legs and the springs swallow the rest — 1.8 m/s is
+     * the climb's own lift over a 17 cm hump). */
+    hop: { share: 0.08, skis: 1.8, sled: 0.8 },
+    /** Slower than this, m/s closing, he steps or rolls over it and no
+     * more; a pass is one until nothing of that kind has touched the body
+     * for `gap` s; the body pushed is stepped on for `settle` s after. */
+    slow: 1,
+    gap: 0.25,
+    settle: 1.5,
+    /** THE WEIGHT ON HIM, kg, as the thing goes over (INJURIES on): a
+     * skier's own weight on his edges; a tracked machine's ground pressure,
+     * kPa, over the width of its track (`tracks`, m) and the stretch the
+     * hump holds off the snow (`bridge`, m), to at most its own weight; a
+     * car's on one of its wheels (`Hitter.wheels`). Under `hold` kg it is
+     * nothing a body is hurt by (a man knelt on him); past it each 100 kg
+     * is `press` m/s of the blow on the struck person's ladder (`injure`,
+     * `kill`, `crush`, on top of the change of speed the push gave him),
+     * a lighter body's by the root of how much lighter. */
+    hold: 30,
+    press: 2.2,
+    tracks: { sled: { kpa: 5, width: 0.38 }, groomer: { kpa: 5.4, width: 1.4 } },
+    bridge: 1.2,
+  },
 } as const;

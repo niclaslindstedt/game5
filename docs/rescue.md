@@ -14,6 +14,7 @@ The research below is restated in our own words, with the numbers the scene uses
 - **In the mountains** a rescue specialist often flies too, for terrain where the machine cannot land.
 - **Physicians** fly in about three services in four.
 - **In the scene:** a doctor and a paramedic come off the machine. Two patrollers join them, the ski area's first responders, and the four of them get him onto the board together. The doctor and the paramedic fly with him; the patrollers stay.
+- **What they wear:** mountain air-rescue crews fly in flame-resistant one-piece suits, standardised across a service, with high-visibility panels and retro-reflective tape on the sleeves and lower legs so they are seen on the snow and in the downwash, and a white or coloured flight helmet. Ski patrollers wear the area's red jacket with the white cross front and back over dark pants, and the same reflective bands. In the scene the flight crew's suit is red with dark lower legs, a fluorescent yellow panel over the body, a silver yoke and silver tape round each upper arm, each forearm and twice round each lower leg (`PART.bands`, `civilian-shapes.ts`), under a white helmet; the patrol, on foot, on the snowmobiles and in the police's carry-in alike, are in red with the white cross, black pants and white tape. The police's officers wear the same tape over their dark blue and yellow.
 
 ### The stretcher
 

@@ -98,16 +98,19 @@ import type { SnowSampler } from "./trail-stamp.ts";
 const MODEL_URL = (kind: Kind): string | null =>
   kind === "police" ? policeModelUrl() : rescueModelUrl();
 
-/** The crew's colours, by slot (`CIVILIAN_SLOT`): the flight crew's suit,
- * a reflective yoke, a white helmet; the patrol's red with the white cross. */
+/** The crew's colours, by slot (`CIVILIAN_SLOT`). The flight crew's: a
+ * red suit with dark lower legs, a fluorescent yellow panel over the body
+ * (the vest's slot) and silver reflective tape (the accent: the yoke and
+ * `PART.bands`), a white helmet. The patrol's: red with the white cross,
+ * black pants, white tape. */
 export const SKIN = [0xe2b494, 0xc68863, 0xd9a07a, 0xa8714f];
 export const HAIR = [0x3a2a1e, 0x6b4a2c, 0x2a211a, 0x9a6232];
 export const DRESS: Record<
   "crew" | "patrol",
-  { jacket: number; pants: number; head: number; accent: number }
+  { jacket: number; pants: number; head: number; accent: number; vest: number }
 > = {
-  crew: { jacket: 0xd23c1c, pants: 0xd23c1c, head: 0xf1f1ec, accent: 0xc6cbd2 },
-  patrol: { jacket: 0xc4161c, pants: 0x18191c, head: 0xc4161c, accent: 0xffffff },
+  crew: { jacket: 0xc8261c, pants: 0x2a2d33, head: 0xf1f1ec, accent: 0xd6dade, vest: 0xd4ec1c },
+  patrol: { jacket: 0xc4161c, pants: 0x18191c, head: 0xc4161c, accent: 0xffffff, vest: 0xc4161c },
 };
 
 /** A police officer's: dark blue, a fluorescent yellow vest over it (the
@@ -422,10 +425,9 @@ export function createRescueScene(level: Level, haze: HazeUniforms): RescueScene
     const role = i < BEARERS.length ? BEARERS[i].role : "officer";
     const officer = kind === "police" && role !== "patrol";
     const d = officer ? OFFICER_DRESS : role === "patrol" ? DRESS.patrol : DRESS.crew;
-    const vest = "vest" in d ? d.vest : d.jacket;
     return {
-      colours: { ...d, vest, skin: SKIN[i % 4], hair: HAIR[i % 4], skis: 0x30343a },
-      parts: [PART.helmet, ...(role === "patrol" ? [PART.cross] : [])],
+      colours: { ...d, skin: SKIN[i % 4], hair: HAIR[i % 4], skis: 0x30343a },
+      parts: [PART.helmet, PART.bands, ...(role === "patrol" ? [PART.cross] : [])],
     };
   };
   /** Who is drawn for a call: the four, and on a police call the

@@ -150,8 +150,8 @@ function bodyOf(body: (typeof BEARERS)[number]["body"]): THREE.BufferGeometry {
 function patrolDress(j: number) {
   const d = DRESS.patrol;
   return {
-    colours: { ...d, vest: d.jacket, skin: SKIN[j % 4], hair: HAIR[j % 4], skis: 0x30343a },
-    parts: [PART.helmet, PART.cross],
+    colours: { ...d, skin: SKIN[j % 4], hair: HAIR[j % 4], skis: 0x30343a },
+    parts: [PART.helmet, PART.cross, PART.bands],
   } satisfies { colours: Partial<Record<keyof typeof SLOT, number>>; parts: number[] };
 }
 

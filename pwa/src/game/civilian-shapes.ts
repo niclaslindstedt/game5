@@ -301,6 +301,45 @@ export function emitCross(fig: Figure, P: Posed, look: CrowdLook, chest: Frame):
   fig.part(PART.body);
 }
 
+/** THE REFLECTIVE BANDS of a crew's kit, in the accent's slot: one round
+ * each upper arm and each forearm, two round each lower leg — where a
+ * high-visibility garment carries its retro-reflective tape. Each a short
+ * sleeve standing proud of the limb it rings. */
+export function emitBands(
+  fig: Figure,
+  P: Posed,
+  look: CrowdLook,
+  lod: CrowdLod,
+  chest: Frame,
+  hips: Frame,
+): void {
+  const k = look.height / 1.8;
+  const sides = cutOf(lod).limb;
+  fig.part(PART.bands);
+  fig.slot(SLOT.accent);
+  const band = (a: V3, b: V3, t: number, ra: number, rb: number, ref: V3, w: number): void => {
+    const c = mix(a, b, t);
+    const along = mul(norm(sub(b, a)), w / 2);
+    const r = (ra + (rb - ra) * t) * 1.14;
+    fig.limb(sub(c, along), add(c, along), ref, r, r, sides, FULL);
+  };
+  for (const [shoulder, elbow, hand] of [
+    [P.shoulderL, P.elbowL, P.handL],
+    [P.shoulderR, P.elbowR, P.handR],
+  ] as const) {
+    band(shoulder, elbow, 0.55, 0.056 * k, 0.046 * k, chest.r, 0.045 * k);
+    band(elbow, hand, 0.62, 0.046 * k, 0.04 * k, chest.r, 0.04 * k);
+  }
+  for (const [knee, ankle] of [
+    [P.kneeL, P.ankleL],
+    [P.kneeR, P.ankleR],
+  ] as const) {
+    band(knee, ankle, 0.3, 0.062 * k, 0.058 * k, hips.r, 0.045 * k);
+    band(knee, ankle, 0.58, 0.062 * k, 0.058 * k, hips.r, 0.045 * k);
+  }
+  fig.part(PART.body);
+}
+
 /** THE PROPS in his hands and on his shoulder, as this target holds them —
  * in `summer` no skis and no snowball. */
 export function emitProps(
@@ -530,7 +569,10 @@ function emit(
   emitTrunk(fig, P, look, lod, hips, chest, SLOT.vest);
   emitArms(fig, P, look, lod, chest, false);
   emitHead(fig, P, look, lod, chest);
-  if (lod !== "far") emitCross(fig, P, look, chest);
+  if (lod !== "far") {
+    emitCross(fig, P, look, chest);
+    emitBands(fig, P, look, lod, chest, hips);
+  }
   emitProps(fig, P, look, lod, chest, holding);
 }
 

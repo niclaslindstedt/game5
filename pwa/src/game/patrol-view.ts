@@ -161,7 +161,6 @@ export function createPatrolView(level: Level, haze: HazeUniforms): PatrolView {
       owned.push(base);
       const colours = {
         ...DRESS.patrol,
-        vest: DRESS.patrol.jacket,
         skin: SKIN[(i + 1) % 4],
         hair: HAIR[(i + 2) % 4],
         skis: SKI.colour,
@@ -177,8 +176,8 @@ export function createPatrolView(level: Level, haze: HazeUniforms): PatrolView {
         root.add(m);
         return m;
       };
-      const bare = mesh([PART.helmet, PART.cross]);
-      const shovel = mesh([PART.helmet, PART.cross, PART.shovel]);
+      const bare = mesh([PART.helmet, PART.cross, PART.bands]);
+      const shovel = mesh([PART.helmet, PART.cross, PART.bands, PART.shovel]);
       const skis = new THREE.Mesh(skiGeo, skiMat);
       skis.castShadow = true;
       root.add(skis);

@@ -64,6 +64,9 @@ export const PART = {
   cross: 31,
   /** A day pack on his back. */
   pack: 32,
+  /** Reflective bands round the sleeves and the lower legs (the rescue's
+   * and the police's crews), in the accent's colour. */
+  bands: 33,
 } as const;
 export type Head = "helmet" | "beanie" | "hair" | "sunhat" | "cap" | "fullface";
 

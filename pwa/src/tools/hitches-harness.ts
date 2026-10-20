@@ -9,7 +9,6 @@
 //
 //   ride      the baseline: the free ride, the player held, nothing called
 //   crowd     an amateur down hurt in view, the call made, the machine in
-//   rescue    the run after an injured one: the air ambulance flown in
 //   police    the run after a death: the police machine flown in, the scene
 //   sleds     the ski patrol driven up where no machine can land
 //   steal     the police machine landed, taken from under its crew, flown up
@@ -103,11 +102,10 @@ function stage(): { s: GameState; note: string } {
     a.hurt = true;
     return { s, note: `an amateur down at s ${fell.s.toFixed(0)} m` };
   }
-  if (scenario === "rescue" || scenario === "police" || scenario === "steal") {
+  if (scenario === "police" || scenario === "steal") {
     const ended = fresh({ gore: true });
     placeRun(ended, { x: fell.x, z: fell.z, heading: fell.heading });
-    if (scenario === "rescue") ended.gore!.injured = 0;
-    else ended.gore!.dead = 0;
+    ended.gore!.dead = 0;
     const s = fresh({ gore: true });
     bookRun(createRescueBook(), ended, s);
     return { s, note: `${s.rescue?.[0]?.kind ?? "no"} call at s ${fell.s.toFixed(0)} m` };
@@ -202,7 +200,7 @@ async function run(): Promise<{ note: string; rows: Row[] }> {
   } else {
     const c = call();
     if (!c) return { note, rows };
-    const end = c.kind === "sled" && c.sleds ? c.start + c.sleds.parked[0] + 12 : c.down + 15;
+    const end = c.kind === "sled" && c.sleds ? c.start + c.sleds.parked[0] + 12 : c.down + 45;
     until(rows, end);
   }
   return { note, rows };

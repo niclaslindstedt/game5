@@ -33,7 +33,7 @@ import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SCENARIOS = ["ride", "crowd", "rescue", "police", "sleds", "steal"];
+const SCENARIOS = ["ride", "crowd", "police", "sleds", "steal"];
 
 const args = parseArgs(
   process.argv.slice(2),

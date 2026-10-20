@@ -78,7 +78,11 @@ const args = parseArgs(
     quarry: { kind: "string", default: "skier,still", help: "who is hunted: skier, still" },
     seconds: { kind: "number", default: 180, help: "how long each hunt is run, s" },
     sfw: { kind: "flag", default: false, help: "SAFE FOR WORK on (the INJURIES switch off)" },
-    table: { kind: "string", default: "troops,sleds", help: "the tables: troops, sleds, waves, vehicles" },
+    table: {
+      kind: "string",
+      default: "troops,sleds",
+      help: "the tables: troops, sleds, waves, vehicles",
+    },
     alone: {
       kind: "flag",
       default: false,
@@ -301,7 +305,8 @@ function hunt(stars, quarry) {
   row.marched = s.army?.marched ?? 0;
   row.waveSleds = s.army?.waveSleds ?? 0;
   row.waveStuck = waveStuck.size;
-  for (const k of vehiclesOut.values()) row[k === "carrier" ? "carriers" : k === "truck" ? "trucks" : "tanks"]++;
+  for (const k of vehiclesOut.values())
+    row[k === "carrier" ? "carriers" : k === "truck" ? "trucks" : "tanks"]++;
   row.unloaded = s.army?.unloaded ?? 0;
   costs.sort((a, b) => a - b);
   row.ms = costs.reduce((a, b) => a + b, 0) / Math.max(1, costs.length);

@@ -361,7 +361,7 @@ function stand(state: GameState, a: ArmyState, v: ArmyVehicle): void {
 /** HALTED AND EMPTIED: a man out of the back every `drop.every` s — a
  * carrier's after him at once, a truck's climbing on with the wave — and
  * on `drop.linger` s after the last. */
-function unload(state: GameState, a: ArmyState, v: ArmyVehicle, w: WantedState, events: GameEvent[]) {
+function unload(state: GameState, a: ArmyState, v: ArmyVehicle, w: WantedState) {
   stand(state, a, v);
   const D = K.drop;
   if (v.aboard > 0 && v.t >= D.every) {
@@ -402,7 +402,13 @@ const hasRoute = (a: ArmyState, squad: number): boolean => a.routes.some((r) => 
 
 /** INTO THE HALT TO PUT THEM DOWN, as many as the waves' bound leaves
  * room for. */
-function startDrop(state: GameState, a: ArmyState, v: ArmyVehicle, w: WantedState, events: GameEvent[]) {
+function startDrop(
+  state: GameState,
+  a: ArmyState,
+  v: ArmyVehicle,
+  w: WantedState,
+  events: GameEvent[],
+) {
   v.mode = "drop";
   v.t = 0;
   // Room for them under the waves' bound.
@@ -487,7 +493,9 @@ function traverse(v: ArmyVehicle, q: { x: number; z: number } | null): number {
 }
 
 /** Where the muzzle is, world frame, m. */
-export function muzzleOf(v: Pick<ArmyVehicle, "x" | "y" | "z" | "heading" | "turret" | "gun" | "pitch">) {
+export function muzzleOf(
+  v: Pick<ArmyVehicle, "x" | "y" | "z" | "heading" | "turret" | "gun" | "pitch">,
+) {
   const T = K.tank;
   const yaw = v.heading + v.turret;
   const el = v.gun + v.pitch * Math.cos(v.turret);
@@ -526,7 +534,11 @@ function halt(
   const yawOff = traverse(v, { x: tx, z: tz });
   const m = muzzleOf(v);
   const flat = hypot(tx - m.x, tz - m.z);
-  const el = clamp(Math.atan2(ty - (v.y + T.ring), flat) - v.pitch * Math.cos(v.turret), T.low, T.high);
+  const el = clamp(
+    Math.atan2(ty - (v.y + T.ring), flat) - v.pitch * Math.cos(v.turret),
+    T.low,
+    T.high,
+  );
   const estep = T.elevate * dt;
   const elOff = el - v.gun;
   v.gun += clamp(elOff, -estep, estep);
@@ -607,7 +619,7 @@ export function stepArmyVehicles(state: GameState, events: GameEvent[]): void {
         else carry(state, a, v, w, q, events);
         break;
       case "drop":
-        unload(state, a, v, w, events);
+        unload(state, a, v, w);
         break;
       case "park":
         looks(state, v, q);
@@ -624,7 +636,8 @@ export function stepArmyVehicles(state: GameState, events: GameEvent[]): void {
     }
   }
   holdOffVehicles(state, a.vehicles, events);
-  for (const v of a.vehicles) if (v.mode === "gone" && v.kind === "tank") disarmGun(state, gunOf(v));
+  for (const v of a.vehicles)
+    if (v.mode === "gone" && v.kind === "tank") disarmGun(state, gunOf(v));
   a.vehicles = a.vehicles.filter((v) => v.mode !== "gone");
   writeCrews(a, w);
 }

@@ -431,9 +431,4 @@ export type ArmyVehicleEvent = {
  * machines', its soldiers', its snowmobiles' and its waves' vehicles' — as
  * one row of `GameEvent`. */
 export type HuntEvent =
-  | WantedEvent
-  | GunfireEvent
-  | ArmyEvent
-  | SoldierEvent
-  | ArmySledEvent
-  | ArmyVehicleEvent;
+  WantedEvent | GunfireEvent | ArmyEvent | SoldierEvent | ArmySledEvent | ArmyVehicleEvent;

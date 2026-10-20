@@ -138,7 +138,9 @@ export function moveVehicle(
   const fz = Math.cos(v.heading);
   // The rise under it along its heading, as a slope.
   const L = S.halfLength;
-  const rise = (level.groundAt(v.x + fx * L, v.z + fz * L) - level.groundAt(v.x - fx * L, v.z - fz * L)) / (2 * L);
+  const rise =
+    (level.groundAt(v.x + fx * L, v.z + fz * L) - level.groundAt(v.x - fx * L, v.z - fz * L)) /
+    (2 * L);
   const up = pace >= 0 ? rise : -rise;
   let want = pace;
   if (up > S.climb) want = 0;
@@ -179,7 +181,14 @@ export function moveVehicle(
 const hulls: StripBox[] = [];
 
 /** One hull as a box on the snow. */
-function hull(state: GameState, x: number, z: number, heading: number, S: VehicleSpec, half: number) {
+function hull(
+  state: GameState,
+  x: number,
+  z: number,
+  heading: number,
+  S: VehicleSpec,
+  half: number,
+) {
   const g = state.level.groundAt(x, z);
   hulls.push({
     x,
@@ -197,7 +206,11 @@ function hull(state: GameState, x: number, z: number, heading: number, S: Vehicl
 /** THE SKIER HELD OUT OF EVERY HULL — and, where the army shoots to kill,
  * knocked down by a moving vehicle's front that meets him faster than its
  * strike. */
-export function holdOffVehicles(state: GameState, all: readonly ArmyVehicle[], events: GameEvent[]): void {
+export function holdOffVehicles(
+  state: GameState,
+  all: readonly ArmyVehicle[],
+  events: GameEvent[],
+): void {
   const c = state.skier;
   if (c.thrown || c.lift || state.sled?.rider || state.heli?.rider || state.plane?.rider) return;
   hulls.length = 0;
@@ -229,7 +242,11 @@ function strikes(state: GameState, v: ArmyVehicle, S: VehicleSpec, events: GameE
   const dz = c.z - v.z;
   const along = dx * fx + dz * fz;
   const across = dx * fz - dz * fx;
-  if (along < S.halfLength - 0.5 || along > S.halfLength + 0.8 || Math.abs(across) > S.halfWidth + 0.3)
+  if (
+    along < S.halfLength - 0.5 ||
+    along > S.halfLength + 0.8 ||
+    Math.abs(across) > S.halfWidth + 0.3
+  )
     return false;
   if (c.y > v.y + S.height || c.y < v.y - 1.5) return false;
   const speed = Math.abs(v.speed);

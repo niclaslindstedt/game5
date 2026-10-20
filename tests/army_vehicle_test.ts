@@ -273,7 +273,9 @@ describe("determinism", () => {
         const b = go(true);
         const sig = (s: GameState) =>
           armyVehicles(s)
-            .map((v) => `${v.id}:${v.mode}:${v.x.toFixed(4)},${v.z.toFixed(4)},${v.turret.toFixed(4)}`)
+            .map(
+              (v) => `${v.id}:${v.mode}:${v.x.toFixed(4)},${v.z.toFixed(4)},${v.turret.toFixed(4)}`,
+            )
             .join("|");
         expect(sig(a).length).toBeGreaterThan(0);
         expect(sig(a)).toBe(sig(b));

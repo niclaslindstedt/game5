@@ -463,7 +463,7 @@ The army lab's `sleds` sheet (`make army ARGS="--sheet=sleds"`) photographs the 
 
 **The climb.** Each man (`mode: "climb"`) climbs to the next point of the way on his own file (`Soldier.leg`, `.lane`). He takes the next point once he is within `reach` (6) m of it or past it. He climbs as any soldier on the ground moves (`army-troop.ts`): on skins he herringbones a rise and traverses a steep one, and on foot he walks, slower uphill. He keeps clear of the trunks and of the men round him, and the same watchdog side-steps a man who is held. A man leaves the column when he sees him within a rifle's range, when he is within `engage` (220) m of where he was last seen, or when he has climbed the whole way. From then on he is a soldier on the ground like any other: the chase, the stop to fire from one knee or stood, the shout, and, with SAFE FOR WORK on, the run-down and the arrest.
 
-**What a wave brings.** The wave's mix names snowmobiles, tracked carriers, trucks, tanks and men on foot. The snowmobiles are the army's own (`army-sled.ts`): a wave raises how many it keeps out on top of the roster's (`ArmyState.waveSleds`, at most `sleds` (5)), and they come out of the village as the roster's do. The carriers, the trucks and the tanks are not on the map yet.
+**What a wave brings.** The wave's mix names snowmobiles, tracked carriers, trucks, tanks and men on foot. The snowmobiles are the army's own (`army-sled.ts`): a wave raises how many it keeps out on top of the roster's (`ArmyState.waveSleds`, at most `sleds` (5)), and they come out of the village as the roster's do. The carriers, the trucks and the tanks are driven up after the column (below, [the waves' vehicles](#the-waves-vehicles)).
 
 **The bound.** At most `most` men of the waves are out at once (24 at two stars, 48 at three, 96 at four, 160 at five); a wave that would put more out puts what the bound leaves room for. A man of a wave further than `behind` (1,100) m from where he was last seen is taken off the map, out of the fight and out of the step's cost. With the hunt over, every man of them further than `home` (450) m from him is taken off too.
 
@@ -482,7 +482,7 @@ The men of the waves are drawn by `army-ground-view.ts` as every soldier is: the
 - the waves sent and when the first set off;
 - the men they marched out, and the most out at once;
 - the snowmobiles the waves keep out;
-- the carriers, trucks and tanks (0 until they are built);
+- the carriers, trucks and tanks they brought;
 - when a man of a wave first stopped to fire at him;
 - his death or his arrest;
 - the men of the waves STUCK (always 0);
@@ -542,9 +542,133 @@ After:
 
 With the INJURIES on, the door gunners kill a man stood still at four and five stars before a column is near him, so those rows end after one wave or two. A skier going down the piste skis into the columns climbing it, so their first contact comes within seconds of the wave. With SAFE FOR WORK on, no round is in him. The step's cost was measured at the bound as well: at five stars with the waves sent every 8 s, 160 men out add about 0.3 to 0.4 ms to a step on a desktop processor (`previews/wave-cost.mjs`, kept local).
 
+With the vehicles (part 7b), seed 38, 180 s a hunt, INJURIES on:
+
+| Quarry | Stars | Waves (first, s) | Men marched (most at once) | Snowmobiles | Carriers / trucks / tanks | First contact, s | Dead, s | Arrested, s | Stuck | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 99 | — | 0 | 0.377 (1.223) |
+| skier | 3 | 1 (60) | 8 (16) | 2 | 1 / 1 / 0 | 70 | 111 | — | 0 | 0.463 (1.920) |
+| skier | 4 | 1 (45) | 16 (24) | 2 | 2 / 2 / 0 | 69 | 70 | — | 0 | 0.450 (1.299) |
+| skier | 5 | 1 (30) | 24 (32) | 3 | 1 / 1 / 1 | 40 | 49 | — | 0 | 0.423 (1.174) |
+| still | 2 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 90 | — | 0 | 0.277 (0.651) |
+| still | 3 | 1 (60) | 8 (8) | 2 | 1 / 1 / 0 | — | 69 | — | 0 | 0.297 (0.802) |
+| still | 4 | 1 (45) | 16 (16) | 2 | 1 / 1 / 0 | — | 52 | — | 0 | 0.329 (1.256) |
+| still | 5 | 1 (30) | 24 (24) | 3 | 2 / 1 / 1 | — | 52 | — | 0 | 0.375 (1.255) |
+
+SAFE FOR WORK:
+
+| Quarry | Stars | Waves (first, s) | Men marched (most at once) | Snowmobiles | Carriers / trucks / tanks | First contact, s | Dead, s | Arrested, s | Stuck | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 1 (124) | 8 (28) | 2 | 1 / 1 / 0 | 140 | — | — | 0 | 0.492 (1.849) |
+| skier | 3 | 2 (60) | 30 (66) | 2 | 3 / 3 / 0 | 70 | — | 171 | 0 | 0.503 (1.562) |
+| skier | 4 | 1 (45) | 16 (32) | 2 | 2 / 2 / 0 | 59 | — | 77 | 0 | 0.429 (1.271) |
+| skier | 5 | 1 (30) | 24 (40) | 3 | 2 / 2 / 1 | 40 | — | 69 | 0 | 0.469 (1.544) |
+| still | 2 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | — | 92 | 0 | 0.237 (0.601) |
+| still | 3 | 1 (60) | 8 (8) | 2 | 1 / 1 / 0 | — | — | 69 | 0 | 0.267 (0.680) |
+| still | 4 | 1 (45) | 16 (16) | 2 | 2 / 2 / 0 | — | — | 69 | 0 | 0.408 (1.222) |
+| still | 5 | 1 (30) | 24 (24) | 3 | 2 / 2 / 1 | — | — | 69 | 0 | 0.481 (1.585) |
+
+The vehicles' men put down near him bring the first contact and the end of the hunt sooner on most rows; no vehicle is stuck and, with SAFE FOR WORK on, no round is in him.
+
 The army lab's `waves` sheet (`make army ARGS="--sheet=waves"`) photographs the waves through the game's own renderer at five stars, with the roster's door gunners, squads and lifts held back so the hunt lasts long enough for the columns to come: `wave-climb` (a column climbing a run at him), `wave-mass` (three waves out, the mountain below him soldiers) and `wave-arrest` (SAFE FOR WORK: him taken by a man of a wave, the rest come up round him).
 
 ### Not yet
 
-- The tracked carriers, the trucks and the tanks a wave's mix names: their models, their driving, their troops dismounting, the tank's gun, the crush and their sound.
 - The men of the waves have no voices, and the column has no sound of its own.
+
+## The waves' vehicles
+
+`engine/game/army-vehicle.ts` brings the carriers, the trucks and the tanks a ground wave's mix names (`groundWave`), and drives them. Their body on the snow and its watchdog are `army-vehicle-body.ts`; the terrain reading they share with the army's snowmobiles is `army-drive.ts` (`chooseWay`, `wayCost`). The numbers are `ARMY_VEHICLE` in `engine/game/defs/army-vehicle.ts`, and the vehicles live in `ArmyState.vehicles`. Nothing draws from any stream: where each is called, how it steers and when it fires are pure functions of the map, the state and its id. So a hunt replays and no digest moves.
+
+**What the real things are.** These are the classes, never a maker's model. The numbers are the band the service vehicles of each class sit in, restated from open references.
+
+- **The tracked carrier.** The northern armies' articulated over-snow carrier is two short units on four wide rubber band tracks: a cab with the engine in front and a troop body behind, joined by a steered hitch. It is about 7 m long, 2 m wide and 2.3 m tall. It does about 50 km/h on a road and half that in deep snow. Its wide tracks press the snow about as lightly as a man on skis, so it climbs steep firm snow. The rear unit carries a section of eight or more.
+- **The truck.** A six-wheel-drive cross-country cargo truck with a cab forward, a canvas tilt over the bed and chains on its wheels in winter. It is about 8 m long, 2.5 m wide and 3.4 m to the tilt. On packed snow it holds a grade of about 30 % before the chains spin. Its bed seats two squads.
+- **The tank.** A main battle tank: a 7.5–8 m hull, about 3.7 m wide and 2.4–3 m to the turret's roof, 55–65 t. It does 40–50 km/h off a road and climbs a 60 % grade. Its turret goes round in about nine seconds, and it fires its main gun from a short halt, a round every six to ten seconds.
+- **In winter** all three are painted white, or washed white over their green in broken patches. That breaks the outline better than solid white does.
+
+**The call.** Each wave of three stars and up names its vehicles. They are called with it, interleaved by kind, no more than `most` out at once (2 at two stars, 4 at three, 8 at four, 12 at five; a wave of two stars names none). Each starts `back` (260) m further down the wave's way up than its column, staggered `stagger` (6) s apart. The trucks come up the village's road out instead (`roadIn`: its exit street from the map's edge inward) and then on up the way.
+
+**The drive.** A vehicle is driven as a body on the snow (`moveVehicle`), not on the snowmobile's physics. Its pace is gathered and shed at its own `accel` and `brake`. A grade slows it in proportion, down to `creep` of its pace at its `climb` limit (0.8 for the carrier, 0.3 for the truck, 0.6 for the tank), and stops it past that. It turns at its own rate: the tracked ones pivot, and the truck is held to its turning radius. Its attitude is read off the snow under its four corners. The carrier's rear unit follows on its hitch: the hitch's heading eases toward the rear unit's own at the pace over its length, held within ±0.6 rad of the front's. Each `decide` (0.25) s the snowmobiles' terrain reading weighs a fan of headings `look` (40) m ahead for rises past its limit, drops, water, trunks, the map's edge and the way it wants to go. It slows in the woods to `woods`.
+
+**Never stuck.** Every `stuck.window` (5) s a vehicle that wanted to move and has not covered `least` (2.5) m is held. The first window it swings off to a side for `detour` (4) s. The second it backs out `dig` (8) m (the `dug` event). The third puts it back on the way at the next point it can stand on (the `stuck` event, which the lab counts and which must stay 0).
+
+**The carrier.** It drives up the way until it is within `drop.carrier` (170) m of him, or `drop.blind` (110) m where he cannot see it. There it stops and puts its section of eight down out of its back, a man every `drop.every` (0.45) s, each straight into the chase (`VEHICLE_SQUAD` + its id). Then it parks.
+
+**The truck.** It stops further off, at `drop.truck` (320) m, or sooner where the climb is too steep for it or it has been held. It puts its twelve down, and they form a column of the wave's and climb on from there.
+
+**The tank.** It climbs at him and, once its crew sees him within `tank.range` (900) m, halts (`halt`). It lays its turret at `traverse` (0.7 rad/s) and its gun (−0.16 to +0.35 rad), fires `shots` (2) rounds through the gunfire layer (`WEAPONS.tankGun`, `armGun`, `fireAt`), and goes on. It halts again no sooner than `hold` (14) s later. The shell bursts through the BLAST LAYER (`blast.ts`' `blastAt`, below). With the INJURIES on, a tank within `ram` (45) m of him drives straight at him, and its front meeting him at more than `strike.closing` (2.5) m/s throws him (`armour`). Once he is down, `gore.ts`' `runOver` takes the tank over him as it takes a piste machine.
+
+**The blast layer.** A burst goes off through `blastAt(state, stream, def, x, y, z, weapon, key, events)` in `engine/game/blast.ts`, whatever fired it. It raises the event, damages every machine within reach, and with the INJURIES on throws him, fragments him and tears him apart close in. The weapon's `BlastDef` also names its CRATER (a tank shell's 1.8 m across and 0.55 m deep), which the app presses into the snow. The tank's shell is its first caller beside the rocket, and later weapons call it the same way ([`gunfire.md`](gunfire.md)).
+
+**Safe for work.** They never wound him. The tank's gun is laid on the snow `warn.near` to `warn.far` (55–85) m to a side of him, never at him. It never drives at him, and no front of theirs throws him. Their men arrest him as every soldier does.
+
+**Home.** With the hunt over, each vehicle drives back down its way and is taken off the map once it is `home` (450) m from him or after `leave` (90) s. A vehicle more than `behind` (1,300) m from where he was last seen is taken off as well.
+
+**Events.** `army-vehicle`, by `change`: `called`, `out`, `drop`, `halt`, `fire`, `dug`, `stuck`, `strike`, `gone`, with the vehicle's kind and place. The strike is heard as the steel's crash. The gun and its burst are the gunfire's events.
+
+### As drawn and heard
+
+The vehicles are BUILT IN CODE (`army-vehicle-shapes.ts`) off the engine's own plan of each: its half length and width, its height, the carrier's hitch, the tank's turret ring and muzzle. They are low-poly and painted face by face in their camouflage, and every vehicle of a kind shares one geometry:
+
+- **The carrier:** two boxy units on black rubber tracks with rounded ends. The front unit is a cab with a sloped nose, a deep windscreen and side windows; the rear is a taller box with small windows, a door at the back and a covered load on its roof. It is white with broken olive and washed patches.
+- **The truck:** a flat-fronted cab with a two-pane windscreen, mirrors and a bumper, six big tyres, and a long bed under an arched white tilt. It is olive with a white wash daubed over it.
+- **The tank:** a long low hull with side skirts over its road wheels and a steep glacis. Its turret is wide and flat with a wedge front, a stowage basket at the back, a commander's cupola and a loader's hatch, and a long gun with a sleeve. It is white with large grey and dark-grey patches.
+
+`army-vehicle-view.ts` (held by `army-air-view.ts`) stands each one where the engine has it, leaned to the ground's attitude. It draws the carrier's rear unit on its own heading behind the hitch (`rearOf`), and the tank's turret and gun as the engine lays them. The gun runs back as it fires and runs out again, and a commander rides up in the hatch. The tracks and the tyres press their prints into the trail map, the tracks throw a little snow off their backs, and the main gun's blast kicks the snow up round the tank. The shell's burst is the gunfire's: the game's explosion, bigger, and its crater pressed into the snow.
+
+They are heard by their own diesel (`audio/army-vehicle-voice.ts`, steered by `audio/army-bed.ts` for the nearest four): the block's firing note (a six's for the carrier and the truck, a twelve's for the tank), the injection's knock, the bass, the turbo's whistle, and, on the tracked ones, the track's clatter at the links' passing rate and its squeal (on the truck, its chains' rumble instead). The tank's gun is the gunfire bank's `tank_gun`, and its burst the explosion's. `make audition` has a panel for one vehicle. Its `--meter` rows are below, beside a skier cruising the piste and the snowmobile for scale: a tank grinding past at 20 m is louder than the skier's own snow, and one 400 m off is a murmur under it.
+
+| Preset | Mean | Peak |
+| --- | --- | --- |
+| cruising the piste | -42.9 dBFS | -42.5 dBFS |
+| on the sled, idling | -31.9 dBFS | -27.9 dBFS |
+| left idling, 60 m off | -56.6 dBFS | -51.9 dBFS |
+| tank idling, 25 m off | -39.1 dBFS | -36.0 dBFS |
+| tank climbing past, 20 m | -32.6 dBFS | -29.8 dBFS |
+| tank climbing, 400 m off | -61.1 dBFS | -57.7 dBFS |
+| carrier at cruise, 30 m | -39.9 dBFS | -38.0 dBFS |
+| truck on chains, 30 m | -42.9 dBFS | -38.9 dBFS |
+| tank_gun (the bank, peak) | — | -19.6 dBFS |
+
+### The labs
+
+`make army-ground ARGS="--table=vehicles"` gives, for each star and quarry: the vehicles out of each kind and the most at once, when the first set off, the men they put down, when a man of theirs first stopped to fire at him, the tank's shells and when the first was fired, the shells that threw him, the vehicles dug out and STUCK (always 0), and the step's cost. `--waves` holds back the roster's door gunners, squads, lifts and snowmobiles, so the hunt lasts long enough for the waves to come; with the INJURIES on the door gunners otherwise kill a man stood still before the first vehicle is near. The waves table's carriers / trucks / tanks column now counts them.
+
+Its columns are the vehicles of each kind (and the most out at once), when the first set off, the men they put down, their first contact, the shells (and when the first was fired), the shells that threw him, his death or arrest, the vehicles dug out and stuck, and the step's cost. A hunt raised to two stars climbs to three as he survives, so its rows bring vehicles too, late.
+
+On seed 38, 180 s a hunt, `--waves`, INJURIES on:
+
+| Quarry | Stars | Carriers / trucks / tanks (most at once) | First out, s | Men put down | Their first contact, s | Shells (first, s) | In him | Dead, s | Arrested, s | Dug out | Stuck | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 1 / 1 / 0 (2) | 123 | 20 | 144 | 0 (—) | 0 | — | — | 0 | 0 | 0.292 (1.158) |
+| skier | 3 | 1 / 1 / 0 (2) | 60 | 8 | 75 | 0 (—) | 0 | 115 | — | 0 | 0 | 0.267 (0.933) |
+| skier | 4 | 2 / 2 / 0 (4) | 45 | 8 | 62 | 0 (—) | 0 | 68 | — | 0 | 0 | 0.253 (0.683) |
+| skier | 5 | 5 / 5 / 2 (12) | 30 | 24 | 43 | 2 (43) | 0 | 117 | — | 0 | 0 | 0.468 (1.463) |
+| still | 2 | 1 / 1 / 0 (2) | 124 | 0 | — | 0 (—) | 0 | — | — | 0 | 0 | 0.249 (0.955) |
+| still | 3 | 3 / 3 / 0 (6) | 60 | 20 | 152 | 0 (—) | 0 | 163 | — | 1 | 0 | 0.365 (1.304) |
+| still | 4 | 5 / 5 / 1 (11) | 45 | 40 | 137 | 0 (—) | 0 | 149 | — | 2 | 0 | 0.469 (1.793) |
+| still | 5 | 5 / 5 / 2 (12) | 30 | 32 | 122 | 8 (76) | 0 | 134 | — | 0 | 0 | 0.480 (1.520) |
+
+SAFE FOR WORK:
+
+| Quarry | Stars | Carriers / trucks / tanks (most at once) | First out, s | Men put down | Their first contact, s | Shells (first, s) | In him | Dead, s | Arrested, s | Dug out | Stuck | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 1 / 1 / 0 (2) | 123 | 20 | 144 | 0 (—) | 0 | — | — | 0 | 0 | 0.269 (0.954) |
+| skier | 3 | 3 / 3 / 0 (6) | 60 | 47 | 75 | 0 (—) | 0 | — | — | 1 | 0 | 0.341 (1.418) |
+| skier | 4 | 2 / 2 / 0 (4) | 45 | 16 | 62 | 0 (—) | 0 | — | 91 | 0 | 0 | 0.261 (0.966) |
+| skier | 5 | 2 / 2 / 1 (5) | 30 | 16 | 43 | 3 (42) | 0 | — | 68 | 0 | 0 | 0.312 (1.004) |
+| still | 2 | 1 / 1 / 0 (2) | 124 | 0 | — | 0 (—) | 0 | — | — | 0 | 0 | 0.190 (0.687) |
+| still | 3 | 3 / 3 / 0 (6) | 60 | 20 | 151 | 0 (—) | 0 | — | 171 | 1 | 0 | 0.324 (1.269) |
+| still | 4 | 6 / 5 / 1 (12) | 45 | 40 | 136 | 0 (—) | 0 | — | 157 | 2 | 0 | 0.525 (1.948) |
+| still | 5 | 5 / 5 / 2 (12) | 30 | 32 | 128 | 11 (76) | 0 | — | 138 | 0 | 0 | 0.478 (1.538) |
+
+No vehicle is ever stuck. A man stood still in the woods is out of every crew's sight, so the tanks fire on him only when the hunt's men see him and radio it (the five-star rows' shells). With SAFE FOR WORK on no shell lands within 54 m of him and none is in him. With twelve vehicles out at five stars a whole engine step stays under half a millisecond on average (about 1.5 ms at its 99th percentile) on the machine these tables were cut on.
+
+The army lab's `vehicles` sheet (`make army ARGS="--sheet=vehicles"`) photographs them through the game's own renderer: `vehicle-stand` (a tank, a carrier and a truck stood on the piste below him, and round each), `vehicle-wave` (a wave's vehicles climbing at him) and `vehicle-fire` (a tank halted and firing, and the shell's burst).
+
+### Not yet
+
+- Stealing one: a parked carrier or a halted tank taken with the machine press through `steal.ts`, with its heat.
+- Their crews never get out and fight; a vehicle's men are only its passengers.
+- Nothing can knock one out: a rocket's burst damages the machines it can bring down, and a vehicle is not one of them yet.

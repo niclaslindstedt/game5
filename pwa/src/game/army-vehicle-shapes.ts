@@ -57,7 +57,12 @@ type V3 = readonly [number, number, number];
 
 /** A camouflage: the base colour and its patches — which, how big (the
  * waves' scale, 1/m) and what share of the surface each covers. */
-type Camo = { base: Paint; patches: { paint: Paint; above: number }[]; scale: number; seed: number };
+type Camo = {
+  base: Paint;
+  patches: { paint: Paint; above: number }[];
+  scale: number;
+  seed: number;
+};
 
 /** THE PATCH at a point of the body, m: the patch's paint, or the base's. */
 function patchAt(c: Camo, x: number, y: number, z: number): Paint {
@@ -293,7 +298,10 @@ function carrierRear(): THREE.BufferGeometry {
 
 const TRUCK_CAMO: Camo = {
   base: "olive",
-  patches: [{ paint: "white", above: 0.2 }, { paint: "wash", above: -0.15 }],
+  patches: [
+    { paint: "white", above: 0.2 },
+    { paint: "wash", above: -0.15 },
+  ],
   scale: 1.4,
   seed: 1.1,
 };
@@ -354,7 +362,16 @@ function truck(): THREE.BufferGeometry {
   const z0 = -L + bed / 2;
   p.box(W * 2, 0.5, bed, [0, 1.45, z0], "camo");
   p.box(W * 2 - 0.04, 1.15, bed - 0.05, [0, 2.27, z0], "canvas", 0.6);
-  const arch = new THREE.CylinderGeometry(W - 0.02, W - 0.02, bed - 0.05, 12, 4, false, -Math.PI / 2, Math.PI);
+  const arch = new THREE.CylinderGeometry(
+    W - 0.02,
+    W - 0.02,
+    bed - 0.05,
+    12,
+    4,
+    false,
+    -Math.PI / 2,
+    Math.PI,
+  );
   arch.rotateX(Math.PI / 2);
   arch.scale(1, 0.4, 1);
   arch.translate(0, 2.85, z0);

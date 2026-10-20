@@ -23,9 +23,11 @@ import {
   armyVehicles,
   callVehicles,
   step,
+  trackPointAt,
   type ArmyVehicle,
   type GameState,
   type GunfireEvent,
+  type Level,
   type WantedRoster,
 } from "@engine";
 
@@ -33,7 +35,17 @@ import type { WaveLab } from "./army-waves-sheet.ts";
 
 /** What the army harness lends the sheet: the waves' lab and a frame drawn
  * `dt` s on (so a burst grows between two). */
-export type VehicleLab = WaveLab & { frame(run: GameState, dt: number): void };
+export type VehicleLab = WaveLab & { frame(run: GameState, dt: number): void; level: Level };
+
+/** Where he is stood for the wave and the tank: low on the piste, where
+ * the vehicles up the valley come close and the first tank has him in its
+ * sight as it comes out. */
+const LOW = 0.89;
+
+function lowSpot(lab: VehicleLab): { x: number; z: number; heading: number } {
+  const p = trackPointAt(lab.level, lab.level.track.length * LOW);
+  return { x: p.x, z: p.z, heading: p.heading };
+}
 
 /** The waves alone for the length of `fn`: the roster's men held back,
  * its fire as `fire`, no snowmobiles; put back after. */
@@ -139,7 +151,12 @@ export function vehicleViews(lab: VehicleLab): Record<string, () => Promise<void
       ] as const) {
         const at = centre(r, v, 1.4);
         for (const [k, b] of bearings.entries())
-          lab.shoot(`${label} ${k === 0 ? "front" : "back"}`, lab.look(off(r, at, v.heading + b, 11, 2.2), at, 50), n, r);
+          lab.shoot(
+            `${label} ${k === 0 ? "front" : "back"}`,
+            lab.look(off(r, at, v.heading + b, 11, 2.2), at, 50),
+            n,
+            r,
+          );
       }
     });
 
@@ -151,10 +168,11 @@ export function vehicleViews(lab: VehicleLab): Record<string, () => Promise<void
         false,
         (g) => {
           const vs = armyVehicles(g).filter((v) => v.mode === "drive");
-          return vs.length >= 5 && vs.some((v) => v.t > 25);
+          const q = g.skier;
+          return vs.filter((v) => Math.hypot(v.x - q.x, v.z - q.z) < 400).length >= 4;
         },
         300,
-        lab.at,
+        lowSpot(lab),
       );
       if (!r) return;
       for (let i = 0; i < 4; i++) {
@@ -166,30 +184,35 @@ export function vehicleViews(lab: VehicleLab): Record<string, () => Promise<void
       const vs = armyVehicles(r)
         .slice()
         .sort(
-          (a, b) =>
-            Math.hypot(a.x - him.x, a.z - him.z) - Math.hypot(b.x - him.x, b.z - him.z),
+          (a, b) => Math.hypot(a.x - him.x, a.z - him.z) - Math.hypot(b.x - him.x, b.z - him.z),
         );
       const near = vs[0];
       const mid = new THREE.Vector3();
-      for (const v of vs.slice(0, 6)) mid.add(centre(r, v, 1.5));
-      mid.multiplyScalar(1 / Math.min(6, vs.length));
+      for (const v of vs.slice(0, 4)) mid.add(centre(r, v, 1.5));
+      mid.multiplyScalar(1 / Math.min(4, vs.length));
       const away = Math.atan2(him.x - mid.x, him.z - mid.z);
-      lab.shoot(
-        "wide, from over him",
-        lab.look(off(r, him, away, 25, 35), mid, 55),
-        n,
-        r,
-      );
       const at = centre(r, near, 1.6);
+      const up = at.clone().lerp(him, 0.3);
       lab.shoot(
-        `beside the nearest (${near.kind})`,
-        lab.look(off(r, at, near.heading + 1.4, 16, 3), at, 50),
+        "over the nearest, up the slope",
+        lab.look(off(r, at, away + Math.PI + 0.3, 45, 30), up, 55),
+        n,
+        r,
+      );
+      const ahead = off(r, at, near.heading, 30, 0, 1);
+      lab.shoot(
+        `behind the nearest (${near.kind})`,
+        lab.look(off(r, at, near.heading + Math.PI + 0.3, 12, 4), ahead, 50),
         n,
         r,
       );
       lab.shoot(
-        "behind the column",
-        lab.look(off(r, mid, away + Math.PI, 70, 25), him, 50),
+        "wide, from the side",
+        lab.look(
+          off(r, at.clone().lerp(him, 0.4), away + Math.PI / 2, 110, 40),
+          at.clone().lerp(him, 0.4),
+          50,
+        ),
         n,
         r,
       );
@@ -213,7 +236,7 @@ export function vehicleViews(lab: VehicleLab): Record<string, () => Promise<void
           return tankId >= 0;
         },
         400,
-        lab.at,
+        lowSpot(lab),
       );
       if (!r) return;
       lab.frame(r, 1 / 60);
@@ -245,12 +268,7 @@ export function vehicleViews(lab: VehicleLab): Record<string, () => Promise<void
         n,
         r,
       );
-      lab.shoot(
-        "the burst",
-        lab.look(off(r, blast, toward + 1.6, 30, 6), blast, 50),
-        n,
-        r,
-      );
+      lab.shoot("the burst", lab.look(off(r, blast, toward + 1.6, 30, 6), blast, 50), n, r);
       const mid = at.clone().lerp(blast, 0.5);
       lab.shoot("wide", lab.look(off(r, mid, toward + 1.4, 120, 45), mid, 50), n, r);
     });

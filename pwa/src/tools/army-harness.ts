@@ -858,6 +858,7 @@ const LAB = {
   note: groundNote,
   at: open,
   frame: (run: GameState, dt: number) => renderer.draw(run, 1, dt),
+  level,
 };
 const VIEWS: Record<string, () => void | Promise<void>> = {
   ...waveViews(LAB),

@@ -32,6 +32,7 @@ import { HELI } from "./defs/heli.ts";
 import { onSkis } from "./groomer.ts";
 import { heliWithin, takeHeli } from "./heli.ts";
 import { PATROL_SOURCE } from "./rescue-sled.ts";
+import { ARMY_SLED_SOURCE } from "./army-sled.ts";
 import { sledWithin, takeSled } from "./sled.ts";
 import { SEAT } from "./heli-rotor.ts";
 import { inGrace } from "./machine-grace.ts";
@@ -147,18 +148,21 @@ const RESCUE_SOURCE: StealSource = {
 const OFFENCE: Readonly<Record<string, WantedCause>> = {
   rescue: "stole-ambulance",
   police: "stole-police",
+  army: "stole-snowmobile",
 };
 
 /** EVERY SOURCE, in the order the press looks at them. A machine added to
  * the mechanic is a row here. */
-export const STEAL_SOURCES: StealSource[] = [RESCUE_SOURCE, PATROL_SOURCE];
+export const STEAL_SOURCES: StealSource[] = [RESCUE_SOURCE, PATROL_SOURCE, ARMY_SLED_SOURCE];
 
 /** THE TAKERS: the run's own machine of each kind made the taken one, the
  * skier aboard — false when the run carries no such machine to become it. */
 const TAKERS: Record<StealKind, (run: GameState, p: StealTarget, events: GameEvent[]) => boolean> =
   {
-    heli: (run, p, events) => p.livery !== "patrol" && takeHeli(run, p, p.livery, p.spool, events),
-    sled: (run, p, events) => p.livery === "patrol" && takeSled(run, p, p.livery, events),
+    heli: (run, p, events) =>
+      p.livery !== "patrol" && p.livery !== "army" && takeHeli(run, p, p.livery, p.spool, events),
+    sled: (run, p, events) =>
+      (p.livery === "patrol" || p.livery === "army") && takeSled(run, p, p.livery, events),
   };
 
 const found: StealTarget[] = [];

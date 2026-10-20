@@ -107,3 +107,15 @@ export { landing, ropeHover } from "./army.ts";
 export { landingSpot, type LandSpot } from "./army-land.ts";
 export { armyTroops, liftSquad, onTheGround, soldierKey, stepGround } from "./army-ground.ts";
 export { LIFT_SQUAD, inGondola, liftFor } from "./army-lift.ts";
+// THE ARMY'S SNOWMOBILES (`army-sled.ts`): two up, after him over the snow.
+export { ARMY_SLED } from "./defs/army-sled.ts";
+export {
+  ARMY_SLED_SOURCE,
+  SLED_SQUAD,
+  armySleds,
+  crewed,
+  sledPad,
+  sledPoint,
+  stepArmySleds,
+  wayCost,
+} from "./army-sled.ts";

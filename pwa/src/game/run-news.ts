@@ -217,6 +217,9 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
     case "steal":
       // Somebody else's machine taken off the snow.
       return { text: STRINGS.newsSteal[e.livery], tone: "good" };
+    case "army-sled":
+      // An army snowmobile's crew knocked off it.
+      return e.change === "knocked" ? { text: STRINGS.newsCrewOff, tone: "good" } : null;
     case "heli":
       // The helicopter: sat on, pushed off (from how high over the snow),
       // flown into the mountain, and the ride begun again on the pad.

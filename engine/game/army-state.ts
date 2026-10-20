@@ -3,6 +3,7 @@
 // own so `state.ts` can carry it without importing the step that moves it.
 
 import type { GunfireEvent } from "./gunfire-state.ts";
+import type { SledState } from "./sled-state.ts";
 import type { WantedEvent } from "./wanted-state.ts";
 
 /** What one machine is doing:
@@ -128,13 +129,14 @@ export type SoldierMode =
 /** ONE SOLDIER ON THE GROUND: his feet's place (m), his way over the snow
  * (m/s, plan) and his heading (rad); his `role` (a rifleman on skis or the
  * anti-armour man on foot) and where he came from (a machine's squad is
- * its id; a lift's squad is numbered past `LIFT_SQUAD`); what he is doing
+ * its id; a lift's squad is numbered past `LIFT_SQUAD`, a snowmobile's
+ * crew past `SLED_SQUAD`); what he is doing
  * and for how long; the stance he fires from and the way he aims; and the
  * bookkeeping his decisions run on. */
 export type Soldier = {
   id: number;
   role: "rifle" | "rocket";
-  from: "heli" | "lift";
+  from: "heli" | "lift" | "sled";
   squad: number;
   mode: SoldierMode;
   /** Seconds in his mode. */
@@ -207,6 +209,13 @@ export type ArmyState = {
   /** Counts the labs read: soldiers put down, picked up again. */
   dropped: number;
   picked: number;
+  /** THE SNOWMOBILES (`army-sled.ts`), the next one's id, and the counts
+   * the labs read: machines called, crews knocked off, machines stolen. */
+  sleds: ArmySled[];
+  nextSled: number;
+  sledsCalled: number;
+  crewsDown: number;
+  sledsTaken: number;
   /** THE ARREST: the soldier holding him, when it was made, and where and
    * which way he was put down — absent until one is. */
   arrest?: { by: number; t: number; x: number; z: number; heading: number };
@@ -244,6 +253,68 @@ export type SoldierEvent = {
   z: number;
 };
 
+/** What one of the army's snowmobiles is doing (`army-sled.ts`):
+ *   * `due`: called, its crew mounting up in the village (it leaves at
+ *     `due`);
+ *   * `drive`: after him over the snow (or where he was last seen);
+ *   * `halt`: stopped for the gunner to fire;
+ *   * `empty`: stood where its crew left it — knocked off by him, or got
+ *     off to take him in — to be stolen;
+ *   * `leave`: the hunt over, driving home to the village;
+ *   * `gone`: home, or stolen — dropped at the end of the step. */
+export type ArmySledMode = "due" | "drive" | "halt" | "empty" | "leave" | "gone";
+
+/** ONE OF THE ARMY'S SNOWMOBILES: its body on the snow (the free ride's
+ * machine, `SledState`, stepped by `rideSled`), what it is doing and for
+ * how long, the way it is steering (`way`, rad, chosen by reading the
+ * snow ahead) and the pace it wants, m/s; the gunner's aim off its nose
+ * (`aimYaw`, `aimPitch`, rad); the bursts fired this halt and when it may
+ * next halt; when its crew last had him in sight; and the bookkeeping its
+ * stuck watch runs on. */
+export type ArmySled = {
+  id: number;
+  mode: ArmySledMode;
+  due: number;
+  t: number;
+  body: SledState;
+  /** Where it set off from, m (the village), and where it is going. */
+  home: { x: number; z: number };
+  way: number;
+  pace: number;
+  aimYaw: number;
+  aimPitch: number;
+  bursts: number;
+  next: number;
+  saw: number;
+  /** The crew still on it: the driver and the gunner. */
+  driver: boolean;
+  gunner: boolean;
+  /** NOT GETTING STUCK: where it was at the last check and when, how many
+   * windows in a row it barely moved, the side it swings off to and until
+   * when, and how often its crew dug it out. */
+  wx: number;
+  wz: number;
+  wt: number;
+  slow: number;
+  side: number;
+  until: number;
+  dug: number;
+};
+
+/** A SNOWMOBILE'S EVENT: called in (`called`), out of the village
+ * (`out`), stopped to fire (`halt`), its crew knocked off by him
+ * (`knocked`), its crew off it to take him in (`dismount`), dug out
+ * (`dug`), stolen (`stolen`), and home (`gone`). */
+export type ArmySledEvent = {
+  kind: "army-sled";
+  t: number;
+  change: "called" | "out" | "halt" | "knocked" | "dismount" | "dug" | "stolen" | "gone";
+  id: number;
+  x: number;
+  y: number;
+  z: number;
+};
+
 /** THE HUNT'S EVENTS — the wanted level's, the gunfire's, the army's
- * machines' and its soldiers' — as one row of `GameEvent`. */
-export type HuntEvent = WantedEvent | GunfireEvent | ArmyEvent | SoldierEvent;
+ * machines', its soldiers' and its snowmobiles' — as one row of `GameEvent`. */
+export type HuntEvent = WantedEvent | GunfireEvent | ArmyEvent | SoldierEvent | ArmySledEvent;

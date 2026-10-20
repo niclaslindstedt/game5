@@ -115,6 +115,11 @@ export function freshArmy(state: GameState): ArmyState {
     liftDue: NaN,
     dropped: 0,
     picked: 0,
+    sleds: [],
+    nextSled: 0,
+    sledsCalled: 0,
+    crewsDown: 0,
+    sledsTaken: 0,
   };
   a.from = Math.atan2(q.x - half, q.z - half) + (draw(a) - 0.5) * ARMY.drift;
   return a;

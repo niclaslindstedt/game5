@@ -235,6 +235,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
   gunfire: { kind: "gunfire", t: 1, phase: "shot", weapon: "rifle", x: 0, y: 0, z: 0 },
   army: { kind: "army", t: 1, change: "down", id: 0, x: 0, y: 0, z: 0 },
   soldier: { kind: "soldier", t: 1, change: "shout", id: 0, x: 0, y: 0, z: 0 },
+  "army-sled": { kind: "army-sled", t: 1, change: "halt", id: 0, x: 0, y: 0, z: 0 },
   steal: {
     kind: "steal",
     t: 1,

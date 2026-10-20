@@ -923,6 +923,7 @@ export function heardFrom(
 /** THE REPORT each weapon makes. */
 const REPORT = {
   rifle: "gun_rifle",
+  lmg: "gun_rifle",
   doorGun: "gun_mg",
   heavyGun: "gun_heavy",
   rocket: "rocket_launch",

@@ -444,7 +444,10 @@ export const STRINGS = {
     rescue: "STOLE THE AIR AMBULANCE!",
     patrol: "STOLE THE SKI PATROL'S SNOWMOBILE!",
     police: "STOLE THE POLICE HELICOPTER!",
+    army: "STOLE AN ARMY SNOWMOBILE!",
   } as const,
+  /** An army snowmobile's crew knocked off it (`army-sled.ts`). */
+  newsCrewOff: "KNOCKED THE CREW OFF!",
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */
   newsTunnel: "WIND TUNNEL! HOLD ON",
   /** Taken onto a lift on a free ride (`lift-ride.ts`). */

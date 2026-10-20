@@ -65,8 +65,9 @@ const HIT_SAY = 2.5;
 const HALF_L = SLED.length / 2;
 const HALF_W = 0.5;
 
-/** The machine at rest on a spot, nobody on it. */
-function parkedAt(state: GameState, x: number, z: number, heading: number): SledState {
+/** The machine at rest on a spot, nobody on it — the free ride's, one
+ * taken, or one of the army's (`army-sled.ts`). */
+export function parkedAt(state: GameState, x: number, z: number, heading: number): SledState {
   const s: SledState = {
     mode: "parked",
     x,
@@ -304,12 +305,12 @@ function drive(
       off: landing!.off,
     });
   }
-  const hit = trees(run, s);
+  const hit = sledSolids(run, s);
   if (hit > HIT_SAY && s.hitCooldown <= 0 && ridden) {
     s.hitCooldown = 0.5;
     events.push({ kind: "hit", t: run.t, speed: hit, x: s.x, z: s.z });
   }
-  bounds(run, s);
+  sledBounds(run, s);
   // PAST SAVING: on its side or its back on the snow, or looped.
   const up = rotate(s.q, { x: 0, y: 1, z: 0 });
   s.overFor = up.y < Math.cos(K.over) ? s.overFor + dt : 0;
@@ -373,8 +374,9 @@ const LOG_BUCK = 0.3;
 
 /** THE TRUNKS AND THE POSTS (`posts.ts`) against the machine's plan — a
  * capsule down its length — pushed out of, the closing speed taken off and
- * a little back. Returns the hardest closing speed met, m/s. */
-function trees(run: GameState, s: SledState): number {
+ * a little back. Returns the hardest closing speed met, m/s. Any machine
+ * on the snow — the free ride's, or the army's (`army-sled.ts`). */
+export function sledSolids(run: GameState, s: SledState): number {
   const level = run.level;
   const solids = solidsOf(level);
   if (solids.length === 0) return 0;
@@ -415,8 +417,8 @@ function trees(run: GameState, s: SledState): number {
   return worst;
 }
 
-/** The map's edge: held inside it. */
-function bounds(run: GameState, s: SledState): void {
+/** The map's edge: any machine held inside it. */
+export function sledBounds(run: GameState, s: SledState): void {
   const lo = TUNING.bounds.margin;
   const hi = run.level.size - lo;
   if (s.x < lo) {

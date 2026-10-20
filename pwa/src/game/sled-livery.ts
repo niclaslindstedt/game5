@@ -37,6 +37,7 @@ export const LIVERIES: Readonly<
   Record<SledLivery, { paint: number; cross: number; beacon: number; flag: number; mast: number }>
 > = {
   patrol: { paint: 0xc8101e, cross: 0xf6f6f2, beacon: 0xffa424, flag: 0xff5a12, mast: 0x1c1d20 },
+  army: { paint: 0x4b5233, cross: 0xe4e6e2, beacon: 0x3a3f2a, flag: 0x4b5233, mast: 0x1c1d20 },
 };
 
 /** THE PATROL'S KIT in the trace's frame, m: the crosses (the hood's side

@@ -98,13 +98,33 @@ export const CANOPY = {
 /** THE PAINT: a three-colour scheme in large panels — the base, the
  * swoosh across it, the tips — and the underside a shade under it; the
  * cells' insides, seen through the mouths. */
-export const CANOPY_PAINT = {
+export const CANOPY_PAINT: CanopyPaint = {
   base: [0.86, 0.14, 0.12],
   swoosh: [0.97, 0.97, 0.95],
   tips: [0.08, 0.09, 0.12],
   under: 0.72,
   mouth: [0.04, 0.04, 0.05],
-} as const;
+};
+
+/** A canopy's scheme (`CANOPY_PAINT`'s slots). */
+export type CanopyPaint = {
+  base: readonly number[];
+  swoosh: readonly number[];
+  tips: readonly number[];
+  under: number;
+  mouth: readonly number[];
+};
+
+/** THE ARMY'S WING (`army-craft-view.ts`): the same panels in its
+ * low-visibility colours — an olive drab base, the swoosh a shade of grey
+ * green, dark tips. */
+export const ARMY_CANOPY_PAINT: CanopyPaint = {
+  base: [0.2, 0.23, 0.13],
+  swoosh: [0.36, 0.38, 0.3],
+  tips: [0.07, 0.08, 0.06],
+  under: 0.72,
+  mouth: [0.03, 0.03, 0.03],
+};
 
 /** THE LINES' COLOURS, by row — a line plan's coding, dulled a little, as
  * thin line reads at a few metres. */
@@ -238,7 +258,12 @@ export function brakeDrop(u: number, left: number, right: number, w: WingShape =
  * bottom, past 1.5 an open cell's), so the panels' edges, the mouths and
  * the ribs' seams are crisp at any distance. `canopyPaint(p)` is the
  * colour there; the same rule as `paintAt` below. */
-export const PAINT_GLSL = /* glsl */ `
+export const PAINT_GLSL = paintGlsl(CANOPY_PAINT);
+
+/** `canopyPaint` for the scheme `P`. */
+export function paintGlsl(P: CanopyPaint): string {
+  const CANOPY_PAINT = P;
+  return /* glsl */ `
 vec3 canopyPaint(vec3 p) {
   float u = p.x;
   float s = p.y;
@@ -260,6 +285,7 @@ vec3 canopyPaint(vec3 p) {
   return under ? c * ${CANOPY_PAINT.under.toFixed(2)} : c;
 }
 `;
+}
 
 /** `canopyPaint` restated for the suite: the colour at `u`, `s` on a skin
  * (`side` 1 the top), cell `cell`. */

@@ -482,25 +482,36 @@ export const PALETTES: readonly (readonly number[])[] = [
   [0x6a2c91, 0xe8438f, 0xf4f1ea, 0xf3c623, 0x1b1b1d],
   [0xf2661b, 0x1b1b1d, 0xf4f1ea, 0xc8202f, 0x2a2a2e],
   [0x0f8b8d, 0xf4f1ea, 0xec5f2a, 0x13315c, 0x1b1b1d],
+  // THE ARMY'S (`ARMY_COLOURWAY`), never dealt to a map: olive drab and a
+  // dull khaki in gores, a winter wash of grey-white at the crown, a deep
+  // olive and the dark.
+  [0x4b5232, 0x7a7350, 0xc9cbc2, 0x2f3420, 0x1b1c18],
 ];
+/** The palettes a map is dealt from: the first six — the army's is not. */
+const DEALT = 6;
 
 /** The rainbow's own six, sRGB, round its gores. */
 export const RAINBOW = [0xd6252b, 0xf2771c, 0xf6cf22, 0x2aa34a, 0x1f6fd0, 0x6c3797];
 
 export type Colourway = { scheme: number; palette: number };
 
+/** THE ARMY'S BALLOONS (`army-craft-view.ts`): plain gores in its olive
+ * and khaki under a pale crown — low-visibility, the way a service
+ * paints a thing it flies. */
+export const ARMY_COLOURWAY: Colourway = { scheme: 0, palette: 6 };
+
 /** The balloon a map is dealt: its pattern and its palette, off the map's
  * seed and a salt of its own (presentation only — no digest moves). */
 export function colourwayOf(seed: number): Colourway {
   const rng = createRng((seed ^ COLOURWAY_SALT) >>> 0);
   rng.next();
-  return { scheme: rng.int(0, SCHEMES.length - 1), palette: rng.int(0, PALETTES.length - 1) };
+  return { scheme: rng.int(0, SCHEMES.length - 1), palette: rng.int(0, DEALT - 1) };
 }
 
 /** Every colourway, for a lab's sheet: each pattern once, the palettes
  * dealt round them. */
 export function everyColourway(): Colourway[] {
-  return SCHEMES.map((_, i) => ({ scheme: i, palette: i % PALETTES.length }));
+  return SCHEMES.map((_, i) => ({ scheme: i, palette: i % DEALT }));
 }
 
 /** The palette's slot a panel's point is painted from (0..4, or 5..10 a

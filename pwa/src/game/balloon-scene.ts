@@ -106,7 +106,9 @@ export function paintEveryBalloon(c: Colourway | null): void {
   labPaint = c;
 }
 
-export function createBalloonScene(haze: HazeUniforms): BalloonScene {
+/** The free ride's balloon in its map's colourway, or — `paintAs` given —
+ * always in that one (the army's, `army-craft-view.ts`). */
+export function createBalloonScene(haze: HazeUniforms, paintAs?: Colourway): BalloonScene {
   // The whole drawing, in the world; the rig under it carried to the
   // basket, the flame and the fire in the world beside it.
   const root = new THREE.Group();
@@ -425,7 +427,7 @@ export function createBalloonScene(haze: HazeUniforms): BalloonScene {
         level = state.level;
         seed = state.level.seed;
       }
-      paint(labPaint ?? colourwayOf(seed));
+      paint(paintAs ?? labPaint ?? colourwayOf(seed));
       place(state, b, alpha);
       rig(b);
       burn(state, b, alpha, dt);

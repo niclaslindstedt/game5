@@ -27,6 +27,7 @@ import {
   setWanted,
   step,
   type ArmyAirEvent,
+  type BlastDef,
   type GameEvent,
   type GameState,
   type GunfireEvent,
@@ -156,7 +157,7 @@ describe("the hunt", () => {
       let near = 0;
       const events = run(s, 110, (st) => {
         for (const b of rocketBlasts(st.events))
-          if (Math.hypot(b.x - st.skier.x, b.z - st.skier.z) < WEAPONS.rocket.throw) near++;
+          if (Math.hypot(b.x - st.skier.x, b.z - st.skier.z) < (WEAPONS.rocket as BlastDef).throw) near++;
       });
       expect(rocketBlasts(events).length).toBeGreaterThan(0);
       expect(near).toBe(0);

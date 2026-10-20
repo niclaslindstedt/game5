@@ -24,6 +24,8 @@ import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import {
   LINE_PAINT,
   PAINT_GLSL,
+  paintGlsl,
+  type CanopyPaint,
   canopyLayout,
   canopyPoint,
   linePlan,
@@ -77,7 +79,9 @@ const SLOTS = { A: 0, B: 1, C: 2, brake: 3 } as const;
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-export function createParaScene(haze: HazeUniforms): ParaScene {
+/** The free ride's wing, or — `paint` given — a wing in that scheme (the
+ * army's, `army-craft-view.ts`), its cloth a program of its own. */
+export function createParaScene(haze: HazeUniforms, paint?: CanopyPaint): ParaScene {
   const group = new THREE.Group();
   group.name = "paramotor";
   group.visible = false;
@@ -104,7 +108,7 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
   const cloth = hazeMaterial(
     new THREE.MeshStandardMaterial({ roughness: 0.62, metalness: 0, side: THREE.DoubleSide }),
     haze,
-    "para-cloth",
+    paint ? "para-cloth-army" : "para-cloth",
     (shader) => {
       shader.vertexShader = shader.vertexShader
         .replace(
@@ -113,7 +117,10 @@ export function createParaScene(haze: HazeUniforms): ParaScene {
         )
         .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPaint = aPaint;");
       shader.fragmentShader = shader.fragmentShader
-        .replace("#include <common>", `#include <common>\nvarying vec3 vPaint;\n${PAINT_GLSL}`)
+        .replace(
+          "#include <common>",
+          `#include <common>\nvarying vec3 vPaint;\n${paint ? paintGlsl(paint) : PAINT_GLSL}`,
+        )
         .replace(
           "#include <color_fragment>",
           "#include <color_fragment>\ndiffuseColor.rgb *= canopyPaint(vPaint);",

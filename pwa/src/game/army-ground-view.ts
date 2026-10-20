@@ -12,11 +12,17 @@
 //     from the machine's door to the snow;
 //   * the anti-armour man on foot (the `rocketeer` figure): walking, the
 //     launcher on his shoulder stood or knelt;
+//   * a ground wave's men on foot (the `foot` figure): slogging up the
+//     mountain on the figure's walk (keyed as a civilian's is), stood or knelt to
+//     aim; and its men on skis climbing with skins, poling stride on stride;
 //   * KNOCKED DOWN, or killed with the INJURIES on: hung on his body's
 //     ragdoll (`foot.ts`, read as his joints — `lyingPose`), posed outright;
 //   * aboard a machine again or in a gondola's cabin: not drawn.
 //
-// His rounds' flashes, tracers and strikes are the guns' (`gunfire-view.ts`,
+// A man near the lens is a mesh of his own; past it (the crowd's `near`
+// cut) every man of a figure and a cut is one instance of one draw
+// (`soldier-batch.ts`), so a column of a hundred costs a few draws. His
+// rounds' flashes, tracers and strikes are the guns' (`gunfire-view.ts`,
 // the engine's `gunfire` state). Presentation only: it reads the state
 // and writes nothing.
 
@@ -43,6 +49,7 @@ import { lyingPose } from "./crowd-fall.ts";
 import { CROWD_CUTS } from "./crowd-view.ts";
 import { lyingSoldier, PACK, ROPE_AHEAD, SOLDIER_LOOK, type SoldierKind } from "./soldier-pose.ts";
 import { SoldierView } from "./soldier-shapes.ts";
+import { PoseNote, SoldierBatch, type SoldierPoser } from "./soldier-batch.ts";
 
 /** How far under a chair's grip-hung seat a sat soldier's figure stands,
  * m (the figure's origin is the snow under him). */
@@ -50,8 +57,10 @@ const SEAT_DROP = seatHeight(SOLDIER_LOOK);
 
 /** A pole's stride as drawn while he works up a rise: its rate, Hz. */
 const STRIDE_HZ = 1.1;
-/** The rocketeer's walk: a stride's length, m. */
+/** A walk on foot: a stride's length, m. */
 const PACE = 1.4;
+/** Men of one figure at one cut drawn as one batch, at the most. */
+const BATCH = 200;
 
 /** Fast ropes drawn at once at the most (two a machine). */
 const ROPES = 8;
@@ -72,7 +81,7 @@ export type ArmyGroundView = {
 
 /** Which figure a soldier is drawn as, by his role and what he is doing. */
 function kindOf(s: Soldier): SoldierKind {
-  if (s.mode === "rope") return "foot";
+  if (s.mode === "rope" || s.role === "foot") return "foot";
   return s.role === "rocket" ? "rocketeer" : "skier";
 }
 
@@ -89,6 +98,20 @@ export function createArmyGroundView(material: THREE.Material): ArmyGroundView {
   const right = new THREE.Vector3();
   const basis = new THREE.Matrix4();
   const drop3 = new THREE.Vector3();
+  // THE BATCHES, a figure and a cut each, made the first time one is asked
+  // for; and the stand-in a batched man is posed through.
+  const batches = new Map<string, SoldierBatch>();
+  const note = new PoseNote();
+  const batchOf = (kind: SoldierKind, lod: CrowdLod): SoldierBatch => {
+    const key = `${kind}:${lod}`;
+    let b = batches.get(key);
+    if (!b) {
+      b = new SoldierBatch(kind, lod, material, BATCH);
+      group.add(b.mesh);
+      batches.set(key, b);
+    }
+    return b;
+  };
 
   // THE FAST ROPES: a segment each, the door's hook to the snow.
   const ropePos = new Float32Array(ROPES * 6);
@@ -156,6 +179,7 @@ export function createArmyGroundView(material: THREE.Material): ArmyGroundView {
       }
       const ahead = alpha * simDt;
       const down = state.foot?.down ?? [];
+      for (const b of batches.values()) b.begin();
       for (const s of armyTroops(state)) {
         if (s.mode === "gone" || inGondola(state, s)) continue;
         // DOWN: on his body's ragdoll, posed outright while it moves.
@@ -179,16 +203,30 @@ export function createArmyGroundView(material: THREE.Material): ArmyGroundView {
         const far = Math.hypot(s.x - eye.x, s.y - eye.y, s.z - eye.z);
         const lod: CrowdLod = far < CROWD_CUTS.near ? "near" : far < CROWD_CUTS.mid ? "mid" : "far";
         const kind = kindOf(s);
-        const d = figure(s, kind, lod);
-        // Back on his feet off a ragdoll: the morph targets again.
-        if (d.lay >= 0) {
-          drop(s.id);
-          figure(s, kind, lod);
+        // Near the lens, on a ride or down a rope: a mesh of his own.
+        // Further: an instance of his figure's batch.
+        const own = lod === "near" || s.mode === "ride" || s.mode === "rope";
+        const batch = own ? null : batchOf(kind, lod);
+        let v: SoldierPoser;
+        if (batch && !batch.full) {
+          if (drawn.has(s.id)) drop(s.id);
+          v = note;
+        } else {
+          const d = figure(s, kind, lod);
+          // Back on his feet off a ragdoll: the morph targets again.
+          if (d.lay >= 0) {
+            drop(s.id);
+            figure(s, kind, lod);
+          }
+          v = drawn.get(s.id)!.view;
+          v.mesh.visible = true;
         }
-        const v = drawn.get(s.id)!.view;
-        v.mesh.visible = true;
         const moving =
-          s.mode === "chase" || s.mode === "board" || s.mode === "walk" || s.mode === "cover";
+          s.mode === "chase" ||
+          s.mode === "climb" ||
+          s.mode === "board" ||
+          s.mode === "walk" ||
+          s.mode === "cover";
         const x = s.x + (moving ? s.vx * ahead : 0);
         const z = s.z + (moving ? s.vz * ahead : 0);
         const ground = moving ? state.level.groundAt(x, z) : s.y;
@@ -222,11 +260,13 @@ export function createArmyGroundView(material: THREE.Material): ArmyGroundView {
           case "aim":
             stand(v.mesh, state, x, ground, z, s.aimH, true);
             if (kind === "rocketeer") v.pose(s.kneel ? "kneelLaunch" : "launch");
+            else if (kind === "foot") v.pose(s.kneel ? "kneel" : "aim");
             else v.pose(s.kneel ? "skiKneel" : "skiAim");
             break;
           case "arrest":
             stand(v.mesh, state, x, ground, z, s.heading, true);
             if (kind === "rocketeer") v.pose("kneelLaunch");
+            else if (kind === "foot") v.pose("kneel");
             else v.pose("pin");
             break;
           default: {
@@ -234,14 +274,17 @@ export function createArmyGroundView(material: THREE.Material): ArmyGroundView {
             if (s.mode === "out" && s.kneel) {
               // Knelt at the dismount, the rifle out over the snow.
               if (kind === "rocketeer") v.pose("kneelLaunch");
+              else if (kind === "foot") v.pose("kneel");
               else v.pose("skiKneel");
               break;
             }
-            if (kind === "rocketeer") {
-              // Walking: a stride off each foot, by the ground he covers.
-              if (s.speed < 0.2) v.pose("carry");
+            if (kind === "rocketeer" || kind === "foot") {
+              // Walking: a stride off each foot, by the ground he covers —
+              // each man on his own foot (his id), so a column does not
+              // march in step.
+              if (s.speed < 0.2) v.pose(kind === "foot" ? "ready" : "carry");
               else {
-                const u = (state.t * s.speed) / PACE;
+                const u = (state.t * s.speed) / PACE + s.id * 0.37;
                 const k = 0.5 + 0.5 * Math.sin(u * Math.PI);
                 v.pose("walkA", k, "walkB");
               }
@@ -257,7 +300,12 @@ export function createArmyGroundView(material: THREE.Material): ArmyGroundView {
             else v.pose("ski");
           }
         }
+        if (v === note && batch) {
+          note.mesh.updateMatrix();
+          batch.add(note.mesh.matrix, note);
+        }
       }
+      for (const b of batches.values()) b.end();
       for (const [id, d] of drawn) if (d.seen !== frameNo) drop(id);
       // THE FAST ROPES, from each machine holding over a spot.
       let n = 0;
@@ -285,6 +333,7 @@ export function createArmyGroundView(material: THREE.Material): ArmyGroundView {
     },
     dispose() {
       for (const id of [...drawn.keys()]) drop(id);
+      for (const b of batches.values()) b.dispose();
       ropeGeo.dispose();
       (ropes.material as THREE.Material).dispose();
     },

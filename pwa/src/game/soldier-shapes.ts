@@ -13,7 +13,7 @@
 // camouflage's sparse grey-green and grey blotches laid on per triangle
 // (`camoAt`, read at the rest pose, so a blotch stays on its cloth through
 // every pose), the helmet under a white cover, the webbing an off-white,
-// the pack a white-covered block with its mat across the top, the goggles
+// the pack a rounded patrol rucksack under a white cover, the goggles
 // dark over a white balaclava — and the weapons black and olive, the only
 // dark things on him besides his boots. `docs/army.md` says why each.
 //
@@ -280,40 +280,73 @@ function emitRig(fig: Figure, P: Posed, lod: CrowdLod, hips: Frame, chest: Frame
   }
 }
 
-/** THE PACK: a big white-covered block on his back, its mat rolled across
- * its top. */
+/** THE PACK: a large-volume patrol rucksack under a white snow cover, as
+ * ski troops carry one — a soft, rounded body (no box: a loaded fabric
+ * bag bulges and its corners round off) on a frame that holds it close
+ * to the back from the small of it to the shoulders, a domed lid over its
+ * top, and a compression strap round each side. Its profile, bottom to top
+ * (`PROFILE`: the share of `PACK.height` up, the half-width and the depth
+ * as shares of `PACK.width` and `PACK.depth`), lofted as rings that stand
+ * off the back by their own depth — so the bag's face lies on the smock
+ * and only its belly stands out. */
+const PROFILE: readonly (readonly [number, number, number])[] = [
+  [0, 0.25, 0.3],
+  [0.04, 0.42, 0.62],
+  [0.14, 0.48, 0.86],
+  [0.42, 0.5, 1],
+  [0.72, 0.48, 0.92],
+  [0.88, 0.44, 0.78],
+];
+/** The lid over the top: from `PROFILE`'s last ring, a little proud of it
+ * all round, domed to its crown. */
+const LID: readonly (readonly [number, number, number])[] = [
+  [0.86, 0.47, 0.84],
+  [0.93, 0.47, 0.82],
+  [0.99, 0.38, 0.62],
+];
+
+/** How far the bag's face is pressed into the smock's line, m: the frame
+ * pulls it onto the back, so no daylight shows between them. */
+const HUG = 0.025;
+
 function emitPack(fig: Figure, P: Posed, lod: CrowdLod, chest: Frame): void {
   const L = SOLDIER_LOOK;
-  const centre = sub(
-    sub(mix(P.waist, P.neck, 0.5), mul(chest.f, L.girth + PACK.depth / 2)),
-    mul(chest.u, PACK.drop),
-  );
-  const a = sub(centre, mul(chest.u, PACK.height / 2));
-  const b = add(centre, mul(chest.u, PACK.height / 2));
-  box(fig, a, b, chest.r, chest.f, PACK.width, PACK.depth, C.cover);
+  const sides = lod === "far" ? 5 : lod === "mid" ? 7 : 9;
+  // Its foot on the small of the back, its top level with the shoulders.
+  const foot = sub(mix(P.waist, P.neck, 0.5), mul(chest.u, PACK.height / 2 + PACK.drop));
+  const at = (k: number, d: number): V3 =>
+    sub(
+      add(foot, mul(chest.u, k * PACK.height)),
+      mul(chest.f, L.girth - HUG + d * PACK.depth * 0.5),
+    );
+  const lay = (rows: readonly (readonly [number, number, number])[]) => {
+    const centres = rows.map(([k, , d]) => at(k, d));
+    const rings = rows.map(([, w, d], i) =>
+      ring(centres[i], chest, w * PACK.width, d * PACK.depth * 0.5, sides),
+    );
+    return { centres, rings };
+  };
+  const body = lay(PROFILE);
+  fig.loft(body.rings, body.centres, () => [0, C.cover], at(0.9, 0.5));
   if (lod === "far") return;
-  // The lid, a shade under, and the mat across the top.
-  box(
-    fig,
-    sub(b, mul(chest.u, 0.08)),
-    add(b, mul(chest.u, 0.01)),
-    chest.r,
-    chest.f,
-    PACK.width + 0.02,
-    PACK.depth + 0.02,
-    C.whiteShade,
-  );
-  const mat = add(b, mul(chest.u, 0.07));
-  fig.limb(
-    sub(mat, mul(chest.r, 0.25)),
-    add(mat, mul(chest.r, 0.25)),
-    chest.u,
-    0.065,
-    0.065,
-    cutOf(lod).limb,
-    C.webbing,
-    true,
-  );
+  const lid = lay(LID);
+  fig.loft(lid.rings, lid.centres, () => [0, C.whiteShade], at(1.01, 0.4));
+  // The compression straps: round each side of the bag, low and high.
+  for (const k of [0.3, 0.62]) {
+    for (const s of [-1, 1]) {
+      const c = add(at(k, 0.95), mul(chest.r, s * PACK.width * 0.5));
+      box(
+        fig,
+        sub(c, mul(chest.f, PACK.depth * 0.32)),
+        add(c, mul(chest.f, PACK.depth * 0.32)),
+        chest.r,
+        chest.u,
+        0.012,
+        0.03,
+        C.webbing,
+      );
+    }
+  }
 }
 
 /** THE ARMS: the smock's sleeves and the white mittens. */

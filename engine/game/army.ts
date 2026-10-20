@@ -120,6 +120,12 @@ export function freshArmy(state: GameState): ArmyState {
     sledsCalled: 0,
     crewsDown: 0,
     sledsTaken: 0,
+    waves: 0,
+    waveStar: 0,
+    waveAt: 0,
+    waveSleds: 0,
+    routes: [],
+    marched: 0,
   };
   a.from = Math.atan2(q.x - half, q.z - half) + (draw(a) - 0.5) * ARMY.drift;
   return a;

@@ -77,7 +77,7 @@ A utility helicopter seats a section of about a dozen and has a gun in each door
 
 ### The ground waves
 
-From two stars the army also comes **up the mountain from the valley** in waves (`WANTED.waves`, read with `groundWave(stars, n)` and counted with `wavesSent(w, t)`): the first `first` seconds after he reached the star, then one every `every` seconds, each one's `base` plus `grow` for every wave before it, rounded down and capped. Each wave mixes military snowmobiles, tracked over-snow carriers, trucks as far as the roads go, tanks, and **soldiers climbing on foot**, who come in growing numbers with every wave.
+From two stars the army also comes **up the mountain from the valley** in waves (`WANTED.waves`, read with `groundWave(stars, n)` and counted with `wavesSent(w, t)`): the first `first` seconds after he reached the star, then one every `every` seconds, each one's `base` plus `grow` for every wave before it, rounded down and capped. Each wave mixes military snowmobiles, tracked over-snow carriers, trucks as far as the roads go, tanks, and **soldiers climbing on foot**, who come in growing numbers with every wave. The soldiers on foot and the snowmobiles are sent ([`army.md`](army.md#ground-waves)); the carriers, the trucks and the tanks are not on the map yet.
 
 | Stars | First, s | Every, s | First wave (snowmobiles, tracked, trucks, tanks, on foot) | Cap a wave |
 | --- | --- | --- | --- | --- |

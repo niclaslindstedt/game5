@@ -110,9 +110,11 @@ function wayToward(
   let ax = 0;
   let az = 0;
   for (const o of all) {
-    if (o === s || !onSnow(o)) continue;
     const dx = s.x - o.x;
     const dz = s.z - o.z;
+    // The square first: a column of a hundred men is a hundred of these a man.
+    if (dx >= C.apart || dx <= -C.apart || dz >= C.apart || dz <= -C.apart) continue;
+    if (o === s || !onSnow(o)) continue;
     const d = hypot(dx, dz);
     if (d < C.apart && d > 0.01) {
       ax += (dx / d) * (C.apart - d);
@@ -130,6 +132,7 @@ function wayToward(
 /** Whether a soldier is a body on the snow that another keeps off. */
 export function onSnow(s: Soldier): boolean {
   return (
+    s.mode === "climb" ||
     s.mode === "chase" ||
     s.mode === "aim" ||
     s.mode === "out" ||
@@ -166,7 +169,7 @@ export function goToward(
   const tan = slopeAlong(state, s.x, s.z, s.heading);
   const cap =
     stop >= 0 ? Math.min(pace, Math.sqrt(Math.max(0, 2 * S.brake * (dist - stop)))) : pace;
-  if (s.role === "rocket") {
+  if (s.role !== "rifle") {
     // ON FOOT: a walk, slower up a slope and through the snow.
     const walk = ARMY_GROUND.foot.walk;
     const v = clamp(walk - 2 * Math.max(0, tan), ARMY_GROUND.foot.least, walk);
@@ -192,7 +195,7 @@ export function goToward(
 /** ONE STEP OF A MAN STOPPING where he is: a hockey stop on skis, at
  * `brake`; a man on foot pulls up at once. */
 export function stopHere(state: GameState, s: Soldier): void {
-  const brake = s.role === "rocket" ? 6 : S.brake * 1.5;
+  const brake = s.role !== "rifle" ? 6 : S.brake * 1.5;
   s.speed = Math.max(0, s.speed - brake * dt);
   s.climb = false;
   s.tuck += (0 - s.tuck) * Math.min(1, dt * 4);
@@ -299,6 +302,8 @@ export function enlist(
     lift: -1,
     carrier: -1,
     seat: 0,
+    leg: -1,
+    lane: 0,
     wx: x,
     wz: z,
     wt: state.t,

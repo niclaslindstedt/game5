@@ -32,6 +32,10 @@
 //             short halt broadside, the gunner firing), sled-arrest (SAFE
 //             FOR WORK: the crew off it and him held) — a hunted free ride
 //             on the real engine, him stood still
+//   waves     wave-climb (a ground wave's column climbing a run at him),
+//             wave-mass (three waves out, the mountain below him soldiers),
+//             wave-arrest (SAFE FOR WORK: him taken by a man of a wave, the
+//             rest come up round him) — five stars, the waves alone
 //
 // Each frame is captioned with its milliseconds, draw calls and triangles.
 // Each VIEW is one contact sheet, previews/army-<view>.png, and every
@@ -62,12 +66,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (heli, flight, hunt, ground, soldiers, sleds); every one when left out",
+      help: "which sheets, comma-separated (heli, flight, hunt, ground, soldiers, sleds, waves); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (turntable, close, doors, squad, flight-day, flight-dusk, hunt-2, hunt-4, hunt-heli, ground-land, ground-file, ground-fire, ground-lift, ground-arrest, sled-chase, sled-halt, sled-arrest, ski, foot, rocket, gunner, lods)",
+      help: "only these views, comma-separated (turntable, close, doors, squad, flight-day, flight-dusk, hunt-2, hunt-4, hunt-heli, ground-land, ground-file, ground-fire, ground-lift, ground-arrest, sled-chase, sled-halt, sled-arrest, wave-climb, wave-mass, wave-arrest, ski, foot, rocket, gunner, lods)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

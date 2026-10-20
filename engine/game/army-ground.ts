@@ -55,12 +55,14 @@
 import { hypot, clamp } from "@niclaslindstedt/oss-game-framework/core/math";
 import { ARMY_HELI } from "./defs/army-heli.ts";
 import { ARMY_GROUND } from "./defs/army-ground.ts";
+import { ARMY_WAVE } from "./defs/army-wave.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { WANTED } from "./defs/wanted.ts";
 import { armyPoint, landing } from "./army.ts";
 import { landingSpot } from "./army-land.ts";
-import { LIFT_SQUAD, fit, inGondola, sendLiftSquads, stepLiftTroops } from "./army-lift.ts";
+import { fit, inGondola, sendLiftSquads, stepLiftTroops } from "./army-lift.ts";
 import { enlist, goToward, onSnow, slopeAlong, stopHere, watchProgress } from "./army-troop.ts";
+import { climbWithWave, retireWaves, sendWaves } from "./army-wave.ts";
 import { throwRider } from "./crash.ts";
 import { footDown, meetPerson } from "./foot.ts";
 import { armGun, disarmGun, fireAt } from "./gunfire.ts";
@@ -436,6 +438,21 @@ function ringSpot(a: ArmyState, i: number, n: number): { x: number; z: number } 
   return { x: arr.x + Math.sin(th) * K.arrest.ring, z: arr.z + Math.cos(th) * K.arrest.ring };
 }
 
+/** A MAN OF A WAVE, HIM TAKEN: up to a ring round the arrest, each at his
+ * own distance (`ARMY_WAVE.ring`, by his id), and stood there facing him,
+ * his rifle on him — the mass come up the mountain closed round. */
+function converge(state: GameState, a: ArmyState, s: Soldier): void {
+  const arr = a.arrest!;
+  const R = ARMY_WAVE.ring;
+  const ring = R.near + ((s.id * 0.618) % 1) * (R.far - R.near);
+  const d = hypot(arr.x - s.x, arr.z - s.z);
+  if (d > ring + 1) goToward(state, s, a.troops, arr.x, arr.z, R.pace, ring);
+  else {
+    stopHere(state, s);
+    s.heading = Math.atan2(arr.x - s.x, arr.z - s.z);
+  }
+}
+
 /** THE PLAYER INTO A SOLDIER: the collision of two bodies (`meetPerson`),
  * the soldier down and the offence raised. */
 function meet(state: GameState, s: Soldier, events: GameEvent[]): void {
@@ -495,10 +512,12 @@ export function stepGround(state: GameState, events: GameEvent[]): void {
   if (!a || a.home || !w) return;
   const on = w.ended === null && w.stars > 0;
   const roster = rosterOf(on ? w.stars : 0);
+  if (on && WANTED.waves[w.stars]) sendWaves(state, a, w, events);
   if (a.troops.length === 0 && roster.soldiers === 0 && roster.lifted === 0) {
     clearTasks(a);
     return;
   }
+  retireWaves(state, a, w, on);
   const q = quarryOf(state);
   const ground = onTheGround(state);
   if (on && ground && roster.soldiers > 0) askLandings(state, a, w, roster.soldiers);
@@ -509,9 +528,21 @@ export function stepGround(state: GameState, events: GameEvent[]): void {
   else a.liftDue = NaN;
   stepLiftTroops(state, a, events);
   const arrested = w.ended === "arrested";
+  let covering = 0;
+  if (arrested) for (const s of a.troops) if (s.mode === "cover" && s.from === "wave") covering++;
   for (const s of a.troops) {
     s.t += dt;
     switch (s.mode) {
+      case "climb":
+        // WITH HIS WAVE up the way from the valley, until the fight.
+        if (arrested && a.arrest) converge(state, a, s);
+        else if (!on) stopHere(state, s);
+        else if (climbWithWave(state, a, s, w, looks(state, s, q))) {
+          s.mode = "chase";
+          s.t = 0;
+          s.next = state.t + 0.5 + (s.id % 4) * 0.5;
+        }
+        break;
       case "rope": {
         const h = a.helis.find((m) => m.id === s.squad);
         // Down the rope under its hook, as long as the machine holds over it.
@@ -577,6 +608,10 @@ export function stepGround(state: GameState, events: GameEvent[]): void {
         break;
       }
       case "chase":
+        if (arrested && a.arrest && s.from === "wave") {
+          converge(state, a, s);
+          break;
+        }
         if (!on || !ground) {
           stopHere(state, s);
           break;
@@ -632,9 +667,13 @@ export function stepGround(state: GameState, events: GameEvent[]): void {
       default:
         break;
     }
-    // Taken in: everyone within reach closes round him.
-    if (arrested && a.arrest && (s.mode === "chase" || s.mode === "aim")) {
-      if (hypot(s.x - a.arrest.x, s.z - a.arrest.z) < 300) {
+    // Taken in: everyone within reach closes round him — of a wave's men
+    // only the nearest few; the rest stand where they are.
+    if (arrested && a.arrest && (s.mode === "chase" || s.mode === "aim" || s.mode === "climb")) {
+      const d = hypot(s.x - a.arrest.x, s.z - a.arrest.z);
+      const wave = s.from === "wave";
+      if (wave ? d < ARMY_WAVE.coverNear && covering < ARMY_WAVE.cover : d < 300) {
+        if (wave) covering++;
         s.mode = "cover";
         s.t = 0;
         s.kneel = false;
@@ -646,7 +685,7 @@ export function stepGround(state: GameState, events: GameEvent[]): void {
     // still metres off (stood waiting there is not being stuck).
     const going = (s.mode === "board" || s.mode === "walk") && hypot(s.tx - s.x, s.tz - s.z) > 2;
     const moving = s.mode === "chase" || going;
-    watchProgress(state, s, moving && on && ground);
+    watchProgress(state, s, (moving && on && ground) || (s.mode === "climb" && on));
     if (s.mode !== "aim") carryGun(state, s);
   }
   if (arrested) hold(state, a);
@@ -694,4 +733,4 @@ export function armyTroops(state: GameState): readonly Soldier[] {
 }
 
 /** Whether a lift's squad: numbered past every machine's. */
-export const liftSquad = (s: Soldier): boolean => s.squad >= LIFT_SQUAD;
+export const liftSquad = (s: Soldier): boolean => s.from === "lift";

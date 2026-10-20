@@ -33,6 +33,7 @@ import {
 } from "@engine";
 import { flatLevel, shapedLevel } from "./support/synthetic.ts";
 import { LEVEL_SEEDS, levelFor } from "./support/levels.ts";
+import { withoutWaves } from "./support/waves.ts";
 
 const dt = TUNING.dt;
 
@@ -261,7 +262,8 @@ describe("determinism", () => {
     for (const h of air.army!.helis) h.aboard = 0;
     run(a, 100);
     run(b, 100);
-    run(air, 100 - dt);
+    // ...and no ground wave up the mountain either.
+    withoutWaves(() => run(air, 100 - dt));
     const sig = (s: GameState) =>
       armyTroops(s)
         .map((m) => `${m.id}:${m.mode}:${m.x.toFixed(4)},${m.z.toFixed(4)}`)

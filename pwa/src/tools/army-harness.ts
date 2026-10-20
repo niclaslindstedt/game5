@@ -91,6 +91,7 @@ import {
 } from "../game/soldier-pose.ts";
 import { SoldierView, soldierMaterial, soldierTriangles } from "../game/soldier-shapes.ts";
 import { castInLight } from "../game/terrain-shade.ts";
+import { WAVE_VIEWS, waveViews } from "./army-waves-sheet.ts";
 
 type Frame = { view: string; label: string; caption: string; png: string };
 
@@ -101,6 +102,7 @@ const GROUPS = {
   ground: ["ground-land", "ground-file", "ground-fire", "ground-lift", "ground-arrest"],
   soldiers: ["ski", "foot", "rocket", "gunner", "lods"],
   sleds: ["sled-chase", "sled-halt", "sled-arrest"],
+  waves: WAVE_VIEWS,
 } as const;
 
 declare global {
@@ -176,6 +178,8 @@ function ride(): GameState {
   return state;
 }
 const state = ride();
+/** Open piste a third of the way down, where the waves' scenes stand him. */
+const open = trackPointAt(level, level.track.length * 0.35);
 
 // ── what the lab stands ──────────────────────────────────────────────────
 const root = new THREE.Group();
@@ -844,6 +848,15 @@ async function sledScene(
 }
 
 const VIEWS: Record<string, () => void | Promise<void>> = {
+  ...waveViews({
+    groundRun,
+    shoot,
+    look,
+    clearRound,
+    settle: settleGround,
+    note: groundNote,
+    at: open,
+  }),
   "sled-chase": () =>
     sledScene(4, true, (m) => m.mode === "drive" && m.body.speed > 8 && m.driver && m.gunner, [
       ["beside", Math.PI / 2 + 0.3, 7, 1.6, 50],
@@ -916,6 +929,7 @@ const COLS: Record<string, number> = {
   "sled-chase": 3,
   "sled-halt": 3,
   "sled-arrest": 3,
+  ...Object.fromEntries(WAVE_VIEWS.map((v) => [v, 3])),
 };
 
 const ready = (async () => {

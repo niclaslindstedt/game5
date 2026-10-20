@@ -31,12 +31,21 @@
 // gunners, soldiers and lifts held back for the run (the helicopters fly
 // unarmed overhead), so what the table measures is the machines.
 //
+// THE GROUND WAVES' TABLE (`engine/game/army-wave.ts`, their numbers
+// `engine/game/defs/army-wave.ts`), from the same hunts: the waves sent up
+// the mountain and when the first set off, the men they marched out and the
+// most out at once, the snowmobiles they brought, when a man of a wave first
+// stopped to fire at him, the men of the waves STUCK (as above — always 0),
+// and THE STEP'S COST: the wall time of a whole engine step while hunted,
+// its mean and its 99th percentile, ms.
+//
 // Nothing drawn; tens of seconds.
 //
 //   node scripts/army-ground.mjs
 //   node scripts/army-ground.mjs --stars=3,5 --quarry=still --sfw
 //   node scripts/army-ground.mjs --json=previews/army-ground.json
 //   node scripts/army-ground.mjs --table=sleds --alone
+//   node scripts/army-ground.mjs --table=waves --sfw
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -56,7 +65,7 @@ const args = parseArgs(
     quarry: { kind: "string", default: "skier,still", help: "who is hunted: skier, still" },
     seconds: { kind: "number", default: 180, help: "how long each hunt is run, s" },
     sfw: { kind: "flag", default: false, help: "SAFE FOR WORK on (the INJURIES switch off)" },
-    table: { kind: "string", default: "troops,sleds", help: "the tables: troops, sleds" },
+    table: { kind: "string", default: "troops,sleds", help: "the tables: troops, sleds, waves" },
     alone: {
       kind: "flag",
       default: false,
@@ -64,7 +73,7 @@ const args = parseArgs(
     },
     json: { kind: "string", default: "", help: "write the table as JSON to this file" },
   },
-  "usage: node scripts/army-ground.mjs [--seed=n] [--stars=a,b] [--quarry=skier,still] [--seconds=s] [--sfw] [--table=troops,sleds] [--alone] [--json=FILE]",
+  "usage: node scripts/army-ground.mjs [--seed=n] [--stars=a,b] [--quarry=skier,still] [--seconds=s] [--sfw] [--table=troops,sleds,waves] [--alone] [--json=FILE]",
 );
 
 aliasEngine(root);
@@ -128,13 +137,28 @@ function hunt(stars, quarry) {
     dismounts: 0,
     dug: 0,
     sledStuck: 0,
+    waves: 0,
+    waveAt: NaN,
+    marched: 0,
+    marchAtOnce: 0,
+    waveSleds: 0,
+    waveContact: NaN,
+    waveStuck: 0,
+    ms: NaN,
+    ms99: NaN,
   };
+  const waveStuck = new Set();
+  const costs = [];
+
   const stuck = new Set();
   const rode = new Set();
   const sledsOut = new Set();
   const sledsStuck = new Set();
   for (let i = 0; i < args.seconds / dt; i++) {
-    E.step(s, quarry === "still" ? E.NEUTRAL_INPUT : E.botInput(s));
+    const input = quarry === "still" ? E.NEUTRAL_INPUT : E.botInput(s);
+    const c0 = process.hrtime.bigint();
+    E.step(s, input);
+    costs.push(Number(process.hrtime.bigint() - c0) / 1e6);
     const t = s.t - t0;
     for (const e of s.events) {
       if (e.kind === "army" && e.change === "landed") {
@@ -146,6 +170,14 @@ function hunt(stars, quarry) {
         }
       }
       if (e.kind === "soldier" && e.change === "aim" && Number.isNaN(row.contact)) row.contact = t;
+      if (e.kind === "soldier" && e.change === "aim" && Number.isNaN(row.waveContact)) {
+        const m = E.armyTroops(s).find((k) => k.id === e.id);
+        if (m?.from === "wave") row.waveContact = t;
+      }
+      if (e.kind === "army" && e.change === "wave") {
+        row.waves++;
+        if (Number.isNaN(row.waveAt)) row.waveAt = t;
+      }
       if (e.kind === "soldier" && e.change === "down") row.down++;
       if (e.kind === "soldier" && e.change === "arrest" && Number.isNaN(row.arrested))
         row.arrested = t;
@@ -171,14 +203,20 @@ function hunt(stars, quarry) {
       }
     }
     let riding = 0;
+    let marching = 0;
     for (const m of E.armyTroops(s)) {
       if (m.slow >= 3) stuck.add(m.id);
+      if (m.from === "wave") {
+        marching++;
+        if (m.slow >= 3) waveStuck.add(m.id);
+      }
       if (m.mode === "ride") {
         riding++;
         rode.add(m.id);
       }
     }
     row.onLift = Math.max(row.onLift, riding);
+    row.marchAtOnce = Math.max(row.marchAtOnce, marching);
     let driving = 0;
     for (const m of E.armySleds?.(s) ?? []) {
       if (m.slow >= 3) sledsStuck.add(m.id);
@@ -195,6 +233,12 @@ function hunt(stars, quarry) {
   row.stuck = stuck.size;
   row.sleds = sledsOut.size;
   row.sledStuck = sledsStuck.size;
+  row.marched = s.army?.marched ?? 0;
+  row.waveSleds = s.army?.waveSleds ?? 0;
+  row.waveStuck = waveStuck.size;
+  costs.sort((a, b) => a - b);
+  row.ms = costs.reduce((a, b) => a + b, 0) / Math.max(1, costs.length);
+  row.ms99 = costs[Math.floor(costs.length * 0.99)] ?? NaN;
   return row;
 }
 
@@ -209,6 +253,20 @@ console.log(
 );
 if (tables.has("troops")) troopTable();
 if (tables.has("sleds")) sledTable();
+if (tables.has("waves")) waveTable();
+
+function waveTable() {
+  console.log(
+    "| Quarry | Stars | Waves (first, s) | Men marched (most at once) | Snowmobiles | Carriers / trucks / tanks | First contact, s | Dead, s | Arrested, s | Stuck | Step, ms (p99) |",
+  );
+  console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  for (const r of rows) {
+    console.log(
+      `| ${r.quarry} | ${r.stars} | ${r.waves} (${f(r.waveAt)}) | ${r.marched} (${r.marchAtOnce}) | ${r.waveSleds} | 0 / 0 / 0 | ${f(r.waveContact)} | ${f(r.dead)} | ${f(r.arrested)} | ${r.waveStuck} | ${f(r.ms, 3)} (${f(r.ms99, 3)}) |`,
+    );
+  }
+  console.log("");
+}
 
 function troopTable() {
   console.log(

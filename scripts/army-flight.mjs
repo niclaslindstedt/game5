@@ -63,7 +63,11 @@ const args = parseArgs(
     quarry: { kind: "string", default: "skier,heli", help: "who is hunted: skier, heli" },
     seconds: { kind: "number", default: 150, help: "how long each hunt is run, s" },
     sfw: { kind: "flag", default: false, help: "SAFE FOR WORK on (the INJURIES switch off)" },
-    table: { kind: "string", default: "heli", help: "the table: heli, or air (paramotors and balloons)" },
+    table: {
+      kind: "string",
+      default: "heli",
+      help: "the table: heli, or air (paramotors and balloons)",
+    },
     alone: {
       kind: "flag",
       default: false,

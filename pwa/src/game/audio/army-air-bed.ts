@@ -53,7 +53,12 @@ export type ArmyAirBed = {
 };
 
 /** How far and how far across a point is from the skier's head. */
-function heardFrom(state: GameState, x: number, y: number, z: number): { distance: number; pan: number } {
+function heardFrom(
+  state: GameState,
+  x: number,
+  y: number,
+  z: number,
+): { distance: number; pan: number } {
   const c = state.skier;
   const dx = x - c.x;
   const dz = z - c.z;
@@ -72,7 +77,11 @@ export function createArmyAirBed(synth: Synth): ArmyAirBed {
   const balloonSlots: (number | null)[] = Array.from({ length: MOST_AIR.balloons }, () => null);
   let listener: Listener = listenerFor("chase");
 
-  const free = <L extends string>(racks: (Rack<L> | null)[], slots: (number | null)[], keep: Set<number>) => {
+  const free = <L extends string>(
+    racks: (Rack<L> | null)[],
+    slots: (number | null)[],
+    keep: Set<number>,
+  ) => {
     for (let i = 0; i < slots.length; i++) {
       if (slots[i] !== null && !keep.has(slots[i]!)) {
         racks[i]?.stop();
@@ -109,13 +118,20 @@ export function createArmyAirBed(synth: Synth): ArmyAirBed {
         const rack = (paraRacks[i] ??= createRack(synth, SLED_LAYERS, SLED_GLIDE));
         const heard = sledHeard(n.distance);
         const machine = listener.machine * duck * heard.gain;
-        const targets = paraEngine(n.p.wing, { engine: machine, exhaust: machine, tone: heard.bright });
+        const targets = paraEngine(n.p.wing, {
+          engine: machine,
+          exhaust: machine,
+          tone: heard.bright,
+        });
         for (const k of Object.keys(targets) as SledLayer[]) targets[k].pan = n.pan * listener.side;
         rack.apply(targets);
       }
       // THE BALLOONS: the burner, from where he is.
       const nearB = bs
-        .map((m) => ({ m, ...heardFrom(state, m.body.x, m.body.y + BALLOON.basket.burner, m.body.z) }))
+        .map((m) => ({
+          m,
+          ...heardFrom(state, m.body.x, m.body.y + BALLOON.basket.burner, m.body.z),
+        }))
         .sort((a, b) => a.distance - b.distance)
         .slice(0, MOST_AIR.balloons);
       free(balloonRacks, balloonSlots, new Set(nearB.map((n) => n.m.id)));
@@ -136,7 +152,8 @@ export function createArmyAirBed(synth: Synth): ArmyAirBed {
           t: state.t,
         };
         const targets = balloonTargets(voice, { machine: listener.machine * duck });
-        for (const k of Object.keys(targets) as BalloonLayer[]) targets[k].pan = n.pan * listener.side;
+        for (const k of Object.keys(targets) as BalloonLayer[])
+          targets[k].pan = n.pan * listener.side;
         rack.apply(targets);
       }
     },

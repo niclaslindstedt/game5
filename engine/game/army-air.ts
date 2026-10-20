@@ -51,14 +51,19 @@ export function airWanted(
 ): { paramotors: number; balloons: number; rocketeers: number } {
   const on = w.ended === null && w.stars > 0;
   const r = rosterOf(on ? w.stars : 0);
-  if (!on || (r.paramotors === 0 && r.balloons === 0)) return { paramotors: 0, balloons: 0, rocketeers: 0 };
+  if (!on || (r.paramotors === 0 && r.balloons === 0))
+    return { paramotors: 0, balloons: 0, rocketeers: 0 };
   const at = w.reached[w.stars];
   const more = Number.isFinite(at) ? Math.floor(Math.max(0, state.t - at) / K.grow.every) : 0;
   windAt(state.level, state.t, wind);
   const paramotors =
-    r.paramotors > 0 && wind.speed <= K.para.most ? Math.min(K.grow.paramotors, r.paramotors + more) : 0;
+    r.paramotors > 0 && wind.speed <= K.para.most
+      ? Math.min(K.grow.paramotors, r.paramotors + more)
+      : 0;
   const balloons =
-    r.balloons > 0 && wind.speed <= K.balloon.most ? Math.min(K.grow.balloons, r.balloons + more) : 0;
+    r.balloons > 0 && wind.speed <= K.balloon.most
+      ? Math.min(K.grow.balloons, r.balloons + more)
+      : 0;
   return { paramotors, balloons, rocketeers: r.rocketeers };
 }
 
@@ -98,7 +103,16 @@ function call(
     air.paras.push(freshPara(id, due, bearingFor(state, id)));
     air.parasCalled++;
     live++;
-    events.push({ kind: "army-air", t: state.t, change: "called", craft: "paramotor", id, x: 0, y: 0, z: 0 });
+    events.push({
+      kind: "army-air",
+      t: state.t,
+      change: "called",
+      craft: "paramotor",
+      id,
+      x: 0,
+      y: 0,
+      z: 0,
+    });
   }
   live = 0;
   last = -Infinity;
@@ -112,7 +126,8 @@ function call(
     live++;
     if (m.mode === "due") last = Math.max(last, m.due);
   }
-  const each = want.balloons > 0 ? Math.max(1, Math.round(want.rocketeers / Math.max(1, want.balloons))) : 1;
+  const each =
+    want.balloons > 0 ? Math.max(1, Math.round(want.rocketeers / Math.max(1, want.balloons))) : 1;
   while (live < want.balloons) {
     const id = air.nextBalloon++;
     const due = Math.max(state.t + K.balloon.respond, last + K.balloon.stagger);
@@ -120,7 +135,16 @@ function call(
     air.balloons.push(freshArmyBalloon(state, id, due, Math.min(3, each)));
     air.balloonsCalled++;
     live++;
-    events.push({ kind: "army-air", t: state.t, change: "called", craft: "balloon", id, x: 0, y: 0, z: 0 });
+    events.push({
+      kind: "army-air",
+      t: state.t,
+      change: "called",
+      craft: "balloon",
+      id,
+      x: 0,
+      y: 0,
+      z: 0,
+    });
   }
 }
 

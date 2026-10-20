@@ -157,7 +157,8 @@ describe("the hunt", () => {
       let near = 0;
       const events = run(s, 110, (st) => {
         for (const b of rocketBlasts(st.events))
-          if (Math.hypot(b.x - st.skier.x, b.z - st.skier.z) < (WEAPONS.rocket as BlastDef).throw) near++;
+          if (Math.hypot(b.x - st.skier.x, b.z - st.skier.z) < (WEAPONS.rocket as BlastDef).throw)
+            near++;
       });
       expect(rocketBlasts(events).length).toBeGreaterThan(0);
       expect(near).toBe(0);
@@ -236,8 +237,12 @@ describe("determinism", () => {
       const b = go(5);
       const sig = (s: GameState) =>
         [
-          ...armyParas(s).map((p) => `p${p.id}:${p.mode}:${p.x.toFixed(4)},${p.y.toFixed(4)},${p.z.toFixed(4)}`),
-          ...armyBalloons(s).map((m) => `b${m.id}:${m.mode}:${m.body.x.toFixed(4)},${m.body.y.toFixed(4)}`),
+          ...armyParas(s).map(
+            (p) => `p${p.id}:${p.mode}:${p.x.toFixed(4)},${p.y.toFixed(4)},${p.z.toFixed(4)}`,
+          ),
+          ...armyBalloons(s).map(
+            (m) => `b${m.id}:${m.mode}:${m.body.x.toFixed(4)},${m.body.y.toFixed(4)}`,
+          ),
         ].join("|");
       expect(sig(a).length).toBeGreaterThan(0);
       expect(sig(a)).toBe(sig(b));

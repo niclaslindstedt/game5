@@ -38,8 +38,7 @@ export function airTable(E, level, args, list) {
   if (args.alone) holdBack(E);
   const paras = E.armyParas ?? (() => []);
   const balloons = E.armyBalloons ?? (() => []);
-  const quarries =
-    args.quarry === "skier,heli" ? ["skier", "still", "chase"] : list(args.quarry);
+  const quarries = args.quarry === "skier,heli" ? ["skier", "still", "chase"] : list(args.quarry);
   const rows = [];
   const trunks = [];
   for (const quarry of quarries) {

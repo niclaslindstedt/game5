@@ -350,7 +350,9 @@ export function createMachines(
   if (gunfire) group.add(gunfire.group);
   // THE ARMY'S PARAMOTORS AND BALLOONS (`army-craft-view.ts`), the same:
   // a pool of every one the hunt can fly, built at load.
-  const armyCraft: ArmyCraftView | null = state.rules.heli ? createArmyCraftView(haze, state) : null;
+  const armyCraft: ArmyCraftView | null = state.rules.heli
+    ? createArmyCraftView(haze, state)
+    : null;
   if (armyCraft) group.add(armyCraft.group);
   // THE ARMY'S MACHINES (`army-air-view.ts`), built the first time one is out.
   let army: ArmyAirView | null = null;

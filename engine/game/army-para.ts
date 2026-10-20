@@ -261,9 +261,9 @@ export function flyPara(
   const pz = p.vz - air.z;
   const pv = hypot3(px, py, pz);
   const kd = (0.5 * TUNING.airDensity * K.drag * pv) / MASS;
-  p.vx += (w.thrust * ax0 / MASS - kd * px) * dt;
-  p.vy += (w.thrust * ay0 / MASS - kd * py - TUNING.g) * dt;
-  p.vz += (w.thrust * az0 / MASS - kd * pz) * dt;
+  p.vx += ((w.thrust * ax0) / MASS - kd * px) * dt;
+  p.vy += ((w.thrust * ay0) / MASS - kd * py - TUNING.g) * dt;
+  p.vz += ((w.thrust * az0) / MASS - kd * pz) * dt;
   p.x += p.vx * dt;
   p.y += p.vy * dt;
   p.z += p.vz * dt;
@@ -369,7 +369,15 @@ function topAt(state: GameState, x: number, z: number): number {
 
 /** THE HEIGHT TO HOLD flying round (cx, cz) at radius `R` and `over` m over
  * `cy`: that, or the highest the circle and the way ahead must clear. */
-function heightFor(state: GameState, p: ArmyPara, cx: number, cy: number, cz: number, R: number, over: number): number {
+function heightFor(
+  state: GameState,
+  p: ArmyPara,
+  cx: number,
+  cy: number,
+  cz: number,
+  R: number,
+  over: number,
+): number {
   let want = cy + over;
   const n = K.clear.ring;
   for (let i = 0; i < n; i++) {
@@ -433,7 +441,8 @@ function handsFor(
   const stalling = w.stalled || w.alpha > P.stall - H.stallMargin;
   const steer = stalling ? 0 : clamp(H.steer * err - 0.6 * p.rate, -most, most);
   const bar = stalling ? 1 : clamp((hypot(nx, nz) - K.trim) / H.barSpan, 0, 1);
-  const low = p.y < ground + K.clear.floor || p.y < clearAt(state, p.x, p.z) - K.clear.snow + K.clear.floor;
+  const low =
+    p.y < ground + K.clear.floor || p.y < clearAt(state, p.x, p.z) - K.clear.snow + K.clear.floor;
   const held = low ? 1 : clamp(H.trim + H.perMetre * (p.want - p.y) - H.perClimb * p.vy, 0, 1);
   const throttle = stalling ? Math.min(held, H.trim) : held;
   return { steer, throttle, bar: low && !stalling ? 0 : bar };
@@ -553,7 +562,10 @@ export function leavePara(state: GameState, p: ArmyPara, events: GameEvent[]): v
       }
     }
     p.bearing = best;
-    p.want = Math.max(state.level.groundAt(p.x, p.z) + K.leave.height, heightFor(state, p, p.x, p.y, p.z, 0, 0));
+    p.want = Math.max(
+      state.level.groundAt(p.x, p.z) + K.leave.height,
+      heightFor(state, p, p.x, p.y, p.z, 0, 0),
+    );
   }
   paraAirAt(state.level, state.t, p.wing.x, p.wing.y, p.wing.z, air);
   const hands = handsFor(state, p, Math.sin(p.bearing) * K.trim, Math.cos(p.bearing) * K.trim);
@@ -621,7 +633,16 @@ export function downPara(
   w.mode = "dropped";
   w.flying = false;
   w.thrust = 0;
-  w.canopy = { x: w.x, y: w.y, z: w.z, vx: w.vx, vy: w.vy, vz: w.vz, heading: w.heading, down: false };
+  w.canopy = {
+    x: w.x,
+    y: w.y,
+    z: w.z,
+    vx: w.vx,
+    vy: w.vy,
+    vz: w.vz,
+    heading: w.heading,
+    down: false,
+  };
   w.motor = null;
   if (why === "terrain") {
     air2.parasLost++;
@@ -675,7 +696,17 @@ export function fallPara(state: GameState, p: ArmyPara, events: GameEvent[]): vo
     say(state, events, "landed", p);
     if (p.reserve && state.army) {
       // ON HIS FEET: a soldier on the ground from here (`army-ground.ts`).
-      const s = enlist(state, state.army, "foot", "air", AIR_SQUAD + p.id, "chase", p.x, p.z, p.wing.heading);
+      const s = enlist(
+        state,
+        state.army,
+        "foot",
+        "air",
+        AIR_SQUAD + p.id,
+        "chase",
+        p.x,
+        p.z,
+        p.wing.heading,
+      );
       s.next = state.t + 3;
       p.mode = "gone";
     } else p.mode = "down";

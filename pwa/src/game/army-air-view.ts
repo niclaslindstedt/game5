@@ -17,7 +17,14 @@
 // run. Presentation only: it reads the state and writes nothing.
 
 import * as THREE from "three";
-import { ARMY_HELI, armyHelis, armyQuat, armyVehicles, type ArmyHeli, type GameState } from "@engine";
+import {
+  ARMY_HELI,
+  armyHelis,
+  armyQuat,
+  armyVehicles,
+  type ArmyHeli,
+  type GameState,
+} from "@engine";
 
 import { gunnerSeat, type Side } from "./army-heli-plan.ts";
 import { createArmyGroundView } from "./army-ground-view.ts";

@@ -207,13 +207,23 @@ export function createArmyCraftView(haze: HazeUniforms, state: GameState): ArmyC
     const z = p.z + p.vz * ahead;
     s.pilot.mesh.visible = p.mode !== "down" || p.t < ARMY_AIR.para.downed.lie;
     s.pilot.mesh.position.set(x, y - CRAFT_LOOK.seat, z);
-    s.pilot.mesh.rotation.set(0, p.mode === "fly" || p.mode === "leave" ? p.wing.heading : p.aimH, 0);
+    s.pilot.mesh.rotation.set(
+      0,
+      p.mode === "fly" || p.mode === "leave" ? p.wing.heading : p.aimH,
+      0,
+    );
     // Under the reserve, coming down.
     s.reserve.visible = p.mode === "fall" && p.reserve;
     if (s.reserve.visible) s.reserve.position.set(x, y, z);
   }
 
-  function drawBalloon(state: GameState, s: BalloonSlot, m: ArmyBalloon, alpha: number, dt: number): void {
+  function drawBalloon(
+    state: GameState,
+    s: BalloonSlot,
+    m: ArmyBalloon,
+    alpha: number,
+    dt: number,
+  ): void {
     const v = s.view;
     v.balloon = m.body;
     v.skier = state.skier;

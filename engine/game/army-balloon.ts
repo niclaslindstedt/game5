@@ -68,7 +68,16 @@ function say(
   m: ArmyBalloon,
 ): void {
   const b = m.body;
-  events.push({ kind: "army-air", t: state.t, change, craft: "balloon", id: m.id, x: b.x, y: b.y, z: b.z });
+  events.push({
+    kind: "army-air",
+    t: state.t,
+    change,
+    craft: "balloon",
+    id: m.id,
+    x: b.x,
+    y: b.y,
+    z: b.z,
+  });
 }
 
 /** The rocketeer's gun in seat `seat` of balloon `m`. */
@@ -215,7 +224,13 @@ function pickLayer(state: GameState, m: ArmyBalloon, to: V): number {
 
 /** ONE STEP OF THE BURNER AND THE DRIFT, holding `hold` m over the snow
  * ahead and the crowns under it. */
-function drift(state: GameState, air: ArmyAirState, m: ArmyBalloon, hold: number, events: GameEvent[]): void {
+function drift(
+  state: GameState,
+  air: ArmyAirState,
+  m: ArmyBalloon,
+  hold: number,
+  events: GameEvent[],
+): void {
   const b = m.body;
   const over = Math.max(hold, clearOver(state, b.x, b.z) - state.level.groundAt(b.x, b.z));
   const hands = balloonHands(state, b, over);
@@ -266,7 +281,12 @@ export function huntBalloon(
 
 /** FLY ONE HOME: up and away on the wind, and gone once well clear of him
  * or at the map's edge. */
-export function leaveBalloon(state: GameState, air: ArmyAirState, m: ArmyBalloon, events: GameEvent[]): void {
+export function leaveBalloon(
+  state: GameState,
+  air: ArmyAirState,
+  m: ArmyBalloon,
+  events: GameEvent[],
+): void {
   for (let i = 0; i < m.crew.length; i++) disarmGun(state, rocketGun(m, i));
   drift(state, air, m, K.leave.height, events);
   const b = m.body;

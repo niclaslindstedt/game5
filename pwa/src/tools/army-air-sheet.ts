@@ -172,29 +172,43 @@ export function airViews(lab: VehicleLab): Record<string, () => Promise<void>> {
       if (!r) return;
       // Up to the launch, drawn as it goes.
       let launched = false;
-      fly(lab, r, 30, 0, (g) =>
-        (launched = g.events.some((e) => e.kind === "army-air" && e.change === "rocket")),
+      fly(
+        lab,
+        r,
+        30,
+        0,
+        (g) => (launched = g.events.some((e) => e.kind === "army-air" && e.change === "rocket")),
       );
       if (!launched) return;
       const m = armyBalloons(r).find((x) => x.mode === "fly")!;
       const from = new THREE.Vector3(m.body.x, m.body.y + 1.5, m.body.z);
-      fly(lab, r, 0.9, 6);
+      // Drawn every other step, so the trail is laid as the game lays it.
+      fly(lab, r, 0.9, 2);
       const round = r.gunfire?.rounds.find((x) => x.weapon === "rocket");
       const n = noteOf(lab, r);
       if (round) {
         const at = new THREE.Vector3(round.x, round.y, round.z);
         const toward = Math.atan2(round.vx, round.vz);
-        const mid = from.clone().lerp(at, 0.5);
-        lab.shoot("in flight", lab.look(off(r, mid, toward + Math.PI / 2, 45, 4), mid, 50), n, r);
+        // Side on, far enough back to hold the basket and the rocket both.
+        const span = from.distanceTo(at);
+        const mid = from.clone().lerp(at, 0.55);
+        const side = off(r, mid, toward + Math.PI / 2, Math.max(40, span * 1.15), 4);
+        lab.shoot("in flight", lab.look(side, mid, 50), n, r);
         lab.shoot(
           "behind it",
-          lab.look(off(r, at, toward + Math.PI + 0.25, 14, 3), at.clone().addScaledVector(new THREE.Vector3(round.vx, round.vy, round.vz).normalize(), 30), 50),
+          lab.look(
+            off(r, at, toward + Math.PI + 0.25, 14, 3),
+            at
+              .clone()
+              .addScaledVector(new THREE.Vector3(round.vx, round.vy, round.vz).normalize(), 30),
+            50,
+          ),
           n,
           r,
         );
       }
       let burst: GunfireEvent | null = null;
-      fly(lab, r, 6, 6, (g) => {
+      fly(lab, r, 6, 2, (g) => {
         for (const e of g.events)
           if (e.kind === "gunfire" && e.phase === "blast" && e.weapon === "rocket") burst = e;
         return !!burst;
@@ -207,7 +221,12 @@ export function airViews(lab: VehicleLab): Record<string, () => Promise<void>> {
       const n2 = `${noteOf(lab, r)} · the burst ${Math.hypot(b.x - r.skier.x, b.z - r.skier.z).toFixed(0)} m from him`;
       lab.shoot("the burst", lab.look(off(r, blast, toward + 1.6, 26, 5), blast, 50), n2, r);
       const mid = from.clone().lerp(blast, 0.5);
-      lab.shoot("the trail and the burst", lab.look(off(r, mid, toward + 1.5, 140, 30), mid, 55), n2, r);
+      lab.shoot(
+        "the trail and the burst",
+        lab.look(off(r, mid, toward + 1.5, 140, 30), mid, 55),
+        n2,
+        r,
+      );
     });
 
   /** A carrier knocked out by a burst, burning. */
@@ -225,7 +244,17 @@ export function airViews(lab: VehicleLab): Record<string, () => Promise<void>> {
         way.push({ x: c.x - fx * d, z: c.z - fz * d, w: 12 });
         path.push(d);
       }
-      callVehicles(r, r.army!, r.wanted!, { snowmobiles: 0, foot: 0, tracked: 1, trucks: 0, tanks: 0 }, 0, way, path, 0, []);
+      callVehicles(
+        r,
+        r.army!,
+        r.wanted!,
+        { snowmobiles: 0, foot: 0, tracked: 1, trucks: 0, tanks: 0 },
+        0,
+        way,
+        path,
+        0,
+        [],
+      );
       const v = r.army!.vehicles[0];
       v.x = c.x - fx * 30;
       v.z = c.z - fz * 30;

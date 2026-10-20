@@ -37,8 +37,26 @@ export function burstOnArmy(
     v.aboard = 0;
     const air = (a.air ??= freshAirState());
     air.knocked++;
-    events.push({ kind: "army-vehicle", t: state.t, change: "wreck", id: v.id, vehicle: v.kind, x: v.x, y: v.y, z: v.z });
-    events.push({ kind: "army-air", t: state.t, change: "knocked", craft: "vehicle", id: v.id, x: v.x, y: v.y, z: v.z });
+    events.push({
+      kind: "army-vehicle",
+      t: state.t,
+      change: "wreck",
+      id: v.id,
+      vehicle: v.kind,
+      x: v.x,
+      y: v.y,
+      z: v.z,
+    });
+    events.push({
+      kind: "army-air",
+      t: state.t,
+      change: "knocked",
+      craft: "vehicle",
+      id: v.id,
+      x: v.x,
+      y: v.y,
+      z: v.z,
+    });
   }
   const air = a.air;
   if (!air) return;

@@ -79,6 +79,7 @@ import { SNOW_SUN_LIGHT, SUN_GLARE } from "./snow-sun-glsl.ts";
 import { SNOW_TRAIL_ALBEDO, SNOW_TRAIL_LIGHT, SNOW_TRAIL_SAMPLE } from "./snow-trail-glsl.ts";
 import { CALM_FROM, CALM_TO, STRATA_GLSL } from "./strata-glsl.ts";
 import { CALM_HELD, ROCK_SNOW } from "./rock-shapes.ts";
+import { ROCK_LIP_GLSL } from "./rock-lip.ts";
 
 // The vertex half (`snow-vertex-glsl.ts`), grafted beside the fragment's.
 export { SNOW_VERTEX_BEGIN, SNOW_VERTEX_PARS, SNOW_VERTEX_PLACE } from "./snow-vertex-glsl.ts";
@@ -133,6 +134,10 @@ ${SLIDE_LUMPS}
 
 ${SNOW_GLINTS_GLSL}
 // Per-fragment state the later grafts read.
+float snowLip;       // 0 .. 1 the snow's lip built out over a rock band's top
+float snowUnder;     // 0 .. 1 the stone in the lip's shade under it
+float snowLipR;      // the slope's own rock share under the lip, toward its nose
+${ROCK_LIP_GLSL}
 vec3 snowN;          // world normal
 float snowDist;      // metres from the lens
 float snowPacked;    // 0 powder .. 1 groomed
@@ -252,6 +257,13 @@ export const SNOW_FRAGMENT_SAMPLE = /* glsl */ `
     grad = mix(grad, -vn.xz / max(vn.y, 0.2), smoothstep(0.0, 30.0, past));
   }
   snowRock = uRock.w * smoothstep(uRockSlope.x, uRockSlope.y, length(grad)) * (1.0 - snowPacked);
+  // WHERE THE SNOW MEETS IT (\`rock-lip.ts\`): the lip over a band's top
+  // and the shade under it, the snow banked at its foot, a crisp edge.
+  snowLip = 0.0;
+  snowUnder = 0.0;
+  float lipFoot = length(fwidth(p));
+  snowLipR = snowRock;
+  if (snowRock > 0.0) snowRock = uRock.w * rockLip(p, snowRock, g.rg, lipFoot);
   // WHERE THE SKIN LIES (\`rockShare\`, carried below nought in the packed
   // channel): the rock there is the skin's own as it is calmed far out
   // (\`strata-glsl.ts\`), so the ground carries its beds past its reach and
@@ -343,6 +355,9 @@ ${SNOW_RELIEF_SAMPLE}
 
   // Ice is flat: the swells and the grain are the snow's, not the ice's.
   grad = mix(grad, g.rg, snowIce * 0.85);
+  // The lip's nose rolls over the brink: steeper toward its edge, so it
+  // carries a lit top and a shaded face of its own.
+  if (snowLip > 0.0) grad += g.rg / max(length(g.rg), 1e-4) * 1.4 * snowLip * smoothstep(0.3, 1.0, snowLipR);
   snowN = normalize(vec3(-grad.x, 1.0, -grad.y));
 }
 `;
@@ -447,6 +462,11 @@ ${SLIDE_ALBEDO}
     core = mix(core, min(1.0, snowForest * 1.15) * 0.3, smoothstep(0.35, 0.9, fpx));
     alb = mix(alb, mix(uForestTint, uForestTint * 0.5, core), farW * mix(0.5, 0.72, core));
   }
+  // The lip: snow the wind built out over the brink, cleaner than the
+  // slope's it grew from.
+  // Its nose curls under, out of the sky: a cool shade on its face.
+  alb = mix(alb, vec3(0.97, 0.985, 1.0), 0.6 * snowLip);
+  alb *= mix(vec3(1.0), vec3(0.74, 0.8, 0.93), snowLip * smoothstep(0.75, 1.0, snowLipR));
   // THE REGION'S OWN SNOW: the wind slab, the river's bare ice, the rock.
   alb = mix(alb, alb * uCrustTone, snowCrust * (1.0 - snowPacked * 0.5));
   if (snowIce > 0.0) {
@@ -457,6 +477,8 @@ ${SLIDE_ALBEDO}
     // spans it; and where the skin lies, the skin's own far colour.
     float grain = mix(0.5, snowNoise(p * 0.6), 1.0 - smoothstep(0.5, 1.4, snowFoot * 0.6));
     vec3 rockAlb = mix(uRock.rgb * mix(0.7, 1.2, grain), snowSkinCol, snowSkin);
+    // Under the lip: in its shade, lit by half the sky, a cool dark band.
+    rockAlb *= mix(vec3(1.0), vec3(0.3, 0.33, 0.42), snowUnder * (1.0 - snowSkin));
     alb = mix(alb, rockAlb, snowRock);
     snowHazeKeep = mix(1.0, stHazeKeep(snowDist), snowSkin);
   }

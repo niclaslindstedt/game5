@@ -140,6 +140,7 @@
     "burn": "node scripts/burn-preview.mjs",
     "gunfire": "node scripts/gunfire-preview.mjs",
     "army": "node scripts/army-preview.mjs",
+    "army-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/army-flight.mjs",
     "gunfire-table": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/gunfire-table.mjs",
     "water": "node scripts/water-preview.mjs",
     "tree-wells": "node scripts/tree-wells-preview.mjs",

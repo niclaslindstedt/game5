@@ -15,6 +15,10 @@
 //   flight    flight-day, flight-dusk (--dusk=h): in the air over the
 //             slope, the rotors turning, the gunner on his gun, a man on
 //             the fast rope
+//   hunt      hunt-2, hunt-4 (a hunted free ride run on the real engine,
+//             the bot skiing away, the army's helicopters after him at two
+//             and four stars), hunt-heli (him in the stolen air ambulance,
+//             chased): from behind him at the machine, beside its door, wide
 //   soldiers  ski, foot, rocket (every pose from the front, the side and
 //             behind at the chase camera's range, a row a pose), gunner
 //             (sat at his door gun at each aim), lods (the three cuts)
@@ -48,12 +52,12 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (heli, flight, soldiers); every one when left out",
+      help: "which sheets, comma-separated (heli, flight, hunt, soldiers); every one when left out",
     },
     views: {
       kind: "string",
       default: "",
-      help: "only these views, comma-separated (turntable, close, doors, squad, flight-day, flight-dusk, ski, foot, rocket, gunner, lods)",
+      help: "only these views, comma-separated (turntable, close, doors, squad, flight-day, flight-dusk, hunt-2, hunt-4, hunt-heli, ski, foot, rocket, gunner, lods)",
     },
     seed: { kind: "number", default: 38, help: "the map's seed" },
     region: {

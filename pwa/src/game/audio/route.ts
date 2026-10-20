@@ -854,6 +854,23 @@ export function soundForEvent(
     case "gunfire":
       return gunfireSound(event, contact);
 
+    // THE ARMY'S HELICOPTERS (`army.ts`): heard in flight by their bed
+    // (`army-bed.ts`); the one-shots are a machine rammed out of the air —
+    // the discs meeting — and its wreck going up where it lands.
+    case "army": {
+      if (event.change !== "rammed" && event.change !== "down") return null;
+      const blast = heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR);
+      const down = event.change === "down";
+      return {
+        id: down ? "heli_crash" : "heli_chop",
+        shape: {
+          gain: blast.gain! * (down ? 1.2 : 1),
+          pitch: blast.pitch! * (down ? 0.9 : 0.8),
+          stretch: blast.stretch! * (down ? 1.1 : 1),
+        },
+      };
+    }
+
     // A BUILDING'S DOOR (`door-bank.ts`): opened and shut, by what its leaf
     // is made of — heard at the door from the skier's head.
     case "door": {

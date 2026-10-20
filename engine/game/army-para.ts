@@ -301,10 +301,14 @@ export function flyPara(
   const banked = wh > 0.2 ? (U.x * FW.z - U.z * FW.x) / wh : 0;
   const side =
     qS * ((T.side + T.weight) * ctl.steer + T.torque * (w.thrust / E.thrust) - T.righting * banked);
+  // THE SURGE (as the free ride's): stalled and the brakes let up, the
+  // canopy refills and shoots forward over him — without it a deep stall
+  // sinking at ten metres a second never ends.
+  const surge = w.stalled ? qS * P.surge * (1 - ctl.brake) : 0;
   swingDamp(w, p, U, PARA.damping, MASS, SD);
-  w.vx += ((AF.x + side * rx + SD.x) / W.mass) * dt;
-  w.vy += ((AF.y + side * ry + SD.y) / W.mass - TUNING.g) * dt;
-  w.vz += ((AF.z + side * rz + SD.z) / W.mass) * dt;
+  w.vx += ((AF.x + side * rx + SD.x + surge * FW.x) / W.mass) * dt;
+  w.vy += ((AF.y + side * ry + SD.y + surge * FW.y) / W.mass - TUNING.g) * dt;
+  w.vz += ((AF.z + side * rz + SD.z + surge * FW.z) / W.mass) * dt;
   w.x += w.vx * dt;
   w.y += w.vy * dt;
   w.z += w.vz * dt;
@@ -414,11 +418,16 @@ function handsFor(
   // A wing banked hard sinks: well under the height he wants, he turns
   // gently and climbs first — unless the snow ahead leaves him no room.
   const most = p.y < p.want - H.under && !rising ? H.climbing : H.most;
-  const steer = clamp(H.steer * err - 0.6 * p.rate, -most, most);
-  const bar = clamp((hypot(nx, nz) - K.trim) / H.barSpan, 0, 1);
+  // NEAR THE STALL (the thrust pitching the wing back, a gust): hands up,
+  // the bar out and the engine eased until it flies again — the stall
+  // drops a wing out of the sky far faster than any climb gains.
+  const stalling = w.stalled || w.alpha > P.stall - H.stallMargin;
+  const steer = stalling ? 0 : clamp(H.steer * err - 0.6 * p.rate, -most, most);
+  const bar = stalling ? 1 : clamp((hypot(nx, nz) - K.trim) / H.barSpan, 0, 1);
   const low = p.y < ground + K.clear.floor || p.y < clearAt(state, p.x, p.z) - K.clear.snow + K.clear.floor;
-  const throttle = low ? 1 : clamp(H.trim + H.perMetre * (p.want - p.y) - H.perClimb * p.vy, 0, 1);
-  return { steer, throttle, bar: low ? 0 : bar };
+  const held = low ? 1 : clamp(H.trim + H.perMetre * (p.want - p.y) - H.perClimb * p.vy, 0, 1);
+  const throttle = stalling ? Math.min(held, H.trim) : held;
+  return { steer, throttle, bar: low && !stalling ? 0 : bar };
 }
 
 /** THE GROUND VELOCITY TO FLY round the circle at (cx, cz), radius `R`,

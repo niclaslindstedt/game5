@@ -74,12 +74,19 @@ function noteOf(lab: VehicleLab, r: GameState): string {
   return `${lab.note(r)} · ${ps} paramotors, ${bs} balloons up · ${air?.rockets ?? 0} rockets`;
 }
 
-/** Step and draw together for `seconds`, so the smoke and the tracks the
- * drawing lays as it goes are laid. */
-function fly(lab: VehicleLab, r: GameState, seconds: number, until?: (r: GameState) => boolean): void {
+/** Step for `seconds` (or until `until`), drawing a frame every `every`
+ * steps (0: none) so the smoke the drawing lays as it goes is laid — a
+ * software renderer's frame is slow, so as few as the trail needs. */
+function fly(
+  lab: VehicleLab,
+  r: GameState,
+  seconds: number,
+  every: number,
+  until?: (r: GameState) => boolean,
+): void {
   for (let i = 0; i < seconds * 120; i++) {
     step(r, NEUTRAL_INPUT);
-    if (i % 2 === 0) lab.frame(r, 1 / 60);
+    if (every > 0 && i % every === 0) lab.frame(r, every / 120);
     if (until?.(r)) return;
   }
 }
@@ -101,7 +108,7 @@ export function airViews(lab: VehicleLab): Record<string, () => Promise<void>> {
         lab.at,
       );
       if (!r) return;
-      fly(lab, r, 2);
+      fly(lab, r, 1, 30);
       const n = noteOf(lab, r);
       const q = him(r);
       const ps = armyParas(r)
@@ -137,7 +144,7 @@ export function airViews(lab: VehicleLab): Record<string, () => Promise<void>> {
         lab.at,
       );
       if (!r) return;
-      fly(lab, r, 2);
+      fly(lab, r, 1, 30);
       const n = noteOf(lab, r);
       const m = armyBalloons(r).find((x) => x.mode === "fly")!;
       const b = m.body;
@@ -165,13 +172,13 @@ export function airViews(lab: VehicleLab): Record<string, () => Promise<void>> {
       if (!r) return;
       // Up to the launch, drawn as it goes.
       let launched = false;
-      fly(lab, r, 30, (g) =>
+      fly(lab, r, 30, 0, (g) =>
         (launched = g.events.some((e) => e.kind === "army-air" && e.change === "rocket")),
       );
       if (!launched) return;
       const m = armyBalloons(r).find((x) => x.mode === "fly")!;
       const from = new THREE.Vector3(m.body.x, m.body.y + 1.5, m.body.z);
-      fly(lab, r, 0.9);
+      fly(lab, r, 0.9, 6);
       const round = r.gunfire?.rounds.find((x) => x.weapon === "rocket");
       const n = noteOf(lab, r);
       if (round) {
@@ -187,14 +194,14 @@ export function airViews(lab: VehicleLab): Record<string, () => Promise<void>> {
         );
       }
       let burst: GunfireEvent | null = null;
-      fly(lab, r, 6, (g) => {
+      fly(lab, r, 6, 6, (g) => {
         for (const e of g.events)
           if (e.kind === "gunfire" && e.phase === "blast" && e.weapon === "rocket") burst = e;
         return !!burst;
       });
       if (!burst) return;
       const b = burst as GunfireEvent;
-      fly(lab, r, 0.12);
+      fly(lab, r, 0.12, 6);
       const blast = new THREE.Vector3(b.x, b.y + 1.5, b.z);
       const toward = Math.atan2(blast.x - from.x, blast.z - from.z);
       const n2 = `${noteOf(lab, r)} · the burst ${Math.hypot(b.x - r.skier.x, b.z - r.skier.z).toFixed(0)} m from him`;
@@ -229,7 +236,7 @@ export function airViews(lab: VehicleLab): Record<string, () => Promise<void>> {
       v.aboard = 0;
       lab.frame(r, 1 / 60);
       burstOnArmy(r, v.x, v.y + 1.2, v.z, []);
-      fly(lab, r, 2.5);
+      fly(lab, r, 2.5, 20);
       const at = new THREE.Vector3(v.x, v.y + 1.6, v.z);
       const n = `${noteOf(lab, r)} · knocked out (${v.mode})`;
       lab.shoot("burning", lab.look(off(r, at, v.heading + 1.2, 14, 3), at, 50), n, r);

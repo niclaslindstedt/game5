@@ -76,15 +76,18 @@ export const ARMY_AIR = {
      * rad off it; the most toggle it pulls (a steady turn, never a
      * spiral), and the least of it while more than `under` m under the
      * height it wants (`climbing`: a wing banked hard sinks); the m/s past
-     * the trim over which the speed bar goes all the way out; and the
-     * throttle's hold — its trim, per m off the height it wants, per m/s
-     * of climb. */
+     * the trim over which the speed bar goes all the way out; how near
+     * the stall's angle of attack he lets the wing come before he lets it
+     * fly (hands up, the bar out, the engine back to its trim), rad; and
+     * the throttle's hold — its trim, per m off the height it wants, per
+     * m/s of climb. */
     hands: {
       steer: 1.4,
       most: 0.35,
       under: 20,
       climbing: 0.15,
       barSpan: 4,
+      stallMargin: 0.04,
       trim: 0.55,
       perMetre: 0.04,
       perClimb: 0.25,

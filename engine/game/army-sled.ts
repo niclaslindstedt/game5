@@ -571,7 +571,13 @@ function knock(state: GameState, a: ArmyState, m: ArmySled, events: GameEvent[])
   let struck = false;
   for (const seat of ["driver", "gunner"] as const) {
     if (!m[seat]) continue;
-    const p = seatOf(m, seat);
+    // Struck where he is reached: his leg down the machine's side nearer
+    // the skier (the hull holds the skier off its middle).
+    const s0 = seatOf(m, seat);
+    const rx = Math.cos(b.heading);
+    const rz = -Math.sin(b.heading);
+    const side = (c.x - b.x) * rx + (c.z - b.z) * rz >= 0 ? 1 : -1;
+    const p = { x: s0.x + rx * side * K.hull.halfWidth, y: s0.y, z: s0.z + rz * side * K.hull.halfWidth };
     // The person on foot he is struck as is keyed by the soldier he will
     // be: the army's next.
     const key = ARMY_GROUND.ids.key + a.nextSoldier;

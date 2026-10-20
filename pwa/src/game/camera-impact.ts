@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // THE IMPACT CAM'S LENS: a camera already STANDING beside the place he is
-// about to be crushed or sliced (`xray-shots.ts` says when, the read ahead
-// says where), side on to his way and a little ahead of it, so he arrives
-// into a frame that is waiting for him. The picture CUTS to it — no flight
+// about to be crushed, sliced or run into a person (`xray-shots.ts` says
+// when, the read ahead says where), side on to his way and a little ahead
+// of it, so he arrives into a frame that is waiting for him. The picture CUTS to it — no flight
 // in — and the eye never moves while the strike plays: only the aim pans,
 // a share of the way from the place of the strike to his body, so the
 // frame holds him coming in, the strike, and what goes on past it. Then
@@ -19,21 +19,25 @@ import type { XrayShot } from "./xray-shots.ts";
 /** The lens, as numbers: metres, radians, degrees and 1/s. */
 export const IMPACT_LENS = {
   /** How far off the strike and over it the camera stands, and its zoom. */
-  arm: { crush: 8, slice: 4.5 },
+  arm: { crush: 8, slice: 4.5, person: 7 },
   height: 1.3,
-  fov: { crush: 46, slice: 42 },
+  fov: { crush: 46, slice: 42, person: 50 },
   /** How far round from square to his way toward where he is going, rad:
    * a crush is seen from a little behind, so the solid stands beyond him
    * rather than in front of him; a rope from ahead, so the steel is seen
-   * across the frame rather than end on. */
-  front: { crush: -0.3, slice: 0.6 },
+   * across the frame rather than end on; a PERSON from a little ahead and
+   * wider, so both bodies are in the frame — the player coming in and the
+   * one he strikes thrown on down his way, toward the lens's side of it. */
+  front: { crush: -0.3, slice: 0.6, person: 0.35 },
   /** A rope's lens stands higher, looking down the cut. */
   sliceOver: 1,
   /** The most the snow may lift it over where it wants to stand before it
    * is stood in closer, m. */
   lift: 1.5,
-  /** The share of the way from the strike to his body the aim is drawn. */
-  follow: 0.35,
+  /** The share of the way from the strike to his body the aim is drawn:
+   * for a person, half of it, so the aim sits between the two bodies
+   * thrown on together down his way. */
+  follow: { crush: 0.35, slice: 0.35, person: 0.5 },
   /** How fast the aim and the zoom chase, 1/s. */
   aimRate: 6,
   /** Never closer to the snow than this, m, nor pulled closer to the
@@ -166,12 +170,15 @@ export function frameImpact(
       st.active = true;
       st.strike = s;
       st.eye = impactEye(s, home.eye, groundAt, clear);
-      st.aim = body ? mixed(s.at, body, L.follow) : { ...s.at };
+      st.aim = body ? mixed(s.at, body, L.follow[s.kind]) : { ...s.at };
       st.fov = L.fov[s.kind];
     }
   }
   const strikeAt = shot.kind === "impact" ? shot.strike.at : st.aim;
-  const want = body ? mixed(strikeAt, body, L.follow) : strikeAt;
+  // On the way back, still drawn as the strike stood for was.
+  const stood = (st.strike as { kind?: keyof typeof L.follow } | null)?.kind ?? "crush";
+  const follow = L.follow[shot.kind === "impact" ? shot.strike.kind : stood];
+  const want = body ? mixed(strikeAt, body, follow) : strikeAt;
   const ka = chase(L.aimRate, dt);
   st.aim.x += (want.x - st.aim.x) * ka;
   st.aim.y += (want.y - st.aim.y) * ka;

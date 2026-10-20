@@ -77,4 +77,27 @@ describe("the impact cam's lens", () => {
     const pose = frameImpact(st, shot, null, home, 0, 1 / 60, flat, clear)!;
     expect(pose.eye.x).toBeGreaterThan(0);
   });
+
+  it("stands wider for a person struck, so both bodies are in the frame", () => {
+    const st = createImpactLens();
+    const person: XrayShot = {
+      kind: "impact",
+      strike: { ...strike, kind: "person", person: { x: 0, z: 0.4 } },
+    };
+    const body = { x: 0, y: 1, z: -0.6 };
+    const pose = frameImpact(st, person, body, home, 0, 1 / 60, flat)!;
+    expect(pose.fov).toBe(IMPACT_LENS.fov.person);
+    // Ahead of the strike rather than behind it, and far enough off that
+    // the struck man, thrown on 2 m down the way, and the player are both in.
+    expect(pose.eye.z).toBeGreaterThan(0);
+    // Half the frame's width on a screen on its side (16:9; the fov is the height's).
+    const half = Math.atan(Math.tan(((IMPACT_LENS.fov.person / 2) * Math.PI) / 180) * (16 / 9));
+    const look = { x: pose.target.x - pose.eye.x, z: pose.target.z - pose.eye.z };
+    for (const p of [body, { x: 0, y: 1, z: 2.4 }]) {
+      const to = { x: p.x - pose.eye.x, z: p.z - pose.eye.z };
+      const cos =
+        (to.x * look.x + to.z * look.z) / (Math.hypot(to.x, to.z) * Math.hypot(look.x, look.z));
+      expect(Math.acos(cos)).toBeLessThan(half * 0.8);
+    }
+  });
 });

@@ -55,7 +55,11 @@ export const SOLDIER_KINDS: readonly SoldierKind[] = ["skier", "foot", "gunner",
  * first its rest):
  *   * skier — `ski` stood on them, `tuck`, `lean` (a turn to his right),
  *     `leanLeft`, `pole` (a double pole's plant), `skiAim` (stood on his
- *     skis aiming, the poles planted beside him);
+ *     skis aiming, the poles planted beside him), `skiKneel` (aiming off
+ *     one knee with his skis on, the right one slid back under it — the
+ *     way a ski trooper fires from a stop, and kneels at the dismount),
+ *     `seat` (sat on a chair of a lift, the crowd's own), `pin` (knelt
+ *     over a man face down, both hands on his back — the arrest);
  *   * foot — `ready` (the rifle at the low ready), `walkA`/`walkB` (a
  *     stride off each foot), `aim` (stood, the rifle at his shoulder),
  *     `kneel` (aiming off one knee), `doorSit` (sat in a doorway's edge,
@@ -67,7 +71,7 @@ export const SOLDIER_KINDS: readonly SoldierKind[] = ["skier", "foot", "gunner",
  *     back), `walkA`/`walkB`, `launch` (stood, the launcher on his
  *     shoulder), `kneelLaunch`. */
 export const SOLDIER_POSES = {
-  skier: ["ski", "tuck", "lean", "leanLeft", "pole", "skiAim"],
+  skier: ["ski", "tuck", "lean", "leanLeft", "pole", "skiAim", "skiKneel", "seat", "pin"],
   foot: ["ready", "walkA", "walkB", "aim", "kneel", "doorSit", "rope"],
   gunner: ["sit", "fire", "fireDown", "fireFore", "fireAft"],
   rocketeer: ["carry", "walkA", "walkB", "launch", "kneelLaunch"],
@@ -284,6 +288,22 @@ const SKI_AIM = aimKey(
   }),
   [0.05, -0.01, 1],
 );
+/** Off one knee ON HIS SKIS: the left ski ahead under its knee, the right
+ * slid back under the knee that is down, both flat on the snow. */
+const SKI_KNEEL = aimKey(
+  key({ ...KNEEL_BODY, hipY: 0.6, feet: [v(-0.17, ANKLE, 0.3), v(0.17, ANKLE, -0.42)] }),
+  [0.05, -0.02, 1],
+);
+/** KNELT OVER A MAN face down in front of him, his skis on: both hands
+ * down on the man's back, the weight over them, the rifle slung. */
+const PIN = key({
+  hipY: 0.58,
+  hipZ: -0.1,
+  pitch: 0.75,
+  nod: 0.35,
+  feet: [v(-0.17, ANKLE, 0.22), v(0.17, ANKLE, -0.4)],
+  hands: [v(-0.14, 0.3, 0.55), v(0.14, 0.3, 0.6)],
+});
 /** Sat on a doorway's edge (the floor at 0 under his seat, the sill's edge
  * just ahead), the legs down over it, the rifle across his lap. */
 const DOOR_SIT = key({
@@ -325,6 +345,7 @@ const AIMS: Readonly<Record<string, V3>> = {
   aim: [0.05, -0.01, 1],
   kneel: [0.05, -0.02, 1],
   skiAim: [0.05, -0.01, 1],
+  skiKneel: [0.05, -0.02, 1],
 };
 
 // ── the poses ────────────────────────────────────────────────────────────
@@ -335,6 +356,7 @@ const SKI_DIALS: Readonly<Record<string, PoseDials>> = {
   lean: { lean: 1 },
   leanLeft: { leanLeft: 1 },
   pole: { pole1: 1 },
+  seat: { seat: 1 },
 };
 
 /** The poles planted upright beside him, a pace out to each side. */
@@ -350,13 +372,40 @@ function planted(P: Posed): [V3, V3][] {
   });
 }
 
+/** HIS SKIS FLAT ON THE SNOW under his boots, pointing the way he faces:
+ * a key's boot is squared to its shin, so a knee bent far forward over a
+ * ski would stand the ski up on its tail — a kneel on skis keeps the skis
+ * on the snow and lets the heel lift off them. */
+function flatSkis(P: Posed, look: CrowdLook): Posed {
+  const ski = (ankle: V3) => {
+    const mid: V3 = [ankle[0], 0.02, ankle[2]];
+    return {
+      tail: add(mid, [0, 0, -look.ski * 0.45]),
+      tip: add(mid, [0, 0, look.ski * 0.55]),
+      mid,
+      side: add(mid, [look.skiWidth / 2, 0, 0]),
+    };
+  };
+  return { ...P, skiL: ski(P.ankleL), skiR: ski(P.ankleR) };
+}
+
 /** THE SKIER'S poses. */
 function skierPose(name: SoldierPoseName<"skier">): SoldierPose {
-  if (name === "skiAim") {
-    const posed = keyPosed(SKI_AIM, SOLDIER_LOOK);
+  if (name === "skiAim" || name === "skiKneel") {
+    const keyed = keyPosed(name === "skiAim" ? SKI_AIM : SKI_KNEEL, SOLDIER_LOOK);
+    const posed = name === "skiKneel" ? flatSkis(keyed, SOLDIER_LOOK) : keyed;
     return {
       posed,
       rifle: rifleInHands(posed, chestOf(posed).u),
+      tube: null,
+      poles: planted(posed),
+    };
+  }
+  if (name === "pin") {
+    const posed = flatSkis(keyPosed(PIN, SOLDIER_LOOK), SOLDIER_LOOK);
+    return {
+      posed,
+      rifle: slung(posed, RIFLE.length, SOLDIER_LOOK),
       tube: null,
       poles: planted(posed),
     };
@@ -370,6 +419,24 @@ function skierPose(name: SoldierPoseName<"skier">): SoldierPose {
       [posed.handL, posed.basketL],
       [posed.handR, posed.basketR],
     ],
+  };
+}
+
+/** A SOLDIER LYING as his body lies (`posed`, the ragdoll read as his
+ * joints — `army-ground-view.ts`), carrying what his figure carries: the
+ * rifle slung on his back, the launcher across it, and a skier's poles
+ * still in his fists, along his forearms. */
+export function lyingSoldier(posed: Posed, kind: SoldierKind): SoldierPose {
+  const pole = (hand: V3, elbow: V3): [V3, V3] => {
+    const along = norm(sub(hand, elbow));
+    return [add(hand, mul(along, -0.08)), add(hand, mul(along, 1.15))];
+  };
+  const c = SOLDIER_CARRIES[kind];
+  return {
+    posed,
+    rifle: c.rifle ? slung(posed, RIFLE.length, SOLDIER_LOOK) : null,
+    tube: c.tube ? slung(posed, LAUNCHER.length, SOLDIER_LOOK, -1) : null,
+    poles: c.skis ? [pole(posed.handL, posed.elbowL), pole(posed.handR, posed.elbowR)] : null,
   };
 }
 

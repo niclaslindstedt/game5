@@ -66,6 +66,7 @@ import {
 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler, rotate, unrotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { ARMY } from "./defs/army.ts";
+import { ARMY_GROUND } from "./defs/army-ground.ts";
 import { ARMY_HELI } from "./defs/army-heli.ts";
 import { HELI } from "./defs/heli.ts";
 import { TUNING } from "./defs/tuning.ts";
@@ -108,6 +109,12 @@ export function freshArmy(state: GameState): ArmyState {
     from: 0,
     called: 0,
     downed: 0,
+    troops: [],
+    nextSoldier: 0,
+    liftSquads: 0,
+    liftDue: NaN,
+    dropped: 0,
+    picked: 0,
   };
   a.from = Math.atan2(q.x - half, q.z - half) + (draw(a) - 0.5) * ARMY.drift;
   return a;
@@ -196,9 +203,11 @@ function say(
 function call(state: GameState, a: ArmyState, want: number, events: GameEvent[]): void {
   let live = 0;
   for (const h of a.helis) {
-    if (h.phase !== "due" && h.phase !== "hunt") continue;
+    if (h.phase !== "due" && h.phase !== "hunt" && !landing(h)) continue;
     if (live >= want) {
       if (h.phase === "due") h.phase = "gone";
+      // On the snow or on its way down: it lifts first, then goes home.
+      else if (h.task) h.task.done = true;
       else turnHome(state, h, events);
       continue;
     }
@@ -235,6 +244,8 @@ function call(state: GameState, a: ArmyState, want: number, events: GameEvent[])
       doors: { r: 0, l: 0 },
       guns: { r: { ...ARMY.guns.rest }, l: { ...ARMY.guns.rest } },
       bears: { r: false, l: false },
+      aboard: ARMY_GROUND.section,
+      task: null,
     };
     a.helis.push(h);
     a.called++;
@@ -458,6 +469,141 @@ function fall(state: GameState, h: ArmyHeli, events: GameEvent[]): void {
   }
 }
 
+// ─── the landing ───────────────────────────────────────────────────────
+
+/** Whether a machine is about a landing — on its way down to it, on the
+ * snow, hovering for the rope, or climbing back off. */
+export function landing(h: Pick<ArmyHeli, "phase">): boolean {
+  return h.phase === "land" || h.phase === "set" || h.phase === "rope" || h.phase === "rise";
+}
+
+/** THE HOVER a fast rope is slid from over `task`'s spot: the rope's
+ * height over the snow, never under the flight's floor over the woods. */
+export function ropeHover(state: GameState, x: number, z: number, y: number): number {
+  return Math.max(y + ARMY_GROUND.rope.hover, armyFloor(state, x, z, ARMY_GROUND.rope.hover));
+}
+
+/** The machine's attitude eased toward level, its nose toward `face`. */
+function levelOut(h: ArmyHeli, face: number, k: number): void {
+  const turn = clamp(angleDiff(h.heading, face) * 1.2, -F.yaw, F.yaw);
+  h.yawRate += (turn - h.yawRate) * Math.min(1, dt / 0.5);
+  h.heading = wrap(h.heading + h.yawRate * dt);
+  h.pitch += (-k - h.pitch) * Math.min(1, dt / F.lag);
+  h.roll += (0 - h.roll) * Math.min(1, dt / F.lag);
+}
+
+/** Both doors slid toward `open` (0 shut, 1 open). */
+function slideDoors(h: ArmyHeli, open: number): void {
+  for (const key of ["r", "l"] as const)
+    h.doors[key] = clamp(
+      h.doors[key] + Math.sign(open - h.doors[key]) * ARMY.guns.slide * dt,
+      0,
+      1,
+    );
+}
+
+/** A LANDING, flown: in to its spot, slowing over the last of the way and
+ * held `approach.over` m up until over it; then sunk onto the snow (`set`)
+ * or held at the rope's hover (`rope`) while the ground's part puts the
+ * men out or takes them in; then climbed straight back off it (`rise`) to
+ * the hunt. A landing given up — the hunt over, the task done — climbs off
+ * at once. */
+function settle(state: GameState, h: ArmyHeli, w: WantedState, events: GameEvent[]): void {
+  const A = ARMY_GROUND.approach;
+  const task = h.task;
+  if (task && w.ended !== null) task.done = true;
+  if (h.phase === "land") {
+    if (!task || task.done) {
+      h.phase = "rise";
+      h.t = 0;
+      return;
+    }
+    const dx = task.x - h.x;
+    const dz = task.z - h.z;
+    const d = hypot(dx, dz);
+    const hover = task.rope
+      ? ropeHover(state, task.x, task.z, task.y)
+      : Math.max(task.y + A.over, armyFloor(state, h.x, h.z, ARMY.terrain.floor));
+    // In along the way, braked to a stop over it as a pilot flares: no
+    // faster than `approach.decel` takes off by the spot.
+    const sp = clamp(Math.sqrt(2 * A.decel * Math.max(0, d - 1)), A.slow, F.cruise);
+    const wx = d > 0.5 ? (dx / d) * Math.min(sp, d) : 0;
+    const wz = d > 0.5 ? (dz / d) * Math.min(sp, d) : 0;
+    const most = G * Math.tan(F.tilt);
+    const ax = clamp((wx - h.vx) / 1.2, -most, most);
+    const az = clamp((wz - h.vz) / 1.2, -most, most);
+    const lag = Math.min(1, dt / F.lag);
+    h.ax += (ax - h.ax) * lag;
+    h.az += (az - h.az) * lag;
+    h.vx += h.ax * dt;
+    h.vz += h.az * dt;
+    h.x += h.vx * dt;
+    h.z += h.vz * dt;
+    const over = d < A.within && hypot(h.vx, h.vz) < 3;
+    // Held up (clear of the snow ahead and the woods) until over it; then
+    // down: to the snow, or to the rope's hover.
+    const floor = armyFloor(state, h.x, h.z, ARMY.terrain.floor);
+    const want = over ? (task.rope ? hover : task.y) : Math.max(hover, floor);
+    const vy = clamp(0.6 * (want - h.y), over ? -A.sink : -F.sink, F.climb);
+    h.vy += clamp((vy - h.vy) * 1.5, -F.heave, F.heave) * dt;
+    h.y += h.vy * dt;
+    if (!over && h.y < floor) {
+      h.y = floor;
+      h.vy = Math.max(0, h.vy);
+    }
+    const fx = Math.sin(h.heading);
+    const fz = Math.cos(h.heading);
+    h.pitch = -Math.atan2(h.ax * fx + h.az * fz, G) - F.nose * (h.vx * fx + h.vz * fz);
+    h.roll = Math.atan2(h.ax * fz - h.az * fx, G);
+    const face = d > 30 ? Math.atan2(dx, dz) : task.heading;
+    const turn = clamp(angleDiff(h.heading, face) * 1.2, -F.yaw, F.yaw);
+    h.yawRate += (turn - h.yawRate) * Math.min(1, dt / 0.5);
+    h.heading = wrap(h.heading + h.yawRate * dt);
+    if (over) slideDoors(h, 1);
+    const down = task.rope ? Math.abs(h.y - hover) < 1.2 : h.y <= task.y + 0.05;
+    if (over && down) {
+      h.phase = task.rope ? "rope" : "set";
+      h.t = 0;
+      if (!task.rope) h.y = task.y;
+      h.vx = h.vy = h.vz = h.ax = h.az = 0;
+      say(state, events, "landed", h);
+    }
+    return;
+  }
+  if (h.phase === "set" || h.phase === "rope") {
+    h.vx = h.vy = h.vz = h.ax = h.az = 0;
+    if (task) {
+      // Held on the spot: on the snow, or at the hover over it.
+      h.x += (task.x - h.x) * Math.min(1, dt);
+      h.z += (task.z - h.z) * Math.min(1, dt);
+      if (h.phase === "set") h.y = task.y;
+    }
+    levelOut(h, task ? task.heading : h.heading, h.phase === "set" ? 0.02 : 0.03);
+    slideDoors(h, 1);
+    if (!task || task.done || h.t > ARMY_GROUND.dismount.wait + 30) {
+      h.phase = "rise";
+      h.t = 0;
+    }
+    return;
+  }
+  // RISE: straight up off it, then the hunt again.
+  const top = Math.max(
+    armyFloor(state, h.x, h.z, ARMY.terrain.floor),
+    state.level.groundAt(h.x, h.z) + ARMY.terrain.clear,
+  );
+  h.vx = h.vz = h.ax = h.az = 0;
+  h.vy += clamp((A.climb - h.vy) * 1.5, -F.heave, F.heave) * dt;
+  h.y += h.vy * dt;
+  levelOut(h, h.heading, 0.04);
+  slideDoors(h, 0);
+  if (h.y >= top) {
+    h.phase = "hunt";
+    h.t = 0;
+    h.task = null;
+    say(state, events, "lifted", h);
+  }
+}
+
 // ─── the guns ──────────────────────────────────────────────────────────
 
 /** The id of the gun in `side`'s door. */
@@ -557,7 +703,7 @@ function ram(state: GameState, a: ArmyState, events: GameEvent[]): void {
   if (!p || !p.rider || p.mode === "wreck") return;
   const hubP = p.y + HELI.rotor.hub;
   for (const h of a.helis) {
-    if (h.phase !== "hunt" && h.phase !== "leave") continue;
+    if (h.phase !== "hunt" && h.phase !== "leave" && !landing(h)) continue;
     const dx = p.x - h.x;
     const dz = p.z - h.z;
     const flat = hypot(dx, dz);
@@ -600,7 +746,7 @@ function writePursuers(state: GameState, a: ArmyState, w: WantedState): void {
   const lo = ARMY.ids.pursuer;
   const kept = w.pursuers.filter((p) => p.id < lo || p.id >= lo + 300);
   for (const h of a.helis) {
-    if (h.phase !== "hunt") continue;
+    if (h.phase !== "hunt" && !landing(h)) continue;
     kept.push({ id: lo + h.id, kind: "helicopter", x: h.x, y: h.y + 2, z: h.z });
     for (const side of DOORS) {
       const key = side === 1 ? "r" : "l";
@@ -637,7 +783,13 @@ export function stepArmy(state: GameState, events: GameEvent[]): void {
       if (state.t >= h.due) arrive(state, h, events);
       continue;
     }
-    if (h.phase === "hunt") {
+    if (h.phase === "hunt" && h.task && !h.task.done) {
+      h.phase = "land";
+      h.t = 0;
+    }
+    if (landing(h)) {
+      settle(state, h, w, events);
+    } else if (h.phase === "hunt") {
       fly(state, a, h, huntWant(state, h, w));
       fight(state, h, w);
       const reach = Math.max(WANTED.searchRadius[w.stars], ARMY.orbit.radius * 2);

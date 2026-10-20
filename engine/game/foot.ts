@@ -107,7 +107,7 @@ export const crewKey = (i: number, j: number): number => CREW_KEYS + 8 * i + j;
  * whether the body has come to rest. */
 export type FootDown = {
   key: number;
-  who: "civilian" | "crew";
+  who: "civilian" | "crew" | "soldier";
   body: CrowdBody;
   thrown: Thrown;
   hit: StruckPerson;
@@ -305,6 +305,30 @@ export function meetFoot(state: GameState, events: GameEvent[]): void {
   }
 }
 
+/** THE SKIER (or his machine) MEETING ONE PERSON stood at (x, y, z) whom
+ * another part keeps — a soldier (`army-ground.ts`), `mass` kg with his
+ * kit: struck as a person on foot is, past `PERSON_HIT.strike`, and
+ * taken over as one of `FootState.down` under `key`. Whether he was. */
+export function meetPerson(
+  state: GameState,
+  events: GameEvent[],
+  key: number,
+  who: FootDown["who"],
+  body: CrowdBody,
+  x: number,
+  y: number,
+  z: number,
+  heading: number,
+  mass?: number,
+): boolean {
+  const h = hitterOf(state);
+  if (!h || hypot(h.vx, h.vz) < K.strike || isDown(state.foot, key)) return false;
+  at.x = x;
+  at.y = y;
+  at.z = z;
+  return meet(state, events, h, key, who, body, heading, mass);
+}
+
 /** One person stood at `at` met: struck if the hitter's front is on him
  * and closing past the strike. Whether he was. */
 function meet(
@@ -315,6 +339,7 @@ function meet(
   who: FootDown["who"],
   body: CrowdBody,
   heading: number,
+  mass = CROWD_SIZE[body].mass,
 ): boolean {
   const height = K.height[body];
   if (at.y > h.feet + 1.6 || at.y + height < h.feet - 0.3) return false;
@@ -323,7 +348,7 @@ function meet(
   const nz = contact.nz;
   const closing = h.vx * nx + h.vz * nz;
   if (closing < K.strike) return false;
-  strikeFoot(state, events, h, key, who, body, heading, nx, nz, closing);
+  strikeFoot(state, events, h, key, who, body, heading, nx, nz, closing, mass);
   return true;
 }
 
@@ -342,9 +367,10 @@ function strikeFoot(
   nx: number,
   nz: number,
   closing: number,
+  mass: number,
 ): void {
   const c = state.skier;
-  const ex = exchangeOf(state, h.mass, CROWD_SIZE[body].mass, closing);
+  const ex = exchangeOf(state, h.mass, mass, closing);
   const height = K.height[body];
   const said: Omit<StruckPerson, "dosed"> = {
     amateur: -1,

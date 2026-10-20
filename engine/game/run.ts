@@ -374,9 +374,15 @@ export function stepRun(
     // Buzzed on a free ride, he gets up where he lies and fetches his skis
     // instead (`buzz.ts`).
     // ...nor while an avalanche carries him or holds him buried
-    // (`avalanche.ts`).
+    // (`avalanche.ts`), nor once the army has him face down under arrest
+    // (`army-ground.ts`).
     const down =
-      heliDown(run) || balloonDown(run) || planeDown(run) || chuteDown(run) || avalancheHolds(run);
+      heliDown(run) ||
+      balloonDown(run) ||
+      planeDown(run) ||
+      chuteDown(run) ||
+      avalancheHolds(run) ||
+      run.wanted?.ended === "arrested";
     if (crashOver(off, player) && !down && !holdsHim(run)) {
       if (player && fetchesSkis(run)) getUp(run, off, events);
       else standUp(run, events, true);

@@ -7,7 +7,8 @@
 // with the door gunner sat at it and posed to that aim (`gunnerPosed`).
 // A machine rammed out of the air goes up where it lands — the game's
 // explosion (`explosion.ts`), the helicopter's size — and its wreck burns
-// until the engine lets it go.
+// until the engine lets it go. The men it puts on the snow (and the lifts'
+// squads) are `army-ground-view.ts`'s, in the same group.
 //
 // Built the first time a run carries the army's air; nothing on any other
 // run. Presentation only: it reads the state and writes nothing.
@@ -16,6 +17,7 @@ import * as THREE from "three";
 import { ARMY_HELI, armyHelis, armyQuat, type ArmyHeli, type GameState } from "@engine";
 
 import { gunnerSeat, type Side } from "./army-heli-plan.ts";
+import { createArmyGroundView } from "./army-ground-view.ts";
 import { createArmyHeliView, type ArmyHeliPose, type ArmyHeliView } from "./army-heli-view.ts";
 import { createExplosion, type Explosion } from "./explosion.ts";
 import type { HazeUniforms } from "./haze.ts";
@@ -54,6 +56,8 @@ export function createArmyAirView(haze: HazeUniforms): ArmyAirView {
   group.name = "army-air";
   const material = soldierMaterial(haze);
   const drawn = new Map<number, Drawn>();
+  const ground = createArmyGroundView(material);
+  group.add(ground.group);
   const boom: Explosion = createExplosion();
   boom.clear();
   group.add(boom.group);
@@ -170,12 +174,14 @@ export function createArmyAirView(haze: HazeUniforms): ArmyAirView {
         d.phase = h.phase;
       }
       for (const [id, d] of drawn) if (d.seen !== frameNo) drop(id);
+      ground.frame(state, alpha, simDt);
       if (burning) boom.burning(true, burning.x, burning.y, burning.z, 0.8);
       else boom.burning(false, 0, 0, 0);
     },
     lamps(lit, eye) {
       boom.dusk(lit);
       boom.update(lastDt, groundAt, eye);
+      ground.seen(eye);
       for (const d of drawn.values()) d.view.shade(1 - 0.85 * lit);
     },
     setPace(next) {
@@ -184,6 +190,7 @@ export function createArmyAirView(haze: HazeUniforms): ArmyAirView {
     },
     dispose() {
       for (const id of [...drawn.keys()]) drop(id);
+      ground.dispose();
       boom.dispose();
       material.dispose();
     },

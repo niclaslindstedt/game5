@@ -74,7 +74,7 @@ describe("the soldiers' poses", () => {
   it("stands a soldier on his feet on the floor, and on his skis on the snow", () => {
     for (const k of ["skier", "foot", "rocketeer"] as const) {
       for (const name of SOLDIER_POSES[k]) {
-        if (name === "doorSit" || name === "rope") continue;
+        if (name === "doorSit" || name === "rope" || name === "seat") continue;
         const P = soldierPose(k, name as SoldierPoseName<typeof k>).posed;
         const low = Math.min(P.ankleL[1], P.ankleR[1]);
         expect(low, `${k} ${name}`).toBeGreaterThan(-0.02);
@@ -88,9 +88,10 @@ describe("the soldiers' poses", () => {
     for (const [k, name] of [
       ["foot", "kneel"],
       ["rocketeer", "kneelLaunch"],
+      ["skier", "skiKneel"],
     ] as const) {
       const P = soldierPose(k, name as never).posed;
-      expect(P.kneeR[1]).toBeLessThan(0.2);
+      expect(P.kneeR[1], name).toBeLessThan(k === "skier" ? 0.32 : 0.2);
       expect(P.ankleL[2]).toBeGreaterThan(P.ankleR[2] + 0.5);
       expect(P.pelvis[1]).toBeLessThan(0.75);
     }
@@ -115,6 +116,7 @@ describe("the soldiers' poses", () => {
       ["foot", "aim"],
       ["foot", "kneel"],
       ["skier", "skiAim"],
+      ["skier", "skiKneel"],
     ] as const) {
       const p = soldierPose(k, name as never);
       const r = p.rifle!;

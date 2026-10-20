@@ -43,7 +43,7 @@ const args = parseArgs(
     stars: { kind: "string", default: "1,2,3,4,5", help: "the stars, comma-separated" },
     quarry: { kind: "string", default: "skier,heli", help: "who is hunted: skier, heli" },
     seconds: { kind: "number", default: 150, help: "how long each hunt is run, s" },
-    sfw: { kind: "boolean", default: false, help: "SAFE FOR WORK on (the INJURIES switch off)" },
+    sfw: { kind: "flag", default: false, help: "SAFE FOR WORK on (the INJURIES switch off)" },
     json: { kind: "string", default: "", help: "write the table as JSON to this file" },
   },
   "usage: node scripts/army-flight.mjs [--seed=n] [--stars=a,b] [--quarry=skier,heli] [--seconds=s] [--sfw] [--json=FILE]",

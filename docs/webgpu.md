@@ -80,8 +80,8 @@ webgpu paths.
 | --- | --- | --- | --- |
 | `sky-gpu` | pass | 3 | the sky's LUT passes. Ported |
 | `clouds` | pass | 10 | the cloud shadow, slab and volume |
-| `trail-map` | pass | 5 | the stamps rasterised into the trail maps |
-| `deform` | pass | 5 | the deform field |
+| `trail-map` | pass | 5 | the stamps rasterised into the trail maps, the window's copy and the new snow's fill, each drawn by its node twin. Ported |
+| `deform` | pass | 5 | the deform field's upload and its shade, drawn by its node twin. Ported |
 | `hero-shadow` | pass | 6 | the skiers' own shadow maps |
 | `shadow-depth` | pass | 6 | the shadow depth sort and kinds |
 | `env-warm` | pass | 14 | the shader warm-up |
@@ -99,12 +99,16 @@ webgpu paths.
 | `wingsuit` | material | 12 | the wingsuit figure |
 | `gore-tree` | material | 11 | the gore on a tree |
 
-On the webgpu paths after part 4, the frame draws these:
+On the webgpu paths after part 5, the frame draws these:
 
 - the sky: the dome with the sun, the moon, the stars and the Milky Way,
   the contrails and LOW's cloud shell, and the far ranges
 - the ground: the clipmap's every level, its snow, its rock and strata, a
   summer's ground, and the deformable snow's mesh
+- the snow's marks: every skier's furrows, grooves and berms, the swaths
+  and belts the machines lay, the other skiers' lines through the
+  corduroy, the tree wells, the avalanche's bed and debris, and the
+  deformable snow's cuts, heaps and craters with the sun they hide
 - the skier's body
 - the gate poles, the netting and the fences
 - the lifts, with their chairs and towers
@@ -338,11 +342,9 @@ the same to the bit.
 
 **Stand-ins until their parts:**
 
-- Part 5: the trail map's relief in the vertex and the furrows, grooves and
-  wear per pixel; the piste tracks; the tree wells; the avalanche; the
-  deformable snow's field. The snow is drawn untouched, and the deformable
-  snow's mesh folds four cells wide, as WebGL folds it where no tool has
-  touched it. Each stand-in is named where it stands.
+- Part 5 (done; see the next section): the trail map's relief in the
+  vertex and the furrows, grooves and wear per pixel; the piste tracks; the
+  tree wells; the avalanche; the deformable snow's field.
 - Part 6: the skiers' own shadow maps. Three's own shadow of the key is read.
 
 **What the twin binds**, counted off the generated shaders of seed 38's
@@ -364,6 +366,93 @@ texel and take no sampler. A summer map adds its two maps.
 `tests/terrain_tsl_test.ts` holds the register, the flags, the specs, the
 level's own uniforms on every material, and every twin built on plain Node
 (plain, cut, deformed and in summer) with its mask and its refresh node.
+
+## The snow's marks (part 5)
+
+The trail maps (`trail-map.ts`) and the deformable snow's shade
+(`deform-shade.ts`) are drawn by `ShaderMaterial` passes into render
+targets of their own, so like the sky's passes each pass gets a **node
+twin** (`trail-map-tsl.ts`), flagged with `nodeTwin` in the trail map's or
+the field's family. The ground's twin then reads the maps those passes
+fill. WebGL never reads either, so its picture is the same to the bit.
+
+| Piece | GLSL | TSL |
+| --- | --- | --- |
+| The furrow's stamp (a capsule per segment, its profile, MAX-blended), the swath's and the belt's stamp, the window's copy as it follows the player, the new snow's fill (reverse-subtracted) | `trail-map.ts` | `trail-map-tsl.ts` |
+| The deformable snow's shade: the field's height marched toward the sun, a cell at a time | `deform-shade.ts`, `deform-glsl.ts` | `trail-map-tsl.ts`'s `deformShadeTwin` |
+| The trail map read: the depth and the berm, the swath and the belt, the relief, the field's weight and height, the sun it hides; the tree wells' depth | `trail-map.ts`'s `TRAIL_GLSL`, `deform-glsl.ts`, `tree-wells.ts` | `trail-tsl.ts` |
+| The vertex lowered: a tent over the fine map close in, the coarse map further out, the field on its own mesh; the wells and the avalanche; the field's mesh folded only where no tool has touched it | `snow-vertex-glsl.ts` | `terrain-tsl.ts` |
+| The furrows, the walls, the scuff and the trench per pixel; the skis' grooves; the belts' lugs; the wells' slope and albedo; the trench's light | `snow-trail-glsl.ts`, `ski-clear.ts`'s `SKI_GROOVE_GLSL` | `snow-trail-tsl.ts` |
+| The other skiers' lines through the corduroy | `piste-tracks.ts` | `piste-tracks-tsl.ts` |
+| The avalanche's bed, debris, lumps and albedo | `avalanche-glsl.ts` | `slide-tsl.ts` |
+
+**How the passes are built:**
+
+- **The maps keep WebGL's layout.** On the node renderer a target's row 0
+  is at the top, and both of its back ends flip a render target's uv when
+  it is sampled. So the stamp's quad is placed with clip y negated, and a
+  full-screen pass's uv is `(x/2 + 1/2, 1/2 − y/2)`. A texel of the map
+  then lies at `(p − origin) / span` on every path, and the ground reads it
+  with the same uv on all three.
+- **Every blend field is copied off the ShaderMaterial** (`passMaterial`):
+  the stamp's MAX and the fill's reverse subtract, with every factor One.
+- **The targets are three's own `RenderTarget`** on the node renderer, and
+  WebGL's on WebGL (`createTrailMap(…, node)`, `createDeformShade(…,
+  node)`).
+- **A pass's bindings are refreshed every draw.** The renderer refreshes
+  a draw's texture bindings only when the material's own fields move, and a
+  pass's never do. Without that, the window's copy sampled the map a swap
+  had just made its target, and WebGPU refused the frame. `passMaterial`
+  puts a node on the source material (`passNode`), as `groundTwin` does.
+- **The deformable snow's shade draws through a lens with a projection**
+  (an orthographic camera), since the node renderer updates the lens it is
+  handed.
+- **The deformable snow's shade reads the field by texel**
+  (`screenCoordinate`), which is not flipped.
+- The empty field (`NO_DEFORM`) is wrapped as the field is, so one sampler
+  fits both.
+
+**How the ground reads them:**
+
+- Each read is a real function of the generated shader (a layout Fn,
+  `trailAt`, `trailRelief`, `deformAt`, `wellDepth`, `pisteLine`, `slideAt`
+  and the rest). The vertex reads the relief nine times and the fragment
+  reads it a dozen times. Inlined, each read would be that many copies.
+  Each set of functions is made once per uniforms object, so no builder
+  meets two functions of one name.
+- **The vertex has its own set of those functions** (`trailSlots(t,
+  true)`, named with a `V`). A function is generated once per material, and
+  the textures it reads are named after the stage that built it first. Read
+  from the other stage too, it named a binding that stage does not have,
+  and the fragment failed to compile.
+- The maps are re-pointed as the window moves (the fine map and its spare
+  swap) and as the field is bound. Each texture node follows its slot
+  every render (`texSlot`), with its `keep` in the graph.
+- Every map is read at its first level, as the GLSL's `textureLod(…, 0.0)`
+  reads it. The footprints (the lugs' phase, the track frame's, the
+  slide's) are taken in uniform control flow.
+
+**Still stand-ins:** the developer's trail corner (`trail-overlay`) and the
+probe of the snow over the skis (`snow-under`) wait for part 14.
+
+**What the ground binds after part 5**, counted the same way:
+
+| Stage | WebGPU, LOW | WebGPU, HIGH | `webgpu-gl`, LOW | `webgpu-gl`, HIGH (WebGL2 caps each stage at 16) |
+| --- | --- | --- | --- | --- |
+| Vertex | 8 textures, 5 samplers (3, 1 before) | 8 textures, 6 samplers (3, 1 before) | 8 texture units | 8 texture units (3 before) |
+| Fragment | 12 textures, 9 samplers (6, 4 before) | 14 textures, 13 samplers (8, 7 before) | 12 texture units | 14 texture units (8 before) |
+
+Counted off the shaders seed 38's level material hands the driver (every
+`texture_*` and `sampler` binding a stage declares, and every sampler
+uniform on `webgpu-gl`). The vertex now also reads the coarse and the fine
+trail map, the deformable snow's field, the well map and the avalanche's
+debris. The fragment also reads the two trail maps, the field, the well
+map, the debris and the other skiers' track frame. `webgpu-gl` stays two
+units under WebGL2's cap at HIGH.
+
+`tests/trail_tsl_test.ts` holds the register, every pass's flag and family,
+the targets on each renderer, and every twin built on plain Node with its
+blending.
 
 ## Measuring both paths
 
@@ -404,8 +493,10 @@ lines.
 | 3 Sky | 2026-10-19 | webgpu | 75 (72 before) | 101 667 (89 025) | 48 programs, 32 pipelines (42, 29 before) | 686.38 (481.77 before) | 681.18 (477.73 before) | 10 passes / 35 meshes (11 / 38 before) | The dome, the far ranges and the sky's passes draw. The steady readings are 6–19 ms; the mean is the frames compiling the sky's pipelines on SwiftShader (one of 2 203 ms). At HIGH: 92 draws (89), 164 537 triangles (125 591), 73 programs and 48 pipelines (63, 43), 950.21 ms (497.81) with steady readings of 9–12 ms |
 | 4 Terrain and snow I | 2026-10-19 | webgl | 100 | 231 882 | 51 programs | 11.53 | 5.18 | 0 / 0 | the 24 WebGL world shots (seed 38; LOW and HIGH; 12 and 17.5 h; spawn, powder, track, far, vista, approach-90) are pixel-identical to part 3's. At HIGH: 110 draws, 686 162 triangles, 67 programs, 15.81 ms |
 | 4 Terrain and snow I | 2026-10-19 | webgpu | 80 (75 before) | 143 959 (101 667) | 50 programs, 33 pipelines (48, 32 before) | 1 205.50 (863.36 before) | 1 200.86 (857.04 before) | 10 passes / 29 meshes (10 / 35 before) | The ground draws: every clipmap level, the warm-up mesh and the deformable snow's mesh. The steady readings are 7–12 ms; the mean is two frames compiling the ground's pipelines on SwiftShader (3 607 and 3 928 ms). At HIGH: 99 draws (76), 382 157 triangles (128 069), 75 programs and 49 pipelines (73, 48), 3 918.37 ms (1 168.06) with steady readings of 8–14 ms and one compiling frame of 11 669 ms |
+| 5 Trails and deform | 2026-10-20 | webgl | 100 | 231 883 | 51 programs | 11.37 | 4.98 | 0 / 0 | the 14 WebGL world shots (seed 38; LOW and HIGH; track, furrow, tips, powder, lookback, chase-6, chase-10) are pixel-identical to part 4's. At HIGH: 110 draws, 686 010 triangles, 67 programs, 15.87 ms |
+| 5 Trails and deform | 2026-10-20 | webgpu | 80 (80 before) | 144 327 (144 327) | 54 programs, 35 pipelines (50, 33 before) | 2 641.54 (1 200.00 before) | 2 636.21 (1 195.36 before) | 8 passes / 29 meshes (10 / 29 before) | The trail maps' passes and the deformable snow's shade run, and the ground draws every mark off them. The steady readings are 7–12 ms; the mean is one frame compiling the larger ground and the passes' pipelines on SwiftShader (6 776 ms; 3 863 before). At HIGH: 83 draws (82), 467 545 triangles (345 591: the deformable snow's mesh is kept fine where a tool has touched it), 81 programs and 52 pipelines (75, 49), 7 595.57 ms (2 873.97) with steady readings of 9–18 ms and one compiling frame of 28 194 ms (11 717) |
 
-Parts 1 to 4 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+Parts 1 to 5 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis).
 
 ## Systems ported
@@ -414,7 +505,7 @@ Parts 1 to 4 were measured with `make bench ARGS="--renderer=both --frames 60 --
 - [x] 2 Haze and lights (`haze`): the fog node, the key, the sky, the lamps, the wall, the glows as sprites
 - [x] 3 Sky (`sky-gpu`, `sky`): the dome, the night sky, the contrails, LOW's cloud shell, the far ranges, the LUT passes and the aerial volume, each as a node twin
 - [x] 4 Terrain and snow I (`terrain`): the clipmap's vertices, the snow's sample, colour and light, the strata, summer, the room cut, each as the ground's node twin
-- [ ] 5 Trails and deform (`trail-map`, `deform`)
+- [x] 5 Trails and deform (`trail-map`, `deform`): the trail maps' four passes and the deformable snow's shade as node twins; the furrows, grooves, piste tracks, tree wells, avalanche and deformable snow in the ground's twin
 - [ ] 6 Shadows (`hero-shadow`, `shadow-depth`)
 - [ ] 7 Grade and post (`grade-pass`)
 - [ ] 8 Forest (`forest-batch`)

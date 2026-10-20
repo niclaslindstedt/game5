@@ -362,7 +362,7 @@ export function createWorldRenderer(
   /** The trail maps and the ground that reads them, built for the picture in force: the
    * ground's shader holds the maps' uniforms by reference, so new maps are a new ground. */
   function buildTrail(lv: Level): TrailMap {
-    const map = createTrailMap(lv.size, TRAIL_LOOK[video.trails]);
+    const map = createTrailMap(lv.size, TRAIL_LOOK[video.trails], !native);
     if (passOn("trail-map")) map.clear(gl);
     return map;
   }

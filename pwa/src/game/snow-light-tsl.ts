@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// THE SNOW'S OWN LIGHT ON THE NODE RENDERER (`docs/webgpu.md`, part 4): the
+// THE SNOW'S OWN LIGHT ON THE NODE RENDERER (`docs/webgpu.md`, parts 4-5): the
 // lighting model the ground's node twin (`terrain-tsl.ts`) lights itself
 // with — three's physical model, with what `snow-glsl.ts`'s light chunk
 // does after three's lights restated in TSL, term for term and in its order:
 //
-//   1. the sun the deformable snow hides (`snowSelf`; part 5's — 1 here);
+//   1. the sun the deformable snow hides (`snowSelf`, `deformSelf`);
 //   2. THE SKY by direction in place of the hemisphere (`skyIrradiance` off
 //      the harmonics, `snow-sky-glsl.ts`), the bumps' shadows on the key
 //      (`snowBumpLit`) and the light through a thin edge;
-//   3. the flat light's last relief;
+//   3. the flat light's last relief, and down in a trench;
 //   4. THE LAMPS, with their glints (`snow-lamps-glsl.ts`);
 //   5. THE SUN's own terms: the wrap, the glitter and the glare
 //      (`snow-sun-glsl.ts`);
@@ -29,6 +29,7 @@ import { lightSlots, terrainLit } from "./lights-tsl.ts";
 import { DEFORM } from "./deform-field.ts";
 import type { GroundSlots, SnowState } from "./snow-sample-tsl.ts";
 import { snowGlints, snowHash3, snowNoise } from "./snow-noise-tsl.ts";
+import { trailLight } from "./snow-trail-tsl.ts";
 import { SUN_GLARE } from "./snow-sun-glsl.ts";
 import { TRAIL } from "./trail-stamp.ts";
 
@@ -74,14 +75,15 @@ export function skyIrradiance(sh: N, n: N): N {
   return max(e, vec3(0));
 }
 
-/** `snowBumpHeight`: the micro-relief as a height (part 5: the trail's
- * relief is nought). */
-function bumpHeight(q: N, swell: N, chop: N, grain: N): N {
-  return swell
-    .mul(0.35)
-    .mul(snowNoise(q.mul(0.23)))
-    .add(chop.mul(0.32).mul(snowNoise(q.mul(0.38).add(13.7))))
-    .add(grain.mul(0.035).mul(snowNoise(q.mul(1.7))));
+/** `snowBumpHeight`: the micro-relief as a height, over the trail's own. */
+function bumpHeight(s: GroundSlots, q: N, swell: N, chop: N, grain: N): N {
+  return s.trail.relief(q).add(
+    swell
+      .mul(0.35)
+      .mul(snowNoise(q.mul(0.23)))
+      .add(chop.mul(0.32).mul(snowNoise(q.mul(0.38).add(13.7))))
+      .add(grain.mul(0.035).mul(snowNoise(q.mul(1.7)))),
+  );
 }
 
 /** `snowBumpLit`: the bumps' shadows, marched toward the key. */
@@ -92,7 +94,7 @@ function bumpLit(s: GroundSlots, p: N, L: N, macro: N, swell: N, chop: N, grain:
     const u = L.xz.div(run).toVar();
     const rise = L.y.div(run).sub(dot(macro, u)).toVar();
     If(rise.greaterThan(0).and(rise.lessThanEqual(1.6)), () => {
-      const h0 = bumpHeight(p, swell, chop, grain).toVar();
+      const h0 = bumpHeight(s, p, swell, chop, grain).toVar();
       const win = abs(p.sub(s.deformBox.xy));
       const nearField = s.deformOn
         .greaterThan(0.5)
@@ -112,7 +114,7 @@ function bumpLit(s: GroundSlots, p: N, L: N, macro: N, swell: N, chop: N, grain:
             Break();
           },
         );
-        const above = h0.add(d.mul(rise)).sub(bumpHeight(p.add(u.mul(d)), swell, chop, grain));
+        const above = h0.add(d.mul(rise)).sub(bumpHeight(s, p.add(u.mul(d)), swell, chop, grain));
         const soft = d.mul(0.012).add(0.012);
         lit.assign(min(lit, smoothstep(soft.negate(), soft, above)));
         d.mulAssign(1.85);
@@ -180,7 +182,7 @@ function snowLight(s: GroundSlots, st: SnowState, r: N, key: N): void {
   const V = normalize(cameraPosition.sub(world)).toVar();
   // The crystals' footprint, in uniform flow (`snowGlints`).
   const fwWorld = length(fwidth(world)).toVar();
-  // 1. The sun the deformable snow hides (part 5: `snowSelf` is 1).
+  // 1. The sun the deformable snow hides.
   r.directDiffuse.mulAssign(st.self);
   r.directSpecular.mulAssign(st.self);
   // 2. The bumps' shadows on the key, and the light through a thin edge.
@@ -216,7 +218,7 @@ function snowLight(s: GroundSlots, st: SnowState, r: N, key: N): void {
         .mul(thin.mul(0.55).mul(back).mul(away)),
     );
   });
-  // 3. The flat light's last relief (part 5: and down in a trench).
+  // 3. The flat light's last relief, and down in a trench.
   flatFacing(s, st, r);
   {
     const rel = max(dot(st.n, normalize(st.vNormal)), 0);
@@ -227,6 +229,7 @@ function snowLight(s: GroundSlots, st: SnowState, r: N, key: N): void {
       mix(1, rel8.mul(rel2).mul(0.32).add(0.68), s.flat.mul(one(smoothstep(40, 160, st.dist)))),
     );
   }
+  if (st.trail) trailLight(r, st.trail.hollow, s.sunPos);
   // 4. The lamps.
   lamps(s, st, r, V, fwWorld);
   // 5. The sun's own terms.

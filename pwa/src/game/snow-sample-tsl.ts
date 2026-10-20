@@ -12,12 +12,11 @@
 // the shader and works them out, so the colour, the roughness, the normal
 // and the light (`snow-light-tsl.ts`) all read the one sample.
 //
-// STAND-INS until part 5 (each a hook its part replaces, named where it
-// stands): the trail map and its furrows (`trailAt`: nothing pressed), the
-// piste machines' swaths and the belts (`trailPackAt`: none), the grooves
-// under the skis, the deformable snow's own shadow (`snowSelf` 1), the
-// tree wells, the avalanche, and the other skiers' lines on the piste
-// (`pisteTracks`: none cut).
+// The snow's MARKS (part 5) are read in their own modules, each called where
+// its chunk is spliced in the GLSL: the trail map's swaths, belts and
+// furrows (`trail-tsl.ts`, `snow-trail-tsl.ts`), the tree wells, the
+// avalanche (`slide-tsl.ts`) and the other skiers' lines on the piste
+// (`piste-tracks-tsl.ts`).
 
 import { ROCKS } from "@engine";
 import type * as THREE from "three";
@@ -26,12 +25,23 @@ import * as TSL from "three/tsl";
 import type { HazeUniforms } from "./haze.ts";
 import type { GroundOwn } from "./terrain.ts";
 import { slot, tap, type N } from "./haze-tsl.ts";
+import { pisteTracks, trackFrameAt, trackSlots, type TrackFrameHere } from "./piste-tracks-tsl.ts";
 import { CALM_HELD, ROCK_SNOW } from "./rock-shapes.ts";
+import { slideAlbedo, slideNormal, slideSlots, type SlideHere } from "./slide-tsl.ts";
 import { GLARE } from "./snow-glsl.ts";
 import { snowHash1, snowNoise, snowNoiseGrad } from "./snow-noise-tsl.ts";
+import {
+  beltLugs,
+  trailAlbedo,
+  trailSample,
+  wellAlbedo,
+  wellSlope,
+  type TrailHere,
+} from "./snow-trail-tsl.ts";
 import { CALM_FROM, CALM_TO } from "./strata-glsl.ts";
 import { stBands, stCoord, stFar, stHazeKeep } from "./strata-tsl.ts";
 import { FRESH_LOOK, LOOSE } from "./trail-stamp.ts";
+import { trailSlots, wellReader } from "./trail-tsl.ts";
 
 const {
   If,
@@ -132,6 +142,14 @@ export function groundSlots(spec: GroundSpec) {
     worked: opt(t, "uWorked", "float", 0),
     deformOn: opt(t, "uDeformOn", "float", 0),
     deformBox: slot(t.uDeformBox, "vec4"),
+    /** The trail map's reads (`trail-tsl.ts`), the wells' and the slide's. */
+    trail: trailSlots(t),
+    well: wellReader(s),
+    wellFrame: slot(s.uWellFrame, "vec4"),
+    slide: slideSlots(h),
+    tracks: trackSlots(h, s),
+    /** ...and the vertex's own set of them (`trailSlots` says why). */
+    vertex: { trail: trailSlots(t, true), well: wellReader(s, true), slide: slideSlots(h, true) },
   };
 }
 export type GroundSlots = ReturnType<typeof groundSlots>;
@@ -176,6 +194,12 @@ export type SnowState = {
   scour: N;
   trackShade: N;
   albedo: N;
+  /** What the trail map makes of the pixel (`snow-trail-tsl.ts`). */
+  trail?: TrailHere;
+  /** m: how deep a tree well lowers the snow here. */
+  well?: N;
+  /** What the avalanche makes of it (`slide-tsl.ts`). */
+  slideHere?: SlideHere;
   /** A summer's ground's own roughness (`summer-tsl.ts`). */
   rough?: N;
 };
@@ -204,11 +228,30 @@ export function snowSample(s: GroundSlots, world: N, vNormal: N): SnowState {
   const g = tap(s.ground, guv).toVar();
   const freshK = smoothstep(0, FRESH_LOOK, s.fresh).toVar();
   const packed = max(g.b, 0).mul(float(1).sub(freshK)).toVar();
-  // PART 5: `trailPackAt` — the piste machines' swaths and the belts —
-  // reads nothing yet, so neither is laid.
-  const groomed = float(0).toVar();
-  const belt = float(0).toVar();
-  const lug = float(0).toVar();
+  // A PISTE MACHINE'S SWATH and A SNOWMOBILE'S BELT (`trailPackAt`), each
+  // packed through and only the snow fallen since on it.
+  const groom = vec3(0).toVar();
+  If(s.trail.worked.add(s.trail.belted).greaterThan(0), () => {
+    groom.assign(s.trail.packAt(p));
+  });
+  const groomed = smoothstep(0, 0.45, groom.x).toVar();
+  const belt = smoothstep(0, 0.45, groom.y).toVar();
+  If(belt.greaterThan(0), () => {
+    const since = float(1).sub(groom.y).mul(FRESH_LOOK);
+    packed.assign(
+      mix(
+        packed,
+        float(1)
+          .sub(smoothstep(0, FRESH_LOOK, since))
+          .mul(0.85),
+        belt,
+      ),
+    );
+  });
+  If(groomed.greaterThan(0), () => {
+    const since = float(1).sub(groom.x).mul(FRESH_LOOK);
+    packed.assign(mix(packed, float(1).sub(smoothstep(0, FRESH_LOOK, since)), groomed));
+  });
   const notSwath = float(1).sub(groomed).mul(float(1).sub(belt)).mul(packed).toVar();
   const cord = float(0).toVar();
   const trackShade = float(0).toVar();
@@ -301,15 +344,27 @@ export function snowSample(s: GroundSlots, world: N, vNormal: N): SnowState {
         .mul(clamp(face.mul(0.6).add(0.55), 0, 1)),
     );
   }
-  // PART 5: `SNOW_TRAIL_SAMPLE` — the furrows (`trailAt`), the groove under
-  // the skis and the deformable snow's own shadow. Nothing is pressed yet.
-  const press = float(0).toVar();
-  const wall = float(0).toVar();
-  const self = float(1).toVar();
-  const scuff = float(0).toVar();
-  // PART 5: the tree wells (`wellDepth`) and the avalanche (`SLIDE_NORMAL`).
-  const slideWall = float(0).toVar();
+  // THE FURROWS, per pixel (`SNOW_TRAIL_SAMPLE`).
+  const trail = trailSample(s.trail, s.spec.trail, {
+    p,
+    y: world.y,
+    dist,
+    grad,
+    sunDir: s.sunDir,
+    skipW: s.skip.w,
+  });
+  const { press, wall, self, scuff } = trail;
+  // THE PADDLES' PRINT across a belt's floor.
+  const lug = beltLugs(p, groom.z, belt, dist, grad);
+  // THE TREE WELLS: the hollow's own slope.
+  const well = s.well(p).toVar();
+  wellSlope(s.well, s.wellFrame.w, p, dist, grad);
+  // THE AVALANCHE: its bed, its walls and its debris.
+  const slideHere = slideNormal(s.slide, p, grad, dist, foot);
+  const slideWall = slideHere.wall;
   const berm = float(0).toVar();
+  // The piste's own frame for the other skiers' lines, read in uniform flow.
+  const frameHere = trackFrameAt(s.tracks, p);
   If(s.skip.y.lessThan(0.5), () => {
     relief(s, {
       p,
@@ -334,6 +389,9 @@ export function snowSample(s: GroundSlots, world: N, vNormal: N): SnowState {
       berm,
       cord,
       lane,
+      axis: groom.z,
+      trackShade,
+      frameHere,
     });
   });
   // Ice is flat: the swells and the grain are the snow's, not the ice's.
@@ -378,6 +436,9 @@ export function snowSample(s: GroundSlots, world: N, vNormal: N): SnowState {
     scour,
     trackShade,
     albedo: vec3(0).toVar(),
+    trail,
+    well,
+    slideHere,
   };
   return state;
 }
@@ -404,9 +465,11 @@ type Relief = Record<
   | "belt"
   | "berm"
   | "cord"
-  | "lane",
+  | "lane"
+  | "axis"
+  | "trackShade",
   N
->;
+> & { frameHere: TrackFrameHere };
 
 /** `SNOW_RELIEF_SAMPLE`: the micro-relief bent into `grad`. */
 function relief(s: GroundSlots, r: Relief): void {
@@ -590,8 +653,8 @@ function relief(s: GroundSlots, r: Relief): void {
   r.berm.assign(td.b.mul(one(r.groomed)));
   const along = max(length(td.xy.mul(2).sub(1)), r.groomed).toVar();
   const dd = td.xy.mul(2).sub(1);
-  // In a swath the comb runs the way the machine went (part 5: none yet).
-  const th = atan(dd.y, dd.x).mul(0.5).toVar();
+  // In a swath the comb runs the way the machine went.
+  const th = mix(atan(dd.y, dd.x).mul(0.5), r.axis.mul(3.14159265), step(0.5, r.groomed)).toVar();
   const across = vec2(cos(th), sin(th).negate()).toVar();
   const phase = dot(p, across)
     .mul(6.2831853 / 0.14)
@@ -612,7 +675,24 @@ function relief(s: GroundSlots, r: Relief): void {
     k.mulAssign(mix(mix(0.3, 1, worn).mul(mix(0.55, 1, chip)), 1.25, max(r.groomed, r.combed)));
     k.mulAssign(one(worked));
     k.mulAssign(r.combed.mul(0.6).add(1));
-    // PART 5: the other skiers' lines (`pisteTracks`) cut none of it yet.
+    // THE OTHER SKIERS' LINES (`piste-tracks.ts`), cutting the comb away.
+    k.mulAssign(
+      one(
+        pisteTracks(
+          s.tracks,
+          r.frameHere,
+          p,
+          across,
+          packed
+            .mul(min(along.mul(2), 1))
+            .mul(one(r.belt))
+            .mul(one(r.groomed)),
+          grad,
+          dist,
+          r.trackShade,
+        ),
+      ),
+    );
     grad.addAssign(across.mul(cos(phase)).mul(0.14).mul(k));
     r.cord.assign(sin(phase).mul(min(k, 1)));
     const kl = packed
@@ -716,12 +796,15 @@ export function snowColour(s: GroundSlots, st: SnowState): N {
         .add(1),
     );
   }
-  // PART 5: the tree wells and the avalanche's own albedo (`SLIDE_ALBEDO`).
+  // A TREE WELL, and the avalanche's own snow.
+  wellAlbedo(alb, st.well ?? float(0), p, pxP);
+  if (st.slideHere) slideAlbedo(s.slide, st.slideHere, alb, p, st.world.y, st.foot);
   If(st.berm.greaterThan(0), () => {
     const clod = snowNoise(p.mul(2.2));
     alb.assign(mix(alb, fresh.mul(mix(1, 0.88, clod)), smoothstep(0, 0.35, st.berm)));
   });
-  // PART 5: `SNOW_TRAIL_ALBEDO` — pressed, walled and dug snow.
+  // Pressed, walled and dug snow.
+  if (st.trail) trailAlbedo(alb, st.trail, { packed, fresh, sunDir: s.sunDir });
   // A wood seen from afar.
   const farW = st.forest.mul(smoothstep(160, 520, dist)).toVar();
   const fc = p.div(5.5).toVar();

@@ -78,6 +78,7 @@ import type { SkyLook } from "./sky.ts";
 import { createSledScene, type SledScene } from "./sled-scene.ts";
 import { createSledFireView, type SledFireView } from "./sled-fire-view.ts";
 import { createGunfireView, type GunfireView } from "./gunfire-view.ts";
+import { createArmyCraftView, type ArmyCraftView } from "./army-craft-view.ts";
 import { createArmyAirView, type ArmyAirView } from "./army-air-view.ts";
 import type { Blaze } from "./camera-blast.ts";
 import { TOPSHEETS } from "./ski-topsheets.ts";
@@ -370,8 +371,19 @@ export function createMachines(
   let burn: BurnView | null = null;
   // A SNOWMOBILE ON FIRE (`sled-fire-view.ts`), built the first time one catches.
   let sledFire: SledFireView | null = null;
-  // THE ARMY'S GUNS (`gunfire-view.ts`), built the first time a gun is armed.
-  let gunfire: GunfireView | null = null;
+  // THE ARMY'S GUNS (`gunfire-view.ts`): on a ride the hunt can be raised
+  // on, built now, behind the loading card — its rockets, smoke and bursts
+  // compiled with the rest and its burst's light in the scene from the
+  // start (a light added mid-run recompiles every lit program) — else the
+  // first time a gun is armed.
+  let gunfire: GunfireView | null = state.rules.heli ? createGunfireView() : null;
+  if (gunfire) group.add(gunfire.group);
+  // THE ARMY'S PARAMOTORS AND BALLOONS (`army-craft-view.ts`), the same:
+  // a pool of every one the hunt can fly, built at load.
+  const armyCraft: ArmyCraftView | null = state.rules.heli
+    ? createArmyCraftView(haze, state)
+    : null;
+  if (armyCraft) group.add(armyCraft.group);
   // THE ARMY'S MACHINES (`army-air-view.ts`), built the first time one is out.
   let army: ArmyAirView | null = null;
   let armyPace = 1;
@@ -482,6 +494,7 @@ export function createMachines(
       )
         armyBuilt();
       army?.frame(s, alpha, dt, simDt, stamps, cloud);
+      armyCraft?.frame(s, alpha, dt);
       heli?.frame(s, alpha, dt, player, rung, flying, cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
       plane?.frame(s, alpha, dt, rung, flying, aspect, cloud, fx.snowAt);
@@ -630,6 +643,7 @@ export function createMachines(
     light(look) {
       para?.light(look);
       balloon?.light(look);
+      armyCraft?.light(look);
       burn?.light(look);
       if (chute) lineLightOf(look, chuteLight.value);
     },
@@ -645,6 +659,7 @@ export function createMachines(
       // The balloon's burner and its fire first: the nearest, brightest
       // light a skier in its basket has.
       balloon?.lamps(eye, floods);
+      armyCraft?.lamps(eye, floods);
       // ...and a skier alight, his own, and a snowmobile burning.
       burn?.lamps(lit, floods);
       sledFire?.lamps(lit, eye, floods);
@@ -774,6 +789,7 @@ export function createMachines(
       sledFire?.dispose();
       gunfire?.dispose();
       army?.dispose();
+      armyCraft?.dispose();
       flashLamps.dispose();
     },
   };

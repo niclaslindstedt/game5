@@ -230,7 +230,8 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
         }
         if (d.turret && d.gun && d.barrel) {
           d.turret.rotation.y = v.turret;
-          d.gun.rotation.x = -v.gun;
+          // Knocked out, the gun drooped on its trunnions.
+          d.gun.rotation.x = v.mode === "wreck" ? 0.12 : -v.gun;
           // THE RECOIL: run back as it fires, run out again.
           const since = state.t - v.fired;
           d.barrel.position.z = since >= 0 ? -RECOIL.back * Math.exp(-since * RECOIL.out) : 0;

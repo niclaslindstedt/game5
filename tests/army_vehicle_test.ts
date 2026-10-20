@@ -38,7 +38,7 @@ const level = levelFor(LEVEL_SEEDS[1]);
 const flat = flatLevel({ size: 2400 });
 
 /** THE ARMY HELD BACK but for what a test reads: the roster's door
- * gunners, soldiers, lifted men and snowmobiles held, its fire set to
+ * gunners, soldiers, lifted men, snowmobiles, paramotors and balloons held, its fire set to
  * `fire`, and — `waves` false — no ground wave sent on its own. Put back
  * as they were. */
 function vehiclesAlone<T>(fn: () => T, fire: WantedRoster["fire"] = "aim", waves = true): T {
@@ -52,6 +52,8 @@ function vehiclesAlone<T>(fn: () => T, fire: WantedRoster["fire"] = "aim", waves
     r.soldiers = 0;
     r.lifted = 0;
     r.snowmobiles = 0;
+    r.paramotors = 0;
+    r.balloons = 0;
     if (r.fire !== "hold") r.fire = fire;
   }
   for (const r of waveRows) if (r) (r.cap as WaveMix).snowmobiles = 0;

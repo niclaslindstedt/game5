@@ -206,6 +206,9 @@ export const ARMY_VEHICLE = {
   behind: 1300,
   home: 450,
   leave: 90,
+  /** KNOCKED OUT by a rocket's burst (`army-burst.ts`): the wreck burns
+   * where it stands this long, s, then is taken off. */
+  wreck: 90,
 
   /** Ids: the crews are pursuers `pursuer` + n; the tanks' guns `gun` + n;
    * a vehicle's men a squad `squad` + n. */

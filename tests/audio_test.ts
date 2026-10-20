@@ -246,6 +246,16 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
     y: 0,
     z: 0,
   },
+  "army-air": {
+    kind: "army-air",
+    t: 1,
+    change: "knocked",
+    craft: "vehicle",
+    id: 0,
+    x: 0,
+    y: 0,
+    z: 0,
+  },
   steal: {
     kind: "steal",
     t: 1,

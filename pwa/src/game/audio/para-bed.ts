@@ -15,9 +15,9 @@
 // Built only on a run with a paramotor (`state.para`); anywhere else it
 // builds nothing and costs nothing.
 
-import { PARA, paraRigged, type GameState } from "@engine";
+import { PARA, paraRigged, type GameState, type ParaState } from "@engine";
 
-import type { Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
+import type { LayerTarget, Synth } from "@niclaslindstedt/oss-game-framework/audio/voice";
 import { createRack, type Rack } from "@niclaslindstedt/oss-game-framework/audio/rack";
 
 import { SLED_GLIDE, SLED_LAYERS, revOf, sledTargets, type SledLayer } from "./sled-voice.ts";
@@ -29,6 +29,30 @@ const SINGLE = 0.5;
 /** The motor on his back against the ear in his helmet: under the cage's
  * guard, the pipe behind him. */
 const ON_HIS_BACK = { engine: 0.75, exhaust: 0.65, tone: 0.9 };
+
+/** ONE PARAMOTOR'S ENGINE: where every layer should be for the rig `p`
+ * heard through `mix` — the player's on his back, or the army's
+ * (`army-air-bed.ts`) from where he is. */
+export function paraEngine(
+  p: ParaState,
+  mix: { engine: number; exhaust: number; tone: number },
+): Record<SledLayer, LayerTarget> {
+  const E = PARA.engine;
+  const throttle = p.controls.throttle;
+  return sledTargets(
+    {
+      rpm: p.rpm * SINGLE,
+      rev: revOf(p.rpm, E.idle, E.full),
+      throttle,
+      // The propeller loads the crank hardest with the rig slow.
+      load: throttle * Math.max(0.3, 1 - p.airspeed / E.pitchSpeed),
+      treadSpeed: 0,
+      slip: 0,
+      loose: 0,
+    },
+    mix,
+  );
+}
 
 /** The paramotor's bed, for the whole life of one app. */
 export type ParaBed = {
@@ -54,27 +78,14 @@ export function createParaBed(synth: Synth): ParaBed {
         return;
       }
       if (synth.now() === null) return;
-      const E = PARA.engine;
-      const throttle = p.controls.throttle;
       const machine = listener.machine * duck;
-      const targets = sledTargets(
-        {
-          rpm: p.rpm * SINGLE,
-          rev: revOf(p.rpm, E.idle, E.full),
-          throttle,
-          // The propeller loads the crank hardest with the rig slow.
-          load: throttle * Math.max(0.3, 1 - p.airspeed / E.pitchSpeed),
-          treadSpeed: 0,
-          slip: 0,
-          loose: 0,
-        },
-        {
+      rack.apply(
+        paraEngine(p, {
           engine: machine * ON_HIS_BACK.engine,
           exhaust: machine * ON_HIS_BACK.exhaust,
           tone: ON_HIS_BACK.tone,
-        },
+        }),
       );
-      rack.apply(targets);
       built = true;
     },
     setView(view) {

@@ -10,7 +10,9 @@
 //     its CRATER (the weapon's `crater`, pressed into the snow where it
 //     went off), and the ear's report;
 //   * A MACHINE near it — the helicopter, the plane, the snowmobile or
-//     the balloon he rides — takes a burst's damage at once;
+//     the balloon he rides — takes a burst's damage at once; and the
+//     army's own near it — a carrier, a truck or a tank knocked out, a
+//     paramotor's wing shredded (`army-burst.ts`);
 //   * HIS BODY, only where the army shoots to kill (`lethalOf`) and he is
 //     not inside a cabin: inside `throw` m the blast knocks him off his
 //     feet (the `blast` crash), away from it and up, harder the nearer;
@@ -23,6 +25,7 @@
 
 import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { hash2 } from "@niclaslindstedt/oss-game-framework/core/noise";
+import { burstOnArmy } from "./army-burst.ts";
 import { pierceBody, type PierceHit } from "./body.ts";
 import { throwRider } from "./crash.ts";
 import { sever } from "./gore.ts";
@@ -87,6 +90,8 @@ export function blastAt(
     if (at && hypot3(at.x - x, at.y - y, at.z - z) < def.kill + 5)
       damageMachine(state, g, m, 0, true, weapon, events);
   }
+  // The hunt's own machines near it (`army-burst.ts`).
+  burstOnArmy(state, x, y, z, events);
   // Never on his body where the army does not shoot to kill.
   if (!lethalOf(state) || inCabin(state)) return;
   const c = bodyCentre(state);

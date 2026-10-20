@@ -119,4 +119,3 @@ The death card and the arrest card carry the hunt's line, SURVIVED against the B
 ## Not yet
 
 - The night does not shorten sight.
-- Of the roster the helicopters, their door gunners and the soldiers move on the map ([`army.md`](army.md)), and they write `pursuers`; the vehicles, the balloons and the paramotors are the later parts'.

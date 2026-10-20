@@ -142,7 +142,7 @@ type V = { x: number; y: number; z: number };
 
 /** How the hunted man moves, m/s: his body's way, or the machine's he
  * rides. */
-function quarryVelocity(state: GameState): V {
+export function quarryVelocity(state: GameState): V {
   const m =
     (state.heli?.rider && state.heli) ||
     (state.plane?.rider && state.plane) ||

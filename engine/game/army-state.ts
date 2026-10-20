@@ -2,6 +2,7 @@
 // THE ARMY'S HELICOPTERS as the run holds them (`army.ts`) — a type of its
 // own so `state.ts` can carry it without importing the step that moves it.
 
+import type { ArmyAirEvent, ArmyAirState } from "./army-air-state.ts";
 import type { GunfireEvent } from "./gunfire-state.ts";
 import type { SledState } from "./sled-state.ts";
 import type { WantedEvent } from "./wanted-state.ts";
@@ -134,13 +135,14 @@ export type SoldierMode =
  * rifleman on foot, or the anti-armour man on foot) and where he came from
  * (a machine's squad is its id; a lift's squad is numbered past
  * `LIFT_SQUAD`, a snowmobile's crew past `SLED_SQUAD`, a ground wave's past
- * `WAVE_SQUAD`); what he is doing
+ * `WAVE_SQUAD`, a paramotor's rider come down under his reserve past
+ * `AIR_SQUAD`); what he is doing
  * and for how long; the stance he fires from and the way he aims; and the
  * bookkeeping his decisions run on. */
 export type Soldier = {
   id: number;
   role: "rifle" | "foot" | "rocket";
-  from: "heli" | "lift" | "sled" | "wave";
+  from: "heli" | "lift" | "sled" | "wave" | "air";
   squad: number;
   mode: SoldierMode;
   /** Seconds in his mode. */
@@ -251,6 +253,9 @@ export type ArmyState = {
   vehiclesCalled: number;
   unloaded: number;
   shells: number;
+  /** THE PARAMOTORS AND THE BALLOONS (`army-para.ts`, `army-balloon.ts`),
+   * made the first time the roster asks for one. */
+  air?: ArmyAirState;
   /** THE ARREST: the soldier holding him, when it was made, and where and
    * which way he was put down — absent until one is. */
   arrest?: { by: number; t: number; x: number; z: number; heading: number };
@@ -362,8 +367,11 @@ export type ArmySledEvent = {
  *   * `halt`: a tank stopped to lay its gun on him and fire;
  *   * `leave`: the hunt over (or a truck emptied), back down the way it
  *     came;
+ *   * `wreck`: knocked out by a rocket's burst (`army-air.ts`), burning
+ *     where it stands;
  *   * `gone`: off the map — dropped at the end of the step. */
-export type ArmyVehicleMode = "due" | "drive" | "drop" | "park" | "halt" | "leave" | "gone";
+export type ArmyVehicleMode =
+  "due" | "drive" | "drop" | "park" | "halt" | "leave" | "wreck" | "gone";
 
 /** ONE OF THE WAVES' VEHICLES: its kind and its wave; its middle on the
  * snow (m, the front unit's for a carrier), the way it faces and its
@@ -415,11 +423,13 @@ export type ArmyVehicle = {
  * the way (`out`), its men out of the back (`drop`), a tank halted to fire
  * (`halt`) and its gun fired (`fire`), backed out of where it was held
  * (`dug`), put back on the way after a third window held (`stuck`), him
- * knocked down by its front (`strike`), and gone (`gone`). */
+ * knocked down by its front (`strike`), knocked out by a burst (`wreck`),
+ * and gone (`gone`). */
 export type ArmyVehicleEvent = {
   kind: "army-vehicle";
   t: number;
-  change: "called" | "out" | "drop" | "halt" | "fire" | "dug" | "stuck" | "strike" | "gone";
+  change:
+    "called" | "out" | "drop" | "halt" | "fire" | "dug" | "stuck" | "strike" | "wreck" | "gone";
   id: number;
   vehicle: ArmyVehicle["kind"];
   x: number;
@@ -429,6 +439,12 @@ export type ArmyVehicleEvent = {
 
 /** THE HUNT'S EVENTS — the wanted level's, the gunfire's, the army's
  * machines', its soldiers', its snowmobiles' and its waves' vehicles' — as
- * one row of `GameEvent`. */
+ * one row of `GameEvent` — and its paramotors' and balloons'. */
 export type HuntEvent =
-  WantedEvent | GunfireEvent | ArmyEvent | SoldierEvent | ArmySledEvent | ArmyVehicleEvent;
+  | WantedEvent
+  | GunfireEvent
+  | ArmyEvent
+  | SoldierEvent
+  | ArmySledEvent
+  | ArmyVehicleEvent
+  | ArmyAirEvent;

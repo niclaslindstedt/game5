@@ -7,7 +7,9 @@
 // with the door gunner sat at it and posed to that aim (`gunnerPosed`).
 // A machine rammed out of the air goes up where it lands — the game's
 // explosion (`explosion.ts`), the helicopter's size — and its wreck burns
-// until the engine lets it go. The men it puts on the snow (and the lifts'
+// until the engine lets it go — and so does a carrier, a truck or a tank
+// knocked out by a rocket's burst (`army-burst.ts`), with no helicopter
+// burning. The men it puts on the snow (and the lifts'
 // squads) are `army-ground-view.ts`'s, and its snowmobiles with their
 // crews `army-sled-view.ts`'s, in the same group.
 //
@@ -15,7 +17,14 @@
 // run. Presentation only: it reads the state and writes nothing.
 
 import * as THREE from "three";
-import { ARMY_HELI, armyHelis, armyQuat, type ArmyHeli, type GameState } from "@engine";
+import {
+  ARMY_HELI,
+  armyHelis,
+  armyQuat,
+  armyVehicles,
+  type ArmyHeli,
+  type GameState,
+} from "@engine";
 
 import { gunnerSeat, type Side } from "./army-heli-plan.ts";
 import { createArmyGroundView } from "./army-ground-view.ts";
@@ -206,7 +215,13 @@ export function createArmyAirView(haze: HazeUniforms): ArmyAirView {
       sleds.frame(state, alpha, simDt);
       vehicles.frame(state, alpha, dt, simDt, stamps, cloud);
       if (burning) boom.burning(true, burning.x, burning.y, burning.z, 0.8);
-      else boom.burning(false, 0, 0, 0);
+      else {
+        // ...else the newest of the waves' vehicles knocked out.
+        let wreck: { x: number; y: number; z: number } | null = null;
+        for (const v of armyVehicles(state)) if (v.mode === "wreck") wreck = v;
+        if (wreck) boom.burning(true, wreck.x, wreck.y + 1.6, wreck.z, 0.6);
+        else boom.burning(false, 0, 0, 0);
+      }
     },
     lamps(lit, eye) {
       boom.dusk(lit);

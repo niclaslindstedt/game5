@@ -24,6 +24,7 @@ import { createBirdBed, type BirdBed } from "./bird-bed.ts";
 import { engineSfx, sfx } from "./bus.ts";
 import { createHeliBed, type HeliBed } from "./heli-bed.ts";
 import { createArmyBed, type ArmyBed } from "./army-bed.ts";
+import { createArmyAirBed, type ArmyAirBed } from "./army-air-bed.ts";
 import { createSledBed, type SledBed } from "./sled-bed.ts";
 import { createBikeBed, type BikeBed } from "./bike-bed.ts";
 import { createParaBed, type ParaBed } from "./para-bed.ts";
@@ -74,6 +75,8 @@ export function createRunAudio(): RunAudio {
   // THE ARMY'S HELICOPTERS (`army-bed.ts`), heard from the skier: built
   // only on a run whose hunt sent them.
   const army: ArmyBed = createArmyBed(sfx);
+  // ...and its paramotors and balloons (`army-air-bed.ts`).
+  const armyAir: ArmyAirBed = createArmyAirBed(sfx);
   // THE FREE RIDE'S SNOWMOBILE (`sled-bed.ts`), heard from the skier,
   // through the effects' fader as the helicopter is.
   const sled: SledBed = createSledBed(sfx);
@@ -173,6 +176,7 @@ export function createRunAudio(): RunAudio {
       birds.update(state, dt, outside);
       heli.update(state, dt, outside);
       army.update(state, dt, outside);
+      armyAir.update(state, dt, outside);
       sled.update(state, dt, outside);
       bike.update(state, dt, outside);
       para.update(state, dt, outside);
@@ -189,6 +193,7 @@ export function createRunAudio(): RunAudio {
       birds.setView(view);
       heli.setView(view);
       army.setView(view);
+      armyAir.setView(view);
       sled.setView(view);
       bike.setView(view);
       para.setView(view);
@@ -204,6 +209,7 @@ export function createRunAudio(): RunAudio {
       birds.silence();
       heli.silence();
       army.silence();
+      armyAir.silence();
       sled.silence();
       bike.silence();
       para.silence();
@@ -220,6 +226,7 @@ export function createRunAudio(): RunAudio {
       birds.reset();
       heli.reset();
       army.reset();
+      armyAir.reset();
       sled.reset();
       bike.reset();
       para.reset();

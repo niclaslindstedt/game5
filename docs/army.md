@@ -2,7 +2,7 @@
 
 The army that hunts a wanted skier ([`wanted.md`](wanted.md)) needs a machine to come in and people to fire its guns ([`gunfire.md`](gunfire.md)). **This page is how they look and how its helicopters fly.** It covers the military helicopter, the winter infantry on skis and on foot, the door gunner and the anti-armour man, and what each is drawn from and why. Then it covers the helicopters [in flight](#in-flight): called in, hunting him and firing.
 
-The helicopters fly in the game, the soldiers are set down [on the ground](#on-the-ground), the roster's snowmobiles drive after him [on snowmobiles](#on-snowmobiles), and the ground waves climb the mountain at him [in waves](#ground-waves).
+The helicopters fly in the game, the soldiers are set down [on the ground](#on-the-ground), the roster's snowmobiles drive after him [on snowmobiles](#on-snowmobiles), and the ground waves climb the mountain at him [in waves](#ground-waves), and riflemen on paramotors and rocketeers in balloons come [by air](#paramotors-and-balloons).
 
 | Piece | Where |
 | --- | --- |
@@ -18,9 +18,11 @@ The helicopters fly in the game, the soldiers are set down [on the ground](#on-t
 | The army on snowmobiles: the call, the drive, the short halt, the crew off, the machine taken | `engine/game/army-sled.ts`, its numbers `engine/game/defs/army-sled.ts` (`ARMY_SLED`), `ArmyState.sleds` |
 | The snowmobiles as drawn and heard | `pwa/src/game/army-sled-view.ts`, `sled-army-kit.ts`, `sled-livery.ts` (`army`), `soldier-pose.ts` (`sledDriverPose`, `sledGunnerPose`), `audio/army-bed.ts` |
 | The ground waves up the mountain: the waves, the way up, the column, the climb | `engine/game/army-wave.ts`, its numbers `engine/game/defs/army-wave.ts` (`ARMY_WAVE`), `ArmyState.waves`, `ArmyState.routes` |
+| The army's paramotors and balloons: the call, the flight, the rifles and the rockets, brought down, a burst among the army's own | `engine/game/army-air.ts`, `army-para.ts`, `army-balloon.ts`, `army-burst.ts`, its numbers `engine/game/defs/army-air.ts` (`ARMY_AIR`), `ArmyState.air` |
+| The paramotors and balloons as drawn and heard | `pwa/src/game/army-craft-view.ts` (held by `machines.ts`), `para-scene.ts` and `para-canopy.ts` (`ARMY_CANOPY_PAINT`), `balloon-scene.ts` and `balloon-look.ts` (`ARMY_COLOURWAY`), `audio/army-air-bed.ts` |
 | Soldiers by the hundred, as drawn | `pwa/src/game/soldier-batch.ts` (held by `army-ground-view.ts`) |
 | The labs | `make army` (`scripts/army-preview.mjs`, `pwa/src/tools/army-harness.ts`, `pwa/army-preview.html`), `make army-flight` (`scripts/army-flight.mjs`) |
-| The tests | `tests/army_heli_test.ts`, `tests/soldier_test.ts`, `tests/army_test.ts`, `tests/army_sled_test.ts`, `tests/army_wave_test.ts`, `tests/models_test.ts`, `tests/model_registry_test.ts` |
+| The tests | `tests/army_heli_test.ts`, `tests/soldier_test.ts`, `tests/army_test.ts`, `tests/army_sled_test.ts`, `tests/army_wave_test.ts`, `tests/army_air_test.ts`, `tests/models_test.ts`, `tests/model_registry_test.ts` |
 
 ## The helicopter
 
@@ -671,4 +673,104 @@ The army lab's `vehicles` sheet (`make army ARGS="--sheet=vehicles"`) photograph
 
 - Stealing one: a parked carrier or a halted tank taken with the machine press through `steal.ts`, with its heat.
 - Their crews never get out and fight; a vehicle's men are only its passengers.
-- Nothing can knock one out: a rocket's burst damages the machines it can bring down, and a vehicle is not one of them yet.
+- A rocket's or a shell's burst within a few metres knocks one out ([paramotors and balloons](#paramotors-and-balloons)); nothing else does yet.
+
+## Paramotors and balloons
+
+`engine/game/army-air.ts` calls and steps the army's air beside its helicopters: riflemen flying the game's own paramotor (`army-para.ts`) and army hot-air balloons with rocketeers in the basket (`army-balloon.ts`). A rocket's burst among the army's own is `army-burst.ts`. The numbers are `ARMY_AIR` in `engine/game/defs/army-air.ts`, and the state is `ArmyState.air` (`army-air-state.ts`), created the first time a hunt calls one. Nothing draws from any stream: every choice is a pure function of the map, the state and the craft's id, so a hunt replays and no digest moves.
+
+**What the real things are.** Armies have flown foot-launched powered paragliders for some years, to put a man over ground no vehicle can cross. It is a paraglider wing over a harness with a small two-stroke and a caged propeller on the pilot's back. It flies at about 15 m/s hands up, a few more on the speed bar, and a pilot will not fly it in a wind of much more than two thirds of that. No army flies hot-air balloons in a fight. The game's are a stand-in for an observation balloon, with the service's low-visibility paint.
+
+**The call.** The roster names them from four stars (`rosterOf`: two paramotors and a balloon with two rocketeers at four stars; four paramotors and two balloons with four rocketeers between them at five), and `airWanted` adds one more of each for every `grow.every` (75) s he has held his star, up to `grow.paramotors` (6) and `grow.balloons` (3) at once. None is flown in a wind past its limit at 10 m over him (`para.most` 9 m/s, `balloon.most` 7.5 m/s): the roster's paramotors and balloons then stay on the ground. The first paramotor is out `para.respond` (20) s after the roster asks and the rest `para.stagger` (6) s apart. Each is launched off a road or a ridge on its bearing toward him, inside the map's edge but no further than `para.near` (750) m from him, `para.enter` (90) m over the snow and at least the orbit's height over him. A balloon is let go `balloon.respond` (30) s after the ask and the rest `stagger` (25) s apart, `upwind` (600) m upwind of him, already flying.
+
+**The paramotor's flight** is the free ride's paramotor on the canopy's maths (`canopy.ts`: `lineDir`, `wayOf`, `liftDrag`, `swingDamp`, `pullLines`) and its own numbers (`PARA`): the wing a point mass flying by its polar on its lines, the turn a side force toward the toggle pulled and the canopy righting itself as it banks, the engine's thrust falling with the air through the propeller, and the speed bar trimming the wing faster. The pilot is a soldier with his kit and the motor (`ARMY_GROUND.mass` + `PARA.motorMass`) and a seated man's drag (`para.drag`, 0.6 m²).
+
+**The pilot's hands.** He circles him at `orbit.radius` (150) m and `orbit.height` (60) m over him. He flies a GROUND VELOCITY, not a heading: round the circle at `orbit.speed` (15) m/s, closing on its radius, carried along at his quarry's own velocity, and straight in at `orbit.dash` (19) m/s from further out than `orbit.far` (1.8) radii. The heading through the air that sums with the wind to that is the crab a pilot reads off his drift. The toggles follow it, damped against the turn already going and never past `hands.most` (0.35): a steady turn, never a spiral. More than `hands.under` (20) m under the height he wants, he turns no harder than `hands.climbing` (0.15), because a wing banked hard sinks. The speed bar goes out when the track needs more than the trim. The throttle holds the height. Out of sight, he circles where his quarry was last seen, `search.wider` (1.6) times wider and `search.height` (90) m over it.
+
+**Clear of everything.** Every `READ` (0.5) s the height he holds is lifted over the highest the circle, the next `clear.look` (6) s of his way and the first `clear.toward` (400) m of the way to the circle must clear (a ridge between them is climbed before it is reached): the snow by `clear.snow` (40) m, a crown by `clear.crowns` (22) m and a lift's rope by `clear.rope` (25) m. Under `clear.floor` (18) m over the snow the throttle goes to full. With the snow or a crown at three, six or nine seconds ahead higher than he will have climbed to, he turns down the fall line, as steeply as `hands.escape` (0.6) of the toggle lets him, spending height to come round in time. Near the stall (`hands.stallMargin`, 0.04 rad short of it) he lets the toggles up, pushes the bar out and holds the throttle at trim, and a stalled wing surges forward and refills as the free ride's does. Two paramotors push off each other's tracks inside `separate` (70) m, and both keep `heli` (60) m off an army helicopter's disc. A paramotor flown into the snow or a crown is a fault the labs count (`parasLost`, the `crash` event), and it must stay at 0.
+
+**Going home.** Once the hunt is over (he is arrested, dead or got away), or the roster asks for fewer than are up, the paramotors leave. Each picks, among `leave.ways` (12) bearings, the one whose snow over the next `leave.look` (400) m is lowest, keeps it unless another is `leave.keep` (25) m lower, climbs to `leave.height` (120) m over the snow and is gone `leave.past` (80) m past the map's edge.
+
+**The rifle.** He fires a burst at a time through the gunfire layer (`WEAPONS.rifle`), within `fire.range` (340) m of him with him in sight, `fire.every` (3.5) s apart at the least, under the wanted level's rules of fire.
+
+**The balloon** is the free ride's balloon (`flyBalloon`, its pilot's hands `balloonHands`) with its crew's weight in the basket (`BalloonState.crew`). It drifts with the up-valley wind, which veers with height. Every `height.pick` (6) s its pilot reads `height.layers` (6) heights between `height.low` (90) and `height.high` (260) m over the snow for the one whose drift carries it closest to him, and holds it on the burner. It never goes under `height.floor` (45) m over the snow or `height.crowns` (25) m over a crown. Once it has drifted `leave.past` (450) m beyond him downwind, it is out of the fight. It then climbs to `leave.height` (300) m and is taken off at `leave.gone` (1,400) m or the map's edge.
+
+**The rockets.** The rocketeers take turns, a man at a time, `fire.every` (4) s apart across the basket, within `fire.range` (420) m of him once he is in sight. Each rocket is the gunfire layer's (`WEAPONS.rocket`): fired from the rim on the man's side, a visible body flying on its motor with a smoke trail, and its burst going off through the BLAST LAYER (`blastAt`), which throws him with the INJURIES on.
+
+**Brought down.** A skier cannot reach either. A STOLEN HELICOPTER can bring a paramotor down: its disc within `downed.disc` (4) m of the wing, or the wing in its wash within `downed.wash` (1.6) rotor radii across and no more than `downed.under` (25) m under the hub. So can a rocket's burst within `burst.wing` (6) m of the wing or the man. With SAFE FOR WORK on he always rides his reserve down; with the INJURIES on he does if he is more than 60 m up. Under it he sinks at `downed.reserve` (5.5) m/s with the wind. On the snow he is a soldier on foot from then on (`enlist`, his squad `AIR_SQUAD` + his id), and he chases him with the rest. Without a reserve he falls under the cloth and lies `downed.lie` (60) s. Bringing one down raises the heat as a soldier hit does.
+
+**A burst among the army's own.** Whoever fired it, a rocket's or a shell's burst knocks out a carrier, a truck or a tank whose middle is within `burst.vehicle` (5) m: a shoulder rocket's shaped charge through a carrier's or a truck's skin, or down through a tank's thin roof. The vehicle stands there burning (its `wreck` mode, for `ARMY_VEHICLE.wreck`, 90 s), and its men aboard are lost with it. The machines the blast layer already damages (his stolen helicopter among them) take the burst as before.
+
+**Safe for work.** They never wound him. A rifleman's fire is the gunfire layer's warning fire. A rocket is laid on the snow `fire.warn.near` to `fire.warn.far` (35–60) m to a side of him, never at him. The soldiers on the ground arrest him. (A skier who skis toward the warning point can be counted in the labs' "burst near him" column with SAFE FOR WORK on. He is never thrown, because a burst under these rules of fire wounds nobody.)
+
+**Events.** `army-air`, by `change`: `called`, `out`, `fire` (a rifle burst), `rocket`, `downed`, `landed`, `crash` (a fault), `knocked` (a vehicle knocked out by a burst), `gone`, with the craft (`paramotor`, `balloon` or `vehicle`), its id and its place. The rifle, the rocket and the burst are the gunfire's events. The pursuers the HUD and the hunt read are written into `WantedState.pursuers` (`paramotor` 7000 + n, `balloon` 7500 + n).
+
+### As drawn and heard
+
+`army-craft-view.ts` draws each one with the free ride's own drawing, hung off the army's craft instead of the player's. The paramotor is `para-scene.ts` in the army's olive wing (`ARMY_CANOPY_PAINT`: an olive drab base, a grey-green swoosh, dark tips), with a soldier sat in its harness, his rifle in his lap (`doorSit`). Brought down, he comes down under a round olive reserve. The balloon is `balloon-scene.ts` in the army's olive and khaki gores under a pale crown (`ARMY_COLOURWAY`, a palette the maps are never dealt). Its rocketeers stand in the basket, each turned to his aim with the launcher up on his shoulder as he fires, and a man stands at the burner. The rockets, their smoke and their bursts are the gunfire's (`gunfire-view.ts`). A vehicle knocked out burns with the army's explosion (`army-air-view.ts`), its gun drooped.
+
+ALL OF IT IS BUILT AT LOAD on every run whose rules can raise the hunt (the free ride), behind the loading card: a fixed pool of as many as the hunt ever flies (`ARMY_AIR.grow`), shown and hidden. The gunfire's view is built at load there too. Nothing builds a mesh, a material or a light mid-run, and no light is added: the burner's light is a slot of the floods (`headlamp.ts`), as the free ride's balloon's is.
+
+They are heard by `audio/army-air-bed.ts`. Each paramotor is the free ride's single-cylinder two-stroke (`para-bed.ts`' `paraEngine`), the nearest three a rack each, falling off with distance as a snowmobile's engine does. Each balloon's burner, pilot light and vent are the free ride's (`balloon-voice.ts`), the nearest two, silent between burns and a roar overhead as it fires. A rocket's launch is the gunfire bank's `rocket_launch`, and its burst is the explosion's. A vehicle knocked out goes up with the helicopter's crash, lower.
+
+### The labs
+
+`make army-flight ARGS="--table=air"` gives, for each star and quarry: the paramotors and balloons out and the most at once, when the first was out and when one first fired, the rifle bursts and the rockets, the rockets that burst within their throw of him and the times he was thrown, the vehicles knocked out, the paramotors brought down, the craft LOST BY MISTAKE (always 0), the least height of a paramotor over the snow and over a crown, his death or arrest, and the step's cost. The quarries are `skier` (the bot skiing away), `still` (stood where the hunt found him) and `chase` (him in the stolen helicopter, the bot's hands flying it over the nearest paramotor). `--alone` holds back the rest of the roster and the ground waves, so a row shows the air's own.
+
+*seed 38, 150 s a hunt, INJURIES on*
+
+| Quarry | Stars | Paramotors (most at once) | Balloons (most at once) | First in, s | First contact, s | Rifle bursts | Rockets | Burst near him | Thrown | Vehicles knocked out | Brought down | Lost by mistake | Least over snow / crowns, m | Dead, s | Arrested, s | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 3 | 1 (1) | 0 (0) | 105 | 105 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 74.4 / 56.9 | 110 | — | 1.338 (13.224) |
+| skier | 4 | 2 (2) | 1 (1) | 20 | 38 | 4 | 2 | 2 | 1 | 0 | 0 | 0 | 49.4 / 32.4 | 48 | — | 1.135 (13.467) |
+| skier | 5 | 4 (4) | 1 (1) | 20 | 38 | 2 | 1 | 1 | 0 | 0 | 0 | 0 | 71.7 / 53.3 | 45 | — | 1.191 (11.116) |
+| still | 3 | 0 (0) | 0 (0) | — | — | 0 | 0 | 0 | 0 | 0 | 0 | 0 | — / — | 69 | — | 0.816 (11.032) |
+| still | 4 | 2 (2) | 1 (1) | 20 | 45 | 9 | 1 | 1 | 0 | 0 | 0 | 0 | 38.0 / 20.5 | 63 | — | 0.604 (5.440) |
+| still | 5 | 4 (4) | 2 (2) | 20 | 45 | 20 | 3 | 3 | 0 | 0 | 0 | 0 | 22.6 / 4.2 | 70 | — | 0.602 (2.188) |
+| chase | 3 | 0 (0) | 0 (0) | — | — | 0 | 0 | 0 | 0 | 0 | 0 | 0 | — / — | 34 | — | 0.242 (0.808) |
+| chase | 4 | 2 (2) | 1 (1) | 20 | 20 | 6 | 1 | 0 | 0 | 0 | 0 | 0 | 178.2 / 160.5 | 39 | — | 0.295 (1.170) |
+| chase | 5 | 4 (4) | 1 (1) | 20 | 20 | 6 | 1 | 0 | 0 | 0 | 0 | 0 | 106.4 / 88.7 | 39 | — | 0.327 (1.180) |
+
+*seed 38, 150 s a hunt, SAFE FOR WORK*
+
+| Quarry | Stars | Paramotors (most at once) | Balloons (most at once) | First in, s | First contact, s | Rifle bursts | Rockets | Burst near him | Thrown | Vehicles knocked out | Brought down | Lost by mistake | Least over snow / crowns, m | Dead, s | Arrested, s | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 3 | 2 (2) | 1 (1) | 105 | 105 | 18 | 7 | 0 | 0 | 0 | 0 | 0 | 34.9 / 18.9 | — | — | 1.811 (17.272) |
+| skier | 4 | 2 (2) | 1 (1) | 20 | 38 | 21 | 12 | 0 | 0 | 0 | 0 | 0 | 40.9 / 22.0 | — | 87 | 1.886 (17.132) |
+| skier | 5 | 4 (4) | 2 (2) | 20 | 38 | 16 | 7 | 0 | 0 | 0 | 0 | 0 | 40.9 / 22.0 | — | 68 | 1.185 (11.292) |
+| still | 3 | 0 (0) | 0 (0) | — | — | 0 | 0 | 0 | 0 | 0 | 0 | 0 | — / — | — | 69 | 0.307 (1.165) |
+| still | 4 | 2 (2) | 1 (1) | 20 | 45 | 13 | 3 | 0 | 0 | 0 | 0 | 0 | 23.4 / 6.5 | — | 70 | 0.447 (1.300) |
+| still | 5 | 4 (4) | 2 (2) | 20 | 45 | 19 | 3 | 0 | 0 | 0 | 0 | 0 | 23.6 / 6.6 | — | 70 | 0.682 (1.927) |
+| chase | 3 | 2 (2) | 1 (1) | 100 | 100 | 21 | 9 | 0 | 0 | 0 | 0 | 0 | 178.4 / 160.6 | — | — | 0.516 (2.258) |
+| chase | 4 | 4 (4) | 2 (2) | 20 | 20 | 57 | 29 | 0 | 0 | 0 | 0 | 0 | 154.9 / 137.3 | — | — | 0.842 (3.588) |
+| chase | 5 | 5 (5) | 3 (3) | 20 | 20 | 101 | 36 | 0 | 0 | 0 | 0 | 0 | 154.9 / 137.3 | — | — | 0.859 (2.825) |
+
+*seed 38, 150 s a hunt, INJURIES on, the air alone*
+
+| Quarry | Stars | Paramotors (most at once) | Balloons (most at once) | First in, s | First contact, s | Rifle bursts | Rockets | Burst near him | Thrown | Vehicles knocked out | Brought down | Lost by mistake | Least over snow / crowns, m | Dead, s | Arrested, s | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 4 | 2 (2) | 1 (1) | 20 | 38 | 12 | 6 | 5 | 1 | 0 | 0 | 0 | 31.0 / 12.4 | 64 | — | 0.906 (11.078) |
+| skier | 5 | 4 (4) | 2 (2) | 20 | 38 | 13 | 6 | 5 | 1 | 0 | 0 | 0 | 31.0 / 12.4 | 64 | — | 0.796 (9.074) |
+| still | 4 | 2 (2) | 1 (1) | 20 | 45 | 14 | 3 | 3 | 0 | 0 | 0 | 0 | 25.0 / 7.9 | 71 | — | 0.990 (12.831) |
+| still | 5 | 4 (4) | 2 (2) | 20 | 45 | 11 | 1 | 1 | 0 | 0 | 0 | 0 | 38.1 / 21.0 | 63 | — | 0.931 (9.276) |
+| chase | 4 | 2 (2) | 1 (1) | 20 | 20 | 25 | 13 | 0 | 0 | 0 | 0 | 0 | 178.2 / 160.5 | 88 | — | 0.704 (10.353) |
+| chase | 5 | 4 (4) | 2 (2) | 20 | 20 | 30 | 14 | 0 | 0 | 0 | 0 | 0 | 178.2 / 160.5 | 76 | — | 0.439 (5.376) |
+
+*seed 38, 150 s a hunt, SAFE FOR WORK, the air alone*
+
+| Quarry | Stars | Paramotors (most at once) | Balloons (most at once) | First in, s | First contact, s | Rifle bursts | Rockets | Burst near him | Thrown | Vehicles knocked out | Brought down | Lost by mistake | Least over snow / crowns, m | Dead, s | Arrested, s | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 4 | 4 (4) | 2 (2) | 20 | 38 | 63 | 20 | 0 | 0 | 0 | 0 | 0 | 39.0 / 22.0 | — | — | 0.909 (10.179) |
+| skier | 5 | 5 (5) | 3 (3) | 20 | 38 | 111 | 40 | 0 | 0 | 0 | 0 | 0 | 33.4 / 15.6 | — | — | 0.872 (10.490) |
+| still | 4 | 4 (4) | 2 (2) | 20 | 45 | 49 | 25 | 0 | 0 | 0 | 0 | 0 | 25.3 / 8.2 | — | — | 1.243 (13.130) |
+| still | 5 | 5 (5) | 3 (3) | 20 | 45 | 90 | 40 | 0 | 0 | 0 | 0 | 0 | 22.1 / 5.5 | — | — | 1.165 (12.392) |
+| chase | 4 | 4 (4) | 2 (2) | 20 | 20 | 57 | 29 | 0 | 0 | 0 | 0 | 0 | 154.9 / 137.3 | — | — | 0.367 (5.673) |
+| chase | 5 | 5 (5) | 3 (3) | 20 | 20 | 101 | 36 | 0 | 0 | 0 | 0 | 0 | 154.9 / 137.3 | — | — | 0.356 (4.762) |
+
+The army lab's `air` sheet (`make army ARGS="--sheet=air"`) photographs them through the game's own renderer: `air-para` (the riflemen circling him), `air-balloon` (a balloon in on the wind, its rocketeers in the basket), `air-rocket` (a rocket off a basket in flight, its smoke trail and its burst) and `air-wreck` (a carrier knocked out by a burst, burning).
+
+### Not yet
+
+- The bot's stolen-helicopter hands cannot catch a paramotor that circles him: the orbit is centred on the helicopter and moves with it. A player can. The `chase` rows' "brought down" column stays 0, and `tests/army_air_test.ts` holds the wash bringing one down.
+- A balloon cannot be brought down by him, and it never burns in a fight.
+- The paramotor's rifleman fires from his lap; he is not posed to his aim.

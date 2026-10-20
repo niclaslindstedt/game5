@@ -41,6 +41,9 @@ export type BalloonState = {
   mode: BalloonMode;
   /** Whether the skier is in the basket. */
   aboard: boolean;
+  /** The crew in the basket besides him, kg — the army's pilot and
+   * rocketeers (`army-balloon.ts`); absent on the free ride's balloon. */
+  crew?: number;
   /** The basket's FLOOR CENTRE, world frame, m, and its velocity, m/s. */
   x: number;
   y: number;

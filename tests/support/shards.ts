@@ -105,6 +105,7 @@ export const SHARD_WEIGHTS: Readonly<Record<string, number>> = {
   "tests/real_houses_test.ts": 46,
   "tests/wingsuit_test.ts": 46,
   "tests/body_hits_test.ts": 45,
+  "tests/impact_people_test.ts": 45,
   "tests/sled_test.ts": 45,
   "tests/chute_test.ts": 42,
   "tests/halfpipe_hud_test.ts": 42,

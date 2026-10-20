@@ -431,6 +431,31 @@ describe("the impact cam (crushed or sliced, the X-ray switch off)", () => {
     expect(ride(d, s, XRAY.back + 1).active).toBe(false);
   });
 
+  it("cuts to a person run into, unhurt himself, and lands on the meeting", () => {
+    const d = createXrayDirector();
+    const s = fake();
+    d.step(as(s), false);
+    const met: Forecast = {
+      in: XRAY.impact.lead,
+      part: null,
+      bones: [],
+      gore: false,
+      fatal: false,
+      mangled: false,
+      cause: null,
+      wrecked: false,
+      strike: { ...strike(XRAY.impact.lead), kind: "person", person: { x: 0.5, z: 3.5 } },
+    };
+    d.seen(met, as(s), false);
+    let look = ride(d, s, XRAY.impact.leadWall);
+    expect(look).toMatchObject({ active: true, kind: "impact", shot: { kind: "impact" } });
+    s.events.push({ kind: "struck", t: s.t, amateur: 3, speed: 16, killed: true });
+    look = ride(d, s, XRAY.impact.hold - 0.2);
+    expect(look.shot?.kind).toBe("impact");
+    expect(look.rate).toBeLessThan(XRAY.impact.slow * 1.3);
+    expect(ride(d, s, 0.5).shot?.kind).toBe("body");
+  });
+
   it("is the x-ray's, as before, with the switch on", () => {
     const d = createXrayDirector();
     const s = fake();

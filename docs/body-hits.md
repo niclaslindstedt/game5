@@ -111,9 +111,28 @@ knocked down and gets up):
 
 The breaks are dealt off a hash of the amateur and come on over the blow's
 first fifth of a second, so a replay lies him the same; everything thrown is
-dealt off the meeting's own seed. The X-ray and impact cams do not cut to a
-person struck: their read ahead (`impact-forecast.ts`) steps a copy of the
-player alone, without the crowd, so it cannot see the meeting coming.
+dealt off the meeting's own seed.
+
+**The impact cam cuts to a hard one** — with INJURIES on and the X-ray cam
+off, live and in a replay — as it does to a body crushed on a solid
+(`pwa/src/game/impact-people.ts` under `impact-forecast.ts`, held by
+`tests/impact_people_test.ts`, photographed by `node
+scripts/xray-preview.mjs --impact --scene=person-60,person-90`). Its read
+ahead steps a copy of the player with the people on foot in it, so a
+meeting with one of them comes out of the copy's own step; the crowd is not
+copied (four hundred amateurs stepped five times a frame is a frame's
+budget) but each amateur near the player's path is DEAD-RECKONED off where
+he goes as the read begins and met on `clipCrowd`'s own geometry, the
+outcome off `exchangeOf`. A meeting is the cam's when it kills or injures
+the person or closes past 12.5 m/s (45 km/h, `PERSON_AHEAD.hard`): with the
+injuries on that is every strike of a grown man from some 24 km/h. The
+lens (`camera-impact.ts`) stands wider for it and a little ahead of the
+meeting, its aim halfway between the strike and the player, so the one he
+strikes, thrown on down his way, and the player are both in the frame.
+Nothing is written to the run or the copy, so no digest moves. An amateur
+who turns hard inside the read's second is met where he would have gone
+straight: the cam may then cut to a meeting that does not come, and lets
+go when it is late (`XRAY.late`), as for any strike that does not land.
 
 ## For the rescue and the police
 

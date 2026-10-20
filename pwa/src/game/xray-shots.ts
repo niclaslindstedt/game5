@@ -40,9 +40,10 @@
 // the last, `.most` at the most), and the same way back.
 //
 // THE IMPACT CAM — the same director again, with the X-RAY CAM switch OFF:
-// only for a body CRUSHED on a solid (a trunk, a mast, a lift's tower) or
-// SLICED by a lift's rope (`impact-forecast.ts`'s `Strike`), and never
-// through the skin. The read ahead knows the strike is coming, so the
+// only for a body CRUSHED on a solid (a trunk, a mast, a lift's tower),
+// SLICED by a lift's rope or RUN HARD INTO A PERSON — an amateur, a
+// civilian, a crew's man, a soldier (`impact-forecast.ts`'s `Strike`) —
+// and never through the skin. The read ahead knows the strike is coming, so the
 // picture CUTS to a lens already standing beside the place it will land,
 // side on to his way (`camera-impact.ts`), the run slowed evenly over
 // `XRAY.impact.leadWall` so he arrives into that frame and meets it on the
@@ -401,10 +402,11 @@ export function createXrayDirector(): XrayDirector {
       // Stood back up: ready for the next fall.
       const down = !!state.skier.thrown || !!(state.gore && state.gore.dead >= 0);
       if (spent && !on && !down && state.t >= heldTill) reset();
-      // THE IMPACT: landed on the step the body is smashed or cut.
+      // THE IMPACT: landed on the step the body is smashed or cut, or the
+      // person struck.
       if (on && kind === "impact") {
         for (const e of state.events as GameEvent[])
-          if (e.kind === "gore" || (e.kind === "grind" && e.phase === "cut"))
+          if (e.kind === "gore" || e.kind === "struck" || (e.kind === "grind" && e.phase === "cut"))
             for (const p of [current, ...queue]) if (p) p.landed = true;
         return;
       }

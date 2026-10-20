@@ -33,6 +33,7 @@ import { DEFAULT_KEYS } from "../game/settings-input.ts";
 import { createXrayRun, dying } from "../game/xray-run.ts";
 import type { XrayLook, XrayShot } from "../game/xray-shots.ts";
 import { acrossRope } from "./gore-cable-scenes.ts";
+import { intoAmateur } from "./xray-person-scenes.ts";
 import {
   flatSpot,
   intoTree,
@@ -93,7 +94,7 @@ const fresh = (ask: Fresh = false): GameState => {
     seed,
     mode: "free",
     gore: true,
-    crowd: 0,
+    crowd: o.crowd ?? 0,
     quiet: true,
     ...(o.grimbear ? { grimbear: "hunt" as const } : {}),
     ...(o.groomer ? { groomer: "on" as const } : {}),
@@ -225,6 +226,10 @@ const SCENES: Record<string, () => Scene> = {
   "cable-shins": () => ({
     s: acrossRope(stage, { speed: 25, feet: -0.2, lead: 1.5 })?.s ?? fresh(),
   }),
+  /** RUN INTO AN AMATEUR stopped on his run, at 60 and 90 km/h from a
+   * second and a fifth up the fall line (`impact-people.ts`). */
+  "person-60": () => ({ s: intoAmateur(stage, 60) }),
+  "person-90": () => ({ s: intoAmateur(stage, 90) }),
   /** INTO THE ROTOR: on the skid, flown up and looped over the top until
    * his grip goes over the disc. */
   rotor: () => {

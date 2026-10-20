@@ -84,6 +84,7 @@ const U = { x: 0, y: 1, z: 0 };
 const FW = { x: 0, y: 0, z: 1 };
 const AF = { x: 0, y: 0, z: 0 };
 const SD = { x: 0, y: 0, z: 0 };
+const N = { x: 0, y: 1, z: 0 };
 const air: ParaAir = { x: 0, y: 0, z: 0, mean: 0, lift: 0, rough: 0, lee: 0 };
 const trunks: number[] = [];
 
@@ -351,6 +352,17 @@ function clearAt(state: GameState, x: number, z: number): number {
   return top;
 }
 
+/** THE TOP OF WHAT STANDS at (x, z): the snow, or a crown over it. */
+function topAt(state: GameState, x: number, z: number): number {
+  const level = state.level;
+  let top = level.groundAt(x, z);
+  for (const i of treesNear(level, x, z, 10, trunks)) {
+    const t = level.trees[i];
+    top = Math.max(top, t.y + t.height);
+  }
+  return top;
+}
+
 /** THE HEIGHT TO HOLD flying round (cx, cz) at radius `R` and `over` m over
  * `cy`: that, or the highest the circle and the way ahead must clear. */
 function heightFor(state: GameState, p: ArmyPara, cx: number, cy: number, cz: number, R: number, over: number): number {
@@ -379,15 +391,31 @@ function handsFor(
 ): { steer: number; throttle: number; bar: number } {
   const w = p.wing;
   const H = K.hands;
+  const level = state.level;
+  const ground = level.groundAt(p.x, p.z);
+  // THE SNOW RISING AHEAD faster than he can climb over it: turned off it,
+  // down the fall line, as hard as the toggles go.
+  const look = K.clear.look;
+  const rising =
+    p.y - topAt(state, p.x, p.z) < K.clear.snow &&
+    topAt(state, p.x + p.vx * look, p.z + p.vz * look) + K.clear.floor >
+      p.y + Math.max(0, p.vy) * look;
+  if (rising) {
+    level.normalAt(p.x, p.z, N);
+    const fall = hypot(N.x, N.z);
+    if (fall > 0.02) {
+      gx = (N.x / fall) * K.trim;
+      gz = (N.z / fall) * K.trim;
+    }
+  }
   const nx = gx - air.x;
   const nz = gz - air.z;
   const err = angleDiff(w.heading, Math.atan2(nx, nz));
   // A wing banked hard sinks: well under the height he wants, he turns
-  // gently and climbs first.
-  const most = p.y < p.want - H.under ? H.climbing : H.most;
+  // gently and climbs first — unless the snow ahead leaves him no room.
+  const most = p.y < p.want - H.under && !rising ? H.climbing : H.most;
   const steer = clamp(H.steer * err - 0.6 * p.rate, -most, most);
   const bar = clamp((hypot(nx, nz) - K.trim) / H.barSpan, 0, 1);
-  const ground = state.level.groundAt(p.x, p.z);
   const low = p.y < ground + K.clear.floor || p.y < clearAt(state, p.x, p.z) - K.clear.snow + K.clear.floor;
   const throttle = low ? 1 : clamp(H.trim + H.perMetre * (p.want - p.y) - H.perClimb * p.vy, 0, 1);
   return { steer, throttle, bar: low ? 0 : bar };

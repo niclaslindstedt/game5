@@ -21,7 +21,6 @@
 import * as THREE from "three";
 import {
   ARMY_AIR,
-  BALLOON,
   armyBalloons,
   armyParas,
   type ArmyBalloon,
@@ -298,10 +297,3 @@ export function createArmyCraftView(haze: HazeUniforms, state: GameState): ArmyC
 
 /** A state with no balloon: what a hidden balloon slot is drawn as. */
 const EMPTY = { balloon: null } as unknown as GameState;
-
-/** The basket's floor is where the rocketeers stand: a check the suite can
- * hold the crew's places to. */
-export function crewInBasket(): boolean {
-  const B = BALLOON.basket;
-  return CRAFT_LOOK.crew.every((c) => Math.abs(c.x) < B.width / 2 && Math.abs(c.z) < B.length / 2);
-}

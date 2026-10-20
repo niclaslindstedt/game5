@@ -2,7 +2,7 @@
 
 The army that hunts a wanted skier ([`wanted.md`](wanted.md)) needs a machine to come in and people to fire its guns ([`gunfire.md`](gunfire.md)). **This page is how they look and how its helicopters fly.** It covers the military helicopter, the winter infantry on skis and on foot, the door gunner and the anti-armour man, and what each is drawn from and why. Then it covers the helicopters [in flight](#in-flight): called in, hunting him and firing.
 
-The helicopters fly in the game, the soldiers are set down [on the ground](#on-the-ground), and the roster's snowmobiles drive after him [on snowmobiles](#on-snowmobiles).
+The helicopters fly in the game, the soldiers are set down [on the ground](#on-the-ground), the roster's snowmobiles drive after him [on snowmobiles](#on-snowmobiles), and the ground waves climb the mountain at him [in waves](#ground-waves).
 
 | Piece | Where |
 | --- | --- |
@@ -17,8 +17,10 @@ The helicopters fly in the game, the soldiers are set down [on the ground](#on-t
 | The machines in flight as drawn and heard | `pwa/src/game/army-air-view.ts` (held by `machines.ts`), `pwa/src/game/audio/army-bed.ts` |
 | The army on snowmobiles: the call, the drive, the short halt, the crew off, the machine taken | `engine/game/army-sled.ts`, its numbers `engine/game/defs/army-sled.ts` (`ARMY_SLED`), `ArmyState.sleds` |
 | The snowmobiles as drawn and heard | `pwa/src/game/army-sled-view.ts`, `sled-army-kit.ts`, `sled-livery.ts` (`army`), `soldier-pose.ts` (`sledDriverPose`, `sledGunnerPose`), `audio/army-bed.ts` |
+| The ground waves up the mountain: the waves, the way up, the column, the climb | `engine/game/army-wave.ts`, its numbers `engine/game/defs/army-wave.ts` (`ARMY_WAVE`), `ArmyState.waves`, `ArmyState.routes` |
+| Soldiers by the hundred, as drawn | `pwa/src/game/soldier-batch.ts` (held by `army-ground-view.ts`) |
 | The labs | `make army` (`scripts/army-preview.mjs`, `pwa/src/tools/army-harness.ts`, `pwa/army-preview.html`), `make army-flight` (`scripts/army-flight.mjs`) |
-| The tests | `tests/army_heli_test.ts`, `tests/soldier_test.ts`, `tests/army_test.ts`, `tests/army_sled_test.ts`, `tests/models_test.ts`, `tests/model_registry_test.ts` |
+| The tests | `tests/army_heli_test.ts`, `tests/soldier_test.ts`, `tests/army_test.ts`, `tests/army_sled_test.ts`, `tests/army_wave_test.ts`, `tests/models_test.ts`, `tests/model_registry_test.ts` |
 
 ## The helicopter
 
@@ -446,4 +448,101 @@ The army lab's `sleds` sheet (`make army ARGS="--sheet=sleds"`) photographs the 
 
 - The crew have no voices, and the machine has no siren or horn.
 - They do not tow a sledge (an ahkio) or carry more than two.
-- The ground waves' snowmobiles from the valley (`groundWave`) are still data: the roster's are the ones that come.
+
+## Ground waves
+
+`engine/game/army-wave.ts` sends the wanted level's GROUND WAVES up the mountain (`WANTED.waves`, read with `groundWave(stars, n)` and counted with `wavesSent`): from two stars, the first `first` s after he reached the star he carries and then one every `every` s, each the base plus the growth for every wave before it this hunt, so the longer he survives, the bigger every wave. Its numbers are `ARMY_WAVE` in `engine/game/defs/army-wave.ts`; the ways being climbed live in `ArmyState.routes` and the count in `ArmyState.waves`. Nothing here draws from any stream: where a column forms, how it is laid out and who walks are pure functions of the map, the state and the men's ids, so a hunt replays and no digest moves.
+
+**What the real thing does.** Troops brought up a valley by road get down from their trucks where the road ends or where the enemy cannot see them, form up, and go on foot. In deep snow a winter infantryman moves on skis, with skins under them for the climb: a ski-tourer's herringbone on a short rise and a zig-zag traverse up a long steep one. On a packed road or a groomed slope men can also slog in their boots. A column climbs the easiest line there is. On a ski area that line is the runs and the cat tracks, which are packed and graded for the machines that groom them.
+
+**The way up.** `wayDown(level, x, z)` reads the way down from where he is to the valley: the ski area's run nearest him, from its nearest point to its end, then the run it merges into from where it does (`Run.into`), and on to the village, with a point every `sample` (8) m and the run's width at each. Read backwards it is the way up. On a map with no ski area it is the fall line, and on ground with no fall at all, a straight line away from the summit.
+
+**The column.** A wave dismounts `start` (380) m down the way from him, as the runs wind rather than as the crow flies. While he could see that place (`seesQuarry` from a man's eyes there) it goes further down, up to `hidden` (720) m. It never forms nearer him than `apart` (300) m as the crow flies, because a run can wind back on itself; where the way ends nearer him than that, it is carried on down the fall line, leading away from him. There the men form a column of files: up to `abreast` (5) men across, `gap` (3.2) m apart and no wider than the run less `margin` (2) m each side, with ranks `rank` (4.5) m apart down the run. Each man is set a little off his file and his rank by his id, so the column reads as men and not a grid. Every `slog`th (3rd) man is on foot (`role: "foot"`); the rest are on skis with skins.
+
+**The climb.** Each man (`mode: "climb"`) climbs to the next point of the way on his own file (`Soldier.leg`, `.lane`). He takes the next point once he is within `reach` (6) m of it or past it. He climbs as any soldier on the ground moves (`army-troop.ts`): on skins he herringbones a rise and traverses a steep one, and on foot he walks, slower uphill. He keeps clear of the trunks and of the men round him, and the same watchdog side-steps a man who is held. A man leaves the column when he sees him within a rifle's range, when he is within `engage` (220) m of where he was last seen, or when he has climbed the whole way. From then on he is a soldier on the ground like any other: the chase, the stop to fire from one knee or stood, the shout, and, with SAFE FOR WORK on, the run-down and the arrest.
+
+**What a wave brings.** The wave's mix names snowmobiles, tracked carriers, trucks, tanks and men on foot. The snowmobiles are the army's own (`army-sled.ts`): a wave raises how many it keeps out on top of the roster's (`ArmyState.waveSleds`, at most `sleds` (5)), and they come out of the village as the roster's do. The carriers, the trucks and the tanks are not on the map yet.
+
+**The bound.** At most `most` men of the waves are out at once (24 at two stars, 48 at three, 96 at four, 160 at five); a wave that would put more out puts what the bound leaves room for. A man of a wave further than `behind` (1,100) m from where he was last seen is taken off the map, out of the fight and out of the step's cost. With the hunt over, every man of them further than `home` (450) m from him is taken off too.
+
+**Safe for work.** They never wound him. Their fire is the gunfire's warning fire, and they run him down and arrest him as every soldier does (`arrestSkier`). Once he is taken, the nearest `cover` (12) men of the waves within `coverNear` (60) m close round him, and the rest come up to a ring 9 to 40 m round him (each at his own distance) and stand there facing him.
+
+**Events.** The `army` event's `wave` change: `id` the wave's number this hunt, and the place its column forms up at. A man leaving the column is a `soldier` event as any other (`aim`, `arrest`, `down`).
+
+### As drawn
+
+The men of the waves are drawn by `army-ground-view.ts` as every soldier is: the men on skis as the `skier` figure poling stride on stride while they climb, and the men on foot as the `foot` figure walking (`walkA`/`walkB` by the ground covered, each man on his own foot so a column does not march in step), aiming stood (`aim`) or knelt (`kneel`). A man near the lens (inside the crowd's `near` cut) is drawn on a mesh of his own. Past it, every man of one figure at one cut is an instance of one draw (`soldier-batch.ts`'s `SoldierBatch`): an instanced mesh of the part-3 figure, placed by its matrix and posed by its own morph weights, as the crowd's amateurs are. So a column of a hundred costs a handful of draws.
+
+### The labs
+
+`make army-ground ARGS="--table=waves"` adds the waves' table. For each row it gives:
+
+- the waves sent and when the first set off;
+- the men they marched out, and the most out at once;
+- the snowmobiles the waves keep out;
+- the carriers, trucks and tanks (0 until they are built);
+- when a man of a wave first stopped to fire at him;
+- his death or his arrest;
+- the men of the waves STUCK (always 0);
+- the step's cost: the wall time of a whole engine step while hunted, its mean and its 99th percentile.
+
+On seed 38, 180 s a hunt, INJURIES on, before the waves (the four tables were cut back to back on one machine, so their step times compare with each other and not with a table cut elsewhere):
+
+| Quarry | Stars | Waves (first, s) | Men marched (most at once) | Snowmobiles | Carriers / trucks / tanks | First contact, s | Dead, s | Arrested, s | Stuck | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 99 | — | 0 | 0.330 (1.161) |
+| skier | 3 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 131 | — | 0 | 0.301 (0.867) |
+| skier | 4 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 70 | — | 0 | 0.277 (0.687) |
+| skier | 5 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 70 | — | 0 | 0.268 (0.669) |
+| still | 2 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 90 | — | 0 | 0.186 (0.494) |
+| still | 3 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 69 | — | 0 | 0.214 (0.519) |
+| still | 4 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 52 | — | 0 | 0.232 (0.715) |
+| still | 5 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 52 | — | 0 | 0.237 (0.592) |
+
+After:
+
+| Quarry | Stars | Waves (first, s) | Men marched (most at once) | Snowmobiles | Carriers / trucks / tanks | First contact, s | Dead, s | Arrested, s | Stuck | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 99 | — | 0 | 0.361 (1.313) |
+| skier | 3 | 2 (60) | 30 (30) | 2 | 0 / 0 / 0 | 70 | 136 | — | 0 | 0.407 (1.222) |
+| skier | 4 | 1 (45) | 16 (16) | 2 | 0 / 0 / 0 | — | 70 | — | 0 | 0.412 (1.165) |
+| skier | 5 | 1 (30) | 24 (24) | 3 | 0 / 0 / 0 | 40 | 53 | — | 0 | 0.384 (0.953) |
+| still | 2 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | 90 | — | 0 | 0.243 (0.654) |
+| still | 3 | 1 (60) | 8 (8) | 2 | 0 / 0 / 0 | — | 69 | — | 0 | 0.261 (0.618) |
+| still | 4 | 1 (45) | 16 (16) | 2 | 0 / 0 / 0 | — | 52 | — | 0 | 0.278 (0.815) |
+| still | 5 | 1 (30) | 24 (24) | 3 | 0 / 0 / 0 | — | 52 | — | 0 | 0.333 (0.921) |
+
+SAFE FOR WORK, before:
+
+| Quarry | Stars | Waves (first, s) | Men marched (most at once) | Snowmobiles | Carriers / trucks / tanks | First contact, s | Dead, s | Arrested, s | Stuck | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | — | — | 0 | 0.305 (1.116) |
+| skier | 3 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | — | — | 0 | 0.255 (0.667) |
+| skier | 4 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | — | 90 | 0 | 0.266 (0.703) |
+| skier | 5 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | — | — | 0 | 0.362 (1.016) |
+| still | 2 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | — | 92 | 0 | 0.166 (0.453) |
+| still | 3 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | — | 69 | 0 | 0.180 (0.490) |
+| still | 4 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | — | 69 | 0 | 0.238 (0.679) |
+| still | 5 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | — | 69 | 0 | 0.266 (0.791) |
+
+After:
+
+| Quarry | Stars | Waves (first, s) | Men marched (most at once) | Snowmobiles | Carriers / trucks / tanks | First contact, s | Dead, s | Arrested, s | Stuck | Step, ms (p99) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| skier | 2 | 1 (124) | 8 (8) | 2 | 0 / 0 / 0 | 140 | — | — | 0 | 0.405 (1.441) |
+| skier | 3 | 2 (60) | 30 (30) | 2 | 0 / 0 / 0 | 70 | — | 165 | 0 | 0.397 (1.157) |
+| skier | 4 | 1 (45) | 16 (16) | 2 | 0 / 0 / 0 | 59 | — | 90 | 0 | 0.365 (0.934) |
+| skier | 5 | 2 (30) | 56 (56) | 3 | 0 / 0 / 0 | 40 | — | 99 | 0 | 0.547 (1.472) |
+| still | 2 | 0 (—) | 0 (0) | 0 | 0 / 0 / 0 | — | — | 92 | 0 | 0.224 (0.567) |
+| still | 3 | 1 (60) | 8 (8) | 2 | 0 / 0 / 0 | — | — | 69 | 0 | 0.277 (0.610) |
+| still | 4 | 1 (45) | 16 (16) | 2 | 0 / 0 / 0 | — | — | 69 | 0 | 0.362 (0.987) |
+| still | 5 | 1 (30) | 24 (24) | 3 | 0 / 0 / 0 | — | — | 69 | 0 | 0.435 (1.133) |
+
+With the INJURIES on, the door gunners kill a man stood still at four and five stars before a column is near him, so those rows end after one wave or two. A skier going down the piste skis into the columns climbing it, so their first contact comes within seconds of the wave. With SAFE FOR WORK on, no round is in him. The step's cost was measured at the bound as well: at five stars with the waves sent every 8 s, 160 men out add about 0.3 to 0.4 ms to a step on a desktop processor (`previews/wave-cost.mjs`, kept local).
+
+The army lab's `waves` sheet (`make army ARGS="--sheet=waves"`) photographs the waves through the game's own renderer at five stars, with the roster's door gunners, squads and lifts held back so the hunt lasts long enough for the columns to come: `wave-climb` (a column climbing a run at him), `wave-mass` (three waves out, the mountain below him soldiers) and `wave-arrest` (SAFE FOR WORK: him taken by a man of a wave, the rest come up round him).
+
+### Not yet
+
+- The tracked carriers, the trucks and the tanks a wave's mix names: their models, their driving, their troops dismounting, the tank's gun, the crush and their sound.
+- The men of the waves have no voices, and the column has no sound of its own.

@@ -27,6 +27,7 @@ import type { GroundOwn } from "./terrain.ts";
 import { slot, tap, type N } from "./haze-tsl.ts";
 import { pisteTracks, trackFrameAt, trackSlots, type TrackFrameHere } from "./piste-tracks-tsl.ts";
 import { CALM_HELD, ROCK_SNOW } from "./rock-shapes.ts";
+import { rockLipNode } from "./rock-lip-tsl.ts";
 import { slideAlbedo, slideNormal, slideSlots, type SlideHere } from "./slide-tsl.ts";
 import { GLARE } from "./snow-glsl.ts";
 import { snowHash1, snowNoise, snowNoiseGrad } from "./snow-noise-tsl.ts";
@@ -174,6 +175,10 @@ export type SnowState = {
   crust: N;
   ice: N;
   rock: N;
+  /** The snow's lip over a rock band's top, and the stone in its shade. */
+  lip: N;
+  under: N;
+  lipR: N;
   foot: N;
   skin: N;
   skinCol: N;
@@ -288,6 +293,24 @@ export function snowSample(s: GroundSlots, world: N, vNormal: N): SnowState {
     .mul(smoothstep(s.rockSlope.x, s.rockSlope.y, length(grad)))
     .mul(float(1).sub(packed))
     .toVar();
+  // WHERE THE SNOW MEETS IT (`rock-lip.ts`).
+  const lip = float(0).toVar();
+  const under = float(0).toVar();
+  const lipR = float(rock).toVar();
+  const lipFoot = length(fwidth(p));
+  If(rock.greaterThan(0), () => {
+    const o = rockLipNode(
+      p,
+      lipR,
+      g.rg,
+      lipFoot,
+      (q: N) => tap(s.ground, groundUv(s, q)),
+      s.rockSlope,
+    );
+    rock.assign(s.rock.w.mul(o.bare));
+    lip.assign(o.lip);
+    under.assign(o.under);
+  });
   const skin = s.strata.w
     .mul(smoothstep(ROCKS.skin.from, 0.45, g.b.negate()))
     .mul(smoothstep(CALM_FROM, CALM_TO, dist))
@@ -402,6 +425,8 @@ export function snowSample(s: GroundSlots, world: N, vNormal: N): SnowState {
   });
   // Ice is flat: the swells and the grain are the snow's, not the ice's.
   grad.assign(mix(grad, g.rg, ice.mul(0.85)));
+  // The lip's nose rolls over the brink.
+  grad.addAssign(g.rg.div(max(length(g.rg), 1e-4)).mul(lip.mul(1.4).mul(smoothstep(0.3, 1, lipR))));
   const n = normalize(vec3(grad.x.negate(), 1, grad.y.negate())).toVar();
   const state: SnowState = {
     p,
@@ -417,6 +442,9 @@ export function snowSample(s: GroundSlots, world: N, vNormal: N): SnowState {
     crust,
     ice,
     rock,
+    lip,
+    under,
+    lipR,
     foot,
     skin,
     skinCol,
@@ -833,6 +861,9 @@ export function snowColour(s: GroundSlots, st: SnowState): N {
       mix(alb, mix(s.forestTint, s.forestTint.mul(0.5), core), farW.mul(mix(0.5, 0.72, core))),
     );
   });
+  // The lip: snow the wind built out over the brink.
+  alb.assign(mix(alb, vec3(0.97, 0.985, 1), st.lip.mul(0.6)));
+  alb.mulAssign(mix(vec3(1), vec3(0.74, 0.8, 0.93), st.lip.mul(smoothstep(0.75, 1, st.lipR))));
   // THE REGION'S OWN SNOW.
   alb.assign(mix(alb, alb.mul(s.crustTone), st.crust.mul(one(packed.mul(0.5)))));
   If(st.ice.greaterThan(0), () => {
@@ -846,7 +877,8 @@ export function snowColour(s: GroundSlots, st: SnowState): N {
   });
   If(st.rock.greaterThan(0), () => {
     const grain = mix(0.5, snowNoise(p.mul(0.6)), one(smoothstep(0.5, 1.4, st.foot.mul(0.6))));
-    const rockAlb = mix(s.rock.rgb.mul(mix(0.7, 1.2, grain)), st.skinCol, st.skin);
+    const rockAlb = mix(s.rock.rgb.mul(mix(0.7, 1.2, grain)), st.skinCol, st.skin).toVar();
+    rockAlb.mulAssign(mix(vec3(1), vec3(0.3, 0.33, 0.42), st.under.mul(one(st.skin))));
     alb.assign(mix(alb, rockAlb, st.rock));
     st.hazeKeep.assign(mix(1, stHazeKeep(dist), st.skin));
   });

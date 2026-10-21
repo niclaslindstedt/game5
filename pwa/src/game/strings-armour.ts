@@ -29,7 +29,6 @@ export const ARMOUR_STRINGS = {
           : "STOLE THE AIR AMBULANCE!";
     return livery === "army" ? "STOLE AN ARMY SNOWMOBILE!" : "STOLE THE SKI PATROL'S SNOWMOBILE!";
   },
-  newsArmourBoard: "BACK BEHIND THE WHEEL",
   newsArmourHop: "OUT AND ON YOUR SKIS",
   newsArmourDead: "KNOCKED OUT!",
 

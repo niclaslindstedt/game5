@@ -34,7 +34,7 @@
 // Pure over the state; nothing here draws from `state.rng`, and a run that
 // never took a vehicle never gets past the first line, so no digest moves.
 
-import { angleDiff, clamp, hypot } from "@niclaslindstedt/oss-game-framework/core/math";
+import { angleDiff, clamp, hypot, hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler, rotate } from "@niclaslindstedt/oss-game-framework/core/quat";
 import { enlist } from "./army-troop.ts";
 import { VEHICLE_SQUAD, muzzleOf } from "./army-vehicle.ts";
@@ -299,7 +299,7 @@ export function sightPoint(state: GameState, b: ArmyVehicle): { x: number; y: nu
     const oz = z - m.z;
     const along = ox * dx + oy * dy + oz * dz;
     if (along < 20 || along >= best) return;
-    const off = Math.hypot(ox - dx * along, oy - dy * along, oz - dz * along);
+    const off = hypot3(ox - dx * along, oy - dy * along, oz - dz * along);
     if (off / along > K.tank.lock) return;
     best = along;
     hit = { x, y, z };

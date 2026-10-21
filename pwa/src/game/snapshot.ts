@@ -69,6 +69,7 @@ import {
   type BodyPart,
   type InjuryKind,
 } from "@engine";
+import { armourOf, type HudArmour } from "./armour-hud.ts";
 import { buriedOf, diedOf, injuredOf } from "./hud-wreck.ts";
 
 import { bodyTile, type BodyTile } from "./body-tile.ts";
@@ -359,6 +360,9 @@ export type HudSnapshot = {
   /** THE PISTE MACHINE (`groomerOf`): driven, or the nearest's way while
    * he is near one, or null. */
   groomer: HudGroomer | null;
+  /** THE ARMY'S VEHICLE (`armour-hud.ts`): driven, or the press at the door
+   * of one he may take, or null. */
+  armour: HudArmour | null;
   /** THE PARAMOTOR (`paraOf`): its instruments while the rig is on him, or
    * null. */
   para: HudPara | null;
@@ -602,7 +606,7 @@ export function heliOf(state: GameState): HudHeli | null {
   const c = state.skier;
   // At the door of a machine that is not his (`steal.ts`): the press takes it.
   const taken = stealWithin(state);
-  if (taken?.kind === "heli" && taken.livery !== "patrol" && taken.livery !== "army")
+  if (taken?.kind === "heli" && taken.livery !== "patrol")
     return {
       kind: "waiting",
       pad: Math.hypot(taken.door.x - c.x, taken.door.z - c.z),
@@ -863,6 +867,7 @@ export function takeSnapshot(state: GameState, ledger: RunLedger = NO_LEDGER): H
     sled: aloft ? null : sledOf(state),
     bike: aloft ? null : bikeOf(state),
     groomer: aloft ? null : groomerOf(state),
+    armour: aloft ? null : armourOf(state),
     para: paraOf(state),
     balloon: balloonOf(state),
     beacon: aloft ? null : beaconRead(state, state.t),

@@ -51,6 +51,14 @@
 // hunts him with the ground waves alone: the roster's door gunners,
 // soldiers, lifts and every snowmobile held back.
 //
+// THE ESCALATION CURVE (`--table=curve`, `scripts/lib/army-curve-table.mjs`):
+// a whole hunt from the theft of the air ambulance, the army left to climb
+// the stars, a row a quarry — `run` (the bot skiing on), `still` and `hide`
+// (stood under the thickest trees near him) — with the run time each star
+// was reached, the share of it he was seen, the longest he was out of
+// sight, how it ended and when, and the rounds in him. Its `--seconds`
+// should be minutes (`--seconds=420`).
+//
 // Nothing drawn; tens of seconds.
 //
 //   node scripts/army-ground.mjs
@@ -59,6 +67,7 @@
 //   node scripts/army-ground.mjs --table=sleds --alone
 //   node scripts/army-ground.mjs --table=waves --sfw
 //   node scripts/army-ground.mjs --table=vehicles --waves
+//   node scripts/army-ground.mjs --table=curve --seconds=420
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -81,7 +90,7 @@ const args = parseArgs(
     table: {
       kind: "string",
       default: "troops,sleds",
-      help: "the tables: troops, sleds, waves, vehicles",
+      help: "the tables: troops, sleds, waves, vehicles, curve",
     },
     alone: {
       kind: "flag",
@@ -95,7 +104,7 @@ const args = parseArgs(
     },
     json: { kind: "string", default: "", help: "write the table as JSON to this file" },
   },
-  "usage: node scripts/army-ground.mjs [--seed=n] [--stars=a,b] [--quarry=skier,still] [--seconds=s] [--sfw] [--table=troops,sleds,waves,vehicles] [--alone] [--waves] [--json=FILE]",
+  "usage: node scripts/army-ground.mjs [--seed=n] [--stars=a,b] [--quarry=skier,still] [--seconds=s] [--sfw] [--table=troops,sleds,waves,vehicles,curve] [--alone] [--waves] [--json=FILE]",
 );
 
 aliasEngine(root);
@@ -133,6 +142,29 @@ if (args.alone) {
     row.lifted = 0;
   }
 }
+
+// A WIND TUNNEL'S TUBE (R30) in plan: its line, half its width either side
+// — what a vehicle in the table must never stand in.
+const tubes = (level.resort?.tunnels ?? []).map((t) => ({ half: t.width / 2, pts: t.points }));
+function inTunnel(x, z) {
+  for (const t of tubes)
+    for (let i = 0; i < t.pts.length - 1; i++) {
+      const a = t.pts[i];
+      const b = t.pts[i + 1];
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+      const u = Math.max(
+        0,
+        Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz || 1)),
+      );
+      if (Math.hypot(x - a.x - dx * u, z - a.z - dz * u) < t.half) return true;
+    }
+  return false;
+}
+const span = (ds) =>
+  ds.length === 0
+    ? "—"
+    : `${Math.round(Math.min(...ds))}–${Math.round(Math.max(...ds))} (${ds.length})`;
 
 function hunt(stars, quarry) {
   const s = E.createGame({
@@ -196,6 +228,10 @@ function hunt(stars, quarry) {
     shellHits: 0,
     vehiclesDug: 0,
     vehiclesStuck: 0,
+    truckDrops: [],
+    carrierDrops: [],
+    bailed: 0,
+    inTunnel: 0,
   };
   const vehiclesOut = new Map();
   const waveStuck = new Set();
@@ -243,6 +279,12 @@ function hunt(stars, quarry) {
           if (Number.isNaN(row.shellAt)) row.shellAt = t;
         }
         if (e.change === "dug") row.vehiclesDug++;
+        if (e.change === "drop") {
+          const q = E.quarryOf(s);
+          const d = Math.hypot(e.x - q.x, e.z - q.z);
+          if (e.vehicle === "truck") row.truckDrops.push(d);
+          if (e.vehicle === "carrier") row.carrierDrops.push(d);
+        }
         if (e.change === "stuck") row.vehiclesStuck++;
       }
       if (e.kind === "gunfire" && e.weapon === "tankGun" && e.phase === "hit") row.shellHits++;
@@ -292,6 +334,7 @@ function hunt(stars, quarry) {
     }
     row.sledsAtOnce = Math.max(row.sledsAtOnce, driving);
     row.vehiclesAtOnce = Math.max(row.vehiclesAtOnce, E.armyVehicles(s).length);
+    for (const v of E.armyVehicles(s)) if (inTunnel(v.x, v.z)) row.inTunnel += dt;
     if (Number.isNaN(row.dead) && s.gore && s.gore.dead >= 0) row.dead = t;
     if (s.wanted?.ended && s.wanted.ended !== "escaped" && t > (row.arrested || row.dead) + 8)
       break;
@@ -308,6 +351,7 @@ function hunt(stars, quarry) {
   for (const k of vehiclesOut.values())
     row[k === "carrier" ? "carriers" : k === "truck" ? "trucks" : "tanks"]++;
   row.unloaded = s.army?.unloaded ?? 0;
+  row.bailed = s.army?.bailed ?? 0;
   costs.sort((a, b) => a - b);
   row.ms = costs.reduce((a, b) => a + b, 0) / Math.max(1, costs.length);
   row.ms99 = costs[Math.floor(costs.length * 0.99)] ?? NaN;
@@ -315,8 +359,10 @@ function hunt(stars, quarry) {
 }
 
 const rows = [];
-for (const quarry of list(args.quarry))
-  for (const stars of list(args.stars).map(Number)) rows.push(hunt(stars, quarry));
+const huntRows = [...tables].some((t) => t !== "curve");
+if (huntRows)
+  for (const quarry of list(args.quarry))
+    for (const stars of list(args.stars).map(Number)) rows.push(hunt(stars, quarry));
 
 const f = (v, d = 0) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 console.log(
@@ -327,15 +373,21 @@ if (tables.has("troops")) troopTable();
 if (tables.has("sleds")) sledTable();
 if (tables.has("waves")) waveTable();
 if (tables.has("vehicles")) vehicleTable();
+if (tables.has("curve")) {
+  const { curveTable } = await import("./lib/army-curve-table.mjs");
+  rows.push(...curveTable(E, level, args, list));
+}
 
 function vehicleTable() {
   console.log(
-    "| Quarry | Stars | Carriers / trucks / tanks (most at once) | First out, s | Men put down | Their first contact, s | Shells (first, s) | In him | Dead, s | Arrested, s | Dug out | Stuck | Step, ms (p99) |",
+    "| Quarry | Stars | Carriers / trucks / tanks (most at once) | First out, s | Men put down | Carriers put down at, m (drops) | Trucks put down at, m (drops) | Bailed out | Their first contact, s | Shells (first, s) | In him | Dead, s | Arrested, s | Dug out | Stuck | In a wind tunnel, s | Step, ms (p99) |",
   );
-  console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  console.log(
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+  );
   for (const r of rows) {
     console.log(
-      `| ${r.quarry} | ${r.stars} | ${r.carriers} / ${r.trucks} / ${r.tanks} (${r.vehiclesAtOnce}) | ${f(r.vehicleOut)} | ${r.unloaded} | ${f(r.menContact)} | ${r.shells} (${f(r.shellAt)}) | ${r.shellHits} | ${f(r.dead)} | ${f(r.arrested)} | ${r.vehiclesDug} | ${r.vehiclesStuck} | ${f(r.ms, 3)} (${f(r.ms99, 3)}) |`,
+      `| ${r.quarry} | ${r.stars} | ${r.carriers} / ${r.trucks} / ${r.tanks} (${r.vehiclesAtOnce}) | ${f(r.vehicleOut)} | ${r.unloaded} | ${span(r.carrierDrops)} | ${span(r.truckDrops)} | ${r.bailed} | ${f(r.menContact)} | ${r.shells} (${f(r.shellAt)}) | ${r.shellHits} | ${f(r.dead)} | ${f(r.arrested)} | ${r.vehiclesDug} | ${r.vehiclesStuck} | ${f(r.inTunnel, 1)} | ${f(r.ms, 3)} (${f(r.ms99, 3)}) |`,
     );
   }
   console.log("");

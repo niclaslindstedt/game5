@@ -74,10 +74,13 @@ export type ArmyPara = {
  *   * `fly`: drifting in on the wind at the height its pilot picks, the
  *     rocketeers firing when he is in reach;
  *   * `leave`: past him or the hunt over, climbed away to be gone;
+ *   * `fall`: BROUGHT DOWN — its envelope torn by a burst or a stolen
+ *     helicopter's blades (and, with the INJURIES on, alight), sinking to
+ *     the snow with its burner shut;
  *   * `down`: on the snow — let down, or (counted, never meant) crashed or
  *     burnt;
  *   * `gone`: taken off — dropped at the end of the step. */
-export type ArmyBalloonMode = "due" | "fly" | "leave" | "down" | "gone";
+export type ArmyBalloonMode = "due" | "fly" | "leave" | "fall" | "down" | "gone";
 
 /** ONE OF THE ARMY'S BALLOONS: its body (the free ride's balloon's own
  * state, flown by the same heat and drift, `flyBalloon`, so the free
@@ -100,6 +103,8 @@ export type ArmyBalloon = {
   saw: number;
   /** Crashed or burnt out of the sky — the labs hold it at nought. */
   lost: boolean;
+  /** Brought down (`tearBalloon`): its fall and its crash are no fault. */
+  downed: boolean;
 };
 
 /** THE ARMY'S AIR BESIDE ITS HELICOPTERS, made the first time the roster
@@ -115,6 +120,7 @@ export type ArmyAirState = {
   parasCalled: number;
   balloonsCalled: number;
   parasDowned: number;
+  balloonsDowned: number;
   parasLost: number;
   balloonsLost: number;
   rockets: number;
@@ -123,7 +129,7 @@ export type ArmyAirState = {
 
 /** THE ARMY'S AIR'S EVENT: a paramotor or a balloon called (`called`) and
  * on the map (`out`), a rifleman's burst (`fire`), a rocket away
- * (`rocket`), a paramotor brought down (`downed`) and on the snow
+ * (`rocket`), a paramotor or a balloon brought down (`downed`) and on the snow
  * (`landed`), a balloon or a paramotor lost by mistake (`crash`), one of
  * the army's own vehicles knocked out by a burst (`knocked`), and gone
  * (`gone`). */
@@ -148,6 +154,7 @@ export function freshAirState(): ArmyAirState {
     parasCalled: 0,
     balloonsCalled: 0,
     parasDowned: 0,
+    balloonsDowned: 0,
     parasLost: 0,
     balloonsLost: 0,
     rockets: 0,

@@ -24,10 +24,12 @@ import { ARMY_AIR } from "./defs/army-air.ts";
 import { TUNING } from "./defs/tuning.ts";
 import {
   downBalloon,
+  fallBalloon,
   freshArmyBalloon,
   huntBalloon,
   launchBalloon,
   leaveBalloon,
+  meetBalloon,
 } from "./army-balloon.ts";
 import { fallPara, freshPara, huntPara, launchPara, leavePara, meetPara } from "./army-para.ts";
 import { freshAirState } from "./army-air-state.ts";
@@ -227,9 +229,14 @@ function stepOneBalloon(
         break;
       }
       huntBalloon(state, air, m, w, events);
+      if (m.mode === "fly") meetBalloon(state, air, m, events);
       break;
     case "leave":
       leaveBalloon(state, air, m, events);
+      if (m.mode === "leave") meetBalloon(state, air, m, events);
+      break;
+    case "fall":
+      fallBalloon(state, air, m, events);
       break;
     case "down":
       downBalloon(state, m, events);

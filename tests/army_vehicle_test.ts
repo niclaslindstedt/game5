@@ -4,8 +4,9 @@
 // mountain without one stuck, their men put down to go after him, the tank's
 // main gun fired through the blast layer (and only warning shots with SAFE
 // FOR WORK on), the tank running a man down and over him with the INJURIES
-// on, bounded in number, sent home once the hunt is over, and drawing
-// nothing from the run's stream.
+// on, bounded in number, sent home once the hunt is over, steered round the
+// wind tunnels rather than through them, and drawing nothing from the run's
+// stream.
 
 import { describe, expect, it } from "vitest";
 
@@ -22,6 +23,8 @@ import {
   groundWave,
   setWanted,
   step,
+  tunnelWithin,
+  wayCost,
   type ArmyVehicleEvent,
   type GameEvent,
   type GameState,
@@ -255,6 +258,31 @@ describe("home", () => {
       "hold",
       false,
     );
+  });
+});
+
+describe("the wind tunnels", () => {
+  it("are read as a wall: a way through one costs more than one along it", () => {
+    const tube = level.resort?.tunnels?.[0];
+    expect(tube).toBeDefined();
+    const mid = tube!.points[Math.floor(tube!.points.length / 2)];
+    expect(tunnelWithin(level, mid.x, mid.z, 0)).toBe(true);
+    const side = tube!.width / 2 + 25;
+    const nx = Math.cos(mid.heading);
+    const nz = -Math.sin(mid.heading);
+    expect(tunnelWithin(level, mid.x + nx * side, mid.z + nz * side, 0)).toBe(false);
+    const s = createGame({ level, mode: "free", quiet: true, crowd: 0 });
+    const x = mid.x + nx * side;
+    const z = mid.z + nz * side;
+    const across = Math.atan2(-nx, -nz);
+    const along = mid.heading;
+    const K = ARMY_VEHICLE.kinds.truck;
+    const T = { ...ARMY_VEHICLE.terrain, climb: K.climb, cliff: K.cliff };
+    const D = ARMY_VEHICLE.drive;
+    const r = K.halfWidth;
+    const through = wayCost(s, x, z, across, across, across, T, D, r);
+    const by = wayCost(s, x, z, along, along, along, T, D, r);
+    expect(through.cost).toBeGreaterThan(by.cost);
   });
 });
 

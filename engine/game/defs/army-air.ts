@@ -143,6 +143,15 @@ export const ARMY_AIR = {
      * or the hunt over — it climbs to `height` m and is taken off once it
      * is `gone` m from him or at the map's edge. */
     leave: { past: 450, height: 300, gone: 1400 },
+    /** BROUGHT DOWN: a burst within `burst` m of the envelope's middle (a
+     * rocket's or a shell's fragments through the cloth; its radius is
+     * some 8.6 m) or within `basket` m of the basket, or a stolen
+     * helicopter's disc within `disc` m of the cloth, TEARS it: `torn` of
+     * its cloth is holes the hot air pours out of, and with the INJURIES on
+     * it catches fire. Its pilot shuts the burner and it sinks; a basket
+     * that meets the snow no harder than a landing puts its crew out on
+     * foot, `out` m apart round it. */
+    downed: { burst: 11, basket: 5, disc: 3, torn: 0.55, out: 2.2 },
   },
 
   /** A ROCKET'S BURST ON THE ARMY'S OWN: a carrier, a truck or a tank

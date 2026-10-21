@@ -237,11 +237,13 @@ export function wavesSent(w: WantedState, t: number): number {
  * within his kind's sight (`WANTED.sight`), or near enough to hear
  * (`WANTED.close`), with no ground rising between his eyes and the man's
  * chest — and from a man on the snow, no woods between them
- * (`throughWoods`). */
+ * (`throughWoods`); from the air, not `cover`ed (`underCover`) past
+ * `WANTED.cover.near`. */
 export function seesQuarry(
   level: Pick<Level, "groundAt">,
   p: Pick<Pursuer, "kind" | "x" | "y" | "z">,
   q: { x: number; y: number; z: number },
+  cover = false,
 ): boolean {
   const L = WANTED.line;
   const tx = q.x;
@@ -253,6 +255,8 @@ export function seesQuarry(
   const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
   if (d <= WANTED.close) return true;
   if (d > WANTED.sight[p.kind]) return false;
+  // UNDER COVER (`underCover`): stood under a crown, hidden from aloft.
+  if (cover && !LOW.has(p.kind) && d > WANTED.cover.near) return false;
   const run = Math.sqrt(dx * dx + dz * dz);
   const n = Math.floor(run / L.step);
   for (let i = 1; i < n; i++) {
@@ -311,11 +315,29 @@ export function throughWoods(
   return false;
 }
 
+/** WHETHER HE IS UNDER COVER from the air: on foot (no machine carrying
+ * him), slower than `WANTED.cover.speed`, a tree's crown over his head. */
+export function underCover(state: GameState): boolean {
+  const C = WANTED.cover;
+  const c = state.skier;
+  if (quarryOf(state).x !== c.x || hypot(c.vx, c.vz) > C.speed) return false;
+  const L = WANTED.line;
+  for (const t of treesNear(state.level, c.x, c.z, 8, crowns)) {
+    const tree = state.level.trees[t];
+    const up = c.y + C.head - tree.y;
+    if (up < 0 || up > tree.height) continue;
+    const reach = Math.max(tree.radius, L.crown * tree.height * (1 - up / tree.height)) * C.crown;
+    if (hypot(tree.x - c.x, tree.z - c.z) <= reach) return true;
+  }
+  return false;
+}
+
 /** Whether any pursuer out has him in sight. */
 function anySees(state: GameState, w: WantedState): boolean {
   if (w.pursuers.length === 0) return false;
   const q = quarryOf(state);
-  for (const p of w.pursuers) if (seesQuarry(state.level, p, q)) return true;
+  const cover = underCover(state);
+  for (const p of w.pursuers) if (seesQuarry(state.level, p, q, cover)) return true;
   return false;
 }
 

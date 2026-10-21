@@ -34,6 +34,7 @@ import { ARMY_VEHICLE, type VehicleSpec } from "./defs/army-vehicle.ts";
 import { TUNING } from "./defs/tuning.ts";
 import { lethalOf } from "./gunfire.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
+import { tunnelWithin } from "./army-drive.ts";
 import type { ArmyVehicle, ArmyVehicleEvent } from "./army-state.ts";
 import type { GameEvent, GameState } from "./state.ts";
 
@@ -76,8 +77,9 @@ export function rearOf(v: Pick<ArmyVehicle, "x" | "z" | "heading" | "rear">): {
 
 /** WHAT STANDS within `r` m of (x, z) — every solid of the map (a trunk,
  * a post, a wall) whose own girth reaches that far, the trees felled for
- * the village (kept in the list with no girth) left out — by index into
- * `solidsOf`, into `out`. */
+ * the village (kept in the list with no girth) left out, and anything
+ * thinner than `ARMY_VEHICLE.flatten` (a lamp's or a sign's post, a
+ * sapling: driven over) — by index into `solidsOf`, into `out`. */
 export function standingNear(
   level: GameState["level"],
   x: number,
@@ -90,7 +92,7 @@ export function standingNear(
   let n = 0;
   for (const i of out) {
     const u = all[i];
-    if (u.radius <= 0 || u.height <= 0) continue;
+    if (u.radius < K.flatten || u.height <= 0) continue;
     if (hypot(u.x - x, u.z - z) > r + u.radius) continue;
     out[n++] = i;
   }
@@ -99,7 +101,8 @@ export function standingNear(
 }
 
 /** WHETHER SOMETHING STANDS IN ITS WAY at its front (or its back,
- * backing): a solid within its half width, open water, or another vehicle
+ * backing): a solid within its half width, open water, a wind tunnel's
+ * tube, or another vehicle
  * of the waves within reach ahead. */
 function blocked(state: GameState, v: ArmyVehicle, all: readonly ArmyVehicle[]): boolean {
   const S = specOf(v);
@@ -110,6 +113,13 @@ function blocked(state: GameState, v: ArmyVehicle, all: readonly ArmyVehicle[]):
   const pz = v.z + fz * (S.halfLength + 0.6);
   if (standingNear(state.level, px, pz, S.halfWidth * 0.8, near).length > 0) return true;
   if (waterWithin(state.level.water, px, pz, 1)) return true;
+  // A wind tunnel's tube is a wall — unless it is already in one, when
+  // it must be let out.
+  if (
+    tunnelWithin(state.level, px, pz, S.halfWidth * 0.8) &&
+    !tunnelWithin(state.level, v.x, v.z, 0)
+  )
+    return true;
   // ...and the one he took, whoever is driving which.
   const his = state.armour?.body;
   const others = his && his !== v ? [...all, his] : all;

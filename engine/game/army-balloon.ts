@@ -30,8 +30,18 @@
 //
 // LEAVING. Drifted `leave.past` m beyond him downwind it is out of the
 // fight: it climbs away and is taken off once well clear; another is
-// called upwind if the roster still asks. A balloon crashed or burnt is
-// counted (`balloonsLost`) — a fault the labs hold at nought.
+// called upwind if the roster still asks. A balloon crashed or burnt of
+// its own accord is counted (`balloonsLost`) — a fault the labs hold at
+// nought.
+//
+// BROUGHT DOWN (`tearBalloon`). A rocket's or a shell's burst near its
+// envelope or its basket, or a stolen helicopter's blades through the
+// cloth, tears it — holes the hot air pours out of, and with the INJURIES
+// on the cloth alight (the free ride's own fire, `flyBalloon`). Its pilot
+// shuts the burner and it sinks (`fallBalloon`); a basket that meets the
+// snow no harder than a landing puts its rocketeers out on foot, after
+// him with the rest. Brought down by him, it raises the heat as a
+// soldier hit does.
 //
 // Nothing here draws from any stream: the layer, the turn and the warning
 // side are pure functions of the state and the balloon's id.
@@ -44,8 +54,10 @@ import { balloonWindAt } from "./balloon-air.ts";
 import { balloonTrim, flyBalloon } from "./balloon.ts";
 import { balloonHands } from "./balloon-pilot.ts";
 import { armGun, disarmGun, fireAt, gunReady } from "./gunfire.ts";
+import { enlist } from "./army-troop.ts";
+import { HELI } from "./defs/heli.ts";
 import { treesNear } from "./upright-grid.ts";
-import { quarryOf, seesQuarry } from "./wanted.ts";
+import { quarryOf, raiseHeat, seesQuarry, underCover } from "./wanted.ts";
 import type { Wind } from "./wind.ts";
 import type { ArmyAirEvent, ArmyAirState, ArmyBalloon } from "./army-air-state.ts";
 import type { BalloonState, GameEvent, GameState } from "./state.ts";
@@ -157,6 +169,7 @@ export function freshArmyBalloon(
     seat: 0,
     saw: -Infinity,
     lost: false,
+    downed: false,
   };
 }
 
@@ -239,7 +252,7 @@ function drift(
   for (const e of own) {
     if (e.kind !== "balloon") continue;
     if (e.phase === "crash" || e.phase === "fire") {
-      if (!m.lost) {
+      if (!m.lost && !m.downed) {
         m.lost = true;
         air.balloonsLost++;
         say(state, events, "crash", m);
@@ -351,7 +364,7 @@ function fireRockets(
   if (w.ended !== null || state.t < m.next) return;
   if (hypot3(q.x - b.x, q.y - b.y, q.z - b.z) > K.fire.range) return;
   const eye = { kind: "balloon" as const, x: b.x, y: b.y + SHOULDER, z: b.z };
-  if (!seesQuarry(state.level, eye, q)) return;
+  if (!seesQuarry(state.level, eye, q, underCover(state))) return;
   m.saw = state.t;
   const seat = m.seat % m.crew.length;
   const c = m.crew[seat];
@@ -376,5 +389,104 @@ function fireRockets(
     m.seat++;
     m.next = state.t + K.fire.every;
     say(state, events, "rocket", m);
+  }
+}
+
+/** A balloon's men on foot are a squad numbered past this (and past the
+ * paramotors' `AIR_SQUAD` + n). */
+export const BALLOON_SQUAD = 61_000;
+
+/** THE ENVELOPE TORN: holes the hot air pours out of, alight with the
+ * INJURIES on; the guns put down and the burner shut. `why`: a burst (the
+ * army's own, no heat) or his helicopter's blades. */
+export function tearBalloon(
+  state: GameState,
+  air: ArmyAirState,
+  m: ArmyBalloon,
+  why: "burst" | "ram",
+  events: GameEvent[],
+): void {
+  if (m.downed || (m.mode !== "fly" && m.mode !== "leave")) return;
+  const D = K.downed;
+  const b = m.body;
+  m.downed = true;
+  m.mode = "fall";
+  m.t = 0;
+  for (let i = 0; i < m.crew.length; i++) disarmGun(state, rocketGun(m, i));
+  b.burnt = Math.max(b.burnt, D.torn);
+  if (state.rules.sfw !== true && !b.burning) {
+    b.scorch = 1;
+    b.burning = true;
+  }
+  air.balloonsDowned++;
+  say(state, events, "downed", m);
+  if (why !== "burst") raiseHeat(state, "hit-soldier");
+}
+
+/** A BURST at (x, y, z): the balloons whose envelope or basket it is near. */
+export function burstOnBalloons(
+  state: GameState,
+  air: ArmyAirState,
+  x: number,
+  y: number,
+  z: number,
+  events: GameEvent[],
+): void {
+  const D = K.downed;
+  for (const m of air.balloons) {
+    const b = m.body;
+    const cloth = hypot3(b.x - x, b.y + BALLOON_CENTRE - y, b.z - z);
+    if (cloth < D.burst || hypot3(b.x - x, b.y + 0.6 - y, b.z - z) < D.basket)
+      tearBalloon(state, air, m, "burst", events);
+  }
+}
+
+/** HIS STOLEN HELICOPTER'S BLADES through the cloth: its disc within
+ * `downed.disc` m of the envelope's sphere. */
+export function meetBalloon(
+  state: GameState,
+  air: ArmyAirState,
+  m: ArmyBalloon,
+  events: GameEvent[],
+): void {
+  const h = state.heli;
+  if (!h || !h.rider || h.mode === "wreck") return;
+  const b = m.body;
+  const r = BALLOON.envelope.diameter / 2;
+  const hub = h.y + HELI.rotor.hub;
+  const flat = hypot(b.x - h.x, b.z - h.z);
+  const up = hub - (b.y + BALLOON_CENTRE);
+  // The nearest of the disc (a flat circle at the hub) to the sphere.
+  const edge = Math.max(0, flat - HELI.rotor.radius);
+  if (hypot(edge, up) < r + K.downed.disc) tearBalloon(state, air, m, "ram", events);
+}
+
+/** FALLING, TORN: the burner shut, the hot air pouring out of the holes,
+ * the drift on the wind — and on the snow, its crew out on foot if the
+ * basket came down no harder than a landing. */
+export function fallBalloon(
+  state: GameState,
+  air: ArmyAirState,
+  m: ArmyBalloon,
+  events: GameEvent[],
+): void {
+  const b = m.body;
+  own.length = 0;
+  flyBalloon(state, b, false, 0, own);
+  let crashed = false;
+  for (const e of own) if (e.kind === "balloon" && e.phase === "crash") crashed = true;
+  if (!b.grounded && !crashed) return;
+  m.mode = "down";
+  m.t = 0;
+  say(state, events, "landed", m);
+  const a = state.army;
+  if (!a || crashed) return;
+  const D = K.downed;
+  for (let i = 0; i < m.crew.length; i++) {
+    const at = m.id + (i * 2 * Math.PI) / m.crew.length;
+    const x = b.x + Math.sin(at) * D.out;
+    const z = b.z + Math.cos(at) * D.out;
+    const s = enlist(state, a, "rocket", "air", BALLOON_SQUAD + m.id, "chase", x, z, at);
+    s.next = state.t + 3 + i;
   }
 }

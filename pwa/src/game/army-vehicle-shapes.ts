@@ -45,7 +45,7 @@ import { mirrorGlass, TRUCK_CAB } from "./truck-cab-plan.ts";
 export const VEHICLE_COLOURS = {
   white: 0xdfe2de,
   wash: 0xc9cdc5,
-  olive: 0x5b6341,
+  olive: 0x6b7550,
   grey: 0x8e938f,
   dark: 0x4c514e,
   rubber: 0x232524,

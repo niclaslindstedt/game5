@@ -54,8 +54,9 @@ export const ARMY_SLED = {
   },
   /** READING THE TERRAIN: a rise steeper than `climb` (a slope) is more
    * than a laden machine climbs; a drop steeper than `cliff` it will not
-   * ride off; open water within `water` m, a trunk within `trunk` m of its
-   * line and the map's edge within `edge` m are no way at all. A heading
+   * ride off; open water within `water` m, a wind tunnel's tube within
+   * `tunnel` m, a trunk within `trunk` m of its line and the map's edge
+   * within `edge` m are no way at all. A heading
    * costs `turn` for every radian off the way to him, `blocked` a metre
    * short of `look` it is stopped, `tree` a trunk near its line, and
    * `keep` for leaving the heading it holds. */
@@ -63,6 +64,7 @@ export const ARMY_SLED = {
     climb: 0.75,
     cliff: 0.9,
     water: 6,
+    tunnel: 3,
     trunk: 3,
     edge: 40,
     turn: 6,

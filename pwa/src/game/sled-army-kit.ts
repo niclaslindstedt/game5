@@ -27,7 +27,7 @@ type P = readonly [number, number];
  * (`LIVERIES.army`), the white daubed over it, the seat's and the rack's
  * black, the canvas of the packs, the fuel can's darker green. */
 export const ARMY_SLED_COLOURS = {
-  olive: 0x5a6340,
+  olive: 0x6a7350,
   white: 0xe7e9e6,
   black: 0x1b1c1a,
   canvas: 0xd9dcd6,

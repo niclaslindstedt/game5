@@ -65,6 +65,7 @@ export {
   setWanted,
   stepWanted,
   survivedOf,
+  underCover,
   wavesSent,
 } from "./wanted.ts";
 export type { Pursuer, WantedEnd, WantedEvent, WantedState } from "./wanted-state.ts";
@@ -121,7 +122,13 @@ export {
   sledPoint,
   stepArmySleds,
 } from "./army-sled.ts";
-export { chooseWay, wayCost, type DriveRead, type TerrainRead } from "./army-drive.ts";
+export {
+  chooseWay,
+  tunnelWithin,
+  wayCost,
+  type DriveRead,
+  type TerrainRead,
+} from "./army-drive.ts";
 // THE GROUND WAVES' VEHICLES (`army-vehicle.ts`): carriers, trucks, tanks.
 export { ARMY_VEHICLE, type ArmyVehicleKind, type VehicleSpec } from "./defs/army-vehicle.ts";
 export {
@@ -136,7 +143,7 @@ export { rearOf } from "./army-vehicle-body.ts";
 export { ARMY_AIR } from "./defs/army-air.ts";
 export { airWanted, armyBalloons, armyParas, nearestAir, stepArmyAir } from "./army-air.ts";
 export { AIR_SQUAD, flyPara } from "./army-para.ts";
-export { rocketGun } from "./army-balloon.ts";
+export { BALLOON_SQUAD, rocketGun } from "./army-balloon.ts";
 export { burstOnArmy } from "./army-burst.ts";
 export { freshAirState } from "./army-air-state.ts";
 export type * from "./army-air-state.ts";

@@ -116,6 +116,12 @@ describe("the gunner", () => {
     const row = WANTED.roster[3] as { gunners: number; soldiers: number; lifted: number };
     const kept = { ...row };
     row.gunners = row.soldiers = row.lifted = 0;
+    // Out in the open: where he stands is under a crown, hidden from the
+    // helicopters (`underCover`), and the hunt would be lost before the
+    // snowmobiles reach him.
+    const cover = WANTED.cover as { speed: number };
+    const keptSpeed = cover.speed;
+    cover.speed = -1;
     let fired = -1;
     let events: GameEvent[] = [];
     try {
@@ -130,6 +136,7 @@ describe("the gunner", () => {
       });
     } finally {
       Object.assign(row, kept);
+      cover.speed = keptSpeed;
     }
     expect(sledEvents(events, "halt").length).toBeGreaterThan(0);
     expect(fired).toBeGreaterThanOrEqual(0);

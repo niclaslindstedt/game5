@@ -64,7 +64,9 @@ export const SOLDIER_KINDS: readonly SoldierKind[] = ["skier", "foot", "gunner",
  *     stride off each foot), `aim` (stood, the rifle at his shoulder),
  *     `kneel` (aiming off one knee), `doorSit` (sat in a doorway's edge,
  *     the legs over the sill, the rifle in his lap), `rope` (on a fast
- *     rope, hand under hand, the rifle slung);
+ *     rope, hand under hand, the rifle slung), `seatAim` (sat in a
+ *     paramotor's harness, the rifle shouldered and aimed down ahead at a
+ *     man on the snow under him);
  *   * gunner — `sit` (sat at his gun, the hands on his knees), `fire`
  *     (square out of the door, level), `fireDown`, `fireFore`, `fireAft`;
  *   * rocketeer — `carry` (the rifle at the ready, the launcher on his
@@ -72,7 +74,7 @@ export const SOLDIER_KINDS: readonly SoldierKind[] = ["skier", "foot", "gunner",
  *     shoulder), `kneelLaunch`. */
 export const SOLDIER_POSES = {
   skier: ["ski", "tuck", "lean", "leanLeft", "pole", "skiAim", "skiKneel", "seat", "pin"],
-  foot: ["ready", "walkA", "walkB", "aim", "kneel", "doorSit", "rope"],
+  foot: ["ready", "walkA", "walkB", "aim", "kneel", "doorSit", "rope", "seatAim"],
   gunner: ["sit", "fire", "fireDown", "fireFore", "fireAft"],
   rocketeer: ["carry", "walkA", "walkB", "launch", "kneelLaunch"],
 } as const satisfies Record<SoldierKind, readonly string[]>;
@@ -377,6 +379,23 @@ const DOOR_SIT = key({
   feet: [v(-0.15, -0.38, 0.42), v(0.15, -0.4, 0.4)],
   hands: [v(-0.16, 0.2, 0.36), v(0.16, 0.17, 0.2)],
 });
+/** THE AIM OUT OF A HARNESS: down ahead, as a rifleman circling a man on
+ * the snow some 60 m under him and 150 m out sees him (about 0.4 rad). */
+const SEAT_AIM_AT: V3 = [0.05, -0.42, 1];
+/** SAT IN THE HARNESS TO FIRE: the seat's hips and hanging legs, the
+ * trunk bladed and leant into the stock, the head down on it. */
+const SEAT_AIM = aimKey(
+  key({
+    hipY: 0.1,
+    hipZ: -0.08,
+    pitch: 0.28,
+    roll: 0.1,
+    twist: 0.3,
+    nod: 0.45,
+    feet: [v(-0.15, -0.38, 0.42), v(0.15, -0.4, 0.4)],
+  }),
+  SEAT_AIM_AT,
+);
 /** WHERE THE FAST ROPE RUNS through a man on it, in his frame: plumb,
  * this far in front of his spine, m. */
 export const ROPE_AHEAD = 0.16;
@@ -406,6 +425,7 @@ const KNEEL_LAUNCH = launchKey(key({ ...KNEEL_BODY, nod: 0.2 }), LAUNCH_AIM);
 
 const AIMS: Readonly<Record<string, V3>> = {
   aim: [0.05, -0.01, 1],
+  seatAim: SEAT_AIM_AT,
   kneel: [0.05, -0.02, 1],
   skiAim: [0.05, -0.01, 1],
   skiKneel: [0.05, -0.02, 1],
@@ -519,7 +539,9 @@ function footPose(name: SoldierPoseName<"foot">): SoldierPose {
               ? KNEEL
               : name === "doorSit"
                 ? DOOR_SIT
-                : ROPE;
+                : name === "seatAim"
+                  ? SEAT_AIM
+                  : ROPE;
   const posed = keyPosed(k, SOLDIER_LOOK);
   const rifle =
     name === "rope" ? chestSling(posed, SOLDIER_LOOK) : rifleInHands(posed, chestOf(posed).u);

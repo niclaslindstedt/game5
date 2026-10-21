@@ -5,13 +5,17 @@
 // snow or a crown, the rockets fired and only warning bursts with SAFE FOR
 // WORK on, a burst knocking out one of the army's own vehicles, a stolen
 // helicopter's wash bringing a paramotor down and its soldier fighting on
-// on foot — and nothing drawn from the run's stream.
+// on foot, a vehicle's crew bailing out of the wreck, a balloon torn by a
+// burst or his blades and its crew out on foot, the chase bot's run-through
+// aim — and nothing drawn from the run's stream.
 
 import { describe, expect, it } from "vitest";
 
 import {
   ARMY_AIR,
   ARMY_VEHICLE,
+  BALLOON_CENTRE,
+  BALLOON_SQUAD,
   NEUTRAL_INPUT,
   TUNING,
   WANTED,
@@ -23,6 +27,7 @@ import {
   armyVehicles,
   burstOnArmy,
   callVehicles,
+  chaseAim,
   createGame,
   setWanted,
   step,
@@ -186,13 +191,101 @@ describe("a burst among the army's own", () => {
       const v = armyVehicles(s)[0];
       expect(v.mode).not.toBe("wreck");
       const events: GameEvent[] = [];
+      const before = armyTroops(s).length;
       burstOnArmy(s, v.x + 2, v.y + 1, v.z, events);
       expect(v.mode).toBe("wreck");
       expect(s.army!.air!.knocked).toBe(1);
+      // Its crew out of the wreck, fighting on foot beside it.
+      const crew = armyTroops(s).filter((m) => m.squad === ARMY_VEHICLE.ids.squad + v.id);
+      expect(crew.length).toBeGreaterThanOrEqual(ARMY_VEHICLE.kinds.carrier.crew);
+      expect(armyTroops(s).length).toBe(before + crew.length);
+      expect(s.army!.bailed).toBe(crew.length);
+      for (const m of crew) expect(Math.hypot(m.x - v.x, m.z - v.z)).toBeLessThan(10);
       expect(events.some((e) => e.kind === "army-vehicle" && e.change === "wreck")).toBe(true);
       run(s, ARMY_VEHICLE.wreck + 1);
       expect(armyVehicles(s).some((x) => x.id === v.id && x.mode !== "gone")).toBe(false);
     });
+  });
+});
+
+describe("a balloon brought down", () => {
+  const flying = (sfw: boolean) => {
+    const s = hunted(flat, 5, sfw);
+    run(s, 90, (st) => armyBalloons(st).some((m) => m.mode === "fly" && m.t > 5));
+    const m = armyBalloons(s).find((x) => x.mode === "fly")!;
+    expect(m).toBeDefined();
+    return { s, m };
+  };
+
+  it("is torn by a burst at its envelope, falls, and its crew fights on on foot", () => {
+    airAlone(() => {
+      const { s, m } = flying(true);
+      const events: GameEvent[] = [];
+      const b = m.body;
+      burstOnArmy(s, b.x + 4, b.y + BALLOON_CENTRE, b.z, events);
+      expect(m.mode).toBe("fall");
+      expect(m.downed).toBe(true);
+      expect(s.army!.air!.balloonsDowned).toBe(1);
+      expect(said(events, "downed")).toHaveLength(1);
+      // No fire on the cloth with SAFE FOR WORK on.
+      expect(b.burning).toBe(false);
+      const fell = run(s, 120, () => m.mode !== "fall");
+      expect(m.mode).toBe("down");
+      expect(said(fell, "landed")).toHaveLength(1);
+      expect(s.army!.air!.balloonsLost).toBe(0);
+      const crew = armyTroops(s).filter((x) => x.squad === BALLOON_SQUAD + m.id);
+      expect(crew).toHaveLength(m.crew.length);
+      for (const x of crew) expect(x.from).toBe("air");
+    });
+  });
+
+  it("is left alone by a burst well wide of it", () => {
+    airAlone(() => {
+      const { s, m } = flying(false);
+      const b = m.body;
+      burstOnArmy(s, b.x + ARMY_AIR.balloon.downed.burst + 20, b.y, b.z, []);
+      expect(m.mode).toBe("fly");
+      expect(s.army!.air!.balloonsDowned).toBe(0);
+    });
+  });
+
+  it("is torn by his stolen helicopter's blades through the cloth, which he answers for", () => {
+    airAlone(() => {
+      const s = hunted(flat, 5, false, true);
+      run(s, 90, (st) => armyBalloons(st).some((m) => m.mode === "fly" && m.t > 5));
+      const m = armyBalloons(s).find((x) => x.mode === "fly")!;
+      expect(m).toBeDefined();
+      const h = s.heli!;
+      expect(h.rider).toBe(true);
+      const events = run(s, 1, () => {
+        const b = m.body;
+        h.x = b.x + 6;
+        h.z = b.z;
+        h.y = b.y + BALLOON_CENTRE - 2;
+        h.vx = h.vy = h.vz = 0;
+        return m.mode !== "fly";
+      });
+      expect(m.mode).toBe("fall");
+      expect(said(events, "downed")).toHaveLength(1);
+      expect(m.body.burning).toBe(true);
+    });
+  });
+});
+
+describe("the chase bot's aim", () => {
+  it("runs through the target along the line from the helicopter, led by its speed", () => {
+    const s = hunted(flat, 0, false, true);
+    const h = s.heli!;
+    const t = { x: h.x + 100, y: h.y, z: h.z, vx: 0, vz: 20 };
+    const aim = chaseAim(s, t, 1, 0, 400);
+    // Beyond the target, on the far side of it from the helicopter.
+    const ax = aim.x - h.x;
+    const az = aim.z - h.z;
+    expect(Math.hypot(ax, az)).toBeGreaterThan(400);
+    // Led: aimed past where it will be in a second, not where it is.
+    expect(Math.atan2(az, ax)).toBeGreaterThan(0);
+    const still = chaseAim(s, { ...t, vz: 0 }, 1, 0, 400);
+    expect(still.z).toBeCloseTo(h.z, 3);
   });
 });
 

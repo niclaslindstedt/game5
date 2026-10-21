@@ -485,7 +485,7 @@ export const PALETTES: readonly (readonly number[])[] = [
   // THE ARMY'S (`ARMY_COLOURWAY`), never dealt to a map: olive drab and a
   // dull khaki in gores, a winter wash of grey-white at the crown, a deep
   // olive and the dark.
-  [0x4b5232, 0x7a7350, 0xc9cbc2, 0x2f3420, 0x1b1c18],
+  [0x5e6742, 0x857e5a, 0xc9cbc2, 0x3e4529, 0x1b1c18],
 ];
 /** The palettes a map is dealt from: the first six — the army's is not. */
 const DEALT = 6;

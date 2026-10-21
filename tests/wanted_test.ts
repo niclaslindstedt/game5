@@ -20,13 +20,15 @@ import {
   rosterOf,
   seesQuarry,
   setWanted,
+  standSkier,
   step,
   survivedOf,
+  underCover,
   wavesSent,
   type GameEvent,
   type GameState,
 } from "@engine";
-import { flatLevel } from "./support/synthetic.ts";
+import { LONE_TREE, flatLevel, syntheticLevel } from "./support/synthetic.ts";
 
 function ride(extra: { wanted?: number; sfw?: boolean } = {}): GameState {
   return createGame({
@@ -99,20 +101,20 @@ describe("absent until raised", () => {
 });
 
 describe("the hook", () => {
-  it("raises a stolen air ambulance to two stars and a police helicopter to three", () => {
+  it("raises a stolen air ambulance to one star and a police helicopter to two", () => {
     const a = ride();
-    expect(raiseHeat(a, "stole-ambulance")).toBe(2);
+    expect(raiseHeat(a, "stole-ambulance")).toBe(1);
     expect(a.wanted!.cause).toBe("stole-ambulance");
     expect(a.events.some((e) => e.kind === "wanted" && e.change === "raised")).toBe(true);
     const b = ride();
-    expect(raiseHeat(b, "stole-police")).toBe(3);
+    expect(raiseHeat(b, "stole-police")).toBe(2);
   });
 
   it("adds a star on top of what he has, never past five", () => {
     const s = ride();
     raiseHeat(s, "stole-ambulance");
     raiseHeat(s, "stole-ambulance");
-    expect(s.wanted!.stars).toBe(3);
+    expect(s.wanted!.stars).toBe(2);
     for (let i = 0; i < 6; i++) raiseHeat(s, "stole-police");
     expect(s.wanted!.stars).toBe(WANTED.maxStars);
   });
@@ -193,6 +195,28 @@ describe("losing them", () => {
     );
   });
 
+  it("hides him from aloft, stood under a crown, and never from a man on the snow", () => {
+    const man = { x: 0, y: 0, z: 0 };
+    const open = { groundAt: () => 0 };
+    const heli = { kind: "helicopter" as const, x: 150, y: 120, z: 0 };
+    const soldier = { kind: "soldier" as const, x: 120, y: 1.6, z: 0 };
+    expect(seesQuarry(open, heli, man, true)).toBe(false);
+    expect(seesQuarry(open, heli, man, false)).toBe(true);
+    expect(seesQuarry(open, soldier, man, true)).toBe(true);
+    // Overhead, near enough to make him out through the branches.
+    expect(seesQuarry(open, { ...heli, x: 10, y: 30 }, man, true)).toBe(true);
+  });
+
+  it("puts him under cover stood beside a trunk, and not moving or in the open", () => {
+    const s = createGame({ level: syntheticLevel(), mode: "free", quiet: true, crowd: 0 });
+    standSkier(s, LONE_TREE.x + 1, LONE_TREE.z, 0);
+    expect(underCover(s)).toBe(true);
+    s.skier.vz = WANTED.cover.speed + 2;
+    expect(underCover(s)).toBe(false);
+    standSkier(s, LONE_TREE.x + 30, LONE_TREE.z, 0);
+    expect(underCover(s)).toBe(false);
+  });
+
   it("is raised again after an escape as a new hunt, its timer begun again", () => {
     const s = ride({ wanted: 1 });
     run(s, WANTED.fix + WANTED.lose[1] + 1);
@@ -201,7 +225,7 @@ describe("losing them", () => {
     raiseHeat(s, "stole-police");
     expect(s.wanted!.ended).toBeNull();
     expect(s.wanted!.since).toBe(t);
-    expect(s.wanted!.stars).toBe(3);
+    expect(s.wanted!.stars).toBe(2);
   });
 });
 

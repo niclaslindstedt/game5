@@ -98,12 +98,16 @@ export function airTable(E, level, args, list) {
               aim = p;
             }
           }
+          // Led ahead of it on its way (`chaseAim`), where the engine has
+          // one; a tree without it flies at where the wing is.
+          const w = aim?.wing;
           input = aim
-            ? E.pilotInput(s, {
-                x: aim.wing.x,
-                z: aim.wing.z,
-                height: Math.max(15, aim.wing.y - level.groundAt(aim.wing.x, aim.wing.z) + 8),
-              })
+            ? E.pilotInput(
+                s,
+                E.chaseAim
+                  ? E.chaseAim(s, { x: w.x, y: w.y, z: w.z, vx: w.vx, vz: w.vz })
+                  : { x: w.x, z: w.z, height: Math.max(15, w.y - level.groundAt(w.x, w.z) + 8) },
+              )
             : E.pilotInput(s, { x: s.heli.x, z: s.heli.z, height: 120 });
         } else input = quarry === "still" ? E.NEUTRAL_INPUT : E.botInput(s);
         const c0 = process.hrtime.bigint();
@@ -152,7 +156,7 @@ export function airTable(E, level, args, list) {
       if (air) {
         row.rockets = air.rockets;
         row.knocked = air.knocked;
-        row.downed = air.parasDowned;
+        row.downed = air.parasDowned + (air.balloonsDowned ?? 0);
         row.lost = air.parasLost + air.balloonsLost;
       }
       row.ms = costs.reduce((a, b) => a + b, 0) / Math.max(1, costs.length);

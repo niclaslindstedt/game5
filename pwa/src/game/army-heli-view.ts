@@ -119,7 +119,7 @@ const TAIL_DISC: DiscSpec = {
  * glTF's frame (y up, the nose on -z), so the same hands pose it. */
 function standIn(): THREE.Group {
   const root = new THREE.Group();
-  const olive = new THREE.MeshStandardMaterial({ color: 0x353d27, roughness: 0.75, name: "paint" });
+  const olive = new THREE.MeshStandardMaterial({ color: 0x4a5236, roughness: 0.75, name: "paint" });
   const wash = new THREE.MeshStandardMaterial({ color: 0xc6c9c8, roughness: 0.8, name: "trim" });
   const dark = new THREE.MeshStandardMaterial({ color: 0x1b1d1a, roughness: 0.6, name: "dark" });
   const blades = new THREE.MeshStandardMaterial({ color: 0x141513, roughness: 0.6, name: "rotor" });

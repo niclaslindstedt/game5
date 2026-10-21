@@ -2,8 +2,9 @@
 // THE WANTED LEVEL on the HUD, under the presses in the top right: five
 // stars, the lit ones solid while the army has him in sight and FLASHING
 // while it only searches where he was last seen, the unlit ones a faint
-// outline — and beside them the SURVIVAL TIMER, with the best ever under
-// it. Every figure is the snapshot's (`wanted-tile.ts`); this files the
+// outline — and, while they search, a bar draining toward the moment he
+// has LOST THEM, captioned OUT OF SIGHT (or HIDDEN, stood under the
+// trees); beside them the SURVIVAL TIMER, with the best ever under it. Every figure is the snapshot's (`wanted-tile.ts`); this files the
 // time survived in the highscore (`survival-book.ts`) and draws.
 
 import { useEffect } from "preact/hooks";
@@ -47,6 +48,16 @@ export function WantedStars({ tile }: { tile: WantedTile }) {
           />
         ))}
       </svg>
+      {tile.search !== null || tile.hidden ? (
+        <span class="hud-wanted-search" data-hidden={tile.hidden ? "1" : undefined}>
+          <span class="hud-wanted-word">
+            {tile.hidden ? STRINGS.wantedHidden : STRINGS.wantedSearch}
+          </span>
+          <span class="hud-wanted-bar">
+            <span style={{ transform: `scaleX(${(tile.search ?? 1).toFixed(3)})` }} />
+          </span>
+        </span>
+      ) : null}
       <span class="hud-wanted-time">{STRINGS.wantedSurvived(tile.survived)}</span>
       <span class="hud-wanted-best">{STRINGS.wantedBest(best)}</span>
     </div>

@@ -57,6 +57,7 @@ import { armyStruck } from "./armour.ts";
 import { ARMOUR } from "./defs/armour.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { rosterOf } from "./wanted.ts";
+import { WANTED } from "./defs/wanted.ts";
 import { bodyCentre, bodyHit, bodyPoints, passDistance } from "./gunfire-body.ts";
 import { sayGunfire } from "./gunfire-log.ts";
 import { MACHINES, damageMachine, machineAt, machineHit, seizeLost } from "./gunfire-machine.ts";
@@ -340,8 +341,11 @@ export function fireAt(
   gun.left = Math.max(1, gun.left);
   gun.shot = 0;
   gun.wait = 0;
-  gun.ex = gauss(g) * def.hold;
-  gun.ey = gauss(g) * def.hold;
+  // THE HOLD: his own aim, wider early in a hunt (`WANTED.hold`) — the
+  // player's own gun is his.
+  const hold = def.hold * (own ? 1 : (WANTED.hold[state.wanted?.stars ?? 0] ?? 1));
+  gun.ex = gauss(g) * hold;
+  gun.ey = gauss(g) * hold;
   gun.el = 1 + gauss(g) * def.lead;
   // WARNING FIRE: a spot in the snow to a side of him or ahead — but a
   // launcher's warning is its rocket at the machine he rides.
@@ -375,8 +379,14 @@ export function stepGunfire(state: GameState, events: GameEvent[]): void {
         fireRound(state, g, gun, events);
         gun.left -= 1;
         if (def.kind === "gun") gun.wait += 60 / def.rpm;
+        // Between bursts the pause a gun's rows say, drawn out early in a
+        // hunt (`WANTED.pace`); a launcher's reload is its own.
         if (gun.left === 0)
-          gun.wait = Math.max(gun.wait, 0) + range(g, def.kind === "gun" ? def.pause : def.reload);
+          gun.wait =
+            Math.max(gun.wait, 0) +
+            (def.kind === "gun"
+              ? range(g, def.pause) * (WANTED.pace[state.wanted?.stars ?? 0] ?? 1)
+              : range(g, def.reload));
       }
     } else if (gun.wait > 0) gun.wait -= dt;
   }

@@ -26,7 +26,7 @@ import { BEAST_HIT, PERSON_HIT, type GameEvent, type JumpLanding, type Level } f
 import type { PlayShape } from "@niclaslindstedt/oss-game-framework/audio/types";
 
 import { GUN_REPORT as REPORT, GUN_STRIKE as STRIKE } from "./gunfire-bank.ts";
-import { heliHeard } from "./heli-voice.ts";
+import { heardAt } from "./heard-at.ts";
 import type { SnowUnder } from "./snow-voice.ts";
 
 /** What the app knows about a contact that the event does not say. */
@@ -143,26 +143,6 @@ const CRASH_FLOOR = 0.75;
  * quietest a far one gets, where it is still a thud down the valley. */
 const BLAST_REF = 20;
 const BLAST_FLOOR = 0.05;
-
-/** A sound made at the event's point as heard from the ear: the inverse of
- * the distance from `ref` m (and none nearer), the air taking its top off
- * (`heliHeard`'s brightness, as a pitch) and smearing it longer. Without
- * an ear it is heard where it happened. */
-function heardAt(
-  at: { x: number; y: number; z: number },
-  ear: Contact["ear"],
-  ref: number,
-  floor = 0,
-): PlayShape {
-  if (!ear) return { gain: 1, pitch: 1, stretch: 1 };
-  const d = Math.hypot(at.x - ear.x, at.y - ear.y, at.z - ear.z);
-  const air = heliHeard(d);
-  return {
-    gain: Math.max(floor, ref / Math.max(ref, d)),
-    pitch: 0.75 + 0.25 * air.bright,
-    stretch: 1 + 0.4 * (1 - air.bright),
-  };
-}
 
 /** Take a value from `lo`..`hi` to 0..1. */
 function ramp(value: number, lo: number, hi: number): number {
@@ -664,9 +644,12 @@ export function soundForEvent(
     }
 
     // A WAVE'S VEHICLE (`army-vehicle.ts`): its diesel and tracks are the
-    // army's bed's (`army-bed.ts`), its gun the gunfire's; the one-shot is
-    // a skier met by its front — the steel's crash, at full.
+    // army's bed's (`army-bed.ts`), its gun the gunfire's; the one-shots
+    // are its back door dropped for the men (`army-bank.ts`) and a skier
+    // met by its front — the steel's crash, at full.
     case "army-vehicle": {
+      if (event.change === "drop")
+        return { id: "army_tailgate", shape: heardAt(event, contact.ear, HEARD_NEAR) };
       if (event.change !== "strike") return null;
       const heard = heardAt(event, contact.ear, HEARD_NEAR);
       return { id: "sled_crash", shape: { ...heard, gain: heard.gain! * 1.3 } };
@@ -901,8 +884,22 @@ export function soundForEvent(
     }
 
     // THE ARMY'S PARAMOTORS AND BALLOONS (`army-air.ts`): heard by their bed;
-    // one of the army's own vehicles knocked out by a burst goes up.
+    // a wing or an envelope torn out of the sky rips (a balloon's bigger
+    // and slower), and one of the army's own vehicles knocked out by a
+    // burst goes up.
     case "army-air": {
+      if (event.change === "downed") {
+        const at = heardAt(event, contact.ear, HEARD_NEAR * 3);
+        const big = event.craft === "balloon";
+        return {
+          id: "cloth_rip",
+          shape: {
+            ...at,
+            pitch: at.pitch! * (big ? 0.7 : 1),
+            stretch: at.stretch! * (big ? 1.6 : 1),
+          },
+        };
+      }
       if (event.change !== "knocked") return null;
       const at = heardAt(event, contact.ear, BLAST_REF, BLAST_FLOOR);
       return { id: "heli_crash", shape: { ...at, pitch: at.pitch! * 0.85 } };

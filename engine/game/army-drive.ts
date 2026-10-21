@@ -4,17 +4,76 @@
 // waves' carriers, trucks and tanks (`army-vehicle.ts`), each with its own
 // numbers. A heading is walked out `look` m, every `step` m: stopped short
 // where a rise is steeper than the machine climbs, a drop steeper than it
-// goes down, open water is near or the map's edge is; it costs for every
+// goes down, open water, a wind tunnel or the map's edge is near; it costs for every
 // metre it is stopped short, for every trunk near its line, for every
 // radian off the way wanted and off the way held. A fan of headings either
-// side of the way wanted is weighed and the cheapest steered.
+// side of the way wanted is weighed and the cheapest steered. The hub's
+// WIND TUNNELS (R30) are a wall to all of them: a tube on the snow no
+// tracks or wheels go through, read as the water is (`tunnelWithin`).
 //
 // Pure over the map; nothing here draws from any stream.
 
 import { angleDiff } from "@niclaslindstedt/oss-game-framework/core/math";
 import { waterWithin } from "../mapgen/real-water.ts";
 import { treesNear } from "./upright-grid.ts";
+import type { Level } from "../mapgen/types.ts";
 import type { GameState } from "./state.ts";
+
+/** Each map's wind tunnels as boxes in plan (their line's extent and half
+ * width), so a point far from all of them is answered at once. */
+type TubeBox = {
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+  half: number;
+  pts: { x: number; z: number }[];
+};
+const tubes = new WeakMap<Level, TubeBox[]>();
+
+function tubesOf(level: Level): TubeBox[] {
+  let list = tubes.get(level);
+  if (list) return list;
+  list = [];
+  for (const t of level.resort?.tunnels ?? []) {
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let z0 = Infinity;
+    let z1 = -Infinity;
+    for (const p of t.points) {
+      x0 = Math.min(x0, p.x);
+      x1 = Math.max(x1, p.x);
+      z0 = Math.min(z0, p.z);
+      z1 = Math.max(z1, p.z);
+    }
+    list.push({ x0, x1, z0, z1, half: t.width / 2, pts: t.points });
+  }
+  tubes.set(level, list);
+  return list;
+}
+
+/** WHETHER (x, z) IS WITHIN `r` m OF A WIND TUNNEL'S TUBE (R30): its line
+ * from entrance to exit, `width / 2` either side. What the army's machines
+ * treat as a wall — they go round the hub's tunnels, never through. */
+export function tunnelWithin(level: Level, x: number, z: number, r: number): boolean {
+  for (const b of tubesOf(level)) {
+    const reach = b.half + r;
+    if (x < b.x0 - reach || x > b.x1 + reach || z < b.z0 - reach || z > b.z1 + reach) continue;
+    const pts = b.pts;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i];
+      const c = pts[i + 1];
+      const dx = c.x - a.x;
+      const dz = c.z - a.z;
+      const l2 = dx * dx + dz * dz || 1;
+      const u = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / l2));
+      const ex = x - a.x - dx * u;
+      const ez = z - a.z - dz * u;
+      if (ex * ex + ez * ez < reach * reach) return true;
+    }
+  }
+  return false;
+}
 
 /** How far ahead it reads and how finely, m; the fan of headings it
  * weighs either side of the way wanted (`fan` a side across `spread`
@@ -29,6 +88,8 @@ export type TerrainRead = {
   cliff: number;
   water: number;
   edge: number;
+  /** A wind tunnel's tube within this many metres is no way at all. */
+  tunnel: number;
   turn: number;
   blocked: number;
   tree: number;
@@ -87,7 +148,8 @@ export function wayCost(
       z > hi ||
       rise > T.climb ||
       rise < -T.cliff ||
-      waterWithin(level.water, x, z, T.water)
+      waterWithin(level.water, x, z, T.water) ||
+      tunnelWithin(level, x, z, T.tunnel)
     ) {
       reach = D.step * (i - 1);
       break;

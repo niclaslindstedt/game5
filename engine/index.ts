@@ -768,7 +768,7 @@ export {
   stepHeli,
   thrustMost,
 } from "./game/heli.ts";
-export { pilotControls, pilotInput, type HeliAim } from "./game/heli-pilot.ts";
+export { chaseAim, pilotControls, pilotInput, type HeliAim } from "./game/heli-pilot.ts";
 export { bladeAt, fallsIntoRotor, gripLoad, rotorStrike } from "./game/heli-grip.ts";
 export { discQuat, heliMass, ROTOR_AREA, SEAT as HELI_SEAT } from "./game/heli-rotor.ts";
 export { clearAt, helipadOf, leanOver, type Helipad } from "./game/heli-pad.ts";

@@ -47,7 +47,14 @@ import { seatHeight } from "./crowd-rig.ts";
 import type { CrowdLod } from "./crowd-shapes.ts";
 import { lyingPose } from "./crowd-fall.ts";
 import { CROWD_CUTS } from "./crowd-view.ts";
-import { lyingSoldier, PACK, ROPE_AHEAD, SOLDIER_LOOK, type SoldierKind } from "./soldier-pose.ts";
+import {
+  lyingSoldier,
+  PACK,
+  ROPE_AHEAD,
+  SOLDIER_KINDS,
+  SOLDIER_LOOK,
+  type SoldierKind,
+} from "./soldier-pose.ts";
 import { SoldierView } from "./soldier-shapes.ts";
 import { PoseNote, SoldierBatch, type SoldierPoser } from "./soldier-batch.ts";
 
@@ -98,8 +105,8 @@ export function createArmyGroundView(material: THREE.Material): ArmyGroundView {
   const right = new THREE.Vector3();
   const basis = new THREE.Matrix4();
   const drop3 = new THREE.Vector3();
-  // THE BATCHES, a figure and a cut each, made the first time one is asked
-  // for; and the stand-in a batched man is posed through.
+  // THE BATCHES, a figure and a cut each (all made at load, below); and the
+  // stand-in a batched man is posed through.
   const batches = new Map<string, SoldierBatch>();
   const note = new PoseNote();
   const batchOf = (kind: SoldierKind, lod: CrowdLod): SoldierBatch => {
@@ -112,6 +119,21 @@ export function createArmyGroundView(material: THREE.Material): ArmyGroundView {
     }
     return b;
   };
+
+  // BUILT AT LOAD (the view is built behind the loading card on a ride the
+  // hunt can be raised on): every figure's batch at every cut, and a man of
+  // each figure near the lens, hidden — the warm-up draws them all once, so
+  // their programs (a figure's own count of morph targets is a program of
+  // its own) and their buffers are ready before the first soldier is.
+  const primers: SoldierView[] = [];
+  for (const kind of SOLDIER_KINDS) {
+    if (kind === "gunner") continue;
+    for (const lod of ["near", "mid", "far"] as const) batchOf(kind, lod);
+    const v = new SoldierView(kind, "near", material);
+    v.mesh.visible = false;
+    group.add(v.mesh);
+    primers.push(v);
+  }
 
   // THE FAST ROPES: a segment each, the door's hook to the snow.
   const ropePos = new Float32Array(ROPES * 6);
@@ -334,6 +356,7 @@ export function createArmyGroundView(material: THREE.Material): ArmyGroundView {
     dispose() {
       for (const id of [...drawn.keys()]) drop(id);
       for (const b of batches.values()) b.dispose();
+      for (const v of primers) v.dispose();
       ropeGeo.dispose();
       (ropes.material as THREE.Material).dispose();
     },

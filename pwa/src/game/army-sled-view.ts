@@ -44,6 +44,10 @@ export type ArmySledView = {
   dispose(): void;
 };
 
+/** The snowmobiles built at load: the roster's three at five stars and a
+ * wave's beside them; a hunt that wants more builds the one more. */
+const POOL = 6;
+
 export function createArmySledView(haze: HazeUniforms, material: THREE.Material): ArmySledView {
   const group = new THREE.Group();
   group.name = "army-sleds";
@@ -62,18 +66,26 @@ export function createArmySledView(haze: HazeUniforms, material: THREE.Material)
     return v;
   };
 
+  const make = (): Drawn => {
+    const sled = fleet.make("army");
+    const half = { sled } as Drawn;
+    half.driver = man(half, "gunner", SLED_SEATS.driver.z);
+    half.driver.posed(driverPose);
+    half.gunner = man(half, "foot", SLED_SEATS.gunner.z);
+    return { ...half, yaw: NaN, pitch: NaN, seen: frameNo };
+  };
+  // BUILT AT LOAD: `POOL` machines and their crews, hidden, drawn once by
+  // the warm-up behind the loading card — none made as it comes out.
+  for (let i = 0; i < POOL; i++) {
+    const d = make();
+    d.sled.root.visible = false;
+    spare.push(d);
+  }
+
   const take = (id: number): Drawn => {
     let d = drawn.get(id);
     if (d) return d;
-    d = spare.pop();
-    if (!d) {
-      const sled = fleet.make("army");
-      const half = { sled } as Drawn;
-      half.driver = man(half, "gunner", SLED_SEATS.driver.z);
-      half.driver.posed(driverPose);
-      half.gunner = man(half, "foot", SLED_SEATS.gunner.z);
-      d = { ...half, yaw: NaN, pitch: NaN, seen: frameNo };
-    }
+    d = spare.pop() ?? make();
     d.sled.root.visible = true;
     drawn.set(id, d);
     return d;

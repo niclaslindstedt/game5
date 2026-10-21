@@ -247,11 +247,13 @@ export type ArmyState = {
   marched: number;
   /** THE WAVES' VEHICLES (`army-vehicle.ts`): the carriers, trucks and
    * tanks out, the next one's id, and the counts the labs read: vehicles
-   * called, men put down off them, the tanks' rounds fired. */
+   * called, men put down off them, the tanks' rounds fired, and the men
+   * who bailed out of one knocked out. */
   vehicles: ArmyVehicle[];
   nextVehicle: number;
   vehiclesCalled: number;
   unloaded: number;
+  bailed: number;
   shells: number;
   /** THE PARAMOTORS AND THE BALLOONS (`army-para.ts`, `army-balloon.ts`),
    * made the first time the roster asks for one. */

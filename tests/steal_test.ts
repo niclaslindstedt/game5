@@ -112,11 +112,11 @@ describe("the air ambulance, taken", () => {
     expect(stealWithin(s)).toBeNull();
   });
 
-  it("calls the army: the theft raises the wanted level to two stars (`wanted.ts`)", () => {
+  it("calls the army: the theft raises the wanted level to one star (`wanted.ts`)", () => {
     const { s, events } = stolen();
-    expect(s.wanted?.stars).toBe(2);
+    expect(s.wanted?.stars).toBe(1);
     expect(s.wanted?.cause).toBe("stole-ambulance");
-    expect(events.some((e) => e.kind === "wanted" && e.change === "raised" && e.stars === 2)).toBe(
+    expect(events.some((e) => e.kind === "wanted" && e.change === "raised" && e.stars === 1)).toBe(
       true,
     );
   });

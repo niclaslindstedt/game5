@@ -13,6 +13,9 @@ export const WANTED_STRINGS = {
   /** THE SURVIVAL TIMER beside the stars, and the best under it. */
   wantedSurvived: (seconds: number): string => formatTime(seconds),
   wantedBest: (seconds: number): string => `BEST ${formatTime(seconds)}`,
+  /** Under the stars while they search: how he is losing them. */
+  wantedHidden: "HIDDEN",
+  wantedSearch: "OUT OF SIGHT",
   /** The news a hunt makes (`run-news.ts`). */
   newsWanted: (stars: number): string => `WANTED ${"★".repeat(stars)}`,
   newsWantedLost: "LOST THEM",

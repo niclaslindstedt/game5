@@ -180,10 +180,27 @@ export const WANTED = {
   ] as readonly (GroundWaves | null)[],
   /** THE LONGER HE SURVIVES, THE WORSE IT GETS: seconds hunted IN SIGHT
    * to climb from each star to the next (index = the stars he has; the
-   * last never climbs). Out of sight the clock runs at `searchClimb` of
-   * that pace — evading is survival too, only slower to anger. */
-  climb: [Infinity, 45, 60, 80, 100, Infinity] as readonly number[],
+   * last never climbs): one to five in under four minutes seen. Out of
+   * sight the clock runs at `searchClimb` of that pace — evading is
+   * survival too, only slower to anger. */
+  climb: [Infinity, 40, 50, 60, 75, Infinity] as readonly number[],
   searchClimb: 0.5,
+  /** THE HOLD THEY SHOOT WITH, by stars: each shooter's own aim (a
+   * weapon's `hold`, `defs/weapons.ts`) widened by this. Early in a hunt
+   * the men sent are told to bring him in — they fire to pin him and
+   * stop him, from far off and on the move — and the hold tightens as the
+   * army commits to killing him: at five stars it is a soldier's own. */
+  hold: [1, 1, 1, 8, 4, 2] as readonly number[],
+  /** AND HOW OFTEN: the pause a gun's rows say between one burst and the
+   * next, drawn out by this, by stars — the fire to pin him down, not the
+   * fire to finish him, until the top. */
+  pace: [1, 1, 1, 4, 2.5, 1.4] as readonly number[],
+  /** UNDER COVER: a man on foot, slower than `speed` m/s, stood under a
+   * tree's crown (within `crown` of its reach at his head, `head` m over
+   * his feet) is not seen from the AIR further than `near` m away — the
+   * snow-loaded boughs hide him from a crew looking down. The woods
+   * already hide him from the snow (`line.woods`). */
+  cover: { speed: 2.5, head: 1.6, crown: 1.2, near: 60 },
   /** LOSING THEM: seconds out of every pursuer's sight before the stars
    * are dropped, by stars — the more he carries, the longer they search. */
   lose: [0, 12, 18, 25, 32, 40] as readonly number[],
@@ -227,8 +244,8 @@ export const WANTED = {
   /** WHAT AN OFFENCE IS WORTH: `add` stars of heat on top of what he has,
    * and `floor` the stars it raises him to at the least. */
   offences: {
-    "stole-ambulance": { add: 1, floor: 2 },
-    "stole-police": { add: 1, floor: 3 },
+    "stole-ambulance": { add: 1, floor: 1 },
+    "stole-police": { add: 1, floor: 2 },
     "downed-helicopter": { add: 1, floor: 3 },
     "hit-soldier": { add: 0.5, floor: 1 },
     "stole-snowmobile": { add: 0.5, floor: 2 },

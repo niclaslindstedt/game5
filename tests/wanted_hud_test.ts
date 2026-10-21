@@ -49,6 +49,20 @@ describe("the tile", () => {
     expect(wantedTile(s)!.survived).toBeCloseTo(WANTED.fix + 1, 1);
   });
 
+  it("runs the search down while they look for him, and calls him hidden only under a crown", () => {
+    const s = ride(2);
+    run(s, 1);
+    expect(wantedTile(s)).toMatchObject({ search: null, hidden: false });
+    run(s, WANTED.fix + 1);
+    const a = wantedTile(s)!.search!;
+    expect(a).toBeGreaterThan(0);
+    expect(a).toBeLessThan(1);
+    run(s, WANTED.lose[2] / 2);
+    expect(wantedTile(s)!.search!).toBeLessThan(a);
+    // The open drag strip has no tree to stand under.
+    expect(wantedTile(s)!.hidden).toBe(false);
+  });
+
   it("holds the stopped timer a few seconds after he lost them, then goes", () => {
     const s = ride(1);
     run(s, WANTED.fix + WANTED.lose[1] + 0.5);

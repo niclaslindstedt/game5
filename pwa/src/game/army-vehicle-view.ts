@@ -113,6 +113,12 @@ export type Ridden = {
   roll: number;
 };
 
+/** THE POOL BUILT AT LOAD, by kind: the most of each the waves can have
+ * out at once (`ARMY_VEHICLE.most`'s twelve, split as the five-star waves'
+ * caps split them), and his own beside them. A hunt that somehow wants
+ * more builds the one more. */
+const POOL: Record<ArmyVehicle["kind"], number> = { carrier: 6, truck: 4, tank: 3 };
+
 export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView {
   const group = new THREE.Group();
   group.name = "army-vehicles";
@@ -201,6 +207,19 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
       seen: frameNo,
     };
   };
+
+  // BUILT AT LOAD: a pool of each kind, as many as the waves put out at
+  // once (`POOL`), hidden — drawn once behind the loading card by the
+  // warm-up, so no vehicle's meshes are first made or uploaded the moment
+  // it comes up the valley.
+  for (const kind of ["carrier", "truck", "tank"] as const) {
+    for (let i = 0; i < POOL[kind]; i++) {
+      const d = build(kind);
+      d.root.visible = false;
+      if (d.rear) d.rear.visible = false;
+      spare[kind].push(d);
+    }
+  }
 
   const take = (v: ArmyVehicle): Drawn => {
     let d = drawn.get(v.id);

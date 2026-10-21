@@ -74,7 +74,7 @@ import { WANTED } from "./defs/wanted.ts";
 import { armGun, disarmGun, fireAt } from "./gunfire.ts";
 import { crashHeli } from "./heli.ts";
 import { treesNear } from "./upright-grid.ts";
-import { quarryOf, raiseHeat, rosterOf, seesQuarry } from "./wanted.ts";
+import { quarryOf, raiseHeat, rosterOf, seesQuarry, underCover } from "./wanted.ts";
 import type { ArmyEvent, ArmyHeli, ArmyState } from "./army-state.ts";
 import type { GameEvent, GameState } from "./state.ts";
 import type { WantedState } from "./wanted-state.ts";
@@ -130,6 +130,7 @@ export function freshArmy(state: GameState): ArmyState {
     nextVehicle: 0,
     vehiclesCalled: 0,
     unloaded: 0,
+    bailed: 0,
     shells: 0,
   };
   a.from = Math.atan2(q.x - half, q.z - half) + (draw(a) - 0.5) * ARMY.drift;
@@ -704,8 +705,8 @@ function fight(state: GameState, h: ArmyHeli, w: WantedState): void {
     gun.vz = h.vz;
     const laid = Math.abs(angleDiff(g.yaw, yaw)) < 0.05 && Math.abs(g.pitch - pitch) < 0.05;
     if (!hunting || !inArc || !laid || h.doors[key] < 0.9 || range > ARMY.guns.engage) continue;
-    if (!seesQuarry(state.level, { kind: "gunner", x: pivot.x, y: pivot.y, z: pivot.z }, q))
-      continue;
+    const eye = { kind: "gunner" as const, x: pivot.x, y: pivot.y, z: pivot.z };
+    if (!seesQuarry(state.level, eye, q, underCover(state))) continue;
     h.bears[key] = true;
     fireAt(state, gun, { kind: "quarry" });
   }

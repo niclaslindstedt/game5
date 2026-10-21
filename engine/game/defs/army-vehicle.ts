@@ -62,6 +62,9 @@ export type VehicleSpec = {
   eyes: number;
   /** The men it carries to put down. */
   seats: number;
+  /** ITS CREW (the driver and the commander; a tank's gunner beside
+   * them), who BAIL OUT and fight on foot when it is knocked out. */
+  crew: number;
 };
 
 export const ARMY_VEHICLE = {
@@ -82,6 +85,7 @@ export const ARMY_VEHICLE = {
       creep: 0.35,
       eyes: 2.5,
       seats: 8,
+      crew: 2,
     },
     truck: {
       halfLength: 4,
@@ -99,6 +103,7 @@ export const ARMY_VEHICLE = {
       creep: 0.4,
       eyes: 2.6,
       seats: 12,
+      crew: 2,
     },
     tank: {
       halfLength: 3.9,
@@ -116,6 +121,7 @@ export const ARMY_VEHICLE = {
       creep: 0.3,
       eyes: 3,
       seats: 0,
+      crew: 3,
     },
   } satisfies Record<ArmyVehicleKind, VehicleSpec>,
 
@@ -144,16 +150,18 @@ export const ARMY_VEHICLE = {
   /** What a heading costs: `turn` a radian off the way wanted, `blocked` a
    * metre short of `look` it is stopped, `tree` a solid near its line
    * (within `trunk` m past its half width), `keep` a radian off the way
-   * held; open water within `water` m and the map's edge within `edge` m
-   * are no way at all. */
-  terrain: { turn: 6, blocked: 1.2, tree: 4, keep: 1.5, trunk: 1.5, water: 8, edge: 40 },
+   * held; open water within `water` m, a wind tunnel's tube within
+   * `tunnel` m and the map's edge within `edge` m are no way at all. */
+  terrain: { turn: 6, blocked: 1.2, tree: 4, keep: 1.5, trunk: 1.5, water: 8, tunnel: 5, edge: 40 },
 
   /** PUTTING THE MEN DOWN: a carrier halts and they get out once it is
    * within `carrier` m of him with him in sight (or within `blind` m out
-   * of it); a truck at the top of the way it can drive, or `truck` m from
-   * him. Out of the back a man every `every` s, `out` m behind it, and it
-   * moves on `linger` s after the last. */
-  drop: { carrier: 170, blind: 110, truck: 320, every: 0.45, out: 3, linger: 2 },
+   * of it); a truck within `truck` m in sight (`blind` out of it), or held
+   * by a grade it cannot take. Out of the back a man every `every`
+   * s, `out` m behind it, and it moves on `linger` s after the last. A
+   * truck's men put down further than `chase` m from him climb on with
+   * the wave; nearer, they go straight at him. */
+  drop: { carrier: 170, blind: 110, truck: 200, chase: 450, every: 0.45, out: 3, linger: 2 },
 
   /** THE TANK'S FIGHT: it stands off him `lethal` m shooting to kill and
    * `sfw` m with SAFE FOR WORK on, closes to run him down where he is
@@ -186,6 +194,10 @@ export const ARMY_VEHICLE = {
     warn: { near: 55, far: 85 },
   },
 
+  /** A POST THINNER THAN THIS, m (a street lamp's or a sign's, a
+   * sapling) is no obstacle to a vehicle of several tonnes: driven over. */
+  flatten: 0.12,
+
   /** CLOSING ON HIM: every vehicle but a tank running him down stops
    * `stop` m short of him. Met by its front faster than `strike` m/s it
    * knocks him down (the `armour` crash). */
@@ -209,6 +221,11 @@ export const ARMY_VEHICLE = {
   /** KNOCKED OUT by a rocket's burst (`army-burst.ts`): the wreck burns
    * where it stands this long, s, then is taken off. */
   wreck: 90,
+  /** BAILING OUT of a vehicle knocked out: its crew and `aboard` of the
+   * men still in its back get out — `out` m off its side, a man every
+   * `every` s along it — and fight on foot after `stunned` s, as every
+   * soldier on the ground does. The rest are lost with it. */
+  bail: { aboard: 0.5, out: 2.5, every: 0.4, stunned: 2 },
 
   /** Ids: the crews are pursuers `pursuer` + n; the tanks' guns `gun` + n;
    * a vehicle's men a squad `squad` + n. */

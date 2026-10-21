@@ -60,6 +60,30 @@ export type HeliAim = {
 
 const wind: Wind = { x: 0, z: 0, speed: 0, gust: 0 };
 
+/** THE RUN THROUGH: where the bot flies to bring down something that
+ * MOVES and keeps its distance — a paramotor circling him, which matches
+ * his own velocity and so cannot be caught by flying to where it is (the
+ * hands slow to stop at an aim). The aim is laid `through` m BEYOND where
+ * it will be in `lead` s, on the line from him, at its height over the
+ * snow under it plus `over` m: the hands keep their pace all the way and
+ * the disc and its wash pass through it. */
+export function chaseAim(
+  run: GameState,
+  t: { x: number; y: number; z: number; vx: number; vz: number },
+  lead = 1,
+  over = 0,
+  through = 400,
+): HeliAim {
+  const h = run.heli;
+  const px = t.x + t.vx * lead;
+  const pz = t.z + t.vz * lead;
+  const dx = px - (h?.x ?? px);
+  const dz = pz - (h?.z ?? pz);
+  const d = hypot(dx, dz) || 1;
+  const height = Math.max(15, t.y - run.level.groundAt(t.x, t.z) + over);
+  return { x: px + (dx / d) * through, z: pz + (dz / d) * through, height };
+}
+
 /** The bot's controls for this step, flying `run`'s helicopter to `aim`. */
 export function pilotControls(run: GameState, aim: HeliAim): HeliControls {
   const h = run.heli!;

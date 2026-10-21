@@ -37,8 +37,8 @@ The roster climbs the way a real military response is escalated: first find and 
 
 | Cause | Add | At least |
 | --- | --- | --- |
-| `stole-ambulance` | 1 | 2 stars |
-| `stole-police` | 1 | 3 stars |
+| `stole-ambulance` | 1 | 1 star |
+| `stole-police` | 1 | 2 stars |
 | `downed-helicopter` | 1 | 3 stars |
 | `stole-snowmobile` | ½ | 2 stars |
 | `hit-soldier` | ½ | 1 star |
@@ -51,11 +51,15 @@ An offence also fixes him for `WANTED.fix` (10 s): the theft is reported, and th
 
 ## The longer he survives, the worse it gets
 
-The hunt itself climbs the heat: from each star to the next takes `WANTED.climb` seconds in sight (45, 60, 80 and 100 s from one star up to four), and runs at half that pace while they only search. Escaping is survival too, just slower to anger. Five stars is the top and holds.
+The hunt itself climbs the heat: from each star to the next takes `WANTED.climb` seconds in sight (40, 50, 60 and 75 s from one star up to four), and runs at half that pace while they only search. A theft starts at one star, so a man the army keeps in sight is at two stars in under a minute, three in about a minute and a half, four in two and a half and five in under four. Escaping is survival too, just slower to anger. Five stars is the top and holds.
+
+**The aim tightens as it climbs.** The rules of fire say whether they shoot at him; the stars also say how well. `WANTED.hold` widens every shooter's hold (the spread a burst is drawn about, `gunfire.ts`' `fireAt`): eight times the weapon's own at three stars, four at four, twice at five. `WANTED.pace` stretches the pause between a gun's bursts the same way: four times at three stars, two and a half at four, 1.4 at five. A launcher's reload is its own. So three stars is fire that mostly cracks past him, four is fire that finds him if he stands, and five is the weapons' own aim. Neither touches a shooter's fire at his own side's machines.
 
 ## Seen or searching
 
 Every `lookEvery` (0.25 s) each pursuer looks. He sees the man if he is near enough for his kind (`WANTED.sight`: a helicopter crew or a door gunner 900 m, a soldier 350 m, a snowmobile's crew 400 m, a ground vehicle 500 m, a balloon's basket 1.2 km, a paramotor 900 m) and **no ground rises between his eyes and the man's chest** (`seesQuarry`: the line marched every 6 m over `groundAt`, blocked where the snow comes within 0.4 m of it). Inside `close` (25 m) he is heard whatever is between. **The woods hide him from the ground**: a soldier, a snowmobile or a vehicle on the snow does not see through three or more crowns along the line (`throughWoods`, marched every 3 m, each crown counted once; `WANTED.line.woods`), while a machine or a basket in the air looks down through them. The quarry is the man himself, or the machine he rides (`quarryOf`).
+
+**Under cover.** A man on his own feet (not in a machine), slower than `cover.speed` (2.5 m/s) and with a tree's crown over his head (`underCover`: the crown's reach at `cover.head` (1.6) m over his boots, `cover.crown` (1.2) times the sight line's crown) is HIDDEN from the air. A helicopter, a door gunner, a paramotor or a balloon further than `cover.near` (60) m does not see him, however clear the line. A soldier, a snowmobile or a vehicle on the snow still does, through the trunks, as the woods' rule above says. Stopping under the trees is how a hunt that has only aircraft left is lost.
 
 Out of every pursuer's sight for `WANTED.lose` seconds (12, 18, 25, 32 and 40 s for one to five stars) and the stars are dropped: the hunt ends `escaped`, the survival timer stops, and a `lost` event says so. `WANTED.searchRadius` is the circle round `lastSeen` the pursuers comb while they look for him.
 
@@ -77,7 +81,7 @@ A utility helicopter seats a section of about a dozen and has a gun in each door
 
 ### The ground waves
 
-From two stars the army also comes **up the mountain from the valley** in waves (`WANTED.waves`, read with `groundWave(stars, n)` and counted with `wavesSent(w, t)`): the first `first` seconds after he reached the star, then one every `every` seconds, each one's `base` plus `grow` for every wave before it, rounded down and capped. Each wave mixes military snowmobiles, tracked over-snow carriers, trucks as far as the roads go, tanks, and **soldiers climbing on foot**, who come in growing numbers with every wave. The soldiers on foot and the snowmobiles are sent ([`army.md`](army.md#ground-waves)); the carriers, the trucks and the tanks are not on the map yet.
+From two stars the army also comes **up the mountain from the valley** in waves (`WANTED.waves`, read with `groundWave(stars, n)` and counted with `wavesSent(w, t)`): the first `first` seconds after he reached the star, then one every `every` seconds, each one's `base` plus `grow` for every wave before it, rounded down and capped. Each wave mixes military snowmobiles, tracked over-snow carriers, trucks as far as the roads go, tanks, and **soldiers climbing on foot**, who come in growing numbers with every wave. The soldiers on foot, the snowmobiles, the carriers, the trucks and the tanks are all sent ([`army.md`](army.md#ground-waves), [`army.md`](army.md#the-waves-vehicles)).
 
 | Stars | First, s | Every, s | First wave (snowmobiles, tracked, trucks, tanks, on foot) | Cap a wave |
 | --- | --- | --- | --- | --- |
@@ -105,6 +109,7 @@ One `wanted` event, its `change` saying what happened: `raised` (a star gained, 
 Under the presses in the top right (`hud-wanted.tsx`, `pwa/src/wanted.css`), drawn off the snapshot's `wanted` (`wanted-tile.ts`, DOM-free):
 
 - **Five stars**, the lit ones solid white on a dark rim, the rest a faint outline; the lit ones **flash** while the army searches rather than sees him.
+- **The search** under them while the stars flash: OUT OF SIGHT over a bar that runs down as the search does (`search`, the share of `lose` still to run), so he can see how much longer he has to stay hidden. Stood under a crown it reads HIDDEN in green (`hidden`), and the bar stays full while nothing searches.
 - **The survival timer** under them, counting while the hunt runs and stopped once it ends.
 - **The best** under that: the survival highscore, kept on this device under `fall-line.survival.v1` (`survival-book.ts`, checked on the way in, written when a hunt ends and every five seconds of a hunt still running past the best).
 
@@ -113,8 +118,30 @@ The death card and the arrest card carry the hunt's line, SURVIVED against the B
 ## Labs and tests
 
 - `make screenshots ARGS="--surface wanted,wanted-search"`: three stars solid five seconds in, and five stars flashing once the fix has run out, at every viewport.
-- `tests/wanted_test.ts`: absent until raised, no digest moved, the hook and its floors, the climb, the search and the loss, the sight line over a ridge, the arrest and the timer, the roster and the waves.
-- `tests/wanted_hud_test.ts`: the tile, the survival book, the news.
+- `tests/wanted_test.ts`: absent until raised, no digest moved, the hook and its floors, the climb, the search and the loss, the sight line over a ridge, cover from the air, the arrest and the timer, the roster and the waves.
+- `tests/wanted_hud_test.ts`: the tile (the search bar and HIDDEN with it), the survival book, the news.
+- `make army-ground ARGS=--table=curve` (`scripts/lib/army-curve-table.mjs`, pure Node): THE ESCALATION CURVE, a whole hunt from the theft on a real map with the whole army out. The air ambulance is taken (`raiseHeat(state, "stole-ambulance")`), and the army is left to climb the stars as it would on a free ride. A row is a quarry: `run` (the bot skiing on, never stood), `still` (stood where he took it) and `hide` (skiing until two stars, then stood under the thickest trees within 300 m). The columns are when each star was first reached, the share of the hunt he was seen, the longest he was out of sight, how and when it ended, the snowmobiles' rounds (and theirs in him) and every round of the army's in him by weapon.
+
+On seed 38, 420 s a hunt, the whole army out. Before is the tuning this page replaced (a theft at two stars, the climb at 45, 60, 80 and 100 s, the aim the same at every star, no cover from the air); after is the one above.
+
+| Quarry | Switch | Tuning | ★2, s | ★3, s | ★4, s | ★5, s | Seen | Longest out of sight, s | Ended | At, s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| run | INJURIES | before | 0 | 64 | — | — | 92 % | 6.8 | killed | 99 |
+| run | INJURIES | after | 43 | 93 | — | — | 95 % | 6.8 | killed (shot, 2 rifle rounds) | 138 |
+| run | SAFE FOR WORK | before | 0 | 64 | 144 | 194 | 97 % | 6.8 | arrested | 246 |
+| run | SAFE FOR WORK | after | 43 | 93 | 153 | 228 | 98 % | 6.8 | arrested | 331 |
+| still | INJURIES | before | 0 | 69 | — | — | 80 % | 9.8 | killed | 90 |
+| still | INJURIES | after | — | — | — | — | 56 % | 12.0 | lost | 47 |
+| still | SAFE FOR WORK | before | 0 | 69 | — | — | 80 % | 9.8 | arrested | 92 |
+| still | SAFE FOR WORK | after | — | — | — | — | 56 % | 12.0 | lost | 47 |
+| hide | INJURIES | before | 0 | 68 | — | — | 81 % | 8.8 | killed | 80 |
+| hide | INJURIES | after | 43 | — | — | — | 60 % | 18.0 | lost | 62 |
+| hide | SAFE FOR WORK | before | 0 | 68 | — | — | 84 % | 8.8 | arrested | 97 |
+| hide | SAFE FOR WORK | after | 43 | — | — | — | 60 % | 18.0 | lost | 62 |
+
+Before, a theft was two stars at once and three a minute later, and a man was dead or arrested within a minute and a half whatever he did. Standing still or hiding under the trees made no difference. After, the climb is one star at a time. A man skiing on, never stood, reaches five stars in under four minutes with SAFE FOR WORK on and is arrested in the sixth. With the INJURIES on the bot is killed at three stars, at 2 min 18 s rather than 1 min 39 s. It skis straight down the piste in the open, so the riflemen's rounds find him in the end even at three stars' hold. A man who stops under the trees is hidden from the air. He loses a one-star hunt in 47 s, and a two-star hunt within 20 s of stopping.
+
+The lab's last two columns read the snowmobiles' lethality against him skiing on (evasive, never stood). With the INJURIES on, they fire 5 rounds before the riflemen kill him and put none in him. With SAFE FOR WORK on, their 273 rounds are all warning fire. The snowmobiles alone are measured in [`army.md`](army.md#on-snowmobiles)'s sleds table.
 
 ## Not yet
 

@@ -59,7 +59,7 @@ import { enlist } from "./army-troop.ts";
 import { quarryVelocity } from "./army.ts";
 import { liftPlans, ropeAt } from "./lift-line.ts";
 import { treesNear } from "./upright-grid.ts";
-import { quarryOf, raiseHeat, seesQuarry } from "./wanted.ts";
+import { quarryOf, raiseHeat, seesQuarry, underCover } from "./wanted.ts";
 import type { ArmyAirEvent, ArmyAirState, ArmyPara, ArmyParaDown } from "./army-air-state.ts";
 import type { GameEvent, GameState, ParaState } from "./state.ts";
 import type { WantedState } from "./wanted-state.ts";
@@ -589,7 +589,7 @@ function fireRifle(state: GameState, p: ArmyPara, w: WantedState, q: V, events: 
   p.firing = state.t - p.fired < 1.5;
   if (w.ended !== null || hypot3(dx, ty - p.y, dz) > K.fire.range) return;
   const eye = { kind: "paramotor" as const, x: p.x, y: p.y + 0.6, z: p.z };
-  if (!seesQuarry(state.level, eye, q)) return;
+  if (!seesQuarry(state.level, eye, q, underCover(state))) return;
   p.saw = state.t;
   if (state.t < p.next) return;
   const mx = p.x + Math.sin(p.aimH) * 0.6;

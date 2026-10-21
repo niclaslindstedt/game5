@@ -2,8 +2,9 @@
 // THE ARMY'S PARAMOTORS AND BALLOONS AS DRAWN (`engine/game/army-air.ts`):
 // each one the free ride's own drawing hung off the army's craft instead of
 // the player's — the paramotor's (`para-scene.ts`) in the army's olive wing
-// (`ARMY_CANOPY_PAINT`) with a soldier sat in its harness, his rifle in his
-// lap; the balloon's (`balloon-scene.ts`) in the army's olive and khaki
+// (`ARMY_CANOPY_PAINT`) with a soldier sat in its harness, his rifle
+// shouldered and aimed down at him as he fires (`seatAim`) and in his lap
+// between bursts; the balloon's (`balloon-scene.ts`) in the army's olive and khaki
 // gores (`ARMY_COLOURWAY`) with its rocketeers stood in the basket, each
 // turned to his aim and the launcher up on his shoulder as he fires, and a
 // man at the burner. Brought down, a paramotor's soldier comes down under a
@@ -207,11 +208,12 @@ export function createArmyCraftView(haze: HazeUniforms, state: GameState): ArmyC
     const z = p.z + p.vz * ahead;
     s.pilot.mesh.visible = p.mode !== "down" || p.t < ARMY_AIR.para.downed.lie;
     s.pilot.mesh.position.set(x, y - CRAFT_LOOK.seat, z);
-    s.pilot.mesh.rotation.set(
-      0,
-      p.mode === "fly" || p.mode === "leave" ? p.wing.heading : p.aimH,
-      0,
-    );
+    // His rifle up and aimed down at him while he fires — his body turned
+    // in the harness to his aim — and in his lap between bursts.
+    const flying = p.mode === "fly" || p.mode === "leave";
+    const aiming = flying && p.firing;
+    s.pilot.pose(aiming ? "seatAim" : "doorSit");
+    s.pilot.mesh.rotation.set(0, aiming || !flying ? p.aimH : p.wing.heading, 0);
     // Under the reserve, coming down.
     s.reserve.visible = p.mode === "fall" && p.reserve;
     if (s.reserve.visible) s.reserve.position.set(x, y, z);

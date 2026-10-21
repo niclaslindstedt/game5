@@ -31,10 +31,12 @@
 //     halts and its section gets out of the back and goes after him as
 //     every soldier on the ground does (`army-ground.ts`). It stays where
 //     it put them down, its commander watching him from the hatch.
-//   * A TRUCK drives the road and the way as far as its chains hold — up to
-//     `drop.truck` m from him, the way's top, or the first rise it cannot
-//     take — and its men climb on from there with the wave (`army-wave.ts`'
-//     climb, on a way up of their own). Emptied, it turns back down.
+//   * A TRUCK drives the road and the way, then at him as far as its chains
+//     hold — up to `drop.truck` m from him in sight (`drop.blind` out of
+//     it), or held by a rise it cannot take — and its men go at him
+//     from there; put down further off than `drop.chase` m they climb on
+//     with the wave (`army-wave.ts`' climb, on a way up of their own).
+//     Emptied, it turns back down.
 //   * A TANK drives up the way and then at him, standing off `tank.lethal`
 //     m (`tank.sfw` with SAFE FOR WORK on); with him in its crew's sight
 //     inside `tank.range` it makes a SHORT HALT, lays its gun (the turret's
@@ -374,12 +376,15 @@ function unload(state: GameState, a: ArmyState, v: ArmyVehicle, w: WantedState) 
     const z = v.z - Math.cos(back) * (tail + D.out) - Math.sin(back) * lane;
     const role = v.aboard % 3 === 0 ? "foot" : "rifle";
     const squad = VEHICLE_SQUAD + v.id;
-    // A truck's men climb on with the wave, up the rest of its way.
-    if (v.kind === "truck" && !hasRoute(a, squad) && v.leg < v.path.length) {
+    // A truck's men held far off by a grade it cannot take climb on with
+    // the wave, up the rest of its way; nearer, they go straight at him.
+    const q = quarryOf(state);
+    const far = hypot(q.x - v.x, q.z - v.z) > D.chase;
+    if (v.kind === "truck" && far && !hasRoute(a, squad) && v.leg < v.path.length) {
       const pts = [{ x: v.x, z: v.z, w: 6 }, ...v.path.slice(v.leg)];
       a.routes.push({ squad, pts });
     }
-    if (v.kind === "truck" && hasRoute(a, squad)) {
+    if (v.kind === "truck" && far && hasRoute(a, squad)) {
       const s = enlist(state, a, role, "wave", squad, "climb", x, z, v.heading);
       s.leg = 1;
       s.lane = lane;
@@ -421,6 +426,17 @@ function startDrop(
 
 // ─── each kind's part ──────────────────────────────────────────────────
 
+/** Whether the snow rises ahead of it past the grade it climbs. */
+function steep(state: GameState, v: ArmyVehicle): boolean {
+  const S = specOf(v);
+  const L = S.halfLength;
+  const fx = Math.sin(v.heading);
+  const fz = Math.cos(v.heading);
+  const level = state.level;
+  const ahead = level.groundAt(v.x + fx * L * 2, v.z + fz * L * 2);
+  return (ahead - level.groundAt(v.x, v.z)) / (2 * L) > S.climb * 0.9;
+}
+
 /** A CARRIER OR A TRUCK on its way: up the way, then at him; halted to
  * put its men down where its kind does. */
 function carry(
@@ -435,10 +451,15 @@ function carry(
   const d = hypot(q.x - v.x, q.z - v.z);
   const p = nextPoint(v);
   const D = K.drop;
+  // A carrier closes to `drop.carrier`, a truck to `drop.truck`: both
+  // drive on at him once the way up is driven. A truck held by a grade its
+  // chains will not take puts its men down where it is; one held by
+  // anything else backs out and goes round, and only a third time held
+  // gives up there.
   const there =
     v.kind === "carrier"
-      ? (sees && d < D.carrier) || d < D.blind || v.dug >= 2 || (!p && d < D.truck)
-      : d < D.truck || !p || v.dug >= 1 || v.slow >= 1;
+      ? (sees && d < D.carrier) || d < D.blind || v.dug >= 2 || (!p && d < D.carrier)
+      : (sees && d < D.truck) || d < D.blind || v.dug >= 3 || (v.slow >= 1 && steep(state, v));
   if (v.aboard > 0 && there) {
     startDrop(state, a, v, w, events);
     return;

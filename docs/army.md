@@ -20,9 +20,11 @@ The helicopters fly in the game, the soldiers are set down [on the ground](#on-t
 | The ground waves up the mountain: the waves, the way up, the column, the climb | `engine/game/army-wave.ts`, its numbers `engine/game/defs/army-wave.ts` (`ARMY_WAVE`), `ArmyState.waves`, `ArmyState.routes` |
 | The army's paramotors and balloons: the call, the flight, the rifles and the rockets, brought down, a burst among the army's own | `engine/game/army-air.ts`, `army-para.ts`, `army-balloon.ts`, `army-burst.ts`, its numbers `engine/game/defs/army-air.ts` (`ARMY_AIR`), `ArmyState.air` |
 | The paramotors and balloons as drawn and heard | `pwa/src/game/army-craft-view.ts` (held by `machines.ts`), `para-scene.ts` and `para-canopy.ts` (`ARMY_CANOPY_PAINT`), `balloon-scene.ts` and `balloon-look.ts` (`ARMY_COLOURWAY`), `audio/army-air-bed.ts` |
+| The army's machines taken: the carriers, trucks and tanks driven, the tank's gun, the helicopter flown | `engine/game/armour.ts`, `army-steal.ts`, its numbers `engine/game/defs/armour.ts` (`ARMOUR`), its state `engine/game/armour-state.ts` (`GameState.armour`) |
+| The machines taken as drawn: the carrier's cab, the helicopter's flight deck, the HUD, the lenses | `pwa/src/game/carrier-cab.ts`, `army-cab-plan.ts`, `cab-paint.ts`, `cab-kit.ts`, `army-heli-cockpit.ts`, `army-cockpit-plan.ts`, `army-heli-paint.ts`, `army-heli-ride.ts`, `seated-figure.ts`, `dial-paint.ts`, `hud-armour.tsx`, `armour-hud.ts`, `camera-armour.ts` |
 | Soldiers by the hundred, as drawn | `pwa/src/game/soldier-batch.ts` (held by `army-ground-view.ts`) |
-| The labs | `make army` (`scripts/army-preview.mjs`, `pwa/src/tools/army-harness.ts`, `pwa/army-preview.html`), `make army-flight` (`scripts/army-flight.mjs`) |
-| The tests | `tests/army_heli_test.ts`, `tests/soldier_test.ts`, `tests/army_test.ts`, `tests/army_sled_test.ts`, `tests/army_wave_test.ts`, `tests/army_air_test.ts`, `tests/models_test.ts`, `tests/model_registry_test.ts` |
+| The labs | `make army` (`scripts/army-preview.mjs`, `pwa/src/tools/army-harness.ts`, `pwa/army-preview.html`), `make army-flight` (`scripts/army-flight.mjs`), `make army-steal` (`scripts/army-steal.mjs`) |
+| The tests | `tests/army_heli_test.ts`, `tests/soldier_test.ts`, `tests/army_test.ts`, `tests/army_sled_test.ts`, `tests/army_wave_test.ts`, `tests/army_air_test.ts`, `tests/armour_test.ts`, `tests/models_test.ts`, `tests/model_registry_test.ts` |
 
 ## The helicopter
 
@@ -671,9 +673,56 @@ The army lab's `vehicles` sheet (`make army ARGS="--sheet=vehicles"`) photograph
 
 ### Not yet
 
-- Stealing one: a parked carrier or a halted tank taken with the machine press through `steal.ts`, with its heat.
 - Their crews never get out and fight; a vehicle's men are only its passengers.
-- A rocket's or a shell's burst within a few metres knocks one out ([paramotors and balloons](#paramotors-and-balloons)); nothing else does yet.
+- A rocket's or a shell's burst within a few metres knocks one out ([paramotors and balloons](#paramotors-and-balloons)), and so does his own tank's shell ([taken](#taken)); nothing else does yet.
+
+## Taken
+
+The army's machines are his to take. A carrier, a truck or a tank of the ground waves standing on the snow, and one of the hunt's helicopters set down on its skids, are offered to the machine press through `steal.ts` like the air ambulance, the police helicopter and the army's snowmobiles (`ARMOUR_SOURCE` in `engine/game/armour.ts`, `ARMY_HELI_SOURCE` in `army-steal.ts`). The numbers are `ARMOUR` in `engine/game/defs/armour.ts`, and the vehicle he drives lives in `GameState.armour` (`ArmourRide`, `armour-state.ts`) — absent until he takes one, nothing drawn from any stream, so no digest moves.
+
+**What can be taken.** A vehicle must be standing: slower than `board.still` (0.6) m/s, with nobody left aboard to put down — a carrier or a truck once it has parked, a tank at a halt, or any of them knocked out but still able to run. He must be within `board.reach` (2.6) m of its door and slower than `board.fastest` (2.5) m/s. A tank taken at a halt puts its crew of `tank.crew` (3) out onto the snow, where they fight on as soldiers. A helicopter is offered once it has set down (`set`), at its pilot's door (`armyHeliDoor`).
+
+**The heat.** Each theft is an offence through `raiseHeat`: a carrier or a truck `stole-vehicle` (+1, at least three stars), the army's helicopter `stole-army-heli` (+1, at least four), a tank `stole-tank` (+1.5, at least four). The taken vehicle leaves the waves (`ArmyState.vehicles`) and the helicopter the hunt's machines, so the army no longer drives or flies it.
+
+**The drive.** The ground vehicles are driven on the waves' own body (`moveVehicle`), so the grade limits, the turn rates, the truck's radius, the trunks, the water and the other vehicles are the waves' numbers — the truck stops on a slope the tank climbs on. His controls are the snowmobile's: the tuck forward, the skid back (at `reverse` (0.3) of the pace), and the edge laying the way ask up to `steer` (0.9) rad off the heading, eased at `hands` (5)/s. His pace on the snow is short of each class's road speed: the carrier 13 m/s (47 km/h), the truck 15 (54 km/h), the tank 12 (43 km/h). He is held in the driver's seat (`ARMOUR.cabs`): in the carrier's front cab on its left, high in the truck's cab-forward cab, in the tank's hull front under the driver's hatch. The machine press lets him out at a crawl beside the door, and the same press at its door takes it back.
+
+**The tank's gun.** The lean traverses the turret at up to `tank.traverse` (0.55 rad/s) and, with the trick key held, elevates the gun; the jump key's press fires the main gun once it is loaded. The sight's line is read along the bore to `tank.sight` (2,000) m for the first snow or vehicle it meets, and the shell is laid on that point, so it hits what the sight is on. The shell bursts through the blast layer (`blastAt`), so it knocks out the army's own vehicles near it. With SAFE FOR WORK on he still fires where he lays the gun: the switch keeps the army from wounding him, not the reverse.
+
+**The hunt.** While he drives one, it is the QUARRY (`wanted.ts`' `quarryOf`): the helicopters, the snowmobiles, the men and the waves aim at it and see it. Rounds into it add up against its `damage.rounds` (a few belts of a machine gun for the carrier and the truck; the tank's armour never), and a rocket's or a shell's burst takes `damage.burst` of it. Knocked out, it will not drive (and, lost outright, is a wreck); he climbs out with the press.
+
+**The helicopter.** The army's machine taken becomes the run's own helicopter in the army's livery (`HeliState.livery` `"army"`). It is flown on the free ride's own flight model and hands, but from the pilot's seat, strapped in: the hold on the skid that throws a skier off the light machine does not apply. The hunt then hunts it as it hunts any stolen helicopter.
+
+**Events.** `steal` (with the vehicle and the livery), then `armour`, by `change`: `board`, `hop`, `fire`, `dead`. The news line reads the theft and the knock-out; the boots up and down are the piste machine's sounds, the diesel the army's bed's, and the gun and its burst the gunfire's.
+
+### As drawn and heard
+
+His vehicle is drawn and heard as the waves' are: `armyVehicles` hands the app his body beside theirs, so `army-vehicle-view.ts` poses it (the commander's figure hidden) and the army's bed gives it its diesel and tracks. The HUD's readout (`hud-armour.tsx` over `armour-hud.ts`) shows the machine's name and speed, reverse or knocked out, the tank's turret off the nose and its gun loaded or loading with the key that fires it, and how to get out. At a door it shows the machine press: TAP TO STEAL, or TAP TO DRIVE for his own. Each kind has its camera ladder (`camera-armour.ts`: TIPS on the nose, HELMET the driver's eye, CHASE, FAR, HIGH and ORBIT booms sized to the vehicle).
+
+**The carrier's cab** (`carrier-cab.ts`, planned in `army-cab-plan.ts`, painted by `cab-paint.ts`). This is the over-snow carrier's front unit, laid out as the class is. It is left-hand drive. A flat windscreen is split by a centre post, with wipers, visors and a mirror. The dash's crash pad sits over a cluster of round dials: the speedometer (0–80 km/h), the tachometer (0–4,000 rpm), the coolant, the oil, the fuel and the volts, and a row of warning lamps. Beside them are a switch panel of toggles and a radio set with its handset on the mate's side. The automatic gearbox's selector (P R N D 3 2) and the parking brake sit on the engine's cover between the seats. There is a three-spoke wheel on its column with a stalk, and two pedals. The cab holds two seats, a bench at the back, the roof hatch, the dome lamp, the door's seam, handle and pocket, an extinguisher and a grab handle. The driver is the seated figure (`seated-figure.ts`, shared with the jump plane's pilot), his hands on the wheel's rim where the wheel is turned and his feet on the pedals. The dials are live off the drive (`cabGauges`) and repaint at 12 Hz. The cab is built at load on a ride that carries the army and moved into his vehicle while HELMET is on; its dark glass outside is hidden then, so the sun comes in through the windows.
+
+**The army helicopter's flight deck** (`army-heli-cockpit.ts`, planned in `army-cockpit-plan.ts`, painted by `army-heli-paint.ts`). This is the medium utility helicopter's two-pilot deck, laid out as the class is. Each pilot has his flight instruments in the basic T: the airspeed, the attitude ball, the altimeter, the radar altimeter, the horizontal situation, the vertical speed and a clock. In the middle are the engine units as vertical tapes: the fuel, the oil temperature and pressure, the turbine gas temperature, the gas producer, the rotor and power turbine speeds, and the torque, both engines side by side. Below them sit the caution and advisory panel and a master caution in front of each pilot, which lights on a low rotor. Above is the glareshield. The lower console between the seats carries the radios and the navigation; the overhead console carries the engine controls, the quadrant's levers and the rotor brake, and the fire T-handles with the extinguisher switch. There are two armoured seats with their side armour, two sets of cyclic, collective and pedals moving with his hands and feet, and the pilot in his seat as the seated figure. The cabin's liner and glass are the army model's own (`cockpit-shroud.ts`' `cabinOf`, its room now a parameter shared with the light helicopter's). The instruments repaint at 15 Hz. The deck is built when the model arrives, at load, inside the army helicopter's ride (`army-heli-ride.ts`, held by `heli-scene.ts` by the `HeliView` hand), and the lens sits at its eye (`camera-heli.ts`' `Deck`).
+
+**The freeze rule.** Nothing new adds or removes a light: the cab's dome lamp and the deck's caution lamps are emissive. Both are built and drawn once at load on a ride whose rules carry the helicopter, so their programs are linked behind the loading card.
+
+### The labs
+
+`make army-steal` (`scripts/army-steal.mjs`, pure Node) takes each of the four with the machine press on a generated mountain, the hunt's own men held back. A scripted driver then drives each for a minute: the ground vehicles down the piste on the tuck, the edge laid toward the piste 40 m ahead and backed out on the skid when stood still, and the helicopter held 60 m over the snow ahead and flown forward to 25 m/s on an attitude-held cyclic. The table reads the heat raised, the metres made good and along the path, the pace, the seconds stood still with the throttle open, the times backed out, the climb, whether it was knocked out, and STUCK. STUCK must read "no" on every row, and the exit code holds it. On seed 38 at a quarter of the piste:
+
+| machine | stolen | heat + | stars | made good m | path m | top km/h | mean km/h | most still s | backed out | stuck |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| carrier | yes | 1.00 | 4 | 497 | 721 | 47 | 43 | 0.3 | 0 | no |
+| truck | yes | 1.00 | 4 | 563 | 806 | 54 | 48 | 0.4 | 0 | no |
+| tank | yes | 1.50 | 4 | 504 | 659 | 43 | 40 | 0.4 | 0 | no |
+| heli | yes | 1.00 | 4 | 1116 | 1137 | 88 | 68 | 0.0 | 0 | no |
+
+`make army ARGS="--sheet=steal"` photographs it through the game's own renderer. `steal-carrier` shows the cab through the game's own HELMET lens straight on and in a turn, the cluster and the switches and radio close, the driver from the mate's seat, then TIPS, CHASE and a lens beside it. `steal-heli` shows the deck on the snow and in the air, the panel, the console and the overhead close, the pilot from the left seat, then CHASE and beside it. `steal-ground` shows the truck and the tank driven, the turret traversed. `tests/armour_test.ts` holds the takes, the drives, the grades, the hop and the take-back, the quarry, the gun, the knock-out, the stream and the helicopter.
+
+### Not yet
+
+- The truck's and the tank's own cabs: the HELMET lens on them is the driver's head out of the roof hatch and the driver's hatch.
+- The tank's gunner's station and its sight's view.
+- The army helicopter's door guns in his hands; they stay stowed.
+- A wave's carrier or truck taken while its men are still aboard.
 
 ## Paramotors and balloons
 

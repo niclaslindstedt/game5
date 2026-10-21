@@ -45,6 +45,13 @@
 //             air-rocket (a rocket off a basket in flight, its smoke trail
 //             and its burst), air-wreck (a carrier knocked out by a burst,
 //             burning) — five stars, the air alone
+//   steal     steal-carrier (a carrier taken and driven: its cab through
+//             the game's own ladder, the cluster and the radio close, TIPS,
+//             CHASE, beside it), steal-heli (the army helicopter taken: its
+//             flight deck on the snow and in the air, the panel, console
+//             and overhead close, CHASE, beside it), steal-ground (the truck
+//             and the tank driven, the turret traversed) — the hunt's own
+//             men held back
 //
 // Each frame is captioned with its milliseconds, draw calls and triangles.
 // Each VIEW is one contact sheet, previews/army-<view>.png, and every
@@ -75,7 +82,7 @@ const args = parseArgs(
     sheet: {
       kind: "string",
       default: "",
-      help: "which sheets, comma-separated (heli, flight, hunt, ground, soldiers, sleds, waves, vehicles, air); every one when left out",
+      help: "which sheets, comma-separated (heli, flight, hunt, ground, soldiers, sleds, waves, vehicles, air, steal); every one when left out",
     },
     views: {
       kind: "string",

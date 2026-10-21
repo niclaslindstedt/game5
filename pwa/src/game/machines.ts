@@ -507,7 +507,7 @@ export function createMachines(
         armyBuilt();
       army?.frame(s, alpha, dt, simDt, stamps, cloud);
       // HIS VEHICLE: the cab hung in it and shown from the driver's eye,
-      // its dark glass put away while it is.
+      // its cab from outside (the shell and the dark glass) put away while it is.
       const ridden = army?.ridden() ?? null;
       const driven = drivenArmour(s);
       const inCab = !!(driven && ridden && driven.kind === "carrier" && rung === "helmet");

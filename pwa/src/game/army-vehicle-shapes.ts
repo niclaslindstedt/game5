@@ -228,6 +228,22 @@ function carrierFront(): THREE.BufferGeometry {
     ],
     "camo",
   );
+  // The headlamps; the cab's shell is drawn with its glass (below).
+  for (const s of [-1, 1]) p.box(0.22, 0.12, 0.06, [s * (W - 0.4), 1.18, L - 0.32], "lamp", 2);
+  // The hitch's rams between the units.
+  p.box(0.25, 0.25, 0.6, [0, 0.75, -L - 0.15], "dark", 2);
+  return p.geometry();
+}
+
+/** THE CARRIER'S CAB FROM OUTSIDE, apart from its hull: the cab's shell
+ * and its roof hatch, the windscreen and the side windows — put away while
+ * the lens is in its cab, where `carrier-cab.ts` draws the cab from the
+ * inside and clear panes. */
+function carrierGlass(): THREE.BufferGeometry {
+  const S = A.kinds.carrier;
+  const L = S.halfLength;
+  const W = S.halfWidth;
+  const p = new Part(CARRIER_CAMO);
   p.hexa(
     [
       [-W + 0.08, 0.95, -L + 0.2],
@@ -241,20 +257,7 @@ function carrierFront(): THREE.BufferGeometry {
     ],
     "camo",
   );
-  // The headlamps and a roof hatch with its rim.
-  for (const s of [-1, 1]) p.box(0.22, 0.12, 0.06, [s * (W - 0.4), 1.18, L - 0.32], "lamp", 2);
   p.cyl(0.36, 0.08, [0, 2.29, -0.6], "y", "dark", 10);
-  // The hitch's rams between the units.
-  p.box(0.25, 0.25, 0.6, [0, 0.75, -L - 0.15], "dark", 2);
-  return p.geometry();
-}
-
-/** THE CARRIER'S GLASS, apart from its hull: the windscreen and the side
- * windows — put away while the lens is in its cab (`carrier-cab.ts` draws
- * clear panes from in there). */
-function carrierGlass(): THREE.BufferGeometry {
-  const W = A.kinds.carrier.halfWidth;
-  const p = new Part(null);
   p.hexa(
     [
       [-W + 0.2, 1.5, 0.43],

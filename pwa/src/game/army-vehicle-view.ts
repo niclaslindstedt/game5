@@ -53,7 +53,8 @@ type Drawn = {
   barrel: THREE.Mesh | null;
   /** The man up in the hatch, gone while the vehicle is his. */
   commander: THREE.Mesh | null;
-  /** The carrier's dark glass, put away while the lens is in its cab. */
+  /** The carrier's cab from outside (its shell and dark glass), put away
+   * while the lens is in its cab. */
   glass: THREE.Mesh | null;
   kind: ArmyVehicle["kind"];
   /** The last print each side (x, z), NaN before the first. */
@@ -92,7 +93,7 @@ export type Ridden = {
   root: THREE.Group;
   turret: THREE.Group | null;
   gun: THREE.Group | null;
-  /** Its dark glass (a carrier's), or null. */
+  /** Its cab from outside, shell and dark glass (a carrier's), or null. */
   glass: THREE.Mesh | null;
   x: number;
   y: number;

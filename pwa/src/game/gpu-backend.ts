@@ -61,8 +61,8 @@ export const GPU_PORTS: readonly GpuPort[] = [
     id: "clouds",
     kind: "pass",
     part: 10,
-    what: "the cloud shadow, the slab and the volume",
-    ported: false,
+    what: "the cloud shadow, the slab and the volume, each pass drawn by its node twin",
+    ported: true,
   },
   {
     id: "trail-map",
@@ -141,10 +141,12 @@ export const GPU_PORTS: readonly GpuPort[] = [
     ported: true,
   },
   {
+    // The clouds' ShaderMaterials draw by their twins since part 10 (the
+    // `clouds` row); what is left are the figures' and the effects'.
     id: "shader",
     kind: "material",
-    part: 10,
-    what: "every other ShaderMaterial (the clouds; the figures, the effects in their own parts)",
+    part: 11,
+    what: "every other ShaderMaterial (the figures, the effects in their own parts)",
     ported: false,
   },
   {

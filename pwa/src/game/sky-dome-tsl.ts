@@ -8,12 +8,13 @@
 // term for term. Every uniform is the ShaderMaterial's own, read by
 // reference, so `createSkyDome`'s `update` drives both back ends.
 //
-// What the GLSL switches with defines, the twin reads as uniforms: the SKY
-// row's PLAIN (`PLAIN_SKY`) is read off the material's defines every
-// render, since the node renderer does not rebuild a pipeline for a define.
-// The clouds' slab and volume pictures (`CLOUD_SLAB`) are never drawn on
-// the webgpu paths until part 10, so the shell is every tier's there
-// (`cloud-shell-tsl.ts`).
+// What the GLSL switches with defines, the twin reads as uniforms, off the
+// material's defines every render, since the node renderer does not
+// rebuild a pipeline for a define: the SKY row's PLAIN (`PLAIN_SKY`), and
+// which cloud the dome lays over its sky (`CLOUD_SLAB`, part 10) — LOW's
+// shell read here (`cloud-shell-tsl.ts`), MEDIUM's slab or HIGH's volume
+// read off the picture its pass drew before the frame (`cloud-pass-tsl.ts`,
+// `cloud-volume-tsl.ts`), where this pixel stands through the lens.
 //
 // Linear light out: the node renderer's output pass tone maps the frame
 // and encodes it (WebGL's dome does both itself), so the haze meets it with
@@ -37,6 +38,8 @@ import {
   seaTop,
   skyColour,
   slot,
+  standIn,
+  tap,
   texSlot,
   type HazeSlots,
   type N,
@@ -70,6 +73,8 @@ const {
   normalize,
   positionLocal,
   select,
+  floor,
+  varying,
   smoothstep,
   step,
   textureLoad,
@@ -97,6 +102,10 @@ function noSkyline(): THREE.DataTexture {
   return tex;
 }
 
+/** The clouds' picture's stand-in while none is drawn (half floats, as
+ * every pass draws). */
+const NO_PICTURE = standIn();
+
 /** The dome's node twin over the dome's own ShaderMaterial `m`. */
 export function domeTwin(m: THREE.ShaderMaterial, haze: HazeUniforms): NodeMaterial {
   const U = m.uniforms;
@@ -117,6 +126,9 @@ export function domeTwin(m: THREE.ShaderMaterial, haze: HazeUniforms): NodeMater
   const cloudOn = cs.on;
   const skyline = texSlot(U.uSkyline as { value: THREE.Texture | null }, noSkyline());
   const plain = uniform(0).onRenderUpdate(() => (m.defines.PLAIN_SKY ? 1 : 0));
+  const slab = uniform(0).onRenderUpdate(() => Number(m.defines.CLOUD_SLAB ?? 0));
+  const picture = texSlot(U.uCloudTex as { value: THREE.Texture | null }, NO_PICTURE);
+  const clip = varying(cameraProjectionMatrix.mul(modelViewMatrix).mul(vec4(positionLocal, 1)));
 
   const twin = new NodeMaterial();
   twin.name = "sky-dome";
@@ -140,8 +152,29 @@ export function domeTwin(m: THREE.ShaderMaterial, haze: HazeUniforms): NodeMater
     const elPx = max(fwidth(el), 1e-5).toVar();
     const c = skyColour(s, d).toVar();
     If(plain.lessThan(0.5), () => {
-      // THE CLOUD FIELD in front: the shell's layers read here.
-      const cl = cloudStack(cs, cameraPosition, d, s.sunPos, c).toVar();
+      // THE CLOUD FIELD in front: the volume's or the slab's picture read
+      // where this pixel stands, or the shell's layers read here.
+      const cl = vec4(0).toVar();
+      const at = clip.xy.div(clip.w).mul(0.5).add(0.5).toVar();
+      If(slab.greaterThan(1.5), () => {
+        cl.assign(tap(picture.tex, at).level(0));
+      })
+        .ElseIf(slab.greaterThan(0.5), () => {
+          // A linear read on a texel CORNER is the even mean of the 2 × 2
+          // texels round it: the slab's dither averaged away.
+          const sz = vec2(textureSize(picture.tex, 0)).toVar();
+          const g = at.mul(sz).toVar();
+          const c0 = floor(g).toVar();
+          const fr = g.sub(c0).toVar();
+          const read = (o: [number, number]): N =>
+            tap(picture.tex, c0.add(vec2(o[0], o[1])).div(sz)).level(0);
+          cl.assign(
+            mix(mix(read([0, 0]), read([1, 0]), fr.x), mix(read([0, 1]), read([1, 1]), fr.x), fr.y),
+          );
+        })
+        .Else(() => {
+          cl.assign(cloudStack(cs, cameraPosition, d, s.sunPos, c));
+        });
       const hide = cl.a;
       const clearSky = float(1).sub(hide).toVar();
       // THE MOON'S SKY close round it.
@@ -231,8 +264,11 @@ export function domeTwin(m: THREE.ShaderMaterial, haze: HazeUniforms): NodeMater
         c.assign(mix(c, sea, smoothstep(0, -0.004, d.y)));
       },
     );
-    return vec4(c.add(skyline.keep), 1);
+    return vec4(c.add(skyline.keep).add(picture.keep), 1);
   })();
+  // A node on the material drawn, so the renderer refreshes the dome's
+  // bindings every draw: the volume's picture swaps between two targets.
+  (m as unknown as { twinNode: N }).twinNode = twin.fragmentNode;
   return twin;
 }
 

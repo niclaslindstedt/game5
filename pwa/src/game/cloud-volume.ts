@@ -20,6 +20,10 @@
 //
 // The noise is made in a worker (`cloud-noise-worker.ts`) the first time
 // a volume is asked for; until it lands HIGH draws the slab.
+//
+// On the node renderer the same three passes draw into three's own targets
+// (the fresh one with its two attachments), each by its node twin
+// (`cloud-volume-tsl.ts`), over the same uniforms.
 
 import * as THREE from "three";
 
@@ -31,6 +35,7 @@ import {
 } from "./cloud-volume-noise.ts";
 import type { NoiseReply } from "./cloud-noise-worker.ts";
 import { CLOUD_FIELD_GLSL, CLOUD_SHELL_GLSL } from "./cloud-glsl.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 import { CLOUD_VOLUME_GLSL } from "./cloud-volume-glsl.ts";
 import {
   bayerOrder,
@@ -216,9 +221,17 @@ void main() {
 }
 `;
 
-function target(w: number, h: number, count = 1): THREE.WebGLRenderTarget {
-  const rt = new THREE.WebGLRenderTarget(w, h, {
-    type: THREE.HalfFloatType,
+/** A pass's picture: three's own target on the node renderer (`node`),
+ * typed as the one `gl` is typed to take. */
+export function cloudTarget(
+  w: number,
+  h: number,
+  type: THREE.TextureDataType,
+  node: boolean,
+  count = 1,
+): THREE.WebGLRenderTarget {
+  const options: THREE.RenderTargetOptions = {
+    type,
     format: THREE.RGBAFormat,
     minFilter: THREE.LinearFilter,
     magFilter: THREE.LinearFilter,
@@ -226,8 +239,16 @@ function target(w: number, h: number, count = 1): THREE.WebGLRenderTarget {
     stencilBuffer: false,
     generateMipmaps: false,
     count,
-  });
+  };
+  const rt = node
+    ? (new THREE.RenderTarget(w, h, options) as THREE.WebGLRenderTarget)
+    : new THREE.WebGLRenderTarget(w, h, options);
   for (const t of rt.textures) t.colorSpace = THREE.NoColorSpace;
+  return rt;
+}
+
+function target(w: number, h: number, node: boolean, count = 1): THREE.WebGLRenderTarget {
+  const rt = cloudTarget(w, h, THREE.HalfFloatType, node, count);
   if (count > 1) rt.textures[1].minFilter = rt.textures[1].magFilter = THREE.NearestFilter;
   return rt;
 }
@@ -255,10 +276,11 @@ export type CloudVolume = {
 export type VolumeLookName = keyof typeof VOLUME_LOOK;
 
 /** HIGH's volume over `gl`, sharing the field's and the haze's uniforms
- * (`shared`). */
+ * (`shared`); `node` when `gl` is the node renderer. */
 export function createCloudVolume(
   gl: THREE.WebGLRenderer,
   shared: Record<string, THREE.IUniform>,
+  node = false,
 ): CloudVolume {
   const u = volumeUniforms();
   const own = {
@@ -286,6 +308,8 @@ export function createCloudVolume(
     depthWrite: false,
     blending: THREE.NoBlending,
   });
+  // The webgpu paths draw each pass with its node twin (`cloud-volume-tsl.ts`).
+  nodeTwin(carry, "clouds", "cloud-carry");
   let marchFor: {
     look: VolumeLook;
     fresh: THREE.ShaderMaterial;
@@ -296,16 +320,20 @@ export function createCloudVolume(
       marchFor?.fresh.dispose();
       marchFor?.whole.dispose();
       const make = (w: boolean): THREE.ShaderMaterial =>
-        new THREE.ShaderMaterial({
-          glslVersion: THREE.GLSL3,
-          vertexShader: QUAD,
-          fragmentShader: MARCH,
-          uniforms,
-          defines: { STEPS: look.steps, LIGHT: look.light, ...(w ? { WHOLE: 1 } : {}) },
-          depthTest: false,
-          depthWrite: false,
-          blending: THREE.NoBlending,
-        });
+        nodeTwin(
+          new THREE.ShaderMaterial({
+            glslVersion: THREE.GLSL3,
+            vertexShader: QUAD,
+            fragmentShader: MARCH,
+            uniforms,
+            defines: { STEPS: look.steps, LIGHT: look.light, ...(w ? { WHOLE: 1 } : {}) },
+            depthTest: false,
+            depthWrite: false,
+            blending: THREE.NoBlending,
+          }),
+          "clouds",
+          "cloud-march",
+        );
       marchFor = { look, fresh: make(false), whole: make(true) };
     }
     return whole ? marchFor.whole : marchFor.fresh;
@@ -347,12 +375,12 @@ export function createCloudVolume(
       const { keep: kw, fresh: fw } = volumeSizes(size.x, size.y, look.block);
       if (!keep || keep[0].width !== kw[0] || keep[0].height !== kw[1]) {
         keep?.forEach((k) => k.dispose());
-        keep = [target(kw[0], kw[1]), target(kw[0], kw[1])];
+        keep = [target(kw[0], kw[1], node), target(kw[0], kw[1], node)];
         forced = true;
       }
       if (!fresh || fresh.width !== fw[0] || fresh.height !== fw[1]) {
         fresh?.dispose();
-        fresh = target(fw[0], fw[1], 2);
+        fresh = target(fw[0], fw[1], node, 2);
       }
       lens.updateMatrixWorld();
       vp.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse);

@@ -17,8 +17,8 @@
 //                       the canvas, in linear light where it goes through the
 //                       grade's target, as WebGL mixes it (`haze-tsl.ts`).
 //
-// The clouds' shadow (`cloudShadow`) is part 10's pass: 1 until then, as
-// the key's light node has it (`lights-tsl.ts`).
+// The key here is taken through the clouds' shadow (`cloudShadow`, part
+// 10), as the key's light node takes it (`lights-tsl.ts`).
 
 import type * as THREE from "three";
 import * as TSL from "three/tsl";
@@ -37,6 +37,7 @@ import {
   type HazeFogOptions,
   type N,
 } from "./haze-tsl.ts";
+import { cloudShadow } from "./cloud-pass-tsl.ts";
 import { keyAtHeight, lightSlots, terrainLit, type LightSlots } from "./lights-tsl.ts";
 import { SHELTER } from "./shelter.ts";
 import { skyIrradiance } from "./snow-light-tsl.ts";
@@ -106,8 +107,7 @@ export type AirLight = { key: N; up: N; down: N; to: N; from: N };
 export function airLight(s: AirSlots, keyCol: N, p: N): AirLight {
   const l = s.light;
   const sun = terrainLit(l, p).toVar();
-  // `cloudShadow(p)` is the clouds' pass's (part 10): 1 until then.
-  const key = keyCol.mul(keyAtHeight(l, p.y)).mul(sun);
+  const key = keyCol.mul(keyAtHeight(l, p.y)).mul(cloudShadow(l.cloud, p)).mul(sun);
   const lift = float(1)
     .add(l.shadeLift.mul(float(1).sub(sun)))
     .mul(0.31831);

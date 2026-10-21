@@ -80,7 +80,7 @@ webgpu paths.
 | Row | Kind | Part | What it is |
 | --- | --- | --- | --- |
 | `sky-gpu` | pass | 3 | the sky's LUT passes. Ported |
-| `clouds` | pass | 10 | the cloud shadow, slab and volume |
+| `clouds` | pass | 10 | the cloud shadow, MEDIUM's slab and HIGH's volume (its fresh share and its carried picture), each pass drawn by its node twin. Ported |
 | `trail-map` | pass | 5 | the stamps rasterised into the trail maps, the window's copy and the new snow's fill, each drawn by its node twin. Ported |
 | `deform` | pass | 5 | the deform field's upload and its shade, drawn by its node twin. Ported |
 | `hero-shadow` | pass | 6 | the skiers' own shadow maps, one depth atlas, read by the key's light. Ported |
@@ -93,7 +93,7 @@ webgpu paths.
 | `haze` | material | 2 | the haze on a hazed material, with the key's extras, the shade lift and the lamps; a glow's fade. Ported |
 | `sky` | material | 3 | the dome, the far ranges and the sky's passes, each drawn by its node twin. Ported |
 | `particles` | material | 9 | the spray, the snowfall and the spindrift, the snow cloud and its shadow, the billboards, the sparks and the snow guns' plumes, each drawn by its node twin or, for a `gl_PointSize` point, by a stand-in a quad a point. Ported |
-| `shader` | material | 10 | every other `ShaderMaterial`: the clouds, then the figures and the effects in their own parts |
+| `shader` | material | 11 | every other `ShaderMaterial`: the figures, then the effects in their own parts. The clouds' passes were the first of them, ported in part 10 |
 | `terrain` | material | 4 | the clipmap's every level, its snow, its rock and a summer's ground, drawn by its node twin. Ported |
 | `forest-batch` | material | 8 | the woods' multi-draw batch, drawn shape by shape instanced on the node renderer (`forest-nodes.ts`). Ported |
 | `haze-graft` | material | 11 | a `hazeMaterial` with grafted GLSL of its own (the figures' gaits, the rock's keep, the tree cards…), each drawn again in its owner's part |
@@ -101,10 +101,13 @@ webgpu paths.
 | `wingsuit` | material | 12 | the wingsuit figure |
 | `gore-tree` | material | 11 | the gore on a tree |
 
-On the webgpu paths after part 9, the frame draws these:
+On the webgpu paths after part 10, the frame draws these:
 
 - the sky: the dome with the sun, the moon, the stars and the Milky Way,
-  the contrails and LOW's cloud shell, and the far ranges
+  the contrails, and the far ranges
+- the clouds at every tier: LOW's shell, MEDIUM's slab, HIGH's and MAX's
+  raymarched volume with the low deck, and their shadow on the ground and
+  in the key's light
 - the ground: the clipmap's every level, its snow, its rock and strata, a
   summer's ground, and the deformable snow's mesh
 - the snow's marks: every skier's furrows, grooves and berms, the swaths
@@ -233,7 +236,7 @@ second copy.
 
 - The aerial-perspective volume (`aerialShade`) is read since part 3, as
   WebGL reads it.
-- The clouds' shadow on the key (part 10) is 1.
+- The clouds' shadow on the key is read since part 10.
 - The skiers' own shadow maps are read since part 6.
 - A material's own share of colour through the haze (`HAZE_KEEP`) is read
   by the ground since part 4 (`hazeOver`'s `keep`). The rock's own graft
@@ -279,13 +282,11 @@ needs no pass.
   border wrapped off its opposite edge, so the sampler's own filter
   repeats as the 3D one does. The depth is filtered between two slices
   by hand.
-- LOW's cloud shell is every tier's on the webgpu paths until the clouds'
-  passes are ported (part 10). MEDIUM's slab and HIGH's volume are
-  pictures drawn before the frame, and those passes are skipped. So a deck
-  that WebGL's volume closes over the whole sky (OVERCAST at HIGH) can
-  leave a strip of sky at the top of the frame on the webgpu paths, and
-  how it reads at HIGH depends on the cells drawn before it in `make sky`'s
-  sheet. At LOW the overcast matches WebGL's.
+- Until part 10, LOW's cloud shell was every tier's on the webgpu paths:
+  MEDIUM's slab and HIGH's volume are pictures drawn before the frame, and
+  those passes were skipped. A deck that WebGL's volume closes over the
+  whole sky (OVERCAST at HIGH) left a strip of sky at the top of the frame.
+  Part 10 draws the passes, and the dome reads their picture by its tier.
 
 `tests/sky_tsl_test.ts` holds the flags, the quarantine, the register, every
 twin built on plain Node, and the sheet against the field.
@@ -576,8 +577,8 @@ what they cost. At HIGH the worst frame left comes two minutes in and is
 the device's steady work, not a compile. `webgpu-gl` at HIGH builds no
 program mid-run either (207 are linked before the card).
 
-**Stand-ins left:** the clouds' shadow on the key (`cloudShadow`, part 10)
-is 1.
+**Stand-ins left:** none here. The clouds' shadow on the key
+(`cloudShadow`) was 1 until part 10.
 
 `tests/shadows_tsl_test.ts` holds the register rows, `heroBias` (WebGL's
 literal, and both node layouts), the atlas on each renderer, the
@@ -900,6 +901,137 @@ nobody else's, every twin made on plain Node once a material as a node
 material over its ShaderMaterial's pipeline, and the stands drawing as many
 quads as WebGL draws points, hiding the points and putting them back.
 
+## The clouds (part 10)
+
+The clouds' passes now run on the webgpu paths: the shadow map the ground
+and the key read, MEDIUM's slab and HIGH's and MAX's raymarched volume.
+Before this part every tier drew LOW's shell and the key's cloud shadow was
+1. WebGL's code path is untouched, so its picture is the same to the bit.
+
+| Piece | WebGL | Node renderer |
+| --- | --- | --- |
+| The shadow map | `clouds.ts`'s pass: a layer's optical depth a channel, over the span the ground lies in | `cloud-pass-tsl.ts`'s `shadowPassTwin`, into a `RenderTarget` of the node renderer's own |
+| The shadow on the ground and in the air | `CLOUD_GLSL`'s `cloudShadow`, in `hazeMaterial`'s key (`DIR_INFO`) and `snow-air-light.ts` | `cloudShadow` / `cloudShadowSlots` in `cloud-pass-tsl.ts`, read by the key's light node (`lights-tsl.ts`) and `air-tsl.ts`'s key |
+| MEDIUM's slab | `CLOUD_SLAB_GLSL`, `STEPS` and `LIGHT` by tier | `slabTwin`: the same march, its light reads unrolled |
+| HIGH's volume, whole | `cloud-volume.ts`'s `MARCH` with `WHOLE` | `cloud-volume-tsl.ts`'s `marchTwin` |
+| HIGH's volume, a fresh share | `MARCH` into two attachments: the cloud and its distance | `marchTwin`: one march, its two outputs off a TSL struct, into a target of `count: 2` |
+| HIGH's volume, carried | `CARRY`: the fresh texels as they are, the rest reprojected off the last picture and clamped to the fresh neighbourhood | `carryTwin`, the texel reads at their centres |
+| The volume's noise | two 3D textures | the same noise laid on 2D sheets (`noiseAtlas`, part 3), every channel |
+| The dome | reads the pass's picture by its tier (`CLOUD_SLAB`: 0 the shell, 1 the slab's tent, 2 the volume's picture) | `sky-dome-tsl.ts` the same, `CLOUD_SLAB` read off the defines each frame |
+
+The low deck and the sea of cloud are the volume's and the haze's (part 2)
+and come with them. Each pass is a full-screen `NodeMaterial`
+(`cloudPass`) over its ShaderMaterial's own uniforms. `nodeTwin` names it
+(`clouds` / `cloud-map`, `cloud-slab`, `cloud-march`, `cloud-carry`), and
+`sky-twins-tsl.ts` makes it the first time the pass is drawn.
+`clouds.ts` and `cloud-volume.ts` decide what is drawn when on every back
+end, and only the target's class differs (`cloudTarget`).
+
+**The `shader` row** moved to part 11. It held every ShaderMaterial not
+ported yet, and the clouds' were the first of them. It now names the
+figures' and the effects'.
+
+**Traps found here:**
+
+- **A vec4 slot's `.element(k)` is the whole vector**, not its k-th
+  component. The shadow's per-layer optical depth is read by name
+  (`.x`, `.y`, `.z`). With `.element` WGSL compared a float with a vec4 and
+  refused the pipeline.
+- **A stage takes at most 12 uniform buffers on WebGPU.** Each uniform
+  array is one buffer of its own, so the volume's march, with eleven arrays
+  a layer, came to 13. `packLayers` (`cloud-shell-tsl.ts`) packs every
+  per-layer array into one `uniformArray`, refreshed before each render
+  (`onRenderUpdate`).
+- **A stage's output must BE the output struct.** A `Fn` that returns
+  `outputStruct` fails with "struct member m0 not found". The march returns
+  a TSL `struct` of its own (`CloudMarched`), and the fragment node is
+  `outputStruct(out.get("cloud"), …)` over the one call, so the march is
+  made once and read twice.
+- **A select inside a select can fail on the GL fallback.** After the
+  build, the GLSL builder asks the output node's type again, outside the
+  isolated branch the inner select was set up in. It then builds a
+  variable with no stack to stand on ("reading 'addToStack'"), and the
+  pass draws black. WebGPU's builder does not ask. The carry settles its
+  result by `If` and assignment instead.
+- **`.toVar()` needs a stack.** `cloudShadow` is a light's term, built
+  where there is no function, so it is wrapped in a `Fn` of its own.
+- **A target bound before its pass first draws is made twice** on the node
+  renderer, and the second one is never drawn into. So the shadow map is
+  drawn on the first frame on the node renderer, even under a sky with no
+  layer. WebGL still skips it.
+- **The atlas follows its data.** A `Data3DTexture`'s default format is
+  RGBA, so `noiseAtlas` counts the channels off the data's length (one or
+  four) rather than off the format.
+- **Passes draw only once the renderer is initialised** (`drawable()`).
+  The warm-up (`Environment.warmNode`) updates the clouds and the dome
+  first, so their pipelines are built behind the card.
+
+**How near the picture came.** `make world SEED=38` on webgpu against
+WebGL: the mean absolute difference per channel (0 to 255), before this
+part and after it. The whole frame below the caption, and its top 120 rows
+(the sky):
+
+| Quality | Weather, hour | View | Whole frame | Sky |
+| --- | --- | --- | --- | --- |
+| HIGH | overcast, 12 h | spawn | 17.97 → 3.49 | 0.43 → 0.19 |
+| HIGH | overcast, 12 h | far | 18.90 → 2.46 | 0.56 → 0.29 |
+| HIGH | overcast, 12 h | chase-6 | 15.41 → 2.85 | 1.04 → 0.03 |
+| HIGH | overcast, 12 h | vista | 1.93 → 0.07 | 0.26 → 0.01 |
+| HIGH | overcast, 9 h | spawn | 5.33 → 0.88 | 0.44 → 0.22 |
+| HIGH | overcast, 16.5 h | chase-6 | 4.34 → 3.10 | 1.11 → 0.04 |
+| HIGH | fair, 12 h | spawn | 12.34 → 3.90 | 13.21 → 2.63 |
+| HIGH | fair, 12 h | far | 11.58 → 3.00 | 8.42 → 3.22 |
+| HIGH | fair, 12 h | vista | 7.03 → 1.31 | 13.23 → 2.74 |
+| HIGH | clear, 9 h | spawn | 3.16 → 1.86 | 7.56 → 3.84 |
+| HIGH | clear, 12 h | chase-6 | 5.05 → 4.06 | 7.96 → 5.32 |
+| HIGH | clear, 16.5 h | spawn | 5.69 → 4.76 | 8.50 → 4.97 |
+| HIGH | snowing, 12 h | spawn | 2.86 → 2.86 | 0.02 → 0.02 |
+| LOW | overcast, 12 h | far | 18.80 → 2.56 | 0.59 → 0.51 |
+| LOW | overcast, 9 h | spawn | 5.05 → 1.67 | 0.34 → 0.34 |
+| LOW | overcast, 16.5 h | spawn | 4.56 → 5.18 | 0.36 → 0.36 |
+| LOW | fair, 12 h | spawn | 9.78 → 3.39 | 0.34 → 0.34 |
+| LOW | clear, 9 h | far | 1.68 → 0.95 | 0.61 → 0.61 |
+
+The big moves are the cloud shadow. Under a broken sky the ground was lit
+as if no cloud stood over it, and under a deck it was lit by a key the
+deck should have dimmed. The sky's own moves are HIGH's slab and volume,
+which used to be LOW's shell. What is left on the sky at HIGH is the
+volume's own per-pixel jitter, which a still catches on both back ends
+in different places. Only one row moved the wrong way: LOW, overcast at
+16.5 h, about half a level darker, an even dim of the evening's warm key
+over the whole frame. The snow's own shading (parts 4 and 5) is most of
+what is left on the ground.
+
+`webgpu-gl` draws the same clouds, and lands as near: at HIGH at 12 h,
+overcast 17.82 → 3.29 (spawn) and 18.75 → 2.27 (far), fair 12.14 → 3.48
+(spawn) and 7.01 → 0.96 (vista), its sky within 2.4 of WebGL's on every
+view. The carried volume drew black there until the carry stopped nesting
+its selects (see the traps). The 64
+WebGL shots (LOW and HIGH; clear and overcast at 9, 12 and 16.5 h; fair and
+snowing at 12 h; spawn, far, vista, chase-6) are byte-identical to part 9's.
+
+**What a draw binds after part 10**, counted on `webgpu-gl` (sampler
+uniforms per stage of every linked program, the race on seed 20):
+
+| | LOW | HIGH |
+| --- | --- | --- |
+| The most any program binds, vertex / fragment | 8 / 13 (8 / 12 before) | 8 / 16 (8 / 15 before) |
+| Which program | the ground | the ground |
+| Programs linked | 43 | 97 |
+
+The ground's fragment reads the cloud shadow map now, one unit more at
+every tier. **At HIGH it sits at WebGL2's 16 exactly**, so the next
+texture the ground reads on the GL fallback must share a unit or pack
+into one it has.
+
+`tests/clouds_tsl_test.ts` holds the register rows, the passes drawn by
+their twins into the node renderer's targets (the map, the slab with its
+tier's steps, the volume whole and then fresh into two nearest-filtered
+attachments and carried), the shadow drawn once on the node renderer with
+no layer, WebGL's own targets on WebGL, every twin made once on plain Node
+with its pass node, the atlas's channels, the key's slot re-pointed at the
+map the clouds draw, and the dome's read by its tier.
+
 ## Measuring both paths
 
 Every browser lab takes `--renderer=webgl|webgpu|webgpu-gl`
@@ -950,8 +1082,10 @@ lines.
 | 8 Forest | 2026-10-20 | webgpu | 114 (79 before) | 170 808 (144 326) | 64 programs, 41 pipelines (62, 40 before) | 969.29 (979.56 before) | 962.21 (972.75) | 5 passes / 28 meshes (5 / 29 before) | The woods draw, a shape at a time, and cast into the key's map. The steady readings are 9–10 ms (10–12); the mean is the device's queue on SwiftShader, which the last reading drains (5 000 ms). At HIGH: 223 draws (85), 610 385 triangles (464 052), 126 programs and 92 pipelines (121, 89), 10 375.37 ms (10 319.44) with steady readings of 24–37 ms (14–22) and a last reading of 58 728 ms (44 918). Indirect draws off a compute cull (part 17) take the draws back |
 | 9 Particles and air | 2026-10-21 | webgl | 100 | 231 883 | 51 programs | 13.65 (13.42 before) | 6.35 (6.34) | 0 / 0 | the 42 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, powder, furrow, landing, far; and snowing at 12 h) are pixel-identical to part 8's. At HIGH: 110 draws, 686 162 triangles, 67 programs, 16.57 ms (21.46) |
 | 9 Particles and air | 2026-10-21 | webgpu | 116 (114 before) | 173 541 (170 618) | 74 programs, 46 pipelines (64, 41 before) | 828.40 (1 040.77 before) | 821.09 (1 033.81) | 5 passes / 24 meshes (5 / 28 before) | The spray, the snowfall and the snow cloud and its shadow draw. The steady readings are 10–11 ms (11–17); the mean is the device's queue on SwiftShader, which one reading drains (3 892 ms; 4 030 before). At HIGH: 224 draws (223), 616 797 triangles (610 097), 136 programs and 97 pipelines (126, 92), 7 936.49 ms (9 420.68) with steady readings of 29–33 ms (17–29) and a last reading of 41 606 ms (41 315) |
+| 10 Clouds | 2026-10-21 | webgl | 100 (101 before) | 231 880 (231 913) | 51 programs | 18.89 (18.88 before) | 9.24 (8.57) | 0 / 0 | the 64 WebGL world shots (seed 38; LOW and HIGH; clear and overcast at 9, 12 and 16.5 h, fair and snowing at 12 h; spawn, far, vista, chase-6) are byte-identical to part 9's. At HIGH: 110 draws, 686 187 triangles, 67 programs, 23.42 ms (22.24). The container ran the world lab beside the bench, so every ms here is higher than part 9's |
+| 10 Clouds | 2026-10-21 | webgpu | 116 (115 before) | 173 759 (173 523) | 76 programs, 47 pipelines (74, 46 before) | 1 215.71 (2 316.78 before) | 1 208.27 (2 306.20) | 4 passes / 24 meshes (5 / 24 before) | The cloud shadow, the slab and the volume draw; at LOW the shadow map's pass is the new pipeline. The steady readings are 6–18 ms (7–15); the mean is the device's queue on SwiftShader, which the last reading drained before (10 111 ms) and none drains here. At HIGH: 226 draws (224), 625 856 triangles (617 124), 143 programs and 101 pipelines (136, 97), 11 508.58 ms (15 237.89) with steady readings of 19–21 ms (21–41) and two draining readings of 66 381 and 39 448 ms (one of 72 688). Snowing at HIGH (`--views snow`, webgpu alone): 227 draws (234), 633 740 triangles (637 066), 139 programs and 99 pipelines (132, 95), 7 841.75 ms (7 580.92) with steady readings of 17–22 ms (15–24) and one draining reading of 32 958 ms (none) |
 
-Parts 1 to 9 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+Parts 1 to 10 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis), and from
 part 3 again with `--video high` for the numbers under "At HIGH".
 
@@ -966,7 +1100,7 @@ part 3 again with `--video high` for the numbers under "At HIGH".
 - [x] 7 Grade and post (`grade-pass`): the region's grade, the buzz and the blaze as a `RenderPipeline` over the pass's own uniforms, the tone map and the sRGB curve by hand in WebGL's order; the warm-up through the grade's target
 - [x] 8 Forest (`forest-batch`): every shape drawn instanced over WebGL's tree table, the faceted, card and casters' materials in TSL, the casters on a layer of their own in the key's map
 - [x] 9 Particles and air (`particles`): the spray (the CPU pool and the GPU ring), the snowfall, the snow cloud and its shadow, the billboards and the plumes as node twins; the spindrift and the sparks' heads drawn by stand-ins, a quad a point
-- [ ] 10 Clouds (`clouds`)
+- [x] 10 Clouds (`clouds`): the cloud shadow on the ground and the key, MEDIUM's slab, HIGH's volume (whole, then a fresh share into two targets and the rest carried) as node twins drawn into the node renderer's targets; the dome reads their picture by its tier; the `shader` row moved to part 11
 - [ ] 11 Figures (`gore-tree`)
 - [ ] 12 Skier, models, effects (`model-merged`, `wingsuit`)
 - [ ] 13 Buildings and props

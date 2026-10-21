@@ -21,9 +21,9 @@
 //                  side of a surface that faces each (`LAMP_FRAGMENT`).
 //
 // The mountain's shadow map (`terrain-shade.ts`) is baked on the CPU and
-// uploaded, so it is read here as on WebGL. The STAND-IN for the pass not
-// ported yet, a hook its part replaces: the clouds' shadow map
-// (`cloudShadow`, part 10) is 1.
+// uploaded, so it is read here as on WebGL; the clouds' shadow map is drawn
+// before the frame by its pass's twin and read as `cloud-pass-tsl.ts`'s
+// `cloudShadow` (part 10).
 
 import * as THREE from "three";
 import {
@@ -55,6 +55,7 @@ import {
   type WebGPURenderer,
 } from "three/webgpu";
 
+import { cloudShadow, cloudShadowSlots } from "./cloud-pass-tsl.ts";
 import { LAMP_SLOTS, type HazeUniforms } from "./haze.ts";
 import { slot, standIn, tap, type N } from "./haze-tsl.ts";
 import { KeyShadowNode, heroShadowed } from "./shadows-tsl.ts";
@@ -72,9 +73,12 @@ export type LightSlots = ReturnType<typeof makeSlots>;
 
 function makeSlots(u: HazeUniforms) {
   const blank = standIn();
+  const clouds = texture(u.uCloudShadow.value ?? blank);
   return {
     u,
     blank,
+    clouds,
+    cloud: cloudShadowSlots(u, clouds),
     sunDir: slot(u.uSunDir, "vec3"),
     keyBandY: slot(u.uKeyBandY, "vec4"),
     keyBand: slot(u.uKeyBand, "vec3"),
@@ -109,6 +113,8 @@ export function syncLights(s: LightSlots): void {
   if (s.shade.value !== shade) s.shade.value = shade;
   const piste = s.u.uPisteLight.value ?? s.blank;
   if (s.piste.value !== piste) s.piste.value = piste;
+  const clouds = s.u.uCloudShadow.value ?? s.blank;
+  if (s.clouds.value !== clouds) s.clouds.value = clouds;
 }
 
 const sample = (t: TextureNode, uv: N): N => tap(t, uv);
@@ -191,8 +197,7 @@ export class KeyLightNode extends DirectionalLightNode {
       kept.shadowNode = null;
       kept.shadowColorNode = null;
     }
-    // `cloudShadow` is the clouds' pass's (part 10): 1 until then.
-    colour = colour.mul(keyAtHeight(s, positionWorld.y));
+    colour = colour.mul(cloudShadow(s.cloud, positionWorld)).mul(keyAtHeight(s, positionWorld.y));
     const direct = this.setupDirect(builder);
     if (direct)
       (builder as N).lightsNode.setupDirectLight(builder, this, { ...direct, lightColor: colour });

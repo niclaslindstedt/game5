@@ -73,9 +73,10 @@ export function armourPoint(
 
 /** WHERE A VEHICLE'S DOOR IS on the snow: beside its cab on the driver's
  * side, a step out from the hull. */
-export function armourDoor(
-  b: Pick<ArmyVehicle, "kind" | "x" | "z" | "heading">,
-): { x: number; z: number } {
+export function armourDoor(b: Pick<ArmyVehicle, "kind" | "x" | "z" | "heading">): {
+  x: number;
+  z: number;
+} {
   const D = K.cabs[b.kind].door;
   const out = (specOf(b).halfWidth + K.hop.out) * D.side;
   const fx = Math.sin(b.heading);
@@ -243,8 +244,7 @@ function hop(state: GameState, r: ArmourRide, events: GameEvent[]): void {
 }
 
 /** An axis eased toward where his hand has it. */
-const ease = (v: number, want: number): number =>
-  v + clamp(want - v, -K.hands * dt, K.hands * dt);
+const ease = (v: number, want: number): number => v + clamp(want - v, -K.hands * dt, K.hands * dt);
 
 /** DRIVEN: the tuck forward, the skid back, the edge steering — the
  * vehicle's own body on the snow. */
@@ -306,7 +306,8 @@ export function sightPoint(state: GameState, b: ArmyVehicle): { x: number; y: nu
   };
   if (a) {
     for (const v of a.vehicles)
-      if (v.mode !== "due" && v.mode !== "gone" && v.mode !== "wreck") consider(v.x, v.y + 1.2, v.z);
+      if (v.mode !== "due" && v.mode !== "gone" && v.mode !== "wreck")
+        consider(v.x, v.y + 1.2, v.z);
     for (const h of a.helis)
       if (h.phase !== "due" && h.phase !== "gone" && h.phase !== "wreck")
         consider(h.x, h.y + 1.4, h.z);
@@ -348,7 +349,8 @@ export function armyStruck(state: GameState, p: readonly number[], q: readonly n
     test(v.x, v.y + 1.2, v.z, specOf(v).halfWidth + 0.4);
   }
   for (const h of a.helis)
-    if (h.phase !== "due" && h.phase !== "gone" && h.phase !== "wreck") test(h.x, h.y + 1.4, h.z, 2);
+    if (h.phase !== "due" && h.phase !== "gone" && h.phase !== "wreck")
+      test(h.x, h.y + 1.4, h.z, 2);
   return best;
 }
 

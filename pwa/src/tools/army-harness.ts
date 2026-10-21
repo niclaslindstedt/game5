@@ -944,7 +944,9 @@ const COLS: Record<string, number> = {
   "sled-chase": 3,
   "sled-halt": 3,
   "sled-arrest": 3,
-  ...Object.fromEntries([...WAVE_VIEWS, ...VEHICLE_VIEWS, ...AIR_VIEWS, ...STEAL_VIEWS].map((v) => [v, 3])),
+  ...Object.fromEntries(
+    [...WAVE_VIEWS, ...VEHICLE_VIEWS, ...AIR_VIEWS, ...STEAL_VIEWS].map((v) => [v, 3]),
+  ),
 };
 
 const ready = (async () => {

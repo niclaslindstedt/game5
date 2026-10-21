@@ -181,8 +181,7 @@ const takeVehicle = (run: GameState, p: StealTarget, events: GameEvent[]): boole
  * a ground wave's vehicle becomes his own (`GameState.armour`). */
 const TAKERS: Record<StealKind, (run: GameState, p: StealTarget, events: GameEvent[]) => boolean> =
   {
-    heli: (run, p, events) =>
-      isHeliLivery(p.livery) && takeHeli(run, p, p.livery, p.spool, events),
+    heli: (run, p, events) => isHeliLivery(p.livery) && takeHeli(run, p, p.livery, p.spool, events),
     sled: (run, p, events) => isSledLivery(p.livery) && takeSled(run, p, p.livery, events),
     carrier: takeVehicle,
     truck: takeVehicle,

@@ -92,15 +92,38 @@ const RIGHT_TAPES = [
 
 /** The caution panel's legends, row by row. */
 const CAUTIONS = [
-  ["#1 FUEL LOW", "#1 GEN", "#1 OIL PRESS", "#1 ENG OUT", "MAIN XMSN", "#2 ENG OUT", "#2 OIL PRESS", "#2 GEN"],
-  ["#1 FUEL PRESS", "LOW ROTOR", "CHIP INPUT", "AFCS DEGR", "STAB", "HYD PUMP", "IFF", "#2 FUEL LOW"],
+  [
+    "#1 FUEL LOW",
+    "#1 GEN",
+    "#1 OIL PRESS",
+    "#1 ENG OUT",
+    "MAIN XMSN",
+    "#2 ENG OUT",
+    "#2 OIL PRESS",
+    "#2 GEN",
+  ],
+  [
+    "#1 FUEL PRESS",
+    "LOW ROTOR",
+    "CHIP INPUT",
+    "AFCS DEGR",
+    "STAB",
+    "HYD PUMP",
+    "IFF",
+    "#2 FUEL LOW",
+  ],
 ] as const;
 
 function at(cx: number, k: { x: number; y: number; d: number }): [number, number, number] {
   return [px(cx + k.x), py(k.y), pr(k.d / 2)];
 }
 
-function boxOf(k: { x: number; y: number; w: number; h: number }): [number, number, number, number] {
+function boxOf(k: {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}): [number, number, number, number] {
   return [px(k.x - k.w / 2), py(k.y + k.h / 2), pr(k.w), pr(k.h)];
 }
 
@@ -207,7 +230,16 @@ export function paintArmyPanelBack(c: Ctx): void {
       const [x, y, r] = at(cx, { ...SET.clock, x: SET.clock.x * (i === 0 ? 1 : -1) });
       bezel(c, x, y, r);
       ticks(c, x, y, r, 0, 360, 60, 5);
-      numbers(c, x, y, r, 0, 330, ["12", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"], 0.24);
+      numbers(
+        c,
+        x,
+        y,
+        r,
+        0,
+        330,
+        ["12", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"],
+        0.24,
+      );
     }
     // The master caution under the glareshield before him.
     const mx = px(cx);
@@ -272,7 +304,8 @@ function tapePair(
     c.fillStyle = colour(v);
     // The column as lit segments, as the tapes' lamps are.
     const segs = Math.round(k * 30);
-    for (let s = 0; s < segs; s++) c.fillRect(cx, base - (s + 1) * (tall / 30) + 1, w * 0.14, tall / 30 - 1.5);
+    for (let s = 0; s < segs; s++)
+      c.fillRect(cx, base - (s + 1) * (tall / 30) + 1, w * 0.14, tall / 30 - 1.5);
   });
 }
 
@@ -295,7 +328,14 @@ function paintCautions(c: Ctx, g: Gauges | null): void {
       const on = lit(word);
       c.fillStyle = on ? "#f4b41c" : "#1d1a12";
       c.fillRect(x + i * cw + 1.5, y + j * ch + 1.5, cw - 3, ch - 3);
-      label(c, x + i * cw + cw / 2, y + j * ch + ch / 2, Math.min(9, ch * 0.33), word, on ? "#140f02" : "#4c4532");
+      label(
+        c,
+        x + i * cw + cw / 2,
+        y + j * ch + ch / 2,
+        Math.min(9, ch * 0.33),
+        word,
+        on ? "#140f02" : "#4c4532",
+      );
     }),
   );
 }
@@ -321,7 +361,15 @@ export function paintArmyPanelLive(c: Ctx, back: CanvasImageSource, g: Gauges): 
     {
       const [x, y, r] = at(cx, SET.alt);
       const ft = Math.max(0, g.alt);
-      window7(c, x - r * 0.3, y + r * 0.28, r * 0.6, r * 0.2, String(Math.round(ft / 100) * 100).padStart(5, "0"), g.live);
+      window7(
+        c,
+        x - r * 0.3,
+        y + r * 0.28,
+        r * 0.6,
+        r * 0.2,
+        String(Math.round(ft / 100) * 100).padStart(5, "0"),
+        g.live,
+      );
       needle(c, x, y, r, ((ft % 1000) / 1000) * 360, 0.85);
       needle(c, x, y, r, ((ft % 10000) / 10000) * 360, 0.5, 0.1);
       hub(c, x, y, r);

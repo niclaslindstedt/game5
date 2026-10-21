@@ -131,7 +131,10 @@ function onHeli(h: HeliState, p: V3): THREE.Vector3 {
 function down(steer = 0) {
   return (r: GameState): SkierInput => {
     const b = r.armour!.body;
-    const p = trackPointAt(r.level, Math.min(r.level.track.length, nearestTrackPoint(r.level, b.x, b.z).s + 40));
+    const p = trackPointAt(
+      r.level,
+      Math.min(r.level.track.length, nearestTrackPoint(r.level, b.x, b.z).s + 40),
+    );
     const want = Math.atan2(p.x - b.x, p.z - b.z);
     let turn = want - b.heading;
     turn = Math.atan2(Math.sin(turn), Math.cos(turn));

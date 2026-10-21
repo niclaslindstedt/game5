@@ -663,8 +663,7 @@ export function createMachines(
       // In the cab he is out of sight: the machine is his figure now — and
       // back in sight the moment he is let down out of it.
       if (seated)
-        seated.root.visible =
-          !(groomers && drivenGroomer(s)) && !drivenArmour(s) && !flownArmy(s);
+        seated.root.visible = !(groomers && drivenGroomer(s)) && !drivenArmour(s) && !flownArmy(s);
     },
     light(look) {
       para?.light(look);

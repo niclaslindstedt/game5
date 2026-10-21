@@ -125,7 +125,12 @@ function take(s, door) {
   const offered = E.stealWithin(s);
   E.step(s, ask({ machine: true }));
   const stole = s.events.some((e) => e.kind === "steal");
-  return { offered: offered?.kind ?? "—", stole, heat: s.wanted.heat - heat, stars: s.wanted.stars };
+  return {
+    offered: offered?.kind ?? "—",
+    stole,
+    heat: s.wanted.heat - heat,
+    stars: s.wanted.stars,
+  };
 }
 
 function groundRow(kind) {
@@ -236,10 +241,7 @@ function heliRow() {
     // eased forward to 25 m/s once clear of it.
     const fx = Math.sin(h.heading);
     const fz = Math.cos(h.heading);
-    const under = Math.max(
-      level.groundAt(h.x, h.z),
-      level.groundAt(h.x + 80 * fx, h.z + 80 * fz),
-    );
+    const under = Math.max(level.groundAt(h.x, h.z), level.groundAt(h.x + 80 * fx, h.z + 80 * fz));
     const agl = h.y - under;
     const collective = Math.max(0, Math.min(1, 0.6 + (60 - agl) * 0.02 - h.vy * 0.1));
     const way = h.vx * fx + h.vz * fz;
@@ -284,7 +286,9 @@ console.log(
 console.log(
   "| machine | offered | stolen | heat + | stars | made good m | path m | top km/h | mean km/h | most still s | backed out | climbed m | knocked out | stuck |",
 );
-console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+console.log(
+  "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+);
 for (const r of rows)
   console.log(
     `| ${r.kind} | ${r.offered} | ${r.stole ? "yes" : "no"} | ${f(r.heat, 2)} | ${f(r.stars)} | ` +

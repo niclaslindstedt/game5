@@ -133,7 +133,10 @@ export function quad(a: V3, b: V3, c: V3, d: V3): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
   g.setAttribute(
     "position",
-    new THREE.Float32BufferAttribute([a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x, d.y, d.z], 3),
+    new THREE.Float32BufferAttribute(
+      [a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x, d.y, d.z],
+      3,
+    ),
   );
   g.setAttribute("uv", new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
   g.setIndex([0, 1, 2, 0, 2, 3]);

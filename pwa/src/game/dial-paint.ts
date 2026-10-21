@@ -90,7 +90,15 @@ export function numbers(
 }
 
 /** A coloured arc band round a dial's rim from `a0` to `a1` deg. */
-export function band(c: Ctx, x: number, y: number, r: number, a0: number, a1: number, colour: string) {
+export function band(
+  c: Ctx,
+  x: number,
+  y: number,
+  r: number,
+  a0: number,
+  a1: number,
+  colour: string,
+) {
   c.strokeStyle = colour;
   c.lineWidth = r * 0.08;
   c.beginPath();
@@ -98,7 +106,14 @@ export function band(c: Ctx, x: number, y: number, r: number, a0: number, a1: nu
   c.stroke();
 }
 
-export function label(c: Ctx, x: number, y: number, size: number, text: string, colour = INK): void {
+export function label(
+  c: Ctx,
+  x: number,
+  y: number,
+  size: number,
+  text: string,
+  colour = INK,
+): void {
   c.fillStyle = colour;
   c.font = `bold ${Math.round(size)}px sans-serif`;
   c.textAlign = "center";
@@ -126,7 +141,6 @@ export function hub(c: Ctx, x: number, y: number, r: number): void {
   c.arc(x, y, r * 0.09, 0, Math.PI * 2);
   c.fill();
 }
-
 
 /** THE ATTITUDE: the sky and the ground behind the fixed aircraft, the
  * horizon moved with the pitch and turned with the roll, the bank pointer
@@ -208,13 +222,7 @@ export function attitudeBall(
 }
 
 /** THE HSI: the compass card turned to the heading under the lubber line. */
-export function compassCard(
-  c: Ctx,
-  x: number,
-  y: number,
-  r: number,
-  g: { heading: number },
-): void {
+export function compassCard(c: Ctx, x: number, y: number, r: number, g: { heading: number }): void {
   c.fillStyle = FACE;
   c.beginPath();
   c.arc(x, y, r, 0, Math.PI * 2);
@@ -267,7 +275,15 @@ export function compassCard(
 }
 
 /** A seven-segment readout's window, lit green while `on`. */
-export function window7(c: Ctx, x: number, y: number, w: number, h: number, text: string, on: boolean) {
+export function window7(
+  c: Ctx,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  text: string,
+  on: boolean,
+) {
   c.fillStyle = "#050505";
   c.fillRect(x, y, w, h);
   if (!on) return;

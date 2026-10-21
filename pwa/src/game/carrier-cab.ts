@@ -33,8 +33,17 @@
 import * as THREE from "three";
 import { ARMOUR, type ArmourRide } from "@engine";
 
-import { CARRIER_CAB as C, cabGauges, cabPose, handsOnWheel, wheelFrame } from "./army-cab-plan.ts";
+import { CARRIER_CAB as C, cabGauges, cabPose, handsOnWheel } from "./army-cab-plan.ts";
 import { CabKit, mix, quad } from "./cab-kit.ts";
+import {
+  buildExtinguisher,
+  buildPane,
+  buildPedal,
+  buildSeat,
+  buildWheel,
+  dashFace,
+  wallAt,
+} from "./cab-parts.ts";
 import {
   clusterSize,
   paintClusterBack,
@@ -156,17 +165,7 @@ export function createCarrierCab(haze: HazeUniforms): CarrierCab {
       b: [number, number],
       c: [number, number],
       d: [number, number],
-    ) =>
-      kit.mesh(
-        quad(
-          { x, y: a[1], z: a[0] },
-          { x, y: b[1], z: b[0] },
-          { x, y: c[1], z: c[0] },
-          { x, y: d[1], z: d[0] },
-        ),
-        wall,
-        group,
-      );
+    ) => wallAt(kit, group, x, wall, a, b, c, d);
     // Under the window, over it, behind it and before it to the screen.
     panel(
       [I.back, I.floor],
@@ -185,10 +184,7 @@ export function createCarrierCab(haze: HazeUniforms): CarrierCab {
       { x: xi, y: Wn.hi, z: Wn.to },
       { x: xi, y: Wn.hi, z: Wn.from },
     ];
-    for (let i = 0; i < 4; i++) kit.rod(corners[i], corners[(i + 1) % 4], 0.018, rubber, group, 6);
-    const pane = kit.mesh(quad(corners[0], corners[1], corners[2], corners[3]), glass, group);
-    pane.renderOrder = 4;
-    pane.castShadow = false;
+    buildPane(kit, group, corners, { rubber, glass });
     // The door's seam round it, on the driver's side; its handle and
     // pocket.
     if (s === ARMOUR.cabs.carrier.door.side) {
@@ -283,19 +279,8 @@ export function createCarrierCab(haze: HazeUniforms): CarrierCab {
 
   // ── THE DASHBOARD ──────────────────────────────────────────────────
   const D = C.dash;
-  const top = { y: D.top, z: D.back };
-  const foot = D.foot;
-  const faceLen = Math.hypot(top.y - foot.y, top.z - foot.z);
-  const up = { y: (top.y - foot.y) / faceLen, z: (top.z - foot.z) / faceLen };
-  // The face's normal, toward the driver.
-  const nrm = { y: up.z, z: -up.y };
-  /** A point on the dash's face: `x` across, `u` up it from its foot,
-   * `o` out of it toward the driver. */
-  const onFace = (x: number, u: number, o = 0): V3 => ({
-    x,
-    y: foot.y + up.y * u + nrm.y * o,
-    z: foot.z + up.z * u + nrm.z * o,
-  });
+  const face = dashFace({ y: D.top, z: D.back }, D.foot);
+  const { on: onFace, len: faceLen, up, nrm } = face;
   const dashMat = kit.std({ color: 0x232521, roughness: 0.85 });
   kit.mesh(
     quad(onFace(D.half, 0), onFace(-D.half, 0), onFace(-D.half, faceLen), onFace(D.half, faceLen)),
@@ -498,130 +483,42 @@ export function createCarrierCab(haze: HazeUniforms): CarrierCab {
   ).rotation.x = -0.6;
 
   // ── THE STEERING WHEEL ON ITS COLUMN ───────────────────────────────
-  const WF = wheelFrame();
-  const Wh = C.wheel;
-  kit.rod({ x: Wh.x, y: C.column.y, z: C.column.z }, WF.hub, 0.03, black, group, 12);
-  // The column's shroud and the indicator's stalk.
-  kit.rod(
-    { x: Wh.x, y: C.column.y, z: C.column.z },
-    mix({ x: Wh.x, y: C.column.y, z: C.column.z }, WF.hub, 0.55),
-    0.05,
-    dark,
+  const turn = buildWheel(
+    kit,
     group,
-    12,
-  );
-  const stalkAt = mix({ x: Wh.x, y: C.column.y, z: C.column.z }, WF.hub, 0.6);
-  kit.rod(
-    stalkAt,
-    { x: stalkAt.x + 0.16, y: stalkAt.y + 0.01, z: stalkAt.z - 0.02 },
-    0.007,
-    black,
-    group,
-    6,
-  );
-  const wheel = new THREE.Group();
-  wheel.position.set(WF.hub.x, WF.hub.y, WF.hub.z);
-  // The wheel's own frame: its face's normal (toward the driver) on its
-  // local +y — so it turns about y.
-  wheel.quaternion.setFromUnitVectors(
-    new THREE.Vector3(0, 1, 0),
-    new THREE.Vector3(WF.axis.x, WF.axis.y, WF.axis.z).normalize(),
-  );
-  const turn = new THREE.Group();
-  wheel.add(turn);
-  group.add(wheel);
-  const rim = kit.mesh(new THREE.TorusGeometry(Wh.r, Wh.grip, 10, 48), rubber, turn);
-  rim.rotation.x = Math.PI / 2;
-  // Three spokes, to either side and the broad one down (the wheel's
-  // local −z is the rim's foot), and the horn's pad.
-  for (const a of [0, Math.PI, Math.PI / 2]) {
-    const sp = kit.box(
-      Wh.r - 0.04,
-      0.012,
-      a === Math.PI / 2 ? 0.06 : 0.035,
-      { x: 0, y: -0.015, z: 0 },
+    C.wheel,
+    { x: C.wheel.x, y: C.column.y, z: C.column.z },
+    {
       black,
-      turn,
-      0.005,
-    );
-    sp.rotation.y = a;
-    sp.position.set(Math.cos(a) * (Wh.r / 2), -0.015, -Math.sin(a) * (Wh.r / 2));
-  }
-  kit.mesh(new THREE.CylinderGeometry(0.06, 0.065, 0.04, 20), black, turn).position.y = -0.005;
+      dark,
+      rubber,
+    },
+  );
 
   // ── THE PEDALS ─────────────────────────────────────────────────────
   const P = C.pedals;
-  const pedal = (x: number, w: number, h: number): THREE.Group => {
-    const g = new THREE.Group();
-    g.position.set(x, P.y + 0.16, P.z + 0.04);
-    group.add(g);
-    kit.rod({ x: 0, y: 0, z: 0 }, { x: 0, y: -0.14, z: -0.04 }, 0.008, steel, g, 6);
-    const pad = kit.box(w, h, 0.016, { x: 0, y: -0.15, z: -0.045 }, rubber, g, 0.006);
-    pad.rotation.x = -0.45;
-    return g;
-  };
+  const pedal = (x: number, w: number, h: number): THREE.Group =>
+    buildPedal(kit, group, { x, y: P.y + 0.16, z: P.z + 0.04 }, w, h, { steel, rubber });
   const gas = pedal(P.gas, 0.06, 0.14);
   const brake = pedal(P.brake, 0.1, 0.07);
 
   // ── THE SEATS ──────────────────────────────────────────────────────
   const St = C.seat;
-  for (const x of [St.x, C.mate]) {
-    kit.box(
-      St.width * 0.8,
-      St.top - 0.08 - I.floor,
-      St.depth * 0.7,
-      { x, y: (St.top - 0.08 + I.floor) / 2, z: St.z },
-      dark,
-      group,
-      0.02,
-    );
-    kit.box(St.width, 0.1, St.depth, { x, y: St.top - 0.05, z: St.z }, canvasSeat, group, 0.04);
-    const back = new THREE.Group();
-    back.position.set(x, St.top - 0.02, St.z - St.depth / 2 + 0.03);
-    back.rotation.x = -St.lean;
-    group.add(back);
-    kit.box(St.width, St.tall, 0.1, { x: 0, y: St.tall / 2, z: -0.05 }, canvasSeat, back, 0.04);
-    for (const s of [-1, 1])
-      kit.box(
-        0.06,
-        St.tall * 0.7,
-        0.1,
-        { x: s * (St.width / 2 - 0.02), y: St.tall * 0.4, z: 0.0 },
-        canvasSeat,
-        back,
-        0.03,
-      );
-    kit.box(0.26, 0.17, 0.08, { x: 0, y: St.tall + 0.13, z: -0.06 }, canvasSeat, back, 0.03);
-    for (const s of [-1, 1])
-      kit.rod(
-        { x: s * 0.08, y: St.tall, z: -0.06 },
-        { x: s * 0.08, y: St.tall + 0.06, z: -0.06 },
-        0.008,
-        steel,
-        back,
-        6,
-      );
-  }
+  for (const x of [St.x, C.mate])
+    buildSeat(kit, group, x, St, I.floor, { frame: dark, cloth: canvasSeat, steel });
 
   // ── THE REST ───────────────────────────────────────────────────────
   // The fire extinguisher clipped by the mate's door, a grab handle.
-  const ext = { x: -I.half + 0.09, y: I.floor + 0.2, z: -0.05 };
-  kit
-    .mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.34, 16), red, group)
-    .position.set(ext.x, ext.y, ext.z);
-  kit
-    .mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.06, 10), black, group)
-    .position.set(ext.x, ext.y + 0.2, ext.z);
-  kit.rod(
-    { x: ext.x - 0.02, y: ext.y + 0.23, z: ext.z },
-    { x: ext.x - 0.02, y: ext.y + 0.23, z: ext.z + 0.09 },
-    0.007,
-    black,
+  buildExtinguisher(
+    kit,
     group,
-    5,
+    { x: -I.half + 0.09, y: I.floor + 0.2, z: -0.05 },
+    {
+      red,
+      black,
+      steel,
+    },
   );
-  for (const dy of [-0.1, 0.1])
-    kit.box(0.04, 0.025, 0.13, { x: ext.x, y: ext.y + dy, z: ext.z }, steel, group, 0.006);
   kit.rod(
     { x: -I.half + 0.04, y: 1.97, z: 0.12 },
     { x: -I.half + 0.04, y: 1.75, z: 0.3 },

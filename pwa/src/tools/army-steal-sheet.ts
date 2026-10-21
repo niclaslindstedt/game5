@@ -13,8 +13,16 @@
 //     (`army-heli-cockpit.ts`) — the pilot's eye on the snow and in the
 //     air, the panel, the console and the overhead close, the pilot from
 //     the left seat — then CHASE and a lens beside it in flight;
-//   * `steal-ground`: the truck and the tank driven — CHASE and beside, and
-//     the tank's turret traversed off the nose under him.
+//   * `steal-truck`: the truck's CAB (`truck-cab.ts`) — the driver's eye
+//     straight and in a turn, the cluster, the tyres' panel and the radio,
+//     the selector and the pedals, the mirror, the driver from the mate's
+//     seat, back over the seats — then CHASE and beside its cab;
+//   * `steal-tank`: the tank's DRIVER hatch down (`tank-driver.ts`) — his
+//     eye, the vision blocks, his display, the T-bar, him from beside —
+//     then the GUNNER's station (`tank-gunner.ts`) on TIPS with the turret
+//     off the nose, his sight and handles, the fire control, the breech;
+//     THROUGH THE SIGHT laying the gun, raised and as it fires; CHASE and
+//     beside it.
 //
 // A shot with no lens of its own is the game's (`renderer.setCamera`); the
 // close-ups are eyes planted in the machine's own frame.
@@ -42,6 +50,8 @@ import {
 
 import { ARMY_COCKPIT } from "../game/army-cockpit-plan.ts";
 import { CARRIER_CAB } from "../game/army-cab-plan.ts";
+import { TANK_DRIVER, TANK_GUNNER } from "../game/tank-station-plan.ts";
+import { TRUCK_CAB } from "../game/truck-cab-plan.ts";
 import { bodyOf } from "../game/cockpit-plan.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 import type { VehicleLab } from "./army-vehicles-sheet.ts";
@@ -282,32 +292,156 @@ export function stealViews(lab: StealLab): Record<string, () => Promise<void>> {
       lab.shoot("beside it", lab.look(onHeli(h, { x: -16, y: 3, z: 6 }), at, 50), n, r);
     });
 
-  const ground = () =>
+  const truck = () =>
     quiet(async () => {
-      for (const kind of ["truck", "tank"] as const) {
-        const r = await start();
-        if (!r) return;
-        standing(r, kind);
-        step(r, ask({ machine: true }));
-        if (!r.armour?.rider) throw new Error(`the ${kind} was not taken`);
-        run(r, 5, down());
-        if (kind === "tank") run(r, 1.5, (g) => ({ ...down()(g), lean: 1 }));
-        const v = r.armour.body;
-        const n = `${noteOf(r)}${kind === "tank" ? ` · turret ${((v.turret * 180) / Math.PI).toFixed(0)}°` : ""}`;
-        game(r, "chase", `the ${kind}: CHASE`, n, down());
-        game(r, "helmet", `the ${kind}: his head out (HELMET)`, n, down());
-        const at = onVehicle(v, { x: 0, y: 1.6, z: 0 });
-        lab.shoot(
-          `the ${kind}: beside it`,
-          lab.look(onVehicle(v, { x: -12, y: 3, z: 6 }), at, 50),
-          n,
-          r,
-        );
-      }
+      const r = await start();
+      if (!r) return;
+      standing(r, "truck");
+      step(r, ask({ machine: true }));
+      if (!r.armour?.rider) throw new Error("the truck was not taken");
+      run(r, 4, down());
+      const v = r.armour.body;
+      const n = noteOf(r);
+      game(r, "helmet", "the driver's eye (HELMET)", n, down());
+      run(r, 1.2, down(1));
+      game(r, "helmet", "in a turn to the right", noteOf(r), down(1));
+      const E = TRUCK_CAB.eye;
+      const eye = onVehicle(v, E);
+      lab.shoot("the cluster", lab.look(eye, onVehicle(v, { x: E.x, y: 2.06, z: 3.73 }), 30), n, r);
+      lab.shoot(
+        "the tyres' panel and the radio",
+        lab.look(eye, onVehicle(v, { x: -0.3, y: 2.03, z: 3.72 }), 46),
+        n,
+        r,
+      );
+      lab.shoot(
+        "the selector, the transfer box and the pedals",
+        lab.look(
+          onVehicle(v, { x: -0.35, y: 2.55, z: 2.75 }),
+          onVehicle(v, { x: 0.3, y: 1.6, z: 3.35 }),
+          60,
+        ),
+        n,
+        r,
+      );
+      const M = TRUCK_CAB.mirror;
+      lab.shoot(
+        "the mirror on his side",
+        lab.look(eye, onVehicle(v, { x: M.x, y: M.y, z: M.z }), 40),
+        n,
+        r,
+      );
+      lab.shoot(
+        "the driver from the mate's seat",
+        lab.look(
+          onVehicle(v, { x: -0.6, y: 2.7, z: 2.9 }),
+          onVehicle(v, { x: E.x, y: 2.2, z: 3.2 }),
+          64,
+        ),
+        n,
+        r,
+      );
+      lab.shoot(
+        "back over the seats",
+        lab.look(
+          onVehicle(v, { x: 0, y: 2.6, z: 3.6 }),
+          onVehicle(v, { x: 0, y: 2.3, z: 2.2 }),
+          70,
+        ),
+        n,
+        r,
+      );
+      game(r, "chase", "CHASE", n, down());
+      const at = onVehicle(v, { x: 0, y: 2.2, z: 2.5 });
+      lab.shoot("beside its cab", lab.look(onVehicle(v, { x: 8, y: 3.2, z: 6.5 }), at, 50), n, r);
     });
 
-  return { "steal-carrier": carrier, "steal-heli": heli, "steal-ground": ground };
+  const tank = () =>
+    quiet(async () => {
+      const r = await start();
+      if (!r) return;
+      standing(r, "tank");
+      step(r, ask({ machine: true }));
+      if (!r.armour?.rider) throw new Error("the tank was not taken");
+      run(r, 4, down());
+      const v = r.armour.body;
+      const n = noteOf(r);
+      game(r, "helmet", "the driver hatch down (HELMET)", n, down());
+      const D = TANK_DRIVER.eye;
+      const eye = onVehicle(v, D);
+      lab.shoot(
+        "the vision blocks",
+        lab.look(eye, onVehicle(v, { x: D.x, y: 1.4, z: D.z + 1 }), 50),
+        n,
+        r,
+      );
+      lab.shoot(
+        "his display and panel",
+        lab.look(eye, onVehicle(v, { x: -0.07, y: 1.05, z: D.z + 0.05 }), 55),
+        n,
+        r,
+      );
+      lab.shoot(
+        "the T-bar and the pedal",
+        lab.look(eye, onVehicle(v, { x: D.x, y: 0.85, z: D.z + 0.35 }), 70),
+        n,
+        r,
+      );
+      lab.shoot(
+        "the driver from beside",
+        lab.look(
+          onVehicle(v, { x: 0.05, y: 1.35, z: TANK_DRIVER.room.back + 0.1 }),
+          onVehicle(v, { x: D.x, y: 0.95, z: D.z + 0.1 }),
+          72,
+        ),
+        n,
+        r,
+      );
+      // The turret swung off the nose a little, then the gunner's station.
+      run(r, 1.2, (g) => ({ ...down()(g), lean: -0.6 }));
+      run(r, 1.6, down());
+      const nt = `${noteOf(r)} · turret ${((v.turret * 180) / Math.PI).toFixed(0)}°`;
+      game(r, "tips", "the gunner's station (TIPS)", nt, down());
+      const q = fromEuler(v.heading + v.turret, v.pitch, v.roll);
+      const onTurret = (p: V3) => {
+        const o = rotate(q, p);
+        return new THREE.Vector3(v.x + o.x, v.y + o.y, v.z + o.z);
+      };
+      const G = TANK_GUNNER.eye;
+      lab.shoot(
+        "the sight and the handles",
+        lab.look(onTurret(G), onTurret({ x: 0.9, y: 1.95, z: 0.4 }), 46),
+        nt,
+        r,
+      );
+      lab.shoot("the fire control", lab.look(onTurret(G), onTurret(TANK_GUNNER.panel), 40), nt, r);
+      lab.shoot(
+        "the breech and its guard",
+        lab.look(onTurret({ x: 1.2, y: 2.2, z: -0.7 }), onTurret({ x: 0.1, y: 2.1, z: 0.4 }), 70),
+        nt,
+        r,
+      );
+      // Laying the gun: the trick key held, the lean raising it.
+      const lay =
+        (lean: number, jump = false) =>
+        () =>
+          ask({ trick: true, lean, jump });
+      game(r, "tips", "through the sight, laying", nt, lay(0));
+      game(r, "tips", "the gun raised", noteOf(r), lay(-0.6));
+      step(r, lay(0, true)());
+      game(r, "tips", "fired", noteOf(r), lay(0));
+      game(r, "chase", "CHASE", noteOf(r), down());
+      const at = onVehicle(v, { x: 0, y: 2.0, z: 0.5 });
+      lab.shoot(
+        "beside it, the turret off the nose",
+        lab.look(onVehicle(v, { x: -12, y: 3.5, z: 7 }), at, 50),
+        noteOf(r),
+        r,
+      );
+    });
+
+  return { "steal-carrier": carrier, "steal-heli": heli, "steal-truck": truck, "steal-tank": tank };
 }
 
 /** The sheet's views, as the harness lists them. */
-export const STEAL_VIEWS = ["steal-carrier", "steal-heli", "steal-ground"] as const;
+export const STEAL_VIEWS = ["steal-carrier", "steal-heli", "steal-truck", "steal-tank"] as const;

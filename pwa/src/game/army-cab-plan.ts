@@ -100,23 +100,43 @@ export type CabPose = { wheel: number; gas: number; brake: number; reverse: bool
 
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
 
-export function cabPose(r: { steer: number; drive: number }, speed: number): CabPose {
-  const C = CARRIER_CAB;
+export function cabPose(
+  r: { steer: number; drive: number },
+  speed: number,
+  lock: number = CARRIER_CAB.wheel.lock,
+): CabPose {
   const d = clamp(r.drive, -1, 1);
   // Driving against the way it rolls is the brake; with it, the gas.
   const against = speed * d < -0.05;
   return {
-    wheel: clamp(r.steer, -1, 1) * C.wheel.lock,
+    wheel: clamp(r.steer, -1, 1) * lock,
     gas: against ? 0 : Math.abs(d),
     brake: against ? Math.abs(d) : 0,
     reverse: d < -0.05 && speed < 0.3,
   };
 }
 
+/** A STEERING WHEEL as a cab plans it: its hub, its rim's radius and
+ * grip, the column's rake off the vertical, how far a full lock turns it —
+ * the carrier's (`CARRIER_CAB.wheel`) and the truck's (`TRUCK_CAB.wheel`). */
+export type WheelSpec = {
+  x: number;
+  y: number;
+  z: number;
+  r: number;
+  grip: number;
+  rake: number;
+  lock: number;
+};
+
 /** The wheel's frame: its hub, the axis it turns about (toward the
  * driver), and the rim's up and across at rest. */
-export function wheelFrame(): { hub: V3; axis: V3; up: V3; across: V3 } {
-  const C = CARRIER_CAB.wheel;
+export function wheelFrame(C: WheelSpec = CARRIER_CAB.wheel): {
+  hub: V3;
+  axis: V3;
+  up: V3;
+  across: V3;
+} {
   const s = Math.sin(C.rake);
   const c = Math.cos(C.rake);
   return {
@@ -131,10 +151,15 @@ export function wheelFrame(): { hub: V3; axis: V3; up: V3; across: V3 } {
 /** A point on the rim at `clock` rad round from its top (toward +x, the
  * driver's left, positive), the wheel turned `turn` rad toward the
  * engine's right — its rim's top carried toward +x with it. */
-export function rimAt(clock: number, turn: number, inset = 0): V3 {
-  const f = wheelFrame();
+export function rimAt(
+  clock: number,
+  turn: number,
+  inset = 0,
+  W: WheelSpec = CARRIER_CAB.wheel,
+): V3 {
+  const f = wheelFrame(W);
   const a = clock + turn;
-  const r = CARRIER_CAB.wheel.r - inset;
+  const r = W.r - inset;
   const u = Math.cos(a) * r;
   const v = Math.sin(a) * r;
   return {
@@ -147,9 +172,12 @@ export function rimAt(clock: number, turn: number, inset = 0): V3 {
 /** HIS HANDS ON THE WHEEL: at ten to two, turned with it, and back to
  * ten to two past a quarter turn — a driver shuffles the rim through his
  * hands rather than crossing his arms. His left hand (+x) and his right. */
-export function handsOnWheel(turn: number): { left: V3; right: V3 } {
+export function handsOnWheel(
+  turn: number,
+  W: WheelSpec = CARRIER_CAB.wheel,
+): { left: V3; right: V3 } {
   const held = clamp(turn, -1.1, 1.1);
-  return { left: rimAt(1.05, held, 0.005), right: rimAt(-1.05, held, 0.005) };
+  return { left: rimAt(1.05, held, 0.005, W), right: rimAt(-1.05, held, 0.005, W) };
 }
 
 /** WHAT THE CLUSTER READS: the speed, km/h; the engine's turn, rpm; the

@@ -28,7 +28,7 @@ import { createBikeView, type BikeView } from "./bike-view.ts";
 import { bikeStood, createRiderHold } from "./skier-bike.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
 import { armourRigPose, ARMOUR_RIGS, drivenArmour } from "./camera-armour.ts";
-import { createCarrierCab, type CarrierCab } from "./carrier-cab.ts";
+import { createArmourCabs, type ArmourCabs } from "./armour-cabs.ts";
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
 import type { HazeUniforms } from "./haze.ts";
@@ -404,10 +404,12 @@ export function createMachines(
   // ...built with the world on a run whose helicopter he may take — the
   // theft that brings them out — so they never stall the picture as they come.
   const armyReady = state.rules.heli ? [armyBuilt().ready] : [];
-  // THE CAB OF A CARRIER HE TAKES (`carrier-cab.ts`), built with them: hung
-  // in his carrier as drawn while he drives it, in the group till then.
-  const cab: CarrierCab | null = state.rules.heli ? createCarrierCab(haze) : null;
-  if (cab) group.add(cab.group);
+  // THE INSIDES OF THE VEHICLES HE TAKES (`armour-cabs.ts`: the carrier's
+  // and the truck's cabs, the tank's driver's and gunner's stations), built
+  // with them: hung in his vehicle as drawn while he drives it, in the
+  // group till then.
+  const cabs: ArmourCabs | null = state.rules.heli ? createArmourCabs(haze) : null;
+  if (cabs) group.add(cabs.group);
   let blastLensed = false;
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
@@ -506,18 +508,9 @@ export function createMachines(
       )
         armyBuilt();
       army?.frame(s, alpha, dt, simDt, stamps, cloud);
-      // HIS VEHICLE: the cab hung in it and shown from the driver's eye,
-      // its cab from outside (the shell and the dark glass) put away while it is.
-      const ridden = army?.ridden() ?? null;
-      const driven = drivenArmour(s);
-      const inCab = !!(driven && ridden && driven.kind === "carrier" && rung === "helmet");
-      if (cab) {
-        const hang = ridden && driven?.kind === "carrier" ? ridden.root : group;
-        if (cab.group.parent !== hang) hang.add(cab.group);
-        if (s.armour) cab.update(s.armour, s.t, dt, inCab, inCab);
-        else cab.group.visible = false;
-      }
-      if (ridden?.glass) ridden.glass.visible = !inCab;
+      // HIS VEHICLE: the inside the lens is in hung in it and shown, its
+      // shell from outside put away while it is.
+      cabs?.frame(s, army?.ridden() ?? null, rung, dt);
       armyCraft?.frame(s, alpha, dt);
       heli?.frame(s, alpha, dt, player, rung, flying, cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
@@ -709,6 +702,13 @@ export function createMachines(
         ownLook = true;
         return blast;
       }
+      // THE TANK'S STATIONS: the gunner's eye and his sight turn with the
+      // turret, over the ladder's bolted eyes.
+      const tank = cabs?.lens() ?? null;
+      if (tank) {
+        ownLook = true;
+        return tank;
+      }
       // Both asked every frame, so each hands its own lens in and out.
       const h = heli?.lens(ladder, dt) ?? null;
       const p = plane?.lens(ladder, dt) ?? null;
@@ -819,7 +819,7 @@ export function createMachines(
       sledFire?.dispose();
       gunfire?.dispose();
       army?.dispose();
-      cab?.dispose();
+      cabs?.dispose();
       armyCraft?.dispose();
       flashLamps.dispose();
     },

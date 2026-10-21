@@ -167,6 +167,7 @@ export function takeArmour(
     steer: 0,
     traverse: 0,
     elevate: 0,
+    laying: false,
     vx: 0,
     vy: 0,
     vz: 0,
@@ -363,6 +364,7 @@ function gunnery(state: GameState, r: ArmourRide, input: SkierInput, events: Gam
   if (b.kind !== "tank" || r.dead) return;
   // The lean traverses the turret; held with the trick key, it lays the gun.
   const laying = !!input.trick;
+  r.laying = laying;
   r.traverse = ease(r.traverse, laying ? 0 : clamp(input.lean, -1, 1));
   r.elevate = ease(r.elevate, laying ? clamp(-input.lean, -1, 1) : 0);
   b.turret = angleDiff(0, b.turret + r.traverse * K.tank.traverse * dt);

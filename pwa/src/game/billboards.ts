@@ -23,6 +23,8 @@
 
 import * as THREE from "three";
 
+import { nodeTwin } from "./gpu-backend.ts";
+
 export type Billboards = {
   mesh: THREE.Mesh;
   /** Start this frame's list. */
@@ -243,6 +245,9 @@ export function createBillboards(
     depthWrite: false,
     blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
   });
+  // Drawn on the node renderer by its twin (`billboards-tsl.ts`), each
+  // batch keyed apart: they share their code, never their texture.
+  nodeTwin(material, "particles", "billboards", true);
   const mesh = new THREE.Mesh(geo, material);
   mesh.frustumCulled = false;
   // The list as pushed, before it is sorted into the attributes.

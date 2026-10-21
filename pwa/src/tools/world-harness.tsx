@@ -30,6 +30,8 @@ import {
   beastById,
   beastPlanFor,
   roundAt,
+  WEATHER_KINDS,
+  type WeatherKind,
 } from "@engine";
 import type { CameraRung } from "../game/renderer-api.ts";
 import type { Hideable } from "../game/benchmark-report.ts";
@@ -126,6 +128,11 @@ const snow = Number(params.get("snow"));
 const [downhill, free, slalom] = ["downhill", "free", "slalom"].map((m) => params.get(m) === "1");
 /** The sun's solar hour (`withSky`), the map's own unless named. */
 const hour = Number(params.get("hour") ?? Number.NaN);
+/** The sky (`withSky`, `?weather=` as the app's), the map's own unless named. */
+const weatherAsked = params.get("weather");
+const weather = WEATHER_KINDS.includes(weatherAsked as WeatherKind)
+  ? (weatherAsked as WeatherKind)
+  : null;
 /** THE MENU'S BACKDROP (`?daring=1`): a showcase of the map ridden by the
  * daring bot (`engine/sim/showcase.ts`), its pair the showcase's. */
 const daring = params.get("daring") === "1";
@@ -143,7 +150,11 @@ const state: GameState = createGame({
   ...(free && Number.isFinite(hour) ? { sky: { hour } } : {}),
   ...(daring ? { showcase: 0, spec: showcaseSkis() } : {}),
 });
-if (Number.isFinite(hour)) renderer.setSky({ hour });
+if (Number.isFinite(hour) || weather)
+  renderer.setSky({
+    ...(Number.isFinite(hour) ? { hour } : {}),
+    ...(weather ? { weather } : {}),
+  });
 // THE SKY'S CLOCK (`?skyclock=`, `sky-clock.ts`): held unless asked, so a
 // view's picture is the hour named whatever second of the run it stands at.
 setSkyClock(Number(params.get("skyclock") ?? 0));

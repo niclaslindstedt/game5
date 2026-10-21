@@ -27,16 +27,17 @@ import type { Level, Vec3 } from "@engine";
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import { AIR_LIGHT_VERTEX } from "./snow-air-light.ts";
 import { LOOSE } from "./trail-stamp.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 
 /** The most a shadow is stretched along a grazing key. */
-const STRETCH = 3;
+export const STRETCH = 3;
 /** How dark a puff's middle lays its shadow, per unit of its opacity. */
-const DARK = 2.2;
+export const DARK = 2.2;
 /** The share of the key a cloud stops that still reaches the snow under
  * it: ice crystals scatter nearly all the light they stop, and most of it
  * FORWARD (Henyey–Greenstein g near 0.86), down onto its own shadow — so a
  * snow cloud's shadow is grey, never the black of a solid's. */
-const FILL = 0.5;
+export const FILL = 0.5;
 /** Below this key elevation (its sine) a shadow is too long to lay. */
 const LOWEST = 0.04;
 
@@ -206,6 +207,8 @@ export function createCloudShadow(
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -4,
   });
+  // Drawn on the node renderer by its twin (`snow-cloud-tsl.ts`).
+  nodeTwin(material, "particles", "cloud-shadow");
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
   // On the snow, under the spray and the cloud.

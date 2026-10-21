@@ -61,19 +61,20 @@ import {
   streakOf,
   type Vec3,
 } from "./snowfall-plan.ts";
+import { glslOnly, nodeTwin } from "./gpu-backend.ts";
 
 /** The widest a flake is drawn, and the narrowest a smear's quad is cut
  * (a thinner one drops pixels and draws a dotted line), px. */
-const FLAKE_PX = { max: 24, quad: 1.7 };
+export const FLAKE_PX = { max: 24, quad: 1.7 };
 /** The longest a smear is drawn, as a share of the picture's height: a
  * flake skimming the lens would otherwise sweep the whole frame. */
-const SMEAR_MAX = 0.5;
+export const SMEAR_MAX = 0.5;
 /** How a smear spreads a flake's light along it: its share of the light
  * is (its width over its length) to this power — 1 a camera's, lower kept
  * brighter, so a smear still reads against the snow. */
-const SMEAR_SPREAD = 0.75;
+export const SMEAR_SPREAD = 0.75;
 /** How much of a flake's light is left at a smear's tail, the head 1. */
-const SMEAR_TAIL = 0.45;
+export const SMEAR_TAIL = 0.45;
 /** Spindrift grains at a SPRAY share of 1. */
 const GRAINS = 900;
 /** The wind at which dry snow starts to lift, and where it is all lifting,
@@ -262,6 +263,8 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
     transparent: true,
     depthWrite: false,
   });
+  // Drawn on the node renderer by its twin (`snowfall-tsl.ts`).
+  nodeTwin(fallMat, "particles", "snowfall");
   const fall = new THREE.Mesh(fallGeo, fallMat);
   fall.frustumCulled = false;
   fall.renderOrder = 5;
@@ -313,6 +316,9 @@ export function createSnowfall(haze: HazeUniforms): Snowfall {
     transparent: true,
     depthWrite: false,
   });
+  // Points a few pixels across: on the node renderer, which draws a point
+  // one pixel wide, a quad a grain stands in (`snowfall-tsl.ts`).
+  glslOnly(driftMat, "particles").userData.sprite = "spindrift";
   const drift = new THREE.Points(driftGeo, driftMat);
   drift.frustumCulled = false;
   drift.renderOrder = 5;

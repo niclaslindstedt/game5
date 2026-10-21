@@ -23,6 +23,7 @@ import { SNOW_GUN, type Level, type SnowGun, type Wind } from "@engine";
 
 import { LAMP_GLSL, LAMP_SLOTS, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 
 /** How a kind's jet flies: the speed it leaves at, m/s, how far up from
  * the aim's tilt it is thrown, rad, the drag's rate, 1/s, how fast its ice
@@ -259,6 +260,8 @@ export function createPlumes(level: Level, guns: readonly SnowGun[], haze: HazeU
     transparent: true,
     depthWrite: false,
   });
+  // Drawn on the node renderer by its twin (`plume-tsl.ts`).
+  nodeTwin(mat, "particles", "plume");
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
   mesh.renderOrder = 4;

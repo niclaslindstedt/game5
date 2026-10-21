@@ -85,6 +85,9 @@ export function createSparks(): Sparks {
     blending: THREE.AdditiveBlending,
     fog: false,
   });
+  // Points a few pixels across: on the node renderer, which draws a point
+  // one pixel wide, a sprite a spark stands in (`glow-tsl.ts`).
+  headMat.userData.sprite = "plain";
   const points = new THREE.Points(heads, headMat);
   const streaks = new THREE.LineSegments(lines, lineMat);
   points.frustumCulled = streaks.frustumCulled = false;

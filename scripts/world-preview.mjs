@@ -340,6 +340,11 @@ const args = parseArgs(
       default: -1,
       help: "the sun's solar hour (withSky, as the app's ?hour=); the map's own when left out",
     },
+    weather: {
+      kind: "string",
+      default: "",
+      help: "the sky (withSky, as the app's ?weather=: clear, fair, flurries, high, overcast, snow, storm, fog); the map's own when left out",
+    },
     skyclock: {
       kind: "number",
       default: 0,
@@ -425,7 +430,7 @@ const args = parseArgs(
     renderer: rendererFlag(),
     timeout: { kind: "number", default: 900, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id | --face=id] [--grade=id] [--hour=h] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--daring] [--grimbear] [--skis=id] [--body=id] [--weight=id] [--skip-build] [--renderer=b]",
+  "usage: node scripts/world-preview.mjs [--seed=n] [--region=id | --face=id] [--grade=id] [--hour=h] [--weather=kind] [--views=a,b] [--quality=low] [--shadows=skiers] [--downhill] [--slalom] [--free] [--daring] [--grimbear] [--skis=id] [--body=id] [--weight=id] [--skip-build] [--renderer=b]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -524,6 +529,7 @@ const query = new URLSearchParams({
   ...(args.body ? { body: args.body } : {}),
   ...(args.weight ? { weight: args.weight } : {}),
   ...(args.hour >= 0 ? { hour: String(args.hour) } : {}),
+  ...(args.weather ? { weather: args.weather } : {}),
   ...(args.skyclock > 0 ? { skyclock: String(args.skyclock) } : {}),
   ...(args.renderer !== "webgl" ? { renderer: args.renderer } : {}),
   w: String(args.width),
@@ -587,7 +593,7 @@ for (const view of order.filter((v) => wanted.includes(v))) {
   if (crashed) process.exit(1);
   const out = join(
     outDir,
-    `world-${args.renderer !== "webgl" ? `${args.renderer}-` : ""}${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.daring ? "daring-" : ""}${args.skis ? `${args.skis}-` : ""}${args.body ? `${args.body}-` : ""}${args.weight ? `${args.weight}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${args.skyclock > 0 ? `clock${args.skyclock}-` : ""}${view}.png`,
+    `world-${args.renderer !== "webgl" ? `${args.renderer}-` : ""}${args.face ? `${args.face}-` : args.region === "alpine" ? "" : `${args.region}-`}${args.downhill ? "downhill-" : ""}${args.slalom ? "slalom-" : ""}${args.free ? "free-" : ""}${args.daring ? "daring-" : ""}${args.skis ? `${args.skis}-` : ""}${args.body ? `${args.body}-` : ""}${args.weight ? `${args.weight}-` : ""}${args.grade ? `${args.grade}-` : ""}${args.snow > 0 ? `snow${args.snow}-` : ""}${args.weather ? `${args.weather}-` : ""}${args.hour >= 0 ? `h${args.hour}-` : ""}${args.skyclock > 0 ? `clock${args.skyclock}-` : ""}${view}.png`,
   );
   await page.locator("body").screenshot({ path: out });
   console.log(

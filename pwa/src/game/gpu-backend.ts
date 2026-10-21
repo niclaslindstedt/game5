@@ -134,10 +134,17 @@ export const GPU_PORTS: readonly GpuPort[] = [
     ported: true,
   },
   {
-    id: "shader",
+    id: "particles",
     kind: "material",
     part: 9,
-    what: "every other ShaderMaterial (the spray first; the clouds, the rest in theirs)",
+    what: "the spray, the snowfall and spindrift, the snow cloud and its shadow, the billboards, the sparks, the plumes",
+    ported: true,
+  },
+  {
+    id: "shader",
+    kind: "material",
+    part: 10,
+    what: "every other ShaderMaterial (the clouds; the figures, the effects in their own parts)",
     ported: false,
   },
   {
@@ -212,10 +219,18 @@ export function nodeTwin<T extends { userData: Record<string, unknown> }>(
   material: T,
   family: string,
   twin: string,
+  own = false,
 ): T {
   material.userData.twin = twin;
+  // A key of its own, where several materials share one shader but not
+  // their uniforms (the billboards' batches): the node renderer keys a
+  // program by the material's own fields (never `userData`), and would
+  // otherwise draw them all with the first one's twin. WebGL reads no
+  // such field, so its programs are the same.
+  if (own) (material as unknown as Record<string, unknown>).twinOwn = `${twin}:${++owned}`;
   return glslOnly(material, family);
 }
+let owned = 0;
 
 /** WHAT DREW THE FRAME, for the developer page and the benchmark's report. */
 export type BackendState = {

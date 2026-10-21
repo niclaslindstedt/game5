@@ -35,6 +35,7 @@ import { createGpuSpray } from "./gpu-spray.ts";
 import type { PlumeBit } from "./spray-film.ts";
 import { createSprayPool } from "./spray-sim.ts";
 import { SPRAY_STATS } from "./spray-stats.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 
 const CAPACITY = 6000;
 /** The shutter a streak is drawn over, s: long enough that a chip thrown
@@ -223,6 +224,8 @@ function createCpuSpray(haze: HazeUniforms): Spray {
     transparent: true,
     depthWrite: false,
   });
+  // Drawn on the node renderer by its twin (`spray-tsl.ts`).
+  nodeTwin(material, "particles", "spray");
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
   mesh.renderOrder = 5;

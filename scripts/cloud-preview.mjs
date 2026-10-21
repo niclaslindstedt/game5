@@ -40,6 +40,7 @@
 //   node scripts/cloud-preview.mjs --coast=2 --skip-build
 //   node scripts/cloud-preview.mjs --moves=straight,check,stop --speeds=10,25,50 --light=front
 //   node scripts/cloud-preview.mjs --where=piste --snow=map,new --moves=carve --speeds=20,60
+//   node scripts/cloud-preview.mjs --renderer=webgpu   # on the WebGPU path (docs/webgpu.md)
 
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -49,6 +50,8 @@ import process from "node:process";
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
+
+import { assertBackend, rendererArgs, rendererFlag, renderersOf } from "./lib/backend-flag.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".cloud-preview");
@@ -99,9 +102,10 @@ const args = parseArgs(
     height: { kind: "number", default: 225, help: "one cell's height, px" },
     out: { kind: "string", default: "", help: "the sheet's name under previews/ (cloud-<seed>)" },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
+    renderer: rendererFlag(),
     timeout: { kind: "number", default: 1800, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/cloud-preview.mjs [--snow=a,b] [--light=a,b] [--speeds=a,b] [--views=a,b] [--cols=times] [--skip-build]",
+  "usage: node scripts/cloud-preview.mjs [--snow=a,b] [--light=a,b] [--speeds=a,b] [--views=a,b] [--cols=times] [--skip-build] [--renderer=b]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -129,7 +133,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 
@@ -160,6 +169,7 @@ const query = new URLSearchParams({
   quality: args.quality,
   w: String(args.width),
   h: String(args.height),
+  ...(args.renderer !== "webgl" ? { renderer: args.renderer } : {}),
 }).toString();
 console.log(
   `cloud — seed ${args.seed}, snow ${args.snow}, light ${args.light}, ${args.moves} at ${args.speeds} km/h on the ${args.where}, ${args.cols === "times" ? `times ${args.times}` : `views ${args.views}`}`,
@@ -168,10 +178,14 @@ const t0 = Date.now();
 await page.goto(`${server.url}cloud-preview.html?${query}`);
 await page.waitForFunction("window.__cloud !== undefined");
 await page.evaluate("window.__cloud.ready");
+await assertBackend(page, args.renderer);
 if (crashed) process.exit(1);
 const drawn = await page.evaluate(() => globalThis.__cloud.sheet());
 if (crashed) process.exit(1);
-const out = join(outDir, `${args.out || `cloud-${args.seed}`}.png`);
+const out = join(
+  outDir,
+  `${args.out || `cloud-${args.seed}`}${args.renderer !== "webgl" ? `-${args.renderer}` : ""}.png`,
+);
 await page.locator("#sheet").screenshot({ path: out });
 console.log(
   `${out.replace(`${root}/`, "")}  ${drawn.rows}×${drawn.cols}: ${drawn.note}  (${((Date.now() - t0) / 1000).toFixed(0)} s)`,

@@ -20,10 +20,18 @@
 //            → `trail-map-tsl.ts`, part 5)
 //   spray, spray-gpu, snowfall, snow-cloud, cloud-shadow, billboards, plume
 //            the particles and the air (`particle-twins-tsl.ts`, part 9)
+//   cloud-map, cloud-slab
+//            the clouds' shadow map and MEDIUM's slab (`clouds.ts` →
+//            `cloud-pass-tsl.ts`, part 10)
+//   cloud-march, cloud-carry
+//            HIGH's volume, its marches and its carry (`cloud-volume.ts` →
+//            `cloud-volume-tsl.ts`, part 10)
 
 import type * as THREE from "three";
 import type { NodeMaterial } from "three/webgpu";
 
+import { shadowPassTwin, slabTwin } from "./cloud-pass-tsl.ts";
+import { carryTwin, marchTwin } from "./cloud-volume-tsl.ts";
 import { farTwin } from "./far-ranges-tsl.ts";
 import { copyTwin, deformShadeTwin, fillTwin, groomTwin, stampTwin } from "./trail-map-tsl.ts";
 import type { HazeUniforms } from "./haze.ts";
@@ -68,6 +76,14 @@ export function createTwins(haze: HazeUniforms, how: HazeFogOptions): Twins {
         return fillTwin(m);
       case "deform-shade":
         return deformShadeTwin(m);
+      case "cloud-map":
+        return shadowPassTwin(m);
+      case "cloud-slab":
+        return slabTwin(m, haze);
+      case "cloud-march":
+        return marchTwin(m, haze);
+      case "cloud-carry":
+        return carryTwin(m);
       default:
         return particleTwin(m, kind, haze, how);
     }

@@ -52,7 +52,7 @@ import { createJumpBroadcast } from "./camera-skijump.ts";
 import { freshRigPose, type LensPose, type LineClear, type RigPose } from "./camera-rigs.ts";
 import { compileByParts, compiled } from "./scene-compile.ts";
 import { byMaterial } from "./shadow-depth.ts";
-import { createEnvironment, warmNode, type Environment } from "./environment.ts";
+import { createEnvironment, type Environment } from "./environment.ts";
 import { createForest, forestOptionsOf, type Forest, type ForestOptions } from "./forest.ts";
 import { createBuildCount } from "./build-count.ts";
 import { createHurtLens } from "./xray-scene.ts";
@@ -90,10 +90,9 @@ import {
 } from "./interp.ts";
 import { createRegionPicture } from "./region-picture.ts";
 import { createAfterskiView } from "./afterski-view.ts";
-import { hideSlices, runsOf, thrownEffects, type Rider } from "./renderer-rider.ts";
+import { freshRider, hideSlices, runsOf, thrownEffects, type Rider } from "./renderer-rider.ts";
 import { createInstruments } from "./renderer-instruments.ts";
 import { openSeam, setSeamFactory } from "./render-seam.ts";
-import { freshRider } from "./renderer-rider.ts";
 import type { CameraRung } from "./renderer-api.ts";
 import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "./skis-body.ts";
 import { dealtKit, type SkierDress } from "./skier-dress.ts";
@@ -438,7 +437,8 @@ export function createWorldRenderer(
     if (!native) {
       await shade; // the node renderer's pipelines, built behind the card (`warmNode`)
       if (mine === loads) hero.render(gl, scene, [], null);
-      if (mine === loads) warmNode(gl, scene, lens.camera, env.sun, lv.size, seam, quarantine);
+      const run = { level: skyLevel, t: state.t };
+      if (mine === loads) env.warmNode(gl, scene, lens.camera, lv.size, seam, quarantine, run);
       gl.setRenderTarget(null);
       return seam.settled(); // the device's own compiles, still under the card
     }

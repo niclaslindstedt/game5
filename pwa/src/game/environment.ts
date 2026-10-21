@@ -128,6 +128,18 @@ export type Environment = {
     span: number,
     run: { level: Level; t: number },
   ): void;
+  /** The node renderer's warm-up (`warmNode`), the clouds' passes drawn
+   * first as the `run`'s sky stands them, so their pipelines are built
+   * behind the card too and the dome is warmed reading them. */
+  warmNode(
+    gl: THREE.WebGLRenderer,
+    scene: THREE.Scene,
+    camera: THREE.Camera,
+    span: number,
+    frame: NodeFrame,
+    quarantine: Hider,
+    run: { level: Level; t: number },
+  ): void;
   dispose(): void;
 };
 
@@ -323,14 +335,14 @@ export function createEnvironment(
   domeRadius: number,
   gl: THREE.WebGLRenderer | null = null,
   /** Drawn by the node renderer (`render-seam.ts`): its shadow keeps its own
-   * map, its sky's passes are drawn by their node twins (`sky-atmo-tsl.ts`)
-   * and its clouds' passes are not drawn yet (`docs/webgpu.md`, part 10). */
+   * map, and its sky's and its clouds' passes are drawn by their node twins
+   * (`sky-atmo-tsl.ts`, `cloud-pass-tsl.ts`, `cloud-volume-tsl.ts`). */
   node = false,
 ): Environment {
   const haze = createHazeUniforms();
   const gpu = createSkyGpu(gl, haze, node);
   const terrain = createTerrainShade(haze);
-  const clouds = createClouds(node ? null : gl, haze);
+  const clouds = createClouds(gl, haze, node);
   const contrails = createContrails();
   const dome = createSkyDome(haze, domeRadius, clouds, contrails);
   dome.mesh.name = "sky";
@@ -508,6 +520,12 @@ export function createEnvironment(
       clouds.warm(look, run.level, run.t, camera);
       dome.syncClouds();
       warmPicture(gl, scene, camera);
+    },
+    warmNode(gl, scene, camera, span, frame, quarantine, run) {
+      const look = skyLookAt(run.level, run.t, undefined, camera.position.y);
+      clouds.warm(look, run.level, run.t, camera);
+      dome.syncClouds();
+      warmNode(gl, scene, camera, sun, span, frame, quarantine);
     },
     dispose() {
       gpu.dispose();

@@ -21,6 +21,10 @@
 // The field moves only with the run's clock and the map: the noise's
 // offsets wrapped to its period on the CPU, so a float on the GPU never
 // carries an hour of the wind's carry.
+//
+// ON THE NODE RENDERER (`docs/webgpu.md`, part 10) the same passes are drawn
+// into three's own targets, each ShaderMaterial by its node twin
+// (`cloud-pass-tsl.ts`, `cloud-volume-tsl.ts`) over the same uniforms.
 
 import * as THREE from "three";
 import type { Level } from "@engine";
@@ -40,7 +44,8 @@ import {
   CLOUD_SLAB_GLSL,
   cloudStackGlsl,
 } from "./cloud-glsl.ts";
-import { createCloudVolume, volumeNoise, type CloudVolume } from "./cloud-volume.ts";
+import { cloudTarget, createCloudVolume, volumeNoise, type CloudVolume } from "./cloud-volume.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 import { carveOf, carveOffsets } from "./cloud-volume-plan.ts";
 import { SKY_GLSL, type HazeUniforms } from "./haze.ts";
 import type { CloudTier } from "./settings-video.ts";
@@ -183,30 +188,31 @@ ${CLOUD_HALO_GLSL}
 uniform sampler2D uCloudTex;
 `;
 
-function target(w: number, h: number, type: THREE.TextureDataType): THREE.WebGLRenderTarget {
-  const rt = new THREE.WebGLRenderTarget(w, h, {
-    type,
-    format: THREE.RGBAFormat,
-    minFilter: THREE.LinearFilter,
-    magFilter: THREE.LinearFilter,
-    depthBuffer: false,
-    stencilBuffer: false,
-    generateMipmaps: false,
-  });
-  rt.texture.colorSpace = THREE.NoColorSpace;
-  return rt;
-}
-
 const wrap = (x: number): number => x - Math.floor(x);
 
-export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms): Clouds {
+/** `node`: `gl` is the node renderer typed as WebGL's (`render-seam.ts`),
+ * which renders into half floats on every back end it has. */
+export function createClouds(
+  gl: THREE.WebGLRenderer | null,
+  haze: HazeUniforms,
+  node = false,
+): Clouds {
   const u = cloudUniforms();
   u.uCloudNoise.value = noiseTexture();
   const floats =
     gl !== null &&
-    gl.capabilities.isWebGL2 &&
-    (gl.extensions.has("EXT_color_buffer_float") ||
-      gl.extensions.has("EXT_color_buffer_half_float"));
+    (node ||
+      (gl.capabilities.isWebGL2 &&
+        (gl.extensions.has("EXT_color_buffer_float") ||
+          gl.extensions.has("EXT_color_buffer_half_float"))));
+  /** The node renderer draws nothing before its device is made. */
+  const drawable = (): boolean =>
+    !node || (gl as unknown as { initialized?: boolean }).initialized === true;
+  // The node renderer makes a target's texture as a plain one if a material
+  // binds it before its pass first draws, and again under the pass — every
+  // pipeline built between left bound to the one destroyed. So there the
+  // shadow map is drawn the first frame whether a layer stands or not.
+  let shadowDrawn = !node;
   let tier: CloudTier = "shell";
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -222,7 +228,11 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
     depthWrite: false,
     blending: THREE.NoBlending,
   });
-  const shadow = gl ? target(CLOUD_SHADOW.size, CLOUD_SHADOW.size, THREE.UnsignedByteType) : null;
+  // The webgpu paths draw it with its node twin (`cloud-pass-tsl.ts`).
+  nodeTwin(shadowMat, "clouds", "cloud-map");
+  const shadow = gl
+    ? cloudTarget(CLOUD_SHADOW.size, CLOUD_SHADOW.size, THREE.UnsignedByteType, node)
+    : null;
   haze.uCloudShadow.value = shadow?.texture ?? null;
   const slabU = {
     ...haze,
@@ -264,7 +274,7 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       depthWrite: false,
       blending: THREE.NoBlending,
     });
-    return slabMat;
+    return nodeTwin(slabMat, "clouds", "cloud-slab");
   }
 
   function update(look: SkyLook, level: Level | null, t: number, lens: THREE.Camera): void {
@@ -285,7 +295,7 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
     }
     // The volume is wanted (HIGH, MAX) and its noise has landed.
     const want = slabOn() && isVolume(tierNow());
-    if (want && !volume && gl) volume = createCloudVolume(gl, slabU);
+    if (want && !volume && gl) volume = createCloudVolume(gl, slabU, node);
     const vol = want && volume !== null && volume.ready() ? volume : null;
     if (vol && refreshAsked) vol.refresh();
     refreshAsked = false;
@@ -363,9 +373,10 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
     u.uCloudOn.value.w = look.sea.top;
     u.uCloudSeaLevel.value = level?.mountain?.sea ?? 0;
     u.uCloudVeil.value = look.clouds.murk;
-    if (!gl) return;
+    if (!gl || !drawable()) return;
     const before = gl.getRenderTarget();
-    if (shadow && order.length > 0) draw(shadowMat, shadow);
+    if (shadow && (order.length > 0 || !shadowDrawn)) draw(shadowMat, shadow);
+    shadowDrawn = true;
     u.uCloudTex.value = null;
     volumeOn = false;
     if (vol && order.length > 0 && look.clouds.show > 0) {
@@ -387,7 +398,7 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
       const h = Math.max(1, Math.round(size.y / 2));
       if (!slabRt || slabRt.width !== w || slabRt.height !== h) {
         slabRt?.dispose();
-        slabRt = target(w, h, THREE.HalfFloatType);
+        slabRt = cloudTarget(w, h, THREE.HalfFloatType, node);
       }
       lens.updateMatrixWorld();
       vp.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse);
@@ -411,7 +422,7 @@ export function createClouds(gl: THREE.WebGLRenderer | null, haze: HazeUniforms)
     update,
     async prepare() {
       if (!gl || !slabOn() || !isVolume(tierNow())) return;
-      volume ??= createCloudVolume(gl, slabU);
+      volume ??= createCloudVolume(gl, slabU, node);
       await volumeNoise();
       volume.ready();
     },

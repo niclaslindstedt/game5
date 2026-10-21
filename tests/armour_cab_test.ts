@@ -19,6 +19,8 @@ import {
   armourDoor,
   callVehicles,
   createGame,
+  fromEuler,
+  rotate,
   setWanted,
   standSkier,
   step,
@@ -27,6 +29,8 @@ import {
   type WantedRoster,
 } from "@engine";
 import { armourOf } from "../pwa/src/game/armour-hud.ts";
+import { ARMOUR_RIGS, armourRigPose } from "../pwa/src/game/camera-armour.ts";
+import type { RigPose } from "../pwa/src/game/camera-rigs.ts";
 import {
   CARRIER_CAB,
   cabGauges,
@@ -202,5 +206,26 @@ describe("the HUD's readout of a machine taken", () => {
       expect(typeof hud.loaded).toBe("boolean");
       expect(ARMOUR.tank.gun).toBeGreaterThan(0);
     });
+  });
+});
+
+describe("the lens in the carrier's cab", () => {
+  it("sits at the driver's eye however the carrier leans", () => {
+    const rig = ARMOUR_RIGS.carrier.helmet;
+    if (rig.kind !== "bolted") throw new Error("the helmet rung is bolted");
+    for (const [pitch, roll] of [
+      [0, 0],
+      [0.15, 0],
+      [-0.2, 0.1],
+    ]) {
+      const v = { x: 100, y: 40, z: 200, heading: 0.7, pitch, roll, speed: 5 } as ArmyVehicle;
+      const pose = armourRigPose({} as RigPose, v, null);
+      const q = fromEuler(v.heading, pitch, roll);
+      const eye = rotate(q, rig.eye);
+      const want = rotate(q, CARRIER_CAB.eye);
+      expect(pose.x + eye.x).toBeCloseTo(v.x + want.x, 9);
+      expect(pose.y + eye.y).toBeCloseTo(v.y + want.y, 9);
+      expect(pose.z + eye.z).toBeCloseTo(v.z + want.z, 9);
+    }
   });
 });

@@ -14,7 +14,7 @@
 //   CHASE   behind and over the hull, the whole vehicle in the frame;
 //   FAR, HIGH  the same further out, and high over it.
 
-import { ARMY_VEHICLE, fromEuler, type ArmyVehicle, type ArmyVehicleKind } from "@engine";
+import { ARMY_VEHICLE, fromEuler, rotate, type ArmyVehicle, type ArmyVehicleKind } from "@engine";
 
 import { CARRIER_CAB } from "./army-cab-plan.ts";
 import type { Rig, RigPose, Rung } from "./camera-rigs.ts";
@@ -137,10 +137,15 @@ export function armourRigPose(
   at: { x: number; y: number; z: number; heading: number; pitch: number; roll: number } | null,
 ): RigPose {
   const p = at ?? v;
-  pose.x = p.x;
-  pose.y = p.y + ARMOUR_CENTRE;
-  pose.z = p.z;
-  pose.q = fromEuler(p.heading, p.pitch, p.roll);
+  // The centre up the body's own axis, not the world's: the drawn body
+  // turns about the snow under it, so on a slope the bolted eyes stay
+  // where its cab is rather than a hand's breadth behind.
+  const q = fromEuler(p.heading, p.pitch, p.roll);
+  const up = rotate(q, { x: 0, y: ARMOUR_CENTRE, z: 0 });
+  pose.x = p.x + up.x;
+  pose.y = p.y + up.y;
+  pose.z = p.z + up.z;
+  pose.q = q;
   pose.heading = p.heading;
   pose.pitch = p.pitch;
   pose.roll = p.roll;

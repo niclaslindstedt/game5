@@ -366,7 +366,7 @@ function slopeFlat(state: GameState, s: Soldier): boolean {
  * slow or down takes him — put face down and held. */
 function tryArrest(state: GameState, a: ArmyState, s: Soldier, events: GameEvent[]): boolean {
   const c = state.skier;
-  if (state.sled?.rider || !onTheGround(state)) return false;
+  if (state.sled?.rider || state.armour?.rider || !onTheGround(state)) return false;
   const b = c.thrown ?? c;
   if (hypot(b.x - s.x, b.z - s.z) > WANTED.arrest.reach) return false;
   if (!c.thrown && hypot(c.vx, c.vz) > K.arrest.speed) return false;

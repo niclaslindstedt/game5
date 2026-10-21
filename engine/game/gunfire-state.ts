@@ -16,7 +16,7 @@ export type AimTarget =
   | { kind: "point"; x: number; y: number; z: number; vx?: number; vy?: number; vz?: number };
 
 /** THE MACHINES a round can bring down. */
-export type GunMachine = "heli" | "plane" | "sled" | "balloon";
+export type GunMachine = "heli" | "plane" | "sled" | "balloon" | "armour";
 
 /** ONE GUN — a rifle in a soldier's hands, a door gun, a launcher on a
  * shoulder: its owner arms it (`armGun`), writes where its muzzle is and

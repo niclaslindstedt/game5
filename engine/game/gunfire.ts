@@ -53,6 +53,8 @@ import {
 import { TUNING } from "./defs/tuning.ts";
 import { pierceBody } from "./body.ts";
 import { blastAt, inCabin } from "./blast.ts";
+import { armyStruck } from "./armour.ts";
+import { ARMOUR } from "./defs/armour.ts";
 import { solidsNear, solidsOf } from "./posts.ts";
 import { rosterOf } from "./wanted.ts";
 import { bodyCentre, bodyHit, bodyPoints, passDistance } from "./gunfire-body.ts";
@@ -100,8 +102,8 @@ export function freshGunfire(state: GameState): GunfireState {
     rounds: [],
     stream: (state.seed ^ SALT) >>> 0,
     next: 0,
-    damage: { heli: 0, plane: 0, sled: 0, balloon: 0 },
-    lost: { heli: false, plane: false, sled: false, balloon: false },
+    damage: { heli: 0, plane: 0, sled: 0, balloon: 0, armour: 0 },
+    lost: { heli: false, plane: false, sled: false, balloon: false, armour: false },
     fired: 0,
     hits: 0,
     log: [],
@@ -302,13 +304,21 @@ function rocketSight(def: BlastDef, h: number, rise: number): number {
 }
 
 /** PULL THE TRIGGER: a burst from `gun` at `target`, under the rules of
- * fire asked (or the wanted level's). False when it is not fired: the gun
- * busy or waiting, the rules `hold`, the target past its reach — or a
- * launcher under SAFE FOR WORK with no machine to aim at. */
-export function fireAt(state: GameState, gun: Gun, target: AimTarget, asked?: FireRules): boolean {
+ * fire asked (or the wanted level's) — or, `own`, the player's own gun
+ * (`armour.ts`), aimed where he lays it whatever the army's rules. False
+ * when it is not fired: the gun busy or waiting, the rules `hold`, the
+ * target past its reach — or a launcher under SAFE FOR WORK with no
+ * machine to aim at. */
+export function fireAt(
+  state: GameState,
+  gun: Gun,
+  target: AimTarget,
+  asked?: FireRules,
+  own = false,
+): boolean {
   const g = state.gunfire;
   if (!g || !gunReady(gun)) return false;
-  const rules = rulesOf(state, asked);
+  const rules = own ? "aim" : rulesOf(state, asked);
   if (rules === "hold") return false;
   const def = WEAPONS[gun.weapon];
   const tg = targetOf(state, target);
@@ -543,8 +553,16 @@ function flyRound(state: GameState, g: GunfireState, r: Round, events: GameEvent
       stuff = u.stuff === "steel" || u.stuff === "rock" ? u.stuff : "trunk";
     }
   }
-  // THE MACHINE HE RIDES.
-  const mh = machineHit(state, p0, p1);
+  // THE MACHINE HE RIDES — never his own gun's round through his own
+  // vehicle; his shell bursts on the hunt's machines instead (`armour.ts`).
+  const own = r.gun === ARMOUR.tank.gun;
+  const ah = own ? armyStruck(state, p0, p1) : -1;
+  if (ah >= 0 && ah < s) {
+    s = ah;
+    what = "solid";
+    stuff = "steel";
+  }
+  const mh = own ? null : machineHit(state, p0, p1);
   if (mh && mh.s < s) {
     s = mh.s;
     what = "machine";

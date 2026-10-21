@@ -12,12 +12,19 @@
 //     and throws him; the snowmobile's tank lights (`sled-fire.ts`, on a
 //     ride that has fires) or it dies where it stands;
 //   - A ROCKET'S BURST on a machine is `rocket` of it at once, and in a
-//     balloon's envelope sets it alight.
+//     balloon's envelope sets it alight;
+//   - AN ARMY VEHICLE HE TOOK (`armour.ts`) by its own numbers
+//     (`ARMOUR.damage`): a carrier's or a truck's skin holed by belts of
+//     rounds, a tank's armour by none — a burst `burst` of it — failing
+//     (it will not drive) and lost (a wreck): `knockOut`.
 // A round through a helicopter's or the plane's CABIN reaches the man at
 // the controls `GUNFIRE.cabin` of the time (`gunfire.ts` wounds him).
 
 import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { fromEuler, unrotate } from "@niclaslindstedt/oss-game-framework/core/quat";
+import { knockOut } from "./armour.ts";
+import { specOf } from "./army-vehicle-body.ts";
+import { ARMOUR } from "./defs/armour.ts";
 import { BALLOON } from "./defs/balloon.ts";
 import { SLED } from "./defs/sled.ts";
 import { SLED_FIRE } from "./defs/sled-fire.ts";
@@ -129,6 +136,22 @@ export function machineHit(
     const r = hullHit(p, q, s, fromEuler(s.heading, 0, 0), hull);
     if (r) return { machine: "sled", s: r.s, cabin: false };
   }
+  const v = state.armour;
+  if (v?.rider) {
+    const o = v.body;
+    const S = specOf(o);
+    const L = S.halfLength;
+    // Its hull a capsule along it; the carrier's and the truck's cab the
+    // stretch a round finds him through, the tank's none.
+    const cab: [number, number] =
+      o.kind === "truck" ? [L - 1.9, L] : o.kind === "carrier" ? [-L, 0.5] : [9, 9];
+    const half = S.height * 0.5;
+    const hull: Hull[] = [
+      { a: [0, half, -L], b: [0, half, L], r: Math.max(S.halfWidth, half), cabin: cab },
+    ];
+    const r = hullHit(p, q, o, fromEuler(o.heading, o.pitch, o.roll), hull);
+    if (r) return { machine: "armour", ...r };
+  }
   const b = state.balloon;
   if (b?.aboard) {
     const E = BALLOON.envelope;
@@ -150,6 +173,10 @@ export function machineAt(
   if (m === "heli" && state.heli?.rider) return { ...xyz(state.heli), y: state.heli.y + 1.2 };
   if (m === "plane" && state.plane?.rider) return { ...xyz(state.plane), y: state.plane.y + 1.7 };
   if (m === "sled" && state.sled?.rider) return xyz(state.sled);
+  if (m === "armour" && state.armour?.rider) {
+    const o = state.armour.body;
+    return { x: o.x, y: o.y + 1.2, z: o.z };
+  }
   if (m === "balloon" && state.balloon?.aboard) {
     const b = state.balloon;
     return { x: b.x, y: b.y + BALLOON.envelope.mouthHeight + BALLOON.envelope.equator, z: b.z };
@@ -160,7 +187,7 @@ export function machineAt(
 const xyz = (o: { x: number; y: number; z: number }) => ({ x: o.x, y: o.y, z: o.z });
 
 /** THE MACHINES, in the order a burst asks them. */
-export const MACHINES: readonly GunMachine[] = ["heli", "plane", "sled", "balloon"];
+export const MACHINES: readonly GunMachine[] = ["heli", "plane", "sled", "balloon", "armour"];
 
 /** `j` J of a round's energy (or a burst's `rocket` share, `burst` true)
  * into machine `m`: its damage, and what it comes to. */
@@ -199,6 +226,25 @@ export function damageMachine(
     return;
   }
   const was = g.damage[m];
+  if (m === "armour") {
+    // An army vehicle he took: by its own numbers, and knocked out under him.
+    const kind = state.armour!.body.kind;
+    const D = ARMOUR.damage;
+    const now = was + (burst ? D.burst[kind] : j / D.rounds[kind]);
+    g.damage.armour = now;
+    say("hit");
+    if (was < M.smoke && now >= M.smoke) say("smoke");
+    if (was < M.fail && now >= M.fail) {
+      knockOut(state, false, events);
+      say("fail");
+    }
+    if (now >= 1) {
+      g.lost.armour = true;
+      knockOut(state, true, events);
+      say("lost");
+    }
+    return;
+  }
   const now = burst ? was + M.rocket : was + j / M[m];
   g.damage[m] = now;
   say("hit");

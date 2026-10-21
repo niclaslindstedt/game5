@@ -865,6 +865,7 @@ export function planeWithin(run: GameState): boolean {
   const c = run.skier;
   if (!p || p.rider || p.mode !== "parked") return false;
   if (c.thrown || c.lift || c.tunnel || run.sled?.rider || run.heli?.rider) return false;
+  if (run.armour?.rider) return false;
   if (run.para && run.para.mode !== "dropped") return false;
   if (run.balloon?.aboard) return false;
   const door = doorFrame(p);

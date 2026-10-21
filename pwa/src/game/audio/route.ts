@@ -672,6 +672,17 @@ export function soundForEvent(
       return { id: "sled_crash", shape: { ...heard, gain: heard.gain! * 1.3 } };
     }
 
+    // AN ARMY VEHICLE HE TOOK (`armour.ts`), heard as a piste machine's
+    // cab is: the boots up into it and back down on the snow. Its diesel
+    // is the army's bed's and its gun the gunfire's; knocked out, it is
+    // heard in the burst that did it.
+    case "armour": {
+      const heard = heardAt(event, contact.ear, HEARD_NEAR);
+      if (event.change === "board") return { id: "sled_board", shape: heard };
+      if (event.change === "hop") return { id: "sled_hop", shape: heard };
+      return null;
+    }
+
     // THE VILLAGE'S TRAFFIC (`traffic.ts`): a skier met by a car, the bus
     // or a bike — the bodywork's thud, as loud as he came in hard.
     case "traffic": {

@@ -232,6 +232,11 @@ export const WANTED = {
     "downed-helicopter": { add: 1, floor: 3 },
     "hit-soldier": { add: 0.5, floor: 1 },
     "stole-snowmobile": { add: 0.5, floor: 2 },
+    // The army's own machines: a carrier or a truck, its helicopter off
+    // the snow, a tank — each worse than the last.
+    "stole-vehicle": { add: 1, floor: 3 },
+    "stole-army-heli": { add: 1, floor: 4 },
+    "stole-tank": { add: 1.5, floor: 4 },
     dev: { add: 1, floor: 1 },
   } as Record<string, { add: number; floor: number }>,
 } as const;
@@ -243,4 +248,7 @@ export type WantedCause =
   | "downed-helicopter"
   | "hit-soldier"
   | "stole-snowmobile"
+  | "stole-vehicle"
+  | "stole-army-heli"
+  | "stole-tank"
   | "dev";

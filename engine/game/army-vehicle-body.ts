@@ -13,7 +13,8 @@
 // stood in the snow is driven through: a trunk, a post or a wall at its
 // front, open water there, or another vehicle in its way stops it — and
 // its watch (`army-vehicle.ts`) swings it off, backs it out or puts it
-// back on the way. A CARRIER'S REAR UNIT trails the front about the steered
+// back on the way. The vehicle a skier took (`armour.ts`) is driven on
+// this same move, and stands in their way as theirs stand in his. A CARRIER'S REAR UNIT trails the front about the steered
 // hitch between them, as a trailer does: its heading swings toward the
 // front's at the pace over the hitch's length (θ' = v/L · sin(θf − θr)).
 //
@@ -109,7 +110,10 @@ function blocked(state: GameState, v: ArmyVehicle, all: readonly ArmyVehicle[]):
   const pz = v.z + fz * (S.halfLength + 0.6);
   if (standingNear(state.level, px, pz, S.halfWidth * 0.8, near).length > 0) return true;
   if (waterWithin(state.level.water, px, pz, 1)) return true;
-  for (const o of all) {
+  // ...and the one he took, whoever is driving which.
+  const his = state.armour?.body;
+  const others = his && his !== v ? [...all, his] : all;
+  for (const o of others) {
     if (o === v || o.mode === "due" || o.mode === "gone") continue;
     const dx = o.x - v.x;
     const dz = o.z - v.z;
@@ -213,6 +217,7 @@ export function holdOffVehicles(
 ): void {
   const c = state.skier;
   if (c.thrown || c.lift || state.sled?.rider || state.heli?.rider || state.plane?.rider) return;
+  if (state.armour?.rider) return;
   hulls.length = 0;
   for (const v of all) {
     if (v.mode === "due" || v.mode === "gone") continue;

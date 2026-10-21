@@ -869,7 +869,7 @@ export function heliWithin(run: GameState): boolean {
   const h = run.heli;
   const c = run.skier;
   if (!h || h.rider || h.mode !== "parked") return false;
-  if (c.thrown || c.lift || c.tunnel || run.sled?.rider) return false;
+  if (c.thrown || c.lift || c.tunnel || run.sled?.rider || run.armour?.rider) return false;
   // Under a paramotor's wing the press releases the rig (`para.ts`).
   if (run.para && run.para.mode !== "dropped") return false;
   const seat = heliPoint(h, SEAT);

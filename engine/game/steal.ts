@@ -20,7 +20,10 @@
 //     rules; only what it is drawn in (its `livery`) is the owner's.
 // What the HUD offers the press on is `stealWithin` — the same question.
 // Every theft raises THE WANTED LEVEL (`wanted.ts`'s `raiseHeat`) by the
-// livery's offence (`OFFENCE`): the army comes for a helicopter thief.
+// machine's offence (`offenceOf`): the army comes for a helicopter thief,
+// and harder for one who takes its own machines — its helicopter on the
+// snow (`army-steal.ts`), its snowmobiles (`army-sled.ts`) and the ground
+// waves' carriers, trucks and tanks (`armour.ts`).
 //
 // Pure over the state and the clock; nothing here draws from the stream,
 // and a run with nothing parked never gets past the first line, so no
@@ -33,6 +36,8 @@ import { onSkis } from "./groomer.ts";
 import { heliWithin, takeHeli } from "./heli.ts";
 import { PATROL_SOURCE } from "./rescue-sled.ts";
 import { ARMY_SLED_SOURCE } from "./army-sled.ts";
+import { ARMY_HELI_SOURCE } from "./army-steal.ts";
+import { ARMOUR_SOURCE, armourWithin, takeArmour } from "./armour.ts";
 import { sledWithin, takeSled } from "./sled.ts";
 import { SEAT } from "./heli-rotor.ts";
 import { inGrace } from "./machine-grace.ts";
@@ -45,8 +50,9 @@ import type { WantedCause } from "./defs/wanted.ts";
 export type { HeliLivery } from "./heli-state.ts";
 export type { SledLivery } from "./sled-state.ts";
 
-/** The kinds of machine a skier can take, each with its taker. */
-export type StealKind = "heli" | "sled";
+/** The kinds of machine a skier can take, each with its taker: a
+ * helicopter, a snowmobile, or one of the ground waves' vehicles. */
+export type StealKind = "heli" | "sled" | "carrier" | "truck" | "tank";
 
 /** Whose colours a taken machine is drawn in. */
 export type StealLivery = HeliLivery | SledLivery;
@@ -142,27 +148,45 @@ const RESCUE_SOURCE: StealSource = {
   },
 };
 
-/** THE OFFENCE each livery is: what taking it raises the wanted level by
- * (`wanted.ts`). Keyed by the livery's name, the police's row ready before
- * its livery lands; a livery with no row raises nothing. */
-const OFFENCE: Readonly<Record<string, WantedCause>> = {
-  rescue: "stole-ambulance",
-  police: "stole-police",
-  army: "stole-snowmobile",
-};
+/** THE OFFENCE a machine is: what taking it raises the wanted level by
+ * (`wanted.ts`) — by the livery it is drawn in, the army's by its kind; a
+ * machine with no offence (the ski patrol's) raises nothing. */
+export function offenceOf(kind: StealKind, livery: StealLivery): WantedCause | null {
+  if (livery === "rescue") return "stole-ambulance";
+  if (livery === "police") return "stole-police";
+  if (livery !== "army") return null;
+  if (kind === "heli") return "stole-army-heli";
+  if (kind === "sled") return "stole-snowmobile";
+  return kind === "tank" ? "stole-tank" : "stole-vehicle";
+}
 
 /** EVERY SOURCE, in the order the press looks at them. A machine added to
  * the mechanic is a row here. */
-export const STEAL_SOURCES: StealSource[] = [RESCUE_SOURCE, PATROL_SOURCE, ARMY_SLED_SOURCE];
+export const STEAL_SOURCES: StealSource[] = [
+  RESCUE_SOURCE,
+  PATROL_SOURCE,
+  ARMY_SLED_SOURCE,
+  ARMY_HELI_SOURCE,
+  ARMOUR_SOURCE,
+];
+
+const isHeliLivery = (l: StealLivery): l is HeliLivery =>
+  l === "rescue" || l === "police" || l === "army";
+const isSledLivery = (l: StealLivery): l is SledLivery => l === "patrol" || l === "army";
+const takeVehicle = (run: GameState, p: StealTarget, events: GameEvent[]): boolean =>
+  takeArmour(run, p, events) !== null;
 
 /** THE TAKERS: the run's own machine of each kind made the taken one, the
- * skier aboard — false when the run carries no such machine to become it. */
+ * skier aboard — false when the run carries no such machine to become it;
+ * a ground wave's vehicle becomes his own (`GameState.armour`). */
 const TAKERS: Record<StealKind, (run: GameState, p: StealTarget, events: GameEvent[]) => boolean> =
   {
     heli: (run, p, events) =>
-      p.livery !== "patrol" && p.livery !== "army" && takeHeli(run, p, p.livery, p.spool, events),
-    sled: (run, p, events) =>
-      (p.livery === "patrol" || p.livery === "army") && takeSled(run, p, p.livery, events),
+      isHeliLivery(p.livery) && takeHeli(run, p, p.livery, p.spool, events),
+    sled: (run, p, events) => isSledLivery(p.livery) && takeSled(run, p, p.livery, events),
+    carrier: takeVehicle,
+    truck: takeVehicle,
+    tank: takeVehicle,
   };
 
 const found: StealTarget[] = [];
@@ -172,7 +196,7 @@ const found: StealTarget[] = [];
  * while he can board his own (the press is his own machine's) or just
  * after stepping off one (`machine-grace.ts`). */
 export function stealWithin(state: GameState): StealTarget | null {
-  if (inGrace(state) || !onSkis(state) || heliWithin(state)) return null;
+  if (inGrace(state) || !onSkis(state) || heliWithin(state) || armourWithin(state)) return null;
   const c = state.skier;
   found.length = 0;
   for (const s of STEAL_SOURCES) s.parked(state, found);
@@ -213,7 +237,7 @@ export function stepSteal(
     z: p.z,
   });
   // ...and the army is called: THE WANTED LEVEL (`wanted.ts`).
-  const offence = OFFENCE[p.livery];
+  const offence = offenceOf(p.kind, p.livery);
   if (offence) raiseHeat(run, offence);
   return true;
 }

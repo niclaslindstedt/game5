@@ -46,9 +46,13 @@ const SALT = 0x6a7f1e;
 export type BlastSpec = Pick<BlastDef, "kill" | "wound" | "throw" | "shove" | "frag">;
 
 /** Whether he sits in a cabin a round must come through the airframe to
- * reach: the helicopter he flies, the plane. */
+ * reach: the helicopter he flies, the plane, an army vehicle he took. */
 export function inCabin(state: GameState): boolean {
-  return !!(state.heli?.rider && state.heli.mode !== "wreck") || !!state.plane?.rider;
+  return (
+    !!(state.heli?.rider && state.heli.mode !== "wreck") ||
+    !!state.plane?.rider ||
+    !!state.armour?.rider
+  );
 }
 
 /** The parts a burst's fragments find, in the order they are dealt. */

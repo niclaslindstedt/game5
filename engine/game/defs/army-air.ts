@@ -149,8 +149,9 @@ export const ARMY_AIR = {
    * whose middle is within `vehicle` m of a burst is knocked out (a
    * shoulder rocket's shaped charge through a carrier's or a truck's
    * skin, or down through a tank's thin roof); a paramotor's wing within
-   * `wing` m is shredded. */
-  burst: { vehicle: 5, wing: 6 },
+   * `wing` m is shredded; a helicopter whose cabin is within `heli` m (a
+   * tank shell he fired, `armour.ts`) comes down. */
+  burst: { vehicle: 5, wing: 6, heli: 4 },
 
   /** Ids: paramotors are pursuers `pursuer` + n, balloons `pursuer` + 500
    * + n; the riflemen's guns `gun` + n, the rocketeers' `gun` + 5000 +

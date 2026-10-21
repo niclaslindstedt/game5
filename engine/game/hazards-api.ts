@@ -94,7 +94,7 @@ export {
   stepGunfire,
 } from "./gunfire.ts";
 export { bodyCentre, bodyHit, bodyPoints } from "./gunfire-body.ts";
-export { machineAt } from "./gunfire-machine.ts";
+export { damageMachine, machineAt } from "./gunfire-machine.ts";
 export type * from "./gunfire-state.ts";
 // THE ARMY'S HELICOPTERS IN FLIGHT (`army.ts`): called in, flown, fought.
 export { ARMY } from "./defs/army.ts";
@@ -142,3 +142,18 @@ export { freshAirState } from "./army-air-state.ts";
 export type * from "./army-air-state.ts";
 // THE BLAST (`blast.ts`): what a burst does where it goes off.
 export { blastAt, type BlastSpec } from "./blast.ts";
+// THE ARMY'S MACHINES TAKEN (`armour.ts`, `army-steal.ts`): a carrier, a
+// truck or a tank driven, its helicopter flown off the snow.
+export { ARMOUR } from "./defs/armour.ts";
+export {
+  ARMOUR_SOURCE,
+  armourDoor,
+  armourPoint,
+  armourWithin,
+  knockOut,
+  sightPoint,
+  stepArmour,
+  takeArmour,
+} from "./armour.ts";
+export type { ArmourEvent, ArmourRide } from "./armour-state.ts";
+export { ARMY_HELI_SOURCE, ARMY_PILOT_DOOR, armyHeliDoor } from "./army-steal.ts";

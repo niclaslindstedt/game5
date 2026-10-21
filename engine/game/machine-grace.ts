@@ -18,6 +18,7 @@ export function onMachine(run: GameState): boolean {
     run.heli?.rider ||
     run.plane?.rider ||
     run.sled?.rider ||
+    run.armour?.rider ||
     run.groomers?.some((g) => g.rider)
   );
 }

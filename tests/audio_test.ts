@@ -256,6 +256,7 @@ const EVERY_EVENT_BY_KIND: { [K in GameEvent["kind"]]: Extract<GameEvent, { kind
     y: 0,
     z: 0,
   },
+  armour: { kind: "armour", t: 1, change: "board", vehicle: "tank", x: 0, y: 0, z: 0 },
   steal: {
     kind: "steal",
     t: 1,

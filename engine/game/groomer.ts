@@ -281,7 +281,7 @@ function pivot(g: GroomerState, r: NetRun): void {
 export function onSkis(state: GameState): boolean {
   const c = state.skier;
   if (c.thrown || c.lift || c.tunnel || c.jib || c.grind) return false;
-  if (state.heli?.rider || state.sled?.rider) return false;
+  if (state.heli?.rider || state.sled?.rider || state.armour?.rider) return false;
   // Under a paramotor's wing the press releases the rig (`para.ts`).
   if (state.para && state.para.mode !== "dropped") return false;
   return !state.groomers?.some((g) => g.rider);

@@ -93,6 +93,8 @@ import { SoldierView, soldierMaterial, soldierTriangles } from "../game/soldier-
 import { castInLight } from "../game/terrain-shade.ts";
 import { WAVE_VIEWS, waveViews } from "./army-waves-sheet.ts";
 import { VEHICLE_VIEWS, vehicleViews } from "./army-vehicles-sheet.ts";
+import { STEAL_VIEWS, stealViews } from "./army-steal-sheet.ts";
+import type { CameraRung } from "../game/renderer-api.ts";
 import { AIR_VIEWS, airViews } from "./army-air-sheet.ts";
 
 type Frame = { view: string; label: string; caption: string; png: string };
@@ -107,6 +109,7 @@ const GROUPS = {
   waves: WAVE_VIEWS,
   vehicles: VEHICLE_VIEWS,
   air: AIR_VIEWS,
+  steal: STEAL_VIEWS,
 } as const;
 
 declare global {
@@ -300,7 +303,8 @@ let frames: Frame[] = [];
 let view = "";
 let sky = "";
 
-function shoot(label: string, pose: LensPose, note = "", of: GameState = state): void {
+/** A frame through `pose`, or with none the game's own lens. */
+function shoot(label: string, pose: LensPose | null, note = "", of: GameState = state): void {
   renderer.setOverride(pose);
   renderer.draw(of, 1, STILL, true);
   const info = gl.info;
@@ -860,12 +864,14 @@ const LAB = {
   note: groundNote,
   at: open,
   frame: (run: GameState, dt: number) => renderer.draw(run, 1, dt),
+  rung: (k: CameraRung) => renderer.setCamera(k, true),
   level,
 };
 const VIEWS: Record<string, () => void | Promise<void>> = {
   ...waveViews(LAB),
   ...vehicleViews(LAB),
   ...airViews(LAB),
+  ...stealViews(LAB),
   "sled-chase": () =>
     sledScene(4, true, (m) => m.mode === "drive" && m.body.speed > 8 && m.driver && m.gunner, [
       ["beside", Math.PI / 2 + 0.3, 7, 1.6, 50],
@@ -938,7 +944,9 @@ const COLS: Record<string, number> = {
   "sled-chase": 3,
   "sled-halt": 3,
   "sled-arrest": 3,
-  ...Object.fromEntries([...WAVE_VIEWS, ...VEHICLE_VIEWS, ...AIR_VIEWS].map((v) => [v, 3])),
+  ...Object.fromEntries(
+    [...WAVE_VIEWS, ...VEHICLE_VIEWS, ...AIR_VIEWS, ...STEAL_VIEWS].map((v) => [v, 3]),
+  ),
 };
 
 const ready = (async () => {

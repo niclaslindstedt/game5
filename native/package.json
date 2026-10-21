@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@dr.pogodin/react-native-static-server": "^0.28.0",
-    "expo": "~57.0.30",
+    "expo": "~57.0.31",
     "expo-asset": "~57.0.20",
     "expo-audio": "~57.0.5",
     "expo-build-properties": "~57.0.22",

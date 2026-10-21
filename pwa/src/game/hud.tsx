@@ -77,6 +77,7 @@ import { SledReadout } from "./hud-sled.tsx";
 import { BikeReadout } from "./hud-bike.tsx";
 import { AfterskiReadout, BuzzMeter } from "./hud-afterski.tsx";
 import { MachinePress } from "./hud-machine-press.tsx";
+import { ArmourReadout } from "./hud-armour.tsx";
 import { GroomerReadout } from "./hud-groomer.tsx";
 import { ParaReadout } from "./hud-para.tsx";
 import { ChuteReadout, PlaneReadout } from "./hud-plane.tsx";
@@ -186,9 +187,11 @@ export function Hud({
   const flown = snap.heli?.kind === "flown" || snap.plane?.kind === "flown";
   // The snowmobile's readout over the helicopter's call: ridden, or stood
   // beside it, it is the one the machine key is about.
-  // A piste machine's over both: driven, or stood beside it.
+  // A piste machine's over both: driven, or stood beside it — and the
+  // army's vehicle's over all three, driven or at its door.
   const groomerFirst =
-    snap.groomer !== null && (snap.groomer.kind === "driven" || snap.groomer.near);
+    snap.armour !== null ||
+    (snap.groomer !== null && (snap.groomer.kind === "driven" || snap.groomer.near));
   const indoors = snap.afterski?.kind === "inside";
   const sledFirst =
     !groomerFirst && snap.sled !== null && (snap.sled.kind === "ridden" || snap.sled.near);
@@ -828,6 +831,7 @@ export function Hud({
       {/* THE PISTE MACHINE (`hud-groomer.tsx`): driven, or the call to one
           working near him when nothing else is calling. */}
       {snap.groomer &&
+        !snap.armour &&
         (groomerFirst || (!snap.sled && !snap.heli)) &&
         !snap.para &&
         snap.afterski?.kind !== "inside" &&
@@ -839,6 +843,16 @@ export function Hud({
             onBoard={input.requestMachine}
           />
         )}
+      {/* THE ARMY'S VEHICLE (`hud-armour.tsx`): driven, or its door. */}
+      {snap.armour && !snap.para && snap.afterski?.kind !== "inside" && (
+        <ArmourReadout
+          armour={snap.armour}
+          touch={touch}
+          machineKey={machineKey}
+          jumpKey={jumpKey}
+          onBoard={input.requestMachine}
+        />
+      )}
 
       {/* THE BODY at the left edge, and THE G METER over the skier the
           moment a blow lands (`hud-body.tsx`, `hud-gforce.tsx`) — neither

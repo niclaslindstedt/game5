@@ -27,6 +27,8 @@ import { bikeLook } from "./bike-variant.ts";
 import { createBikeView, type BikeView } from "./bike-view.ts";
 import { bikeStood, createRiderHold } from "./skier-bike.ts";
 import { drivenGroomer, groomerRigPose, GROOMER_RIGS } from "./camera-groomer.ts";
+import { armourRigPose, ARMOUR_RIGS, drivenArmour } from "./camera-armour.ts";
+import { createCarrierCab, type CarrierCab } from "./carrier-cab.ts";
 import { createGroomerScene, type GroomerScene } from "./groomer-scene.ts";
 import type { Flood } from "./headlamp.ts";
 import type { HazeUniforms } from "./haze.ts";
@@ -183,6 +185,12 @@ export type Machines = {
  * injured run, the police after a death, either called to the crowd. */
 const callsRescue = (s: GameState): boolean =>
   !!(s.gore || (s.crowd && s.rules.heli) || s.rescue?.length);
+
+/** Whether he flies the army's helicopter (`army-steal.ts`): sat at its
+ * controls in its cockpit (`army-heli-cockpit.ts` draws him there), not on
+ * its skid. */
+const flownArmy = (s: GameState): boolean =>
+  !!(s.heli?.rider && s.heli.livery === "army" && !s.skier.thrown);
 
 /** How many flashes are lit at once (`flash-lights.ts`): one, as many point
  * lights as the helicopter's explosion alone always stood in the scene. */
@@ -396,6 +404,10 @@ export function createMachines(
   // ...built with the world on a run whose helicopter he may take — the
   // theft that brings them out — so they never stall the picture as they come.
   const armyReady = state.rules.heli ? [armyBuilt().ready] : [];
+  // THE CAB OF A CARRIER HE TAKES (`carrier-cab.ts`), built with them: hung
+  // in his carrier as drawn while he drives it, in the group till then.
+  const cab: CarrierCab | null = state.rules.heli ? createCarrierCab(haze) : null;
+  if (cab) group.add(cab.group);
   let blastLensed = false;
   // What the snowmobile is handed a frame: the snow, and this frame's stamps.
   const sledFx: MachineSnow & { stamps: Stamp[] | null } = { ...fx, stamps: null };
@@ -494,6 +506,18 @@ export function createMachines(
       )
         armyBuilt();
       army?.frame(s, alpha, dt, simDt, stamps, cloud);
+      // HIS VEHICLE: the cab hung in it and shown from the driver's eye,
+      // its cab from outside (the shell and the dark glass) put away while it is.
+      const ridden = army?.ridden() ?? null;
+      const driven = drivenArmour(s);
+      const inCab = !!(driven && ridden && driven.kind === "carrier" && rung === "helmet");
+      if (cab) {
+        const hang = ridden && driven?.kind === "carrier" ? ridden.root : group;
+        if (cab.group.parent !== hang) hang.add(cab.group);
+        if (s.armour) cab.update(s.armour, s.t, dt, inCab, inCab);
+        else cab.group.visible = false;
+      }
+      if (ridden?.glass) ridden.glass.visible = !inCab;
       armyCraft?.frame(s, alpha, dt);
       heli?.frame(s, alpha, dt, player, rung, flying, cloud, fx.snowAt, aspect);
       para?.frame(s, alpha);
@@ -638,7 +662,8 @@ export function createMachines(
       burn?.frame(s, seated, simDt);
       // In the cab he is out of sight: the machine is his figure now — and
       // back in sight the moment he is let down out of it.
-      if (seated && groomers) seated.root.visible = !drivenGroomer(s);
+      if (seated)
+        seated.root.visible = !(groomers && drivenGroomer(s)) && !drivenArmour(s) && !flownArmy(s);
     },
     light(look) {
       para?.light(look);
@@ -709,6 +734,11 @@ export function createMachines(
       if (g) {
         groomerRigPose(pose, g, groomers?.drawn(g) ?? null);
         return GROOMER_RIGS;
+      }
+      const v = drivenArmour(s);
+      if (v) {
+        armourRigPose(pose, v, army?.ridden() ?? null);
+        return ARMOUR_RIGS[v.kind];
       }
       if (balloon && basketLens && inBasket(s.balloon, !!s.skier.thrown)) {
         basketLens.fit(aspect);
@@ -789,6 +819,7 @@ export function createMachines(
       sledFire?.dispose();
       gunfire?.dispose();
       army?.dispose();
+      cab?.dispose();
       armyCraft?.dispose();
       flashLamps.dispose();
     },

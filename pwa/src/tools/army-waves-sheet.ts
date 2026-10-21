@@ -48,7 +48,7 @@ export type WaveLab = {
   ): LensPose;
   /** Where he is stood: open piste down the mountain. */
   at: { x: number; z: number; heading: number };
-  shoot(label: string, pose: LensPose, note: string, of: GameState): void;
+  shoot(label: string, pose: LensPose | null, note: string, of: GameState): void;
   look(eye: THREE.Vector3, at: THREE.Vector3, fov?: number): LensPose;
   settle(run: GameState): void;
   note(run: GameState): string;

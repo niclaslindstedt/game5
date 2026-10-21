@@ -51,6 +51,11 @@ type Drawn = {
   turret: THREE.Group | null;
   gun: THREE.Group | null;
   barrel: THREE.Mesh | null;
+  /** The man up in the hatch, gone while the vehicle is his. */
+  commander: THREE.Mesh | null;
+  /** The carrier's cab from outside (its shell and dark glass), put away
+   * while the lens is in its cab. */
+  glass: THREE.Mesh | null;
   kind: ArmyVehicle["kind"];
   /** The last print each side (x, z), NaN before the first. */
   pen: number[];
@@ -76,7 +81,26 @@ export type ArmyVehicleView = {
     stamps: Stamp[] | null,
     cloud: SnowCloud | null,
   ): void;
+  /** HIS VEHICLE as drawn this frame (`armour.ts`): its root — what its
+   * cab is hung in — its turret, and the pose the lens frames; null while
+   * he has none. */
+  ridden(): Ridden | null;
   dispose(): void;
+};
+
+/** His vehicle as the picture has it this frame. */
+export type Ridden = {
+  root: THREE.Group;
+  turret: THREE.Group | null;
+  gun: THREE.Group | null;
+  /** Its cab from outside, shell and dark glass (a carrier's), or null. */
+  glass: THREE.Mesh | null;
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+  pitch: number;
+  roll: number;
 };
 
 export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView {
@@ -87,6 +111,19 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
   const spare: Record<ArmyVehicle["kind"], Drawn[]> = { carrier: [], truck: [], tank: [] };
   let owner: GameState | null = null;
   let frameNo = 0;
+  let ridden: Ridden | null = null;
+  const rideOf: Ridden = {
+    root: group,
+    turret: null,
+    gun: null,
+    glass: null,
+    x: 0,
+    y: 0,
+    z: 0,
+    heading: 0,
+    pitch: 0,
+    roll: 0,
+  };
 
   const mesh = (g: THREE.BufferGeometry, parent: THREE.Object3D): THREE.Mesh => {
     const m = new THREE.Mesh(g, material);
@@ -104,9 +141,13 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
     let turret: THREE.Group | null = null;
     let gun: THREE.Group | null = null;
     let barrel: THREE.Mesh | null = null;
+    let commander: THREE.Mesh | null = null;
+    let glass: THREE.Mesh | null = null;
     if (kind === "carrier") {
       mesh(geo.carrierFront, root);
-      mesh(geo.commander, root).position.set(0, 2.33, -0.6);
+      glass = mesh(geo.carrierGlass, root);
+      commander = mesh(geo.commander, root);
+      commander.position.set(0, 2.33, -0.6);
       rear = new THREE.Group();
       rear.name = "army-carrier-rear";
       mesh(geo.carrierRear, rear);
@@ -118,7 +159,8 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
       turret = new THREE.Group();
       root.add(turret);
       mesh(geo.tankTurret, turret);
-      mesh(geo.commander, turret).position.set(0.75, 2.83, -0.6);
+      commander = mesh(geo.commander, turret);
+      commander.position.set(0.75, 2.83, -0.6);
       gun = new THREE.Group();
       gun.position.set(0, TANK_GUN.y, TANK_GUN.z);
       turret.add(gun);
@@ -130,6 +172,8 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
       turret,
       gun,
       barrel,
+      commander,
+      glass,
       kind,
       pen: [NaN, 0, NaN, 0],
       penRear: [NaN, 0, NaN, 0],
@@ -211,9 +255,13 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
       }
       const ahead = alpha * simDt;
       const level = state.level;
+      const his = state.armour?.body;
+      ridden = null;
       for (const v of armyVehicles(state)) {
         const d = take(v);
         d.seen = frameNo;
+        if (d.commander) d.commander.visible = v !== his;
+        if (d.glass) d.glass.visible = true;
         const fx = Math.sin(v.heading);
         const fz = Math.cos(v.heading);
         const x = v.x + fx * v.speed * ahead;
@@ -221,6 +269,19 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
         const q = armyQuat(v);
         d.root.position.set(x, level.groundAt(x, z), z);
         d.root.quaternion.set(q.x, q.y, q.z, q.w);
+        if (v === his) {
+          ridden = rideOf;
+          rideOf.root = d.root;
+          rideOf.turret = d.turret;
+          rideOf.gun = d.gun;
+          rideOf.glass = d.glass;
+          rideOf.x = x;
+          rideOf.y = d.root.position.y;
+          rideOf.z = z;
+          rideOf.heading = v.heading;
+          rideOf.pitch = v.pitch;
+          rideOf.roll = v.roll;
+        }
         if (d.rear) {
           const r = rearOf({ x, z, heading: v.heading, rear: v.rear });
           const rq = armyQuat({ heading: v.rear, pitch: v.pitch, roll: v.roll });
@@ -276,6 +337,7 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
       }
       for (const [id, d] of drawn) if (d.seen !== frameNo) drop(id);
     },
+    ridden: () => ridden,
     dispose() {
       for (const id of [...drawn.keys()]) drop(id);
       // The geometry is shared and built once; it lives as long as the page.

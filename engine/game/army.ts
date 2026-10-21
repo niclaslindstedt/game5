@@ -147,6 +147,7 @@ export function quarryVelocity(state: GameState): V {
     (state.heli?.rider && state.heli) ||
     (state.plane?.rider && state.plane) ||
     (state.sled?.rider && state.sled) ||
+    (state.armour?.rider && state.armour) ||
     null;
   const c = m ?? state.skier.thrown ?? state.skier;
   return { x: c.vx, y: c.vy, z: c.vz };

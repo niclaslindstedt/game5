@@ -68,7 +68,7 @@ export function afterskiNear(run: GameState): Cabin | null {
   if (!a || a.inside !== null || !run.rules.afterski) return null;
   const c = run.skier;
   if (c.thrown || c.fetch || c.lift || c.tunnel || c.jib) return null;
-  if (run.heli?.rider || run.sled?.rider) return null;
+  if (run.heli?.rider || run.sled?.rider || run.armour?.rider) return null;
   if (run.para && run.para.mode !== "dropped") return null;
   if (hypot3(c.vx, c.vy, c.vz) > AFTERSKI.slowest) return null;
   for (const lodge of lodgesOf(run.level)) {

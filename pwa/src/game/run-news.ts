@@ -216,7 +216,13 @@ export function newsFor(e: GameEvent, state: GameState): NewsLine | null {
       return e.phase === "take" ? { text: STRINGS.newsLiftTaken, tone: "info" } : null;
     case "steal":
       // Somebody else's machine taken off the snow.
-      return { text: STRINGS.newsSteal[e.livery], tone: "good" };
+      return { text: STRINGS.newsSteal(e.vehicle, e.livery), tone: "good" };
+    case "armour":
+      // His vehicle taken from the army: out of it, or knocked out under
+      // him (the theft's own line says he is in it).
+      if (e.change === "hop") return { text: STRINGS.newsArmourHop, tone: "info" };
+      if (e.change === "dead") return { text: STRINGS.newsArmourDead, tone: "bad" };
+      return null;
     case "army-sled":
       // An army snowmobile's crew knocked off it.
       return e.change === "knocked" ? { text: STRINGS.newsCrewOff, tone: "good" } : null;

@@ -48,6 +48,7 @@ export function quarryOf(state: GameState): { x: number; y: number; z: number } 
     (state.heli?.rider && state.heli) ||
     (state.plane?.rider && state.plane) ||
     (state.sled?.rider && state.sled) ||
+    (state.armour?.rider && state.armour.body) ||
     null;
   const c = m ?? state.skier;
   return { x: c.x, y: c.y, z: c.z };

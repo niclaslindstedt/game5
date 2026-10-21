@@ -671,7 +671,11 @@ export function soundForEvent(
       const heard = heardAt(event, contact.ear, HEARD_NEAR);
       return { id: "sled_crash", shape: { ...heard, gain: heard.gain! * 1.3 } };
     }
-
+    // AN ARMY VEHICLE HE TOOK (`armour.ts`): its door a cab's, the rest the gunfire's.
+    case "armour":
+      return event.change !== "board" && event.change !== "hop"
+        ? null
+        : { id: `sled_${event.change}`, shape: heardAt(event, contact.ear, HEARD_NEAR) };
     // THE VILLAGE'S TRAFFIC (`traffic.ts`): a skier met by a car, the bus
     // or a bike — the bodywork's thud, as loud as he came in hard.
     case "traffic": {

@@ -447,4 +447,5 @@ export type HuntEvent =
   | SoldierEvent
   | ArmySledEvent
   | ArmyVehicleEvent
-  | ArmyAirEvent;
+  | ArmyAirEvent
+  | import("./armour-state.ts").ArmourEvent;

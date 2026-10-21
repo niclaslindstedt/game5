@@ -62,6 +62,14 @@ export const HELI_LOOK = {
   orbit: 7,
 } as const;
 
+/** WHICH COCKPIT THE LENS SITS IN: the pilot's eyes in its frame as the
+ * picture shows it (`bodyOf` turns it over) and how far forward the nose's
+ * tip is, m — the light helicopter's (`COCKPIT`, `HELI`) unless another
+ * machine's deck is named (`army-cockpit-plan.ts`). */
+export type Deck = { eye: { x: number; y: number; z: number }; nose: number };
+
+export const LIGHT_DECK: Deck = { eye: COCKPIT.eye, nose: HELI.body.nose };
+
 /** THE MACHINE'S MIDDLE as drawn, which a hand-over flies round. */
 export function heliMiddleOf(at: HeliAt): { x: number; y: number; z: number } {
   const off = flat(at.heading, 0, (HELI.body.nose + HELI.body.tail) / 2);
@@ -144,9 +152,13 @@ function stepYaw(cam: HeliCam, h: HeliState, at: HeliAt, dt: number): void {
 
 /** THE NOSE LENS: under the chin on a level mount, looking down at the
  * snow ahead. */
-function noseLens(at: HeliAt, groundAt: (x: number, z: number) => number): LensPose {
+function noseLens(
+  at: HeliAt,
+  groundAt: (x: number, z: number) => number,
+  deck: Deck = LIGHT_DECK,
+): LensPose {
   const N = HELI_LOOK.nose;
-  const off = flat(at.heading, 0, HELI.body.nose + N.out);
+  const off = flat(at.heading, 0, deck.nose + N.out);
   const eye = { x: at.x + off.x, y: at.y + N.up, z: at.z + off.z };
   eye.y = Math.max(eye.y, groundAt(eye.x, eye.z) + HELI_LOOK.noseClearance);
   const f = flat(at.heading, 0, Math.cos(N.down));
@@ -165,9 +177,14 @@ function noseLens(at: HeliAt, groundAt: (x: number, z: number) => number): LensP
 
 /** THE COCKPIT LENS: the pilot's eyes in the right seat, bolted to the
  * airframe, the head looking out or down and into a turn (`headOf`). */
-export function cockpitLens(h: HeliState, at: HeliAt, aspect = 16 / 9): LensPose {
+export function cockpitLens(
+  h: HeliState,
+  at: HeliAt,
+  aspect = 16 / 9,
+  deck: Deck = LIGHT_DECK,
+): LensPose {
   const q = at.q ?? heliQuat(h);
-  const off = rotate(q, bodyOf(COCKPIT.eye));
+  const off = rotate(q, bodyOf(deck.eye));
   const eye = { x: at.x + off.x, y: at.y + off.y, z: at.z + off.z };
   const head = headOf(h);
   const look = rotate(q, {
@@ -193,9 +210,10 @@ export function heliLens(
   rung: CameraRung,
   groundAt: (x: number, z: number) => number,
   aspect = 16 / 9,
+  deck: Deck = LIGHT_DECK,
 ): LensPose {
-  if (rung === "tips") return noseLens(at, groundAt);
-  if (rung === "helmet") return cockpitLens(h, at, aspect);
+  if (rung === "tips") return noseLens(at, groundAt, deck);
+  if (rung === "helmet") return cockpitLens(h, at, aspect, deck);
   const L = rung === "far" ? HELI_LOOK.far : rung === "high" ? HELI_LOOK.high : HELI_LOOK.chase;
   const speed = Math.hypot(h.vx, h.vz);
   const centre = { x: at.x, y: at.y + HELI.cog + 0.6, z: at.z };
@@ -227,6 +245,7 @@ export function frameHeli(
   dt: number,
   groundAt: (x: number, z: number) => number,
   aspect = 16 / 9,
+  deck: Deck = LIGHT_DECK,
 ): LensPose {
   stepYaw(cam, h, at, dt);
   if (cam.fresh || (cam.cut && cam.rung !== rung)) {
@@ -241,13 +260,13 @@ export function frameHeli(
   cam.fresh = false;
   cam.cut = false;
   cam.rung = rung;
-  const lens = heliLens(cam, h, at, rung, groundAt, aspect);
+  const lens = heliLens(cam, h, at, rung, groundAt, aspect, deck);
   if (cam.from === null || cam.since >= HANDOVER) {
     cam.from = null;
     return lens;
   }
   cam.since += dt;
-  const from = heliLens(cam, h, at, cam.from, groundAt, aspect);
+  const from = heliLens(cam, h, at, cam.from, groundAt, aspect, deck);
   const out = orbitBlend(from, lens, cam.since / HANDOVER, heliMiddleOf(at));
   out.eye.y = Math.max(out.eye.y, groundAt(out.eye.x, out.eye.z) + HELI_LOOK.noseClearance);
   return out;

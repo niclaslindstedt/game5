@@ -122,6 +122,7 @@ function quarryWay(state: GameState): { x: number; z: number } {
     (state.heli?.rider && state.heli) ||
     (state.plane?.rider && state.plane) ||
     (state.sled?.rider && state.sled) ||
+    (state.armour?.rider && state.armour) ||
     null;
   const c = m ?? state.skier.thrown ?? state.skier;
   return { x: c.vx, z: c.vz };
@@ -565,6 +566,7 @@ const hulls: StripBox[] = [];
 function holdOff(state: GameState, a: ArmyState, events: GameEvent[]): void {
   const c = state.skier;
   if (c.thrown || state.sled?.rider || state.heli?.rider || state.plane?.rider) return;
+  if (state.armour?.rider) return;
   hulls.length = 0;
   const H = K.hull;
   for (const m of a.sleds) {

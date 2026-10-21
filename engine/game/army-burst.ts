@@ -7,13 +7,16 @@
 //     a tank's thin roof — and burns where it stands (`wreck`), its men
 //     aboard lost with it;
 //   * a PARAMOTOR's wing within `ARMY_AIR.burst.wing` m is shredded and its
-//     soldier comes down (`army-para.ts`' `downPara`).
+//     soldier comes down (`army-para.ts`' `downPara`);
+//   * one of its HELICOPTERS within `heli` m (his own tank's shell,
+//     `armour.ts`) comes down as a rammed one does.
 // Nothing here draws from any stream.
 
 import { hypot3 } from "@niclaslindstedt/oss-game-framework/core/math";
 import { ARMY_AIR } from "./defs/army-air.ts";
 import { freshAirState } from "./army-air-state.ts";
 import { downPara } from "./army-para.ts";
+import { raiseHeat } from "./wanted.ts";
 import type { GameEvent, GameState } from "./state.ts";
 
 /** A burst at (x, y, z): the army's vehicles and paramotors near it. */
@@ -57,6 +60,18 @@ export function burstOnArmy(
       y: v.y,
       z: v.z,
     });
+  }
+  // A HELICOPTER of theirs within its cabin's reach of a shell he fired
+  // (`armour.ts`): its tail and its controls gone, it comes down as a
+  // rammed one does — and the heat with it.
+  for (const h of a.helis) {
+    if (h.phase === "due" || h.phase === "gone" || h.phase === "wreck" || h.phase === "fall")
+      continue;
+    if (hypot3(h.x - x, h.y + 1.4 - y, h.z - z) > B.heli) continue;
+    h.phase = "fall";
+    h.t = 0;
+    a.downed++;
+    raiseHeat(state, "downed-helicopter");
   }
   const air = a.air;
   if (!air) return;

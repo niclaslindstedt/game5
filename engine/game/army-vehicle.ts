@@ -658,7 +658,11 @@ function writeCrews(a: ArmyState, w: WantedState): void {
   w.pursuers = kept;
 }
 
-/** The waves' vehicles on the map, for the drawing, the ear and the labs. */
+/** The waves' vehicles on the map, for the drawing, the ear and the labs —
+ * and the one he took (`armour.ts`), drawn and heard as theirs are. */
 export function armyVehicles(state: GameState): readonly ArmyVehicle[] {
-  return state.army?.vehicles.filter((v) => v.mode !== "due") ?? [];
+  const out = state.army?.vehicles.filter((v) => v.mode !== "due") ?? [];
+  const his = state.armour?.body;
+  if (his && his.mode !== "gone") out.push(his);
+  return out;
 }

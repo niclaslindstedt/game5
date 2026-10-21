@@ -14,11 +14,20 @@
 // and the ride begun again after a crash cut to it.
 
 import * as THREE from "three";
-import { HELI, type GameState, type HeliLivery, type Level } from "@engine";
+import { ARMY_HELI, HELI, type GameState, type HeliLivery, type Level } from "@engine";
 import { sunNow } from "./sky-clock.ts";
 
 import { frameCrash, startCrashCam, wooded, type CrashCam } from "./camera-crash.ts";
-import { createHeliCam, frameHeli, heliMiddleOf, orbitBlend } from "./camera-heli.ts";
+import {
+  createHeliCam,
+  frameHeli,
+  heliMiddleOf,
+  LIGHT_DECK,
+  orbitBlend,
+  type Deck,
+} from "./camera-heli.ts";
+import { ARMY_COCKPIT, inDeck } from "./army-cockpit-plan.ts";
+import { createArmyHeliRide } from "./army-heli-ride.ts";
 import { bodyOf, COCKPIT, inCabin } from "./cockpit-plan.ts";
 import { blendLens, type LensPose, type Vec3 } from "./camera-rigs.ts";
 import { shelterAt, shelterOff } from "./shelter.ts";
@@ -73,11 +82,16 @@ export type HeliScene = {
 };
 
 /** Each owner's look, by the livery a taken machine is drawn in: its
- * model, the air ambulance's or the police helicopter's. */
-const LIVERY_LOOK: Record<HeliLivery, () => HeliLook> = {
+ * model, the air ambulance's or the police helicopter's — the army's is a
+ * view of its own (`army-heli-ride.ts`). */
+const LIVERY_LOOK: Record<Exclude<HeliLivery, "army">, () => HeliLook> = {
   rescue: () => ({ pad: false, url: rescueModelUrl() }),
   police: () => ({ pad: false, url: policeModelUrl() }),
 };
+const LIVERIES: readonly HeliLivery[] = ["rescue", "police", "army"];
+
+/** The army's machine's deck, for the lens (`camera-heli.ts`). */
+const ARMY_DECK: Deck = { eye: ARMY_COCKPIT.eye, nose: ARMY_HELI.body.nose };
 
 /** How long the drop's lens is held after the push, s, and how long its
  * look takes to come round onto him; how long the lens takes to fly onto
@@ -99,6 +113,17 @@ const CABIN = (() => {
   };
 })();
 
+/** THE ARMY MACHINE'S FLIGHT DECK no snow falls in, the same way. */
+const ARMY_CABIN = (() => {
+  const B = ARMY_HELI.body;
+  const lo = { y: B.floor - 0.1, z: ARMY_HELI.cabin.front };
+  const hi = { y: B.roof, z: B.nose - 0.3 };
+  return {
+    centre: { x: 0, y: (lo.y + hi.y) / 2, z: (lo.z + hi.z) / 2 },
+    half: { x: B.width / 2 - 0.04, y: (hi.y - lo.y) / 2, z: (hi.z - lo.z) / 2 },
+  };
+})();
+
 export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   const group = new THREE.Group();
   group.name = "helicopter";
@@ -111,7 +136,10 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   const lookOf = (livery: HeliLivery): HeliView => {
     let v = takenBy.get(livery);
     if (!v) {
-      v = createHeliView(level, haze, LIVERY_LOOK[livery]());
+      v =
+        livery === "army"
+          ? createArmyHeliRide(level, haze, home.blow)
+          : createHeliView(level, haze, LIVERY_LOOK[livery]());
       v.group.visible = false;
       takenBy.set(livery, v);
       group.add(v.group);
@@ -121,7 +149,7 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
   // Both owners' machines built with the world, behind the loading card:
   // their models in and every program linked before he can take one,
   // never on the frame he climbs in.
-  const takenReady = (Object.keys(LIVERY_LOOK) as HeliLivery[]).map((l) => lookOf(l).ready);
+  const takenReady = LIVERIES.map((l) => lookOf(l).ready);
   const viewFor = (state: GameState): HeliView => {
     const livery = state.heli?.livery;
     home.setAway(!!livery);
@@ -259,7 +287,8 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       // the airframe and would look at him through it — the camera's own
       // stand-in (`camera.ts`'s `bail`) flies it out to the chase.
       worn = rung === "tips" || rung === "helmet";
-      lastLens = frameHeli(cam, h, at, rung, step, groundAt, aspect);
+      const deck = h.livery === "army" ? ARMY_DECK : LIGHT_DECK;
+      lastLens = frameHeli(cam, h, at, rung, step, groundAt, aspect, deck);
       own = lastLens;
     },
     lens(ladder, dt) {
@@ -305,12 +334,14 @@ export function createHeliScene(level: Level, haze: HazeUniforms): HeliScene {
       const local = new THREE.Vector3(eye.x - at.x, eye.y - at.y, eye.z - at.z).applyQuaternion(
         new THREE.Quaternion().copy(at.q).invert(),
       );
-      const pilot = bodyOf(COCKPIT.eye);
+      const army = h.livery === "army";
+      const pilot = bodyOf(army ? ARMY_COCKPIT.eye : COCKPIT.eye);
       const own = Math.hypot(local.x - pilot.x, local.y - pilot.y, local.z - pilot.z) < 0.05;
-      const inside = inCabin(local);
+      const inside = army ? inDeck(local) : inCabin(local);
       view.inside(inside, own);
       // No snow falls inside the cabin the lens is in (`shelter.ts`).
-      if (inside) shelterAt(at, CABIN.centre, CABIN.half);
+      const room = army ? ARMY_CABIN : CABIN;
+      if (inside) shelterAt(at, room.centre, room.half);
       else shelterOff();
     },
     drawn: () => view.drawn(),

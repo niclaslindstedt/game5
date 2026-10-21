@@ -944,8 +944,7 @@ export type GameState = ContestState & {
   /** A free ride's CROWD (`crowd.ts`), THE PEOPLE ON FOOT met (`foot.ts`). */
   crowd?: CrowdState;
   foot?: import("./foot.ts").FootState;
-  /** THE PLAYER'S CHAIR LEFT ONLY BY HAND (`chair-hands.ts`): set where the
-   * app asks; absent elsewhere (rivals stood off at the top), so no digest moves. */
+  /** HIS CHAIR LEFT ONLY BY HAND (`chair-hands.ts`), where the app asks. */
   chairHands?: true;
   /** On a free ride THE HELICOPTER, THE SNOWMOBILE (and those he LEFT for a
    * patrol's, `rescue-sled.ts`); begun on one the rest. On a summer free
@@ -977,14 +976,15 @@ export type GameState = ContestState & {
   wanted?: WantedState;
   gunfire?: GunfireState;
   army?: ArmyState;
+  /** AN ARMY VEHICLE HE TOOK (`armour.ts`): absent until he takes one. */
+  armour?: import("./armour-state.ts").ArmourRide;
   /** THINGS THAT GO WRONG ON THEIR OWN (`mishaps.ts`), asked for. */
   mishaps?: import("./mishaps.ts").MishapState;
   /** PISTE MACHINES (`groomer.ts`), their snow and the snow guns': never written. */
   groomers?: GroomerState[];
   groomed?: GroomedSnow;
   machineSnow?: import("./snow-guns.ts").MachineSnow;
-  /** WHEN HE LAST STEPPED OFF a machine (`machine-grace.ts`), run seconds;
-   * absent until he first does. */
+  /** WHEN HE LAST STEPPED OFF a machine (`machine-grace.ts`), run s. */
   leftMachine?: number;
   /** OPEN DOORS by building id (`setDoor`); the leaves and move (`doorway.ts`). */
   doors?: string[];

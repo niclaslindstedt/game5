@@ -143,6 +143,7 @@
     "army": "node scripts/army-preview.mjs",
     "army-flight": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/army-flight.mjs",
     "army-ground": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/army-ground.mjs",
+    "army-steal": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/army-steal.mjs",
     "gunfire-table": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/gunfire-table.mjs",
     "water": "node scripts/water-preview.mjs",
     "tree-wells": "node scripts/tree-wells-preview.mjs",

@@ -384,6 +384,12 @@ describe("the army's helicopter, taken off the snow", () => {
       const y0 = s.heli!.y;
       drive(s, 6, ask({ heli: { collective: 0.9, pitch: 0, roll: 0, pedal: 0 } }));
       expect(s.heli!.y).toBeGreaterThan(y0 + 3);
+      // Strapped into the pilot's seat, not sat on a skid: the nose pushed
+      // far down puts no load on his hands and never throws him out.
+      drive(s, 1.5, ask({ heli: { collective: 1, pitch: 1, roll: 0, pedal: 0 } }));
+      expect(s.heli!.pitch).toBeLessThan(-0.5);
+      expect(s.heli!.rider).toBe(true);
+      expect(s.heli!.load).toBe(0);
     });
   });
 });

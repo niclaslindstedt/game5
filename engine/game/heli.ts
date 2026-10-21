@@ -243,8 +243,9 @@ export function stepHeli(run: GameState, input: SkierInput, events: GameEvent[])
     return false;
   }
   // THE GRIP: turned too far over for his hands, he hangs from them —
-  // and lets go.
-  const aloft = h.mode === "flown" && !h.grounded;
+  // and lets go. The army's machine he flies strapped into its pilot's
+  // seat (`army-steal.ts`): no hold to give out.
+  const aloft = h.mode === "flown" && !h.grounded && h.livery !== "army";
   const gone = aloft && stepGrip(h, seatFrame(h).q);
   if (!aloft) h.load = h.hung = 0;
   hold(run, h);

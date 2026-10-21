@@ -37,6 +37,7 @@ import {
 
 import { HIDEABLE } from "../game/benchmark-report.ts";
 import { holdInput } from "../game/hold-input.ts";
+import { chooseBackend, readBackend } from "../game/gpu-backend.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
 import type { CameraRung } from "../game/renderer-api.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
@@ -126,6 +127,10 @@ const FRAME = 1 / 60;
 
 const stage = document.getElementById("stage") as HTMLCanvasElement;
 const sheet = document.getElementById("sheet") as HTMLCanvasElement;
+// `?renderer=webgpu|webgpu-gl` (`docs/webgpu.md`): the node renderer's device
+// first, as the game makes it.
+const backend = chooseBackend(readBackend(params.get("renderer")));
+if (backend !== "webgl") await import("../game/gpu-device.ts").then((m) => m.prepareGpu(backend));
 const renderer = createWorldRenderer(stage, {
   video: withPreset(DEFAULT_VIDEO, tier),
   preserveDrawingBuffer: true,

@@ -73,6 +73,7 @@ import {
   CLOUD,
 } from "./snow-cloud-plan.ts";
 import type { SnowProps } from "./snowpack.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 
 const CAPACITY = 2400;
 /** THE SELF-SHADOW's grid: cells across the sun's rays, m, how many (a
@@ -216,6 +217,8 @@ export function createSnowCloud(haze: HazeUniforms): SnowCloud {
     transparent: true,
     depthWrite: false,
   });
+  // Drawn on the node renderer by its twin (`snow-cloud-tsl.ts`).
+  nodeTwin(material, "particles", "snow-cloud");
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
   mesh.renderOrder = 6;

@@ -33,6 +33,7 @@ import { SPRAY_FRAGMENT, sprayVertex } from "./spray-glsl.ts";
 import { createMassPool } from "./spray-mass-pool.ts";
 import { SPRAY_STATS } from "./spray-stats.ts";
 import type { Spray } from "./spray.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 
 /** Floats a slot holds: five vec4s (`SPRAY_FLIGHT_GLSL`'s `aL0`…`aL4`). */
 const SLOT = 20;
@@ -88,6 +89,8 @@ export function createGpuSpray(haze: HazeUniforms, pool0: number, shutter: numbe
     transparent: true,
     depthWrite: false,
   });
+  // Drawn on the node renderer by its twin (`spray-tsl.ts`).
+  nodeTwin(material, "particles", "spray-gpu");
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
   mesh.renderOrder = 5;

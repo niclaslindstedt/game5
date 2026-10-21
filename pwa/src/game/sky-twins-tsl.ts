@@ -18,6 +18,8 @@
 //   deform-shade
 //            the deformable snow's shade, a cell at a time (`deform-shade.ts`
 //            → `trail-map-tsl.ts`, part 5)
+//   spray, spray-gpu, snowfall, snow-cloud, cloud-shadow, billboards, plume
+//            the particles and the air (`particle-twins-tsl.ts`, part 9)
 
 import type * as THREE from "three";
 import type { NodeMaterial } from "three/webgpu";
@@ -29,6 +31,7 @@ import type { HazeFogOptions } from "./haze-tsl.ts";
 import { froxelTwin, msTwin, transTwin, viewTwin } from "./sky-atmo-tsl.ts";
 import { groundSpecs } from "./terrain.ts";
 import { groundTwin } from "./terrain-tsl.ts";
+import { particleTwin } from "./particle-twins-tsl.ts";
 import { domeTwin } from "./sky-dome-tsl.ts";
 
 /** The twins a dressing makes (`twinOf`). */
@@ -66,7 +69,7 @@ export function createTwins(haze: HazeUniforms, how: HazeFogOptions): Twins {
       case "deform-shade":
         return deformShadeTwin(m);
       default:
-        return null;
+        return particleTwin(m, kind, haze, how);
     }
   };
   return {

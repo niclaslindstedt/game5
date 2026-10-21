@@ -23,8 +23,10 @@
 //     mask, and a GLOW (`glow-fade.ts`, `userData.glowFade`) its opacity
 //     faded and its mask — its points drawn as sprites (`glow-tsl.ts`);
 //   - a ShaderMaterial flagged with a NODE TWIN (`nodeTwin`: the dome, the
-//     far ranges, the GPU sky's passes — part 3) is drawn by that twin
-//     (`sky-twins-tsl.ts`), made once over its own uniforms;
+//     far ranges, the GPU sky's passes — part 3; the particles — part 9) is
+//     drawn by that twin (`sky-twins-tsl.ts`), made once over its own
+//     uniforms, and points flagged `sprite` (the spindrift, the sparks) by
+//     a stand-in a quad a point (`glow-tsl.ts`);
 //   - the WOODS are drawn by node materials of their own (`forest-tsl.ts`,
 //     handed to `forest.ts` as `woods`), their casters on a layer only the
 //     key's shadow camera sees (`WOODS_CASTERS`, `forest-nodes.ts`);
@@ -47,6 +49,7 @@ import { createGlowSprites, glowFade, insideWall } from "./glow-tsl.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { hazeFog, hazeSlots, syncHaze } from "./haze-tsl.ts";
 import { LampsLight, lightSlots, registerLights, syncLights } from "./lights-tsl.ts";
+import { pointStand } from "./particle-twins-tsl.ts";
 import { heroSlots, shadeDepthTwin, syncHero } from "./shadows-tsl.ts";
 import { createTwins } from "./sky-twins-tsl.ts";
 import type { KeyLight } from "./world-lights.ts";
@@ -108,7 +111,7 @@ export function dressScene(
   const hs = hazeSlots(haze);
   const ls = lightSlots(haze);
   const hero = heroSlots(haze);
-  const glows = createGlowSprites(haze);
+  const glows = createGlowSprites(haze, (points) => pointStand(points, haze));
   const keys: THREE.DirectionalLight[] = [];
   scene.traverse((o) => {
     if ((o as KeyLight).isKeyLight) keys.push(o as KeyLight);

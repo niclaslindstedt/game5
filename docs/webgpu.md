@@ -92,7 +92,8 @@ webgpu paths.
 | `gpu-timer` | pass | 14 | the timer queries |
 | `haze` | material | 2 | the haze on a hazed material, with the key's extras, the shade lift and the lamps; a glow's fade. Ported |
 | `sky` | material | 3 | the dome, the far ranges and the sky's passes, each drawn by its node twin. Ported |
-| `shader` | material | 9 | every other `ShaderMaterial`: the spray first, then the clouds and the rest in their own parts |
+| `particles` | material | 9 | the spray, the snowfall and the spindrift, the snow cloud and its shadow, the billboards, the sparks and the snow guns' plumes, each drawn by its node twin or, for a `gl_PointSize` point, by a stand-in a quad a point. Ported |
+| `shader` | material | 10 | every other `ShaderMaterial`: the clouds, then the figures and the effects in their own parts |
 | `terrain` | material | 4 | the clipmap's every level, its snow, its rock and a summer's ground, drawn by its node twin. Ported |
 | `forest-batch` | material | 8 | the woods' multi-draw batch, drawn shape by shape instanced on the node renderer (`forest-nodes.ts`). Ported |
 | `haze-graft` | material | 11 | a `hazeMaterial` with grafted GLSL of its own (the figures' gaits, the rock's keep, the tree cards…), each drawn again in its owner's part |
@@ -100,7 +101,7 @@ webgpu paths.
 | `wingsuit` | material | 12 | the wingsuit figure |
 | `gore-tree` | material | 11 | the gore on a tree |
 
-On the webgpu paths after part 8, the frame draws these:
+On the webgpu paths after part 9, the frame draws these:
 
 - the sky: the dome with the sun, the moon, the stars and the Milky Way,
   the contrails and LOW's cloud shell, and the far ranges
@@ -119,6 +120,10 @@ On the webgpu paths after part 8, the frame draws these:
 - the woods: the faceted cuts, the card trees at MEDIUM and HIGH, the
   hand-over's dither between them, the snow on the boughs, the wind in the
   crowns, and their shadows in the key's map
+- the particles and the air: the spray's sheet and wall, the snowfall and
+  the spindrift, the snow cloud and its shadow on the slope, the crash's
+  fire and smoke and every other billboard, the sparks and the snow guns'
+  plumes
 - the region's grade over the whole frame, and the buzz and the blaze
 - the HUD
 
@@ -764,6 +769,137 @@ on their own layer, the same trees listed as WebGL's batch at every FOREST
 stop, each shape's room and words, and the kit's materials made on plain
 Node.
 
+## The particles and the air (part 9)
+
+The spray, the snowfall and the spindrift, the snow cloud and its shadow on
+the slope, the billboards (the crash's fire and smoke, the halos, a gun's
+beads and smoke, the balloon's flame), the sparks and the snow guns' plumes
+now draw on the webgpu paths. WebGL's code path is untouched, so its
+picture is the same to the bit.
+
+| Piece | WebGL | Node renderer |
+| --- | --- | --- |
+| The spray, the CPU pool | `spray.ts`'s instanced quads, `spray-glsl.ts`'s `sprayVertex` and `SPRAY_FRAGMENT` | `spray-tsl.ts`'s `sprayTwin` over the same packed grains (`poolParcel`) |
+| The spray, the GPU ring | `gpu-spray.ts`: each parcel flown in the vertex stage (`SPRAY_FLIGHT_GLSL`) | the same flight in TSL (`spray-flight-tsl.ts`'s `ringParcel`: the steps, the slide, the seed off the instance), then the same draw as the pool's |
+| The snowfall | `snowfall.ts`'s instanced quads: the box about the lens, the smear over the shutter | `snowfall-tsl.ts`'s `fallTwin` |
+| The spindrift | `THREE.Points` sized by `gl_PointSize` | a stand-in: one quad mesh instanced a grain over the points' own buffers, as many device pixels across as the point (`driftStand`) |
+| The snow cloud and its shadow | `snow-cloud-glsl.ts`'s puffs and `snow-cloud-shadow.ts`'s blots, instanced quads | `snow-cloud-tsl.ts`'s `cloudTwin` and `shadowTwin` |
+| The billboards | `billboards.ts`: one instanced batch a texture, mode 0 the texture's cell, 1 the fire, 2 the smoke | `billboards-tsl.ts`'s `billboardTwin`, a twin a batch |
+| The sparks' heads | a `PointsMaterial` | a glow's sprite with nothing faded, held a pixel across as WebGL holds a point (`glow-tsl.ts`, `sprite: "plain"`) |
+| The plumes | `snow-gun-plume.ts`'s instanced quads | `plume-tsl.ts`'s `plumeTwin` |
+| The light in the air | `snow-air-light.ts` (the key by height, the sky on four faces), the lamps' loop, `HAZE_AMOUNT_GLSL` | `air-tsl.ts`: `airLight`, `airSky`, `lampsThrough`, `lampsAt`, `airHaze`, shared by every twin |
+
+**What stays the same:** every count, share and size. The SPRAY row's
+share, the grains a pool holds, the ring's parcels, the flakes a weather
+lets fall and the cloud's puffs are decided by the same code on every back
+end (`settings-video.ts`, `spray.ts`, `snowfall.ts`, `snow-cloud.ts`), and
+every one of these but the spindrift and the sparks' heads was already one
+instanced quad a particle on WebGL. Only the two `gl_PointSize` users needed
+a new draw. A stand draws exactly as many quads as WebGL draws points (the
+points' draw range), and the points are kept out of the frame while it
+does.
+
+**The twins read the ShaderMaterial's own uniforms by reference**, as the
+sky's do (part 3). Each system's material carries its flag
+(`nodeTwin(material, "particles", kind)`), and `particle-twins-tsl.ts`
+hands the twin for it. The pipeline (the blending, the depth, the polygon
+offset) is still the ShaderMaterial's. The cloud's shadow keeps its
+MULTIPLY.
+
+**The traps:**
+
+- **Materials with the same code share one program on the node renderer.**
+  It keys a draw's program by the material's own fields and its
+  `customProgramCacheKey`, and `userData` is not one of them. Every
+  billboard batch is its own ShaderMaterial with one shader, so they all
+  shared the first batch's node state: its texture, its cells and its
+  clock. `nodeTwin(…, own)` gives each such material a field of its own
+  (`twinOwn`), and the key tells them apart. Only the billboards need it:
+  every other system has one material.
+- **A twin's bindings are refreshed only if the material drawn has a node.**
+  The node renderer's material observer refreshes a draw fully when the
+  material has a node property, and otherwise only what it thinks changed.
+  A ShaderMaterial has none, so the clock and the lens stood still. Each
+  twin hangs its fragment node on the ShaderMaterial (`twinNode`), as the
+  trail map's passes do.
+- **A texture read after a branch is refused on WebGPU.** An implicit-LOD
+  read must be in uniform control flow, and a fragment that may be
+  discarded leaves it. The cloud's noise has no mips, so it is read at its
+  first level (`.level(0)`), the texel WebGL's read finds. The billboards'
+  texture is read before the modes branch, and the piste lights' table at
+  its first level.
+- **GLSL's `mod` is not TSL's.** GLSL's `mod` is `x - y * floor(x / y)`,
+  and a back end's `%` keeps the sign of `x`. The box about the lens and a
+  plume's puff's age are restated as the GLSL has them.
+- **A plain attribute handed to `instancedBufferAttribute` is read by the
+  vertex.** The node renderer steps a buffer by the instance only when the
+  attribute itself is an `InstancedBufferAttribute`. The spindrift's stand
+  first read its points' plain buffers, so every quad was drawn between the
+  first four grains. On seed 38's powder and furrow views at LOW the slope
+  under the lens was washed white. A stand now reads
+  instanced mirrors of the points' buffers over the same arrays
+  (`glow-tsl.ts`'s `perPoint`), brought up to their sources' versions each
+  frame. The glows' sprites (part 2) read their positions and colours the
+  same way now.
+- **An empty stand is still drawn.** A stand with no points has no
+  instances, and three skips its draw. It still builds its pipeline, so it
+  is kept visible, and the warm-up builds it behind the card rather than
+  the first frame a grain blows.
+
+**What the warm-up builds.** Every pipeline the race needs is built
+behind the card, the new ones too. Watched on SwiftShader's WebGPU at LOW,
+the race builds 47 pipelines where it built 42. The five new ones (the
+spray, the fall, the spindrift's stand, the cloud and its shadow) are built
+in the warm-up's burst. The three built after the card lifts are built
+there before this part as well.
+
+**How near the picture came.** `make world SEED=38` on webgpu against
+WebGL, the mean absolute difference per channel (0 to 255) over 9, 12 and
+16.5 h, before this part and after it. The whole frame, and the box round
+the skier's feet where the spray and the cloud are thrown (520×420 px):
+
+| Quality | View | Whole frame | Round the feet |
+| --- | --- | --- | --- |
+| LOW | powder | 3.6 → 3.5 | 4.7 → 4.3 |
+| LOW | landing | 3.3 → 3.3 | 2.9 → 2.8 |
+| LOW | far | 3.4 → 3.3 | 2.9 → 2.7 |
+| HIGH | powder | 6.4 → 6.2 | 6.3 → 5.4 |
+| HIGH | landing | 5.2 → 5.2 | 4.2 → 4.0 |
+| HIGH | far | 5.4 → 5.3 | 4.3 → 3.9 |
+| LOW, snowing at 12 h | powder | 1.7 → 1.6 | 3.6 → 3.4 |
+| HIGH, snowing at 12 h | chase-6 | 1.6 → 1.3 | 3.7 → 3.5 |
+| HIGH, snowing at 12 h | powder | 1.7 → 1.5 | 3.5 → 3.2 |
+
+The spawn, chase-6 and furrow views hold within a tenth of a level. What
+is left is what the other parts still owe: the skis (part 12) and the
+crowd (part 11), which stand right where the spray is thrown. `webgpu-gl`
+lands within 0.7 of WebGPU on every view. The 42 WebGL shots (LOW and HIGH,
+9, 12 and 16.5 h, and snowing at 12 h) are pixel-identical to part 8's.
+
+**What a draw binds after part 9**, counted on `webgpu-gl` the same way
+(sampler uniforms per stage of every linked program, race on seed 20):
+
+| Program | Vertex / fragment, LOW and HIGH |
+| --- | --- |
+| The spray | 1 / 2 |
+| The snowfall | 1 / 0 |
+| The spindrift's stand | 0 / 0 |
+| The snow cloud | 1 / 3 |
+| The cloud's shadow | 1 / 0 |
+| The most any program binds | 8 / 12 at LOW, 8 / 15 at HIGH (the ground, as before) |
+
+Each vertex stage but the stand's reads the piste lights' table. The spray's
+and the cloud's fragments read it again where a beam lights the snow in the
+air, and the cloud reads its noise besides. The billboards and the plumes
+are not drawn in the race and were not counted. Every program stays under
+WebGL2's 16.
+
+`tests/particles_tsl_test.ts` holds the register row, every system's flag
+(the spindrift's and the sparks' as stands), the billboards' keys apart and
+nobody else's, every twin made on plain Node once a material as a node
+material over its ShaderMaterial's pipeline, and the stands drawing as many
+quads as WebGL draws points, hiding the points and putting them back.
+
 ## Measuring both paths
 
 Every browser lab takes `--renderer=webgl|webgpu|webgpu-gl`
@@ -773,7 +909,8 @@ parameter, the Chromium switches that back end needs, and a check
 end than the one asked for. `make bench ARGS="--renderer=both"` runs the
 benchmark on each back end and closes with the two side by side. The labs
 that take the flag are `make bench`, `make screenshots`, `make world`,
-`make sky` and `make profile`. `make sky` times the GPU sky's passes on
+`make sky`, `make snowfall`, `make cloud` and `make profile`. `make world`
+takes `--weather=` as well, so a fall can be photographed over a run. `make sky` times the GPU sky's passes on
 WebGL only. `make profile`'s WebGL meter counts nothing on the webgpu
 paths until part 14.
 
@@ -811,8 +948,10 @@ lines.
 | 7 Grade and post | 2026-10-20 | webgpu | 79 (80 before) | 143 958 (144 327) | 62 programs, 40 pipelines (62, 40 before) | 1 333.19 (2 422.07 before) | 1 325.83 (2 415.02) | 5 passes / 29 meshes (6 / 29 before) | The grade, the buzz and the blaze draw, and the blue deficit is closed. The grade's pipeline takes the place of three's output pass, so the counts hold. The steady readings are 10–12 ms; the mean is the device's queue on SwiftShader, which the last reading drains (4 078 ms; 8 194 before), and two runs of one build differ by that much (part 6). At HIGH: 85 draws (83), 464 052 triangles (460 791), 121 programs and 89 pipelines (121, 89), 9 951.81 ms (10 389.35) with steady readings of 17–24 ms (12–19) and a last reading of 40 829 ms (41 815) |
 | 8 Forest | 2026-10-20 | webgl | 100 | 231 883 | 51 programs | 15.51 (14.74 before) | 7.11 (6.93) | 0 / 0 | the 30 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, track, far, forest) are pixel-identical to part 7's. At HIGH: 110 draws, 686 042 triangles, 67 programs, 21.24 ms (20.13) |
 | 8 Forest | 2026-10-20 | webgpu | 114 (79 before) | 170 808 (144 326) | 64 programs, 41 pipelines (62, 40 before) | 969.29 (979.56 before) | 962.21 (972.75) | 5 passes / 28 meshes (5 / 29 before) | The woods draw, a shape at a time, and cast into the key's map. The steady readings are 9–10 ms (10–12); the mean is the device's queue on SwiftShader, which the last reading drains (5 000 ms). At HIGH: 223 draws (85), 610 385 triangles (464 052), 126 programs and 92 pipelines (121, 89), 10 375.37 ms (10 319.44) with steady readings of 24–37 ms (14–22) and a last reading of 58 728 ms (44 918). Indirect draws off a compute cull (part 17) take the draws back |
+| 9 Particles and air | 2026-10-21 | webgl | 100 | 231 883 | 51 programs | 13.65 (13.42 before) | 6.35 (6.34) | 0 / 0 | the 42 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, powder, furrow, landing, far; and snowing at 12 h) are pixel-identical to part 8's. At HIGH: 110 draws, 686 162 triangles, 67 programs, 16.57 ms (21.46) |
+| 9 Particles and air | 2026-10-21 | webgpu | 116 (114 before) | 173 541 (170 618) | 74 programs, 46 pipelines (64, 41 before) | 828.40 (1 040.77 before) | 821.09 (1 033.81) | 5 passes / 24 meshes (5 / 28 before) | The spray, the snowfall and the snow cloud and its shadow draw. The steady readings are 10–11 ms (11–17); the mean is the device's queue on SwiftShader, which one reading drains (3 892 ms; 4 030 before). At HIGH: 224 draws (223), 616 797 triangles (610 097), 136 programs and 97 pipelines (126, 92), 7 936.49 ms (9 420.68) with steady readings of 29–33 ms (17–29) and a last reading of 41 606 ms (41 315) |
 
-Parts 1 to 8 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+Parts 1 to 9 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis), and from
 part 3 again with `--video high` for the numbers under "At HIGH".
 
@@ -826,7 +965,7 @@ part 3 again with `--video high` for the numbers under "At HIGH".
 - [x] 6 Shadows and the warm-up (`hero-shadow`, `env-warm`): the key's map with the mountain's cut, the skiers' atlas, every pipeline built behind the card; `shadow-depth` kept for WebGL until part 16
 - [x] 7 Grade and post (`grade-pass`): the region's grade, the buzz and the blaze as a `RenderPipeline` over the pass's own uniforms, the tone map and the sRGB curve by hand in WebGL's order; the warm-up through the grade's target
 - [x] 8 Forest (`forest-batch`): every shape drawn instanced over WebGL's tree table, the faceted, card and casters' materials in TSL, the casters on a layer of their own in the key's map
-- [ ] 9 Particles and air
+- [x] 9 Particles and air (`particles`): the spray (the CPU pool and the GPU ring), the snowfall, the snow cloud and its shadow, the billboards and the plumes as node twins; the spindrift and the sparks' heads drawn by stand-ins, a quad a point
 - [ ] 10 Clouds (`clouds`)
 - [ ] 11 Figures (`gore-tree`)
 - [ ] 12 Skier, models, effects (`model-merged`, `wingsuit`)

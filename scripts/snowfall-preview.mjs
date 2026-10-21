@@ -27,6 +27,7 @@
 //   node scripts/snowfall-preview.mjs
 //   node scripts/snowfall-preview.mjs --weathers=storm --rides=into --speeds=0,50,100,150
 //   node scripts/snowfall-preview.mjs --camera=tips --sheets=flow --strobe=12 --json
+//   node scripts/snowfall-preview.mjs --renderer=webgpu   # on the WebGPU path (docs/webgpu.md)
 
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -36,6 +37,8 @@ import process from "node:process";
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
+
+import { assertBackend, rendererArgs, rendererFlag, renderersOf } from "./lib/backend-flag.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".snowfall-preview");
@@ -71,9 +74,10 @@ const args = parseArgs(
     summer: { kind: "flag", help: "ride the map in midsummer (no crystals, no spindrift)" },
     json: { kind: "flag", help: "print the table as JSON instead" },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
+    renderer: rendererFlag(),
     timeout: { kind: "number", default: 1200, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/snowfall-preview.mjs [--seed=n] [--weathers=a,b] [--rides=a,b] [--speeds=a,b] [--camera=rung] [--sheets=frame,flow] [--dive=deg] [--summer] [--json] [--skip-build]",
+  "usage: node scripts/snowfall-preview.mjs [--seed=n] [--weathers=a,b] [--rides=a,b] [--speeds=a,b] [--camera=rung] [--sheets=frame,flow] [--dive=deg] [--summer] [--json] [--skip-build] [--renderer=b]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -101,7 +105,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 
@@ -128,6 +137,7 @@ const query = new URLSearchParams({
   ride: String(args.ride),
   summer: args.summer ? "1" : "0",
   dive: String(args.dive),
+  ...(args.renderer !== "webgl" ? { renderer: args.renderer } : {}),
 }).toString();
 const say = args.json ? () => {} : (line) => console.log(line);
 say(
@@ -137,6 +147,7 @@ const t0 = Date.now();
 await page.goto(`${server.url}snowfall-preview.html?${query}`);
 await page.waitForFunction("window.__snowfall !== undefined");
 await page.evaluate("window.__snowfall.ready");
+await assertBackend(page, args.renderer);
 if (crashed) process.exit(1);
 
 let cells = [];
@@ -156,7 +167,7 @@ for (const kind of String(args.sheets).split(",")) {
   });
   const out = join(
     outDir,
-    `snowfall-${args.seed}${args.dive ? `-dive${args.dive}` : ""}${kind === "frame" ? "" : `-${kind}`}.png`,
+    `snowfall-${args.seed}${args.dive ? `-dive${args.dive}` : ""}${kind === "frame" ? "" : `-${kind}`}${args.renderer !== "webgl" ? `-${args.renderer}` : ""}.png`,
   );
   await page.locator("#sheet").screenshot({ path: out });
   cells = await page.evaluate(() => globalThis.__snowfall.cells());

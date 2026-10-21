@@ -390,7 +390,7 @@ export function stealViews(lab: StealLab): Record<string, () => Promise<void>> {
       lab.shoot(
         "the driver from beside",
         lab.look(
-          onVehicle(v, { x: 0.05, y: 1.35, z: D.z - 0.9 }),
+          onVehicle(v, { x: 0.05, y: 1.35, z: TANK_DRIVER.room.back + 0.1 }),
           onVehicle(v, { x: D.x, y: 0.95, z: D.z + 0.1 }),
           72,
         ),

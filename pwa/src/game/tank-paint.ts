@@ -91,7 +91,7 @@ export function paintDriverDisplay(c: Ctx, g: TankGauges | null): void {
   c.font = `bold ${Math.round(H * 0.066)}px monospace`;
   rows.forEach(([word, value, bad], i) => {
     c.fillStyle = bad ? AMBER : SCREEN_GREEN;
-    const col = x0 + W * (0.04 + (i % 2) * 0.3);
+    const col = x0 + W * (0.04 + (i % 2) * 0.36);
     c.fillText(`${word.padEnd(5, " ")}${value}`, col, y0 + H * (0.78 + Math.floor(i / 2) * 0.11));
   });
   // THE TURRET over the hull, from above: the hull a box, the gun a line.

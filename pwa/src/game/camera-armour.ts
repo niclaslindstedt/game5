@@ -7,16 +7,22 @@
 // attitude, its way — on rows of its own a kind, as the piste machine's
 // are (`camera-groomer.ts`):
 //
-//   TIPS    THE NOSE: a lens low on the bow, the snow coming at it;
+//   TIPS    THE NOSE: a lens low on the bow, the snow coming at it — on
+//           the tank, THE GUNNER'S EYE at his sight (`tank-gunner.ts`),
+//           which turns with the turret and so is framed as a lens of its
+//           own (`armour-cabs.ts`); this row is it with the turret ahead;
 //   HELMET  THE DRIVER'S EYE — in the carrier's cab over its wheel and
-//           dashboard (`carrier-cab.ts`); his head out of the truck's roof
-//           hatch and out of the tank's driver's hatch, over the hull;
+//           dashboard (`carrier-cab.ts`), high in the truck's cab
+//           (`truck-cab.ts`), hatch down at the tank's vision blocks
+//           (`tank-driver.ts`);
 //   CHASE   behind and over the hull, the whole vehicle in the frame;
 //   FAR, HIGH  the same further out, and high over it.
 
 import { ARMY_VEHICLE, fromEuler, rotate, type ArmyVehicle, type ArmyVehicleKind } from "@engine";
 
 import { CARRIER_CAB } from "./army-cab-plan.ts";
+import { TANK_DRIVER, TANK_GUNNER } from "./tank-station-plan.ts";
+import { TRUCK_CAB } from "./truck-cab-plan.ts";
 import type { Rig, RigPose, Rung } from "./camera-rigs.ts";
 
 /** How far over the snow the pose's centre is, m: the bolted eyes and the
@@ -77,6 +83,9 @@ const bolted = (
 export const ARMOUR_RIGS: Record<ArmyVehicleKind, Record<Rung, Rig>> = (() => {
   const K = ARMY_VEHICLE.kinds;
   const E = CARRIER_CAB.eye;
+  const T = TRUCK_CAB.eye;
+  const D = TANK_DRIVER.eye;
+  const G = TANK_GUNNER.eye;
   const rows = (
     nose: Rig,
     helmet: Rig,
@@ -99,18 +108,16 @@ export const ARMOUR_RIGS: Record<ArmyVehicleKind, Record<Rung, Rig>> = (() => {
       [20, 8],
       [26, 20],
     ),
-    // Head and shoulders out of the cab's roof hatch over the windscreen.
     truck: rows(
       bolted(0, 1.5, K.truck.halfLength + 0.15, 76, 0.1, 0.8),
-      bolted(0.55, 3.62, 2.75, 74, 0.2, 0.55),
+      bolted(T.x, T.y, T.z, TRUCK_CAB.fov, 0.16, 0.5),
       [16, 6.5],
       [26, 10],
       [32, 24],
     ),
-    // His head out of the driver's hatch in the glacis, the gun over it.
     tank: rows(
-      bolted(0, 1.25, K.tank.halfLength + 0.25, 76, 0.1, 0.7),
-      bolted(-0.55, 2.25, 2.9, 74, 0.14, 0.5),
+      bolted(G.x, G.y, G.z, TANK_GUNNER.fov, TANK_GUNNER.down, 0.5),
+      bolted(D.x, D.y, D.z, TANK_DRIVER.fov, 0.24, 0.6),
       [16, 6],
       [26, 10],
       [32, 24],

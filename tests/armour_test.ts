@@ -287,6 +287,22 @@ describe("the waves' vehicles, taken", () => {
     });
   });
 
+  it("lays the tank's gun with the trick key held, and says it is laying", () => {
+    quiet(() => {
+      const { s } = taken("tank");
+      const r = s.armour!;
+      const b = r.body;
+      drive(s, 0.5, ask({ lean: 1 }));
+      expect(r.laying).toBe(false);
+      const gun = b.gun;
+      drive(s, 1, ask({ trick: true, lean: -1 }));
+      expect(r.laying).toBe(true);
+      expect(b.gun).toBeGreaterThan(gun);
+      drive(s, 0.2, NEUTRAL_INPUT);
+      expect(r.laying).toBe(false);
+    });
+  });
+
   it("knocks out a wave's vehicle with his shell, aimed down the sight's line", () => {
     quiet(() => {
       const { s } = taken("tank");

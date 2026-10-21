@@ -53,9 +53,13 @@ type Drawn = {
   barrel: THREE.Mesh | null;
   /** The man up in the hatch, gone while the vehicle is his. */
   commander: THREE.Mesh | null;
-  /** The carrier's cab from outside (its shell and dark glass), put away
-   * while the lens is in its cab. */
+  /** The cab from outside (its shell and dark glass — a carrier's or a
+   * truck's), put away while the lens is in its cab. */
   glass: THREE.Mesh | null;
+  /** The tank's hull and its turret's shell, put away while the lens is
+   * in a station inside them. */
+  hull: THREE.Mesh | null;
+  shell: THREE.Mesh | null;
   kind: ArmyVehicle["kind"];
   /** The last print each side (x, z), NaN before the first. */
   pen: number[];
@@ -93,8 +97,14 @@ export type Ridden = {
   root: THREE.Group;
   turret: THREE.Group | null;
   gun: THREE.Group | null;
-  /** Its cab from outside, shell and dark glass (a carrier's), or null. */
+  /** Its cab from outside, shell and dark glass (a carrier's or a
+   * truck's), or null. */
   glass: THREE.Mesh | null;
+  /** A tank's hull and its turret's shell (each shown again every frame:
+   * whoever hides one for a lens inside does it after `frame`). */
+  hull: THREE.Mesh | null;
+  shell: THREE.Mesh | null;
+  barrel: THREE.Mesh | null;
   x: number;
   y: number;
   z: number;
@@ -117,6 +127,9 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
     turret: null,
     gun: null,
     glass: null,
+    hull: null,
+    shell: null,
+    barrel: null,
     x: 0,
     y: 0,
     z: 0,
@@ -143,6 +156,8 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
     let barrel: THREE.Mesh | null = null;
     let commander: THREE.Mesh | null = null;
     let glass: THREE.Mesh | null = null;
+    let hull: THREE.Mesh | null = null;
+    let shell: THREE.Mesh | null = null;
     if (kind === "carrier") {
       mesh(geo.carrierFront, root);
       glass = mesh(geo.carrierGlass, root);
@@ -154,11 +169,12 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
       group.add(rear);
     } else if (kind === "truck") {
       mesh(geo.truck, root);
+      glass = mesh(geo.truckCab, root);
     } else {
-      mesh(geo.tankHull, root);
+      hull = mesh(geo.tankHull, root);
       turret = new THREE.Group();
       root.add(turret);
-      mesh(geo.tankTurret, turret);
+      shell = mesh(geo.tankTurret, turret);
       commander = mesh(geo.commander, turret);
       commander.position.set(0.75, 2.83, -0.6);
       gun = new THREE.Group();
@@ -174,6 +190,8 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
       barrel,
       commander,
       glass,
+      hull,
+      shell,
       kind,
       pen: [NaN, 0, NaN, 0],
       penRear: [NaN, 0, NaN, 0],
@@ -262,6 +280,9 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
         d.seen = frameNo;
         if (d.commander) d.commander.visible = v !== his;
         if (d.glass) d.glass.visible = true;
+        if (d.hull) d.hull.visible = true;
+        if (d.shell) d.shell.visible = true;
+        if (d.barrel) d.barrel.visible = true;
         const fx = Math.sin(v.heading);
         const fz = Math.cos(v.heading);
         const x = v.x + fx * v.speed * ahead;
@@ -275,6 +296,9 @@ export function createArmyVehicleView(material: THREE.Material): ArmyVehicleView
           rideOf.turret = d.turret;
           rideOf.gun = d.gun;
           rideOf.glass = d.glass;
+          rideOf.hull = d.hull;
+          rideOf.shell = d.shell;
+          rideOf.barrel = d.barrel;
           rideOf.x = x;
           rideOf.y = d.root.position.y;
           rideOf.z = z;

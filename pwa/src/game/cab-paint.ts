@@ -80,7 +80,7 @@ const tachAngle = (rpm: number) => -135 + Math.min(4000, Math.max(0, rpm)) * (27
 const smallAngle = (share: number) => -60 + Math.min(1, Math.max(0, share)) * 120;
 
 /** A housing's matte black moulding with a faint grain. */
-function moulding(c: Ctx, base = "#17181a"): void {
+export function moulding(c: Ctx, base = "#17181a"): void {
   const { width: w, height: h } = c.canvas;
   c.fillStyle = base;
   c.fillRect(0, 0, w, h);
@@ -155,18 +155,29 @@ export function paintClusterBack(c: Ctx): void {
     const [x, y, r] = small(DIALS.volts, "18", "32", "V");
     band(c, x, y, r, smallAngle(0.57), smallAngle(0.79), GREEN);
   }
-  paintLamps(c, false);
+  lampRow(c, LAMPS, false);
 }
 
-/** THE LAMPS along the foot: dark, or those `lit` glowing. */
-function paintLamps(c: Ctx, live: boolean, lit: readonly boolean[] = []): void {
+/** A cluster's warning lamps: a word and its colour each. */
+export type Lamps = readonly (readonly [string, string])[];
+
+/** THE LAMPS along a cluster's foot: dark, or those `lit` glowing — `row`
+ * at `y` of the height, spread from `x0` to `x1` of the width. */
+export function lampRow(
+  c: Ctx,
+  row: Lamps,
+  live: boolean,
+  lit: readonly boolean[] = [],
+  y0 = 0.9,
+  x0 = 0.22,
+  x1 = 0.78,
+): void {
   const { width: w, height: h } = c.canvas;
-  const y = h * 0.9;
+  const y = h * y0;
   const r = h * 0.045;
-  const x0 = w * 0.22;
-  const dx = (w * 0.56) / (LAMPS.length - 1);
-  LAMPS.forEach(([word, colour], i) => {
-    const x = x0 + dx * i;
+  const dx = (w * (x1 - x0)) / (row.length - 1);
+  row.forEach(([word, colour], i) => {
+    const x = w * x0 + dx * i;
     const on = live && lit[i];
     c.fillStyle = on ? colour : "#222426";
     c.beginPath();
@@ -205,7 +216,7 @@ export function paintClusterLive(c: Ctx, back: CanvasImageSource, g: CabGauges):
   pin(DIALS.oil, smallAngle(g.oil / 6), 0.78, 0.09);
   pin(DIALS.fuel, smallAngle(g.fuel), 0.78, 0.09);
   pin(DIALS.volts, smallAngle((g.volts - 18) / 14), 0.78, 0.09);
-  paintLamps(c, true, [
+  lampRow(c, LAMPS, true, [
     g.dead,
     g.dead || g.oil < 0.8,
     g.coolant > 104,

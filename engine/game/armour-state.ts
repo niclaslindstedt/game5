@@ -11,7 +11,8 @@ import type { ArmyVehicle } from "./army-state.ts";
  * knocked out, "wreck") — now his to drive; whether he is in it; the
  * seconds since he climbed in or out; the controls as his hands have them
  * (`drive` −1..1 forward, `steer` −1..1 to the right, the turret's
- * `traverse` and the gun's `elevate` −1..1); its way over the snow (m/s,
+ * `traverse` and the gun's `elevate` −1..1, and whether the trick key is
+ * laying the gun, `laying` — the app takes the gunner's sight then); its way over the snow (m/s,
  * world); whether it is knocked out (`dead`: it will not drive); whether
  * the fire key was held last step (a shot is its press), and the rounds
  * he has fired. */
@@ -23,6 +24,7 @@ export type ArmourRide = {
   steer: number;
   traverse: number;
   elevate: number;
+  laying: boolean;
   vx: number;
   vy: number;
   vz: number;

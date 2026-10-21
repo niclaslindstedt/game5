@@ -36,6 +36,9 @@ import * as THREE from "three";
 import { ARMY_VEHICLE, type ArmyVehicleKind } from "@engine";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
+import { TANK_SIGHT } from "./tank-station-plan.ts";
+import { mirrorGlass, TRUCK_CAB } from "./truck-cab-plan.ts";
+
 /** THE PAINT, sRGB: the winter white and its washed-out olive, the greys
  * of a disruptive scheme, the tracks' and tyres' rubber, the glass, the
  * gun's dark steel, the canvas tilt. */
@@ -329,40 +332,22 @@ function truck(): THREE.BufferGeometry {
       p.cyl(0.3, 0.44, [s * (W - 0.25), 0.6, z], "x", "dark", 8);
     }
   for (const s of [-1, 1]) p.box(0.18, 0.3, L * 2 - 0.4, [s * 0.55, 1.05, 0], "dark", 2);
-  // The cab, flat-fronted, and its windscreen and side windows.
-  p.box(W * 2 - 0.1, 1.15, 1.75, [0, 1.45, L - 0.95], "camo");
-  p.hexa(
-    [
-      [-W + 0.05, 2.0, L - 1.8],
-      [W - 0.05, 2.0, L - 1.8],
-      [W - 0.1, 2.95, L - 1.75],
-      [-W + 0.1, 2.95, L - 1.75],
-      [-W + 0.05, 2.0, L - 0.08],
-      [W - 0.05, 2.0, L - 0.08],
-      [W - 0.1, 2.9, L - 0.3],
-      [-W + 0.1, 2.9, L - 0.3],
-    ],
-    "camo",
-  );
-  for (const s of [-1, 1])
+  // The cab is its own part (`truckCab`, below); its mirrors on their
+  // arms, turned back toward the driver (`mirrorGlass`), and the
+  // headlamps stay with the hull.
+  const M = TRUCK_CAB.mirror;
+  for (const s of [-1, 1] as const) {
+    p.box(M.x - W + 0.05, 0.05, 0.05, [s * (W + (M.x - W) / 2), M.y - 0.1, M.z], "dark", 2);
+    const { n, corners } = mirrorGlass(s);
+    const rim = (c: { x: number; y: number; z: number }, i: number, o: number): V3 => {
+      const a = i === 0 || i === 3 ? -1 : 1;
+      const b = i < 2 ? -1 : 1;
+      return [c.x + n.z * a * 0.02 + n.x * o, c.y + b * 0.02, c.z - n.x * a * 0.02 + n.z * o];
+    };
     p.hexa(
-      [
-        [s > 0 ? 0.05 : -W + 0.2, 2.15, L - 0.08],
-        [s > 0 ? W - 0.2 : -0.05, 2.15, L - 0.08],
-        [s > 0 ? W - 0.22 : -0.05, 2.8, L - 0.29],
-        [s > 0 ? 0.05 : -W + 0.22, 2.8, L - 0.29],
-        [s > 0 ? 0.05 : -W + 0.2, 2.15, L - 0.04],
-        [s > 0 ? W - 0.2 : -0.05, 2.15, L - 0.04],
-        [s > 0 ? W - 0.22 : -0.05, 2.8, L - 0.25],
-        [s > 0 ? 0.05 : -W + 0.22, 2.8, L - 0.25],
-      ],
-      "glass",
+      [...corners.map((c, i) => rim(c, i, -0.07)), ...corners.map((c, i) => rim(c, i, -0.002))],
+      "dark",
     );
-  for (const s of [-1, 1]) {
-    p.box(0.04, 0.5, 0.75, [s * (W - 0.03), 2.5, L - 1.0], "glass", 2);
-    // The mirror on its arm.
-    p.box(0.5, 0.05, 0.05, [s * (W + 0.2), 2.45, L - 0.45], "dark", 2);
-    p.box(0.06, 0.4, 0.22, [s * (W + 0.42), 2.45, L - 0.45], "dark", 2);
     p.box(0.26, 0.16, 0.06, [s * (W - 0.4), 1.25, L + 0.02], "lamp", 2);
   }
   // The bumper and the grille.
@@ -389,6 +374,75 @@ function truck(): THREE.BufferGeometry {
   p.add(arch, "canvas");
   // The spare wheel behind the cab.
   p.cyl(0.55, 0.38, [0, 2.0, L - 2.05], "z", "rubber", 12);
+  return p.geometry();
+}
+
+/** THE TRUCK'S CAB FROM OUTSIDE, apart from its hull: the cab's shell off
+ * `TRUCK_CAB.shell` (a box over the front axle, its top leant back over
+ * the windscreen), the roof hatch over the mate, the windscreen, the door
+ * windows and the small window in its back — put away while the lens is
+ * in its cab, where `truck-cab.ts` draws it from the inside. */
+function truckCab(): THREE.BufferGeometry {
+  const C = TRUCK_CAB;
+  const S = C.shell;
+  const W = S.half;
+  const p = new Part(TRUCK_CAMO);
+  const mid = C.screen.foot.y - 0.02;
+  p.box(
+    W * 2,
+    mid - S.low,
+    S.front - S.back,
+    [0, (mid + S.low) / 2, (S.front + S.back) / 2],
+    "camo",
+  );
+  p.hexa(
+    [
+      [-W, mid, S.back],
+      [W, mid, S.back],
+      [W - 0.04, S.roof, S.back],
+      [-W + 0.04, S.roof, S.back],
+      [-W, mid, S.front],
+      [W, mid, S.front],
+      [W - 0.04, S.roof, S.frontTop],
+      [-W + 0.04, S.roof, S.frontTop],
+    ],
+    "camo",
+  );
+  // The front's plane at height y: its z there.
+  const front = (y: number) => S.front + ((y - mid) / (S.roof - mid)) * (S.frontTop - S.front);
+  const sc = C.screen;
+  for (const s of [-1, 1]) {
+    const a = Math.min(s * (sc.post / 2), s * sc.half);
+    const b = Math.max(s * (sc.post / 2), s * sc.half);
+    const lo = sc.foot.y;
+    const hi = sc.head.y;
+    p.hexa(
+      [
+        [a, lo, front(lo)],
+        [b, lo, front(lo)],
+        [b, hi, front(hi)],
+        [a, hi, front(hi)],
+        [a, lo, front(lo) + 0.03],
+        [b, lo, front(lo) + 0.03],
+        [b, hi, front(hi) + 0.03],
+        [a, hi, front(hi) + 0.03],
+      ],
+      "glass",
+    );
+  }
+  const Wn = C.side;
+  for (const s of [-1, 1])
+    p.box(
+      0.04,
+      Wn.hi - Wn.lo,
+      Wn.to - Wn.from,
+      [s * (W + 0.005), (Wn.lo + Wn.hi) / 2, (Wn.from + Wn.to) / 2],
+      "glass",
+      2,
+    );
+  const R = C.rear;
+  p.box(R.half * 2, R.hi - R.lo, 0.04, [R.x, (R.lo + R.hi) / 2, S.back - 0.005], "glass", 2);
+  p.cyl(C.hatch.r + 0.04, 0.08, [C.hatch.x, S.roof + 0.04, C.hatch.z], "y", "dark", 12);
   return p.geometry();
 }
 
@@ -490,7 +544,7 @@ function tankTurret(): THREE.BufferGeometry {
   p.cyl(0.36, 0.06, [-0.75, top + 0.03, -0.6], "y", "dark", 10);
   p.cyl(0.03, 1.0, [-0.75, top + 0.38, -0.2], "z", "steel", 6);
   // The gunner's sight box on the roof.
-  p.box(0.45, 0.35, 0.5, [-0.9, top + 0.17, 0.45], "grey", 2);
+  p.box(0.45, 0.35, 0.5, [TANK_SIGHT.head.x, top + 0.17, TANK_SIGHT.head.z - 0.25], "grey", 2);
   return p.geometry();
 }
 
@@ -524,6 +578,7 @@ export type VehicleGeometry = {
   carrierGlass: THREE.BufferGeometry;
   carrierRear: THREE.BufferGeometry;
   truck: THREE.BufferGeometry;
+  truckCab: THREE.BufferGeometry;
   tankHull: THREE.BufferGeometry;
   tankTurret: THREE.BufferGeometry;
   tankGun: THREE.BufferGeometry;
@@ -538,6 +593,7 @@ export function vehicleGeometry(): VehicleGeometry {
     carrierGlass: carrierGlass(),
     carrierRear: carrierRear(),
     truck: truck(),
+    truckCab: truckCab(),
     tankHull: tankHull(),
     tankTurret: tankTurret(),
     tankGun: tankGun(),
@@ -552,6 +608,6 @@ export function vehicleTriangles(kind: ArmyVehicleKind): number {
   const tris = (b: THREE.BufferGeometry) => b.getAttribute("position").count / 3;
   if (kind === "carrier")
     return tris(g.carrierFront) + tris(g.carrierGlass) + tris(g.carrierRear) + tris(g.commander);
-  if (kind === "truck") return tris(g.truck);
+  if (kind === "truck") return tris(g.truck) + tris(g.truckCab);
   return tris(g.tankHull) + tris(g.tankTurret) + tris(g.tankGun) + tris(g.commander);
 }

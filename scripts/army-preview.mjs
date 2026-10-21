@@ -49,9 +49,13 @@
 //             the game's own ladder, the cluster and the radio close, TIPS,
 //             CHASE, beside it), steal-heli (the army helicopter taken: its
 //             flight deck on the snow and in the air, the panel, console
-//             and overhead close, CHASE, beside it), steal-ground (the truck
-//             and the tank driven, the turret traversed) — the hunt's own
-//             men held back
+//             and overhead close, CHASE, beside it), steal-truck (the
+//             truck's cab: the driver's eye, the cluster, the tyres' panel,
+//             the mirror, the driver from the mate's seat), steal-tank (the
+//             driver hatch down at his vision blocks, his display and
+//             T-bar; the gunner's station, his sight and handles, the
+//             breech; through the sight laying and firing the gun) — the
+//             hunt's own men held back
 //
 // Each frame is captioned with its milliseconds, draw calls and triangles.
 // Each VIEW is one contact sheet, previews/army-<view>.png, and every

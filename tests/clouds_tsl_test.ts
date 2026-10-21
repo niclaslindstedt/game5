@@ -62,8 +62,8 @@ describe("the clouds in the register", () => {
     expect(runsPass("webgpu", "clouds")).toBe(true);
     expect(runsPass("webgpu-gl", "clouds")).toBe(true);
     expect(quarantinedOn("webgpu", "clouds")).toBe(false);
-    // The other ShaderMaterials (the figures', the effects') wait for theirs.
-    expect(GPU_PORTS.find((p) => p.id === "shader")?.part).toBe(11);
+    // The other ShaderMaterials (the effects', the props') wait for theirs.
+    expect(GPU_PORTS.find((p) => p.id === "shader")?.part).toBe(12);
     expect(quarantinedOn("webgpu", "shader")).toBe(true);
   });
 });

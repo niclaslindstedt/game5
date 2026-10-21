@@ -52,6 +52,7 @@ import {
   type WebGPURenderer,
 } from "three/webgpu";
 
+import { figureShadowOf } from "./figure-twins-tsl.ts";
 import { HERO_SLOTS, type HazeUniforms } from "./haze.ts";
 import { slot, type N } from "./haze-tsl.ts";
 import { lightSlots, terrainLit } from "./lights-tsl.ts";
@@ -229,7 +230,19 @@ export class KeyShadowNode extends ShadowNode {
       outer = (object, ...rest) => {
         // `rest[3]` is the material drawn (three's render-object call).
         if (object.castShadow && shadeCast(object)) maskCaster(renderer, rest[3] as Masked, haze);
-        inner(object, ...rest);
+        // A figure whose WebGL depth takes its graft is drawn by a shadow
+        // material moved the same way (`figure-twins-tsl.ts`), `rest[0]`
+        // the scene the pass overrides.
+        const figure = object.castShadow ? figureShadowOf(object.customDepthMaterial) : null;
+        if (!figure) return inner(object, ...rest);
+        const scene = rest[0] as THREE.Scene;
+        const own = scene.overrideMaterial;
+        scene.overrideMaterial = figure;
+        try {
+          inner(object, ...rest);
+        } finally {
+          scene.overrideMaterial = own;
+        }
       };
       this.wrapped.set(inner, outer);
     }

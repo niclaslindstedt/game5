@@ -34,6 +34,7 @@
 import * as THREE from "three";
 
 import type { BirdId, BirdSpec } from "./bird-defs.ts";
+import { figureTwin } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { Shape, type V3 } from "./tree-mesh.ts";
 import type { BirdForm } from "./wild-traits.ts";
@@ -276,8 +277,8 @@ export function birdPaint(style: BirdStyle, form: BirdForm): BirdPaint {
 
 /** How far back the ARM sweeps at the shoulder and the HAND at the wrist
  * when a wing is fully folded, rad. */
-const ARM_FOLD = 1.2;
-const HAND_FOLD = 0.95;
+export const ARM_FOLD = 1.2;
+export const HAND_FOLD = 0.95;
 
 /** The gap between a wing's two faces, m — enough that they never fight for
  * the same pixels; the tail's sheets closer still, or they read as two. */
@@ -637,9 +638,10 @@ export function birdMaterial(spec: BirdSpec, haze: HazeUniforms): THREE.MeshLamb
     side: THREE.DoubleSide,
   });
   const num = (v: number): string => v.toFixed(4);
-  const wrist = wristOf(spec);
+  const wrist = { value: wristOf(spec) };
+  figureTwin(material, "bird", { uWrist: wrist }); // hinged the same on the webgpu paths
   return hazeMaterial(material, haze, "bird", (shader) => {
-    shader.uniforms.uWrist = { value: wrist };
+    shader.uniforms.uWrist = wrist;
     shader.vertexShader = `uniform float uWrist;
 attribute float aWing;
 attribute float aFlap;

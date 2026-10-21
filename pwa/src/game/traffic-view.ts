@@ -44,6 +44,7 @@ import { outfitOf } from "./crowd-dress.ts";
 import { fadeGlow } from "./glow-fade.ts";
 import { glow } from "./glow-sprite.ts";
 import type { Flood } from "./headlamp.ts";
+import { figureTwin } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { summerShown } from "./season-look.ts";
 import { lampLayout, lampLevels, vehicleLook, type VehicleLook } from "./traffic-look.ts";
@@ -93,6 +94,8 @@ export function trafficMaterial(haze: HazeUniforms, interior: { value: number })
     roughness: 0.4,
     metalness: 0.12,
   });
+  // The webgpu paths' twin paints, folds and lights the same (`people-tsl.ts`).
+  figureTwin(material, "traffic", { uInterior: interior });
   return hazeMaterial(material, haze, "traffic", (shader) => {
     shader.uniforms.uInterior = interior;
     shader.vertexShader = `attribute float aPaint;

@@ -37,6 +37,7 @@ import {
   type V3,
 } from "./crowd-rig.ts";
 import { boardTargets } from "./crowd-board.ts";
+import { figureTwin } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { Shape } from "./tree-mesh.ts";
 
@@ -603,6 +604,8 @@ export function crowdMaterial(haze: HazeUniforms): THREE.MeshLambertMaterial {
   // A struck amateur's blood (`aDress2.w`, `crowd-broken.ts`' `bloodOf`):
   // the colour the player's own wounds are drawn in.
   const blood = { value: new THREE.Color(GORE_COLOURS.blood) };
+  // The webgpu paths' twin paints the same (`people-tsl.ts`).
+  figureTwin(material, "crowd", { uCrowdPalette: palette, uCrowdBlood: blood });
   return hazeMaterial(material, haze, "crowd", (shader) => {
     shader.uniforms.uCrowdPalette = palette;
     shader.uniforms.uCrowdBlood = blood;

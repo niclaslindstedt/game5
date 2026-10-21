@@ -29,17 +29,13 @@ const linear = (hex: number): THREE.Vector3 => {
   return new THREE.Vector3(c.r, c.g, c.b);
 };
 
-/** The graft: the body's frame for `spec` drawn as `style` (its barrel's
- * half-width, its length, the barrel's middle height and half-depth, m),
- * and the paint only where `paint` (the depth pass has no colour). */
-export function crushGraft(
-  spec: BeastSpec,
-  style: BeastStyle,
-  paint: boolean,
-): (shader: { vertexShader: string; uniforms: Record<string, THREE.IUniform> }) => void {
+/** The graft's uniforms: the body's frame for `spec` drawn as `style` (its
+ * barrel's half-width, its length, the barrel's middle height and
+ * half-depth, m) and the wreck's colours. */
+export function crushUniforms(spec: BeastSpec, style: BeastStyle): Record<string, THREE.IUniform> {
   const H = spec.height;
   const depth = style.depth * H;
-  const uniforms = {
+  return {
     uBody: {
       value: new THREE.Vector4((style.width * H) / 2, spec.length, H - depth / 2, depth / 2),
     },
@@ -48,6 +44,14 @@ export function crushGraft(
     uFat: { value: linear(WRECK_COLOURS.fat) },
     uBlood: { value: linear(WRECK_COLOURS.blood) },
   };
+}
+
+/** The graft over `uniforms` (`crushUniforms`), the paint only where
+ * `paint` (the depth pass has no colour). */
+export function crushGraft(
+  uniforms: Record<string, THREE.IUniform>,
+  paint: boolean,
+): (shader: { vertexShader: string; uniforms: Record<string, THREE.IUniform> }) => void {
   return (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = `attribute vec4 aBroken;

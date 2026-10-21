@@ -41,7 +41,8 @@
 import { type BeastId, type BeastSpec, type Gait } from "@engine";
 import * as THREE from "three";
 
-import { crushGraft } from "./beast-crush.ts";
+import { crushGraft, crushUniforms } from "./beast-crush.ts";
+import { figureDepth, figureTwin } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { Shape, type V3 } from "./tree-mesh.ts";
 import { TINE_AT, type BeastForm } from "./wild-traits.ts";
@@ -431,7 +432,7 @@ export const LEG_PHASE: Readonly<Record<Gait, readonly [number, number, number, 
 export const LEG_SWING: Readonly<Record<Gait, number>> = { walk: 0.42, trot: 0.55, bound: 0.95 };
 
 /** How far the head goes down at a full graze, rad. */
-const GRAZE_ANGLE = 1.05;
+export const GRAZE_ANGLE = 1.05;
 
 /** What a young form changes: rounder (wider and deeper), a shorter neck
  * and muzzle on a bigger head, bigger ears — the build of every calf, kid
@@ -846,8 +847,10 @@ export function beastMaterial(
   haze: HazeUniforms,
 ): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
-  const gait = gaitGraft(spec, pivot);
-  const crush = crushGraft(spec, BEAST_STYLES[spec.id], true);
+  const own = { ...gaitUniforms(spec, pivot), ...crushUniforms(spec, BEAST_STYLES[spec.id]) };
+  const gait = gaitGraft(own);
+  const crush = crushGraft(own, true);
+  figureTwin(material, "beast", own); // walked and broken the same on the webgpu paths
   return hazeMaterial(material, haze, "beast", (shader) => (gait(shader), crush(shader)));
 }
 
@@ -861,29 +864,37 @@ export function beastDepthMaterial(
     depthPacking: THREE.RGBADepthPacking,
     side: THREE.DoubleSide,
   });
-  const graft = gaitGraft(spec, pivot);
-  const crush = crushGraft(spec, BEAST_STYLES[spec.id], false);
+  const own = { ...gaitUniforms(spec, pivot), ...crushUniforms(spec, BEAST_STYLES[spec.id]) };
+  const graft = gaitGraft(own);
+  const crush = crushGraft(own, false);
+  figureDepth(material, "beast", own); // the node renderer's shadow walks the same
   material.onBeforeCompile = (shader) => (graft(shader), crush(shader));
   material.customProgramCacheKey = (): string => "beast-depth";
   return material;
 }
 
-/** The rack's growth, the legs' swing and the head's graze, as a
- * vertex-shader graft. The species' numbers go in as uniforms rather than
- * literals: the source is then the same for every species, and three links
- * it once. The rack grows first, in the animal's own frame, so the head
- * carries it down when it grazes. */
-function gaitGraft(
+/** A species' gait as `gaitGraft`'s uniforms (`gaitOf`). */
+function gaitUniforms(
   spec: BeastSpec,
   pivot: { y: number; z: number },
-): (shader: { vertexShader: string; uniforms: Record<string, THREE.IUniform> }) => void {
+): Record<string, THREE.IUniform> {
   const g = gaitOf(spec, pivot);
-  const gait = {
+  return {
     uLegSwing: { value: g.swing },
     uLegLift: { value: g.lift },
     uLegReach: { value: g.reach },
     uHeadPivot: { value: new THREE.Vector2(g.pivotY, g.pivotZ) },
   };
+}
+
+/** The rack's growth, the legs' swing and the head's graze, as a
+ * vertex-shader graft over `gait` (`gaitUniforms`). The species' numbers
+ * go in as uniforms rather than literals: the source is then the same for
+ * every species, and three links it once. The rack grows first, in the
+ * animal's own frame, so the head carries it down when it grazes. */
+function gaitGraft(
+  gait: Record<string, THREE.IUniform>,
+): (shader: { vertexShader: string; uniforms: Record<string, THREE.IUniform> }) => void {
   return (shader) => {
     Object.assign(shader.uniforms, gait);
     shader.vertexShader = `uniform float uLegSwing;

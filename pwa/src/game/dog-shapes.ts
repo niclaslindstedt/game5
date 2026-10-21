@@ -28,6 +28,7 @@ import * as THREE from "three";
 
 import { DOG_SPECS, type DogKind } from "./dog-defs.ts";
 import { DOG_POSES, dogSkel, type DogSkel, type V3 } from "./dog-pose.ts";
+import { figureTwin } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { Shape } from "./tree-mesh.ts";
 
@@ -388,6 +389,7 @@ const FOLD_GLSL = `#include <morphtarget_vertex>
  * painted from its dog's colours, the dog coat folded where not worn. */
 export function dogMaterial(haze: HazeUniforms): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  figureTwin(material, "dogs"); // painted and folded the same on the webgpu paths
   return hazeMaterial(material, haze, "dogs", (shader) => {
     shader.vertexShader = `attribute float aSlot;
 attribute float aPart;

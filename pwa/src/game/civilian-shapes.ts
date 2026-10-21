@@ -45,6 +45,7 @@ import {
   type CrowdLod,
   type Frame,
 } from "./crowd-shapes.ts";
+import { figureDepth, figureTwin } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { Shape } from "./tree-mesh.ts";
 import { emitSummer, summerBlanket } from "./civilian-summer-shapes.ts";
@@ -697,6 +698,8 @@ const FOLD_ATTRIBUTES = "attribute float aPart;\nattribute vec4 aKit;\n";
 export function civilianMaterial(haze: HazeUniforms): THREE.MeshLambertMaterial {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const palette = { value: CIVILIAN_PALETTE.map((hex) => new THREE.Color(hex)) };
+  // The webgpu paths' twin paints and folds the same (`people-tsl.ts`).
+  figureTwin(material, "civilians", { uCivilianPalette: palette });
   return hazeMaterial(material, haze, "civilians", (shader) => {
     shader.uniforms.uCivilianPalette = palette;
     shader.vertexShader = `attribute float aSlot;
@@ -714,6 +717,7 @@ ${shader.vertexShader}`
 export function civilianDepth(depth: THREE.MeshDepthMaterial): THREE.MeshDepthMaterial {
   const shade = depth.onBeforeCompile;
   depth.customProgramCacheKey = (): string => "civilian-shade-depth";
+  figureDepth(depth, "civilians"); // folded the same on the node renderer
   depth.onBeforeCompile = (shader, renderer) => {
     shade.call(depth, shader, renderer);
     shader.vertexShader = `${FOLD_ATTRIBUTES}${shader.vertexShader}`.replace(

@@ -22,6 +22,7 @@ import type { NodeMaterial } from "three/webgpu";
 import { billboardTwin } from "./billboards-tsl.ts";
 import type { HazeUniforms } from "./haze.ts";
 import type { HazeFogOptions } from "./haze-tsl.ts";
+import { steamStand } from "./people-tsl.ts";
 import { plumeTwin } from "./plume-tsl.ts";
 import { cloudTwin, shadowTwin } from "./snow-cloud-tsl.ts";
 import { driftStand, fallTwin } from "./snowfall-tsl.ts";
@@ -58,5 +59,6 @@ export function particleTwin(
  * kind of their own, or null (`glow-tsl.ts` draws the plain ones). */
 export function pointStand(points: THREE.Points, haze: HazeUniforms): NodeMaterial | null {
   const kind: unknown = (points.material as THREE.Material).userData.sprite;
-  return kind === "spindrift" ? driftStand(points, haze) : null;
+  if (kind === "spindrift") return driftStand(points, haze);
+  return kind === "steam" ? steamStand(points) : null;
 }

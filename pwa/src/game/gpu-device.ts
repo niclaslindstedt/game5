@@ -26,6 +26,7 @@ import { WebGPURenderer } from "three/webgpu";
 import { freshBackend, type Backend } from "./gpu-backend.ts";
 import { dressScene, type Dressing } from "./gpu-dress.ts";
 import { nodeGradePass } from "./grade-tsl.ts";
+import "./node-fixes-tsl.ts";
 import { CANVAS_SAMPLES } from "./region-picture.ts";
 import { setSeamFactory, type RenderSeam, type SeamInfo } from "./render-seam.ts";
 

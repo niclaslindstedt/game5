@@ -45,6 +45,7 @@
 import * as THREE from "three";
 
 import { FAN_PALETTE } from "./spectator-plan.ts";
+import { figureTwin } from "./gpu-backend.ts";
 import { hazeMaterial, PAST_THE_WALL, type HazeUniforms } from "./haze.ts";
 
 /** The figure's measure, m, for a fan of `REF.height`. */
@@ -78,7 +79,7 @@ const PROP = 20;
 
 /** A FAN'S FLAG, m and rad: the pole's length, its slant off the forearm
  * toward his front, and the cloth. */
-const FLAG = { pole: 1.35, slant: 0.8, width: 0.95, height: 0.62 };
+export const FLAG = { pole: 1.35, slant: 0.8, width: 0.95, height: 0.62 };
 
 export type FanCut = "near" | "mid" | "far";
 export const FAN_CUT_NAMES: readonly FanCut[] = ["near", "mid", "far"];
@@ -710,6 +711,9 @@ export function fanMaterial(haze: HazeUniforms, u: FanUniforms): THREE.MeshLambe
     side: THREE.DoubleSide,
   });
   const palette = { value: FAN_PALETTE.map((hex) => new THREE.Color(hex)) };
+  // The webgpu paths' twin poses and paints the same (`fans-tsl.ts`), and
+  // is walled by the mist as this is.
+  figureTwin(material, "fans", { ...u, uFanPalette: palette }).userData.hazeWall = true;
   return hazeMaterial(material, haze, "spectators", (shader) => {
     // A bank past the DISTANCE row's mist would stand in the sky.
     PAST_THE_WALL(shader);

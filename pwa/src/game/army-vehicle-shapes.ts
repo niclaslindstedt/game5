@@ -241,7 +241,20 @@ function carrierFront(): THREE.BufferGeometry {
     ],
     "camo",
   );
-  // The windscreen and the side windows.
+  // The headlamps and a roof hatch with its rim.
+  for (const s of [-1, 1]) p.box(0.22, 0.12, 0.06, [s * (W - 0.4), 1.18, L - 0.32], "lamp", 2);
+  p.cyl(0.36, 0.08, [0, 2.29, -0.6], "y", "dark", 10);
+  // The hitch's rams between the units.
+  p.box(0.25, 0.25, 0.6, [0, 0.75, -L - 0.15], "dark", 2);
+  return p.geometry();
+}
+
+/** THE CARRIER'S GLASS, apart from its hull: the windscreen and the side
+ * windows — put away while the lens is in its cab (`carrier-cab.ts` draws
+ * clear panes from in there). */
+function carrierGlass(): THREE.BufferGeometry {
+  const W = A.kinds.carrier.halfWidth;
+  const p = new Part(null);
   p.hexa(
     [
       [-W + 0.2, 1.5, 0.43],
@@ -256,11 +269,6 @@ function carrierFront(): THREE.BufferGeometry {
     "glass",
   );
   for (const s of [-1, 1]) p.box(0.04, 0.42, 0.9, [s * (W - 0.09), 1.78, -0.45], "glass", 2);
-  // The headlamps and a roof hatch with its rim.
-  for (const s of [-1, 1]) p.box(0.22, 0.12, 0.06, [s * (W - 0.4), 1.18, L - 0.32], "lamp", 2);
-  p.cyl(0.36, 0.08, [0, 2.29, -0.6], "y", "dark", 10);
-  // The hitch's rams between the units.
-  p.box(0.25, 0.25, 0.6, [0, 0.75, -L - 0.15], "dark", 2);
   return p.geometry();
 }
 
@@ -510,6 +518,7 @@ function commander(): THREE.BufferGeometry {
 /** Every part's geometry, built once and shared by every vehicle. */
 export type VehicleGeometry = {
   carrierFront: THREE.BufferGeometry;
+  carrierGlass: THREE.BufferGeometry;
   carrierRear: THREE.BufferGeometry;
   truck: THREE.BufferGeometry;
   tankHull: THREE.BufferGeometry;
@@ -523,6 +532,7 @@ let shared: VehicleGeometry | null = null;
 export function vehicleGeometry(): VehicleGeometry {
   shared ??= {
     carrierFront: carrierFront(),
+    carrierGlass: carrierGlass(),
     carrierRear: carrierRear(),
     truck: truck(),
     tankHull: tankHull(),
@@ -537,7 +547,8 @@ export function vehicleGeometry(): VehicleGeometry {
 export function vehicleTriangles(kind: ArmyVehicleKind): number {
   const g = vehicleGeometry();
   const tris = (b: THREE.BufferGeometry) => b.getAttribute("position").count / 3;
-  if (kind === "carrier") return tris(g.carrierFront) + tris(g.carrierRear) + tris(g.commander);
+  if (kind === "carrier")
+    return tris(g.carrierFront) + tris(g.carrierGlass) + tris(g.carrierRear) + tris(g.commander);
   if (kind === "truck") return tris(g.truck);
   return tris(g.tankHull) + tris(g.tankTurret) + tris(g.tankGun) + tris(g.commander);
 }

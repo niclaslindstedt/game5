@@ -38,6 +38,7 @@ import { PLANE_STRINGS } from "./strings-plane.ts";
 import { CHUTE_STRINGS } from "./strings-chute.ts";
 import { WINGSUIT_STRINGS } from "./strings-wingsuit.ts";
 import { GROOMER_STRINGS } from "./strings-groomer.ts";
+import { ARMOUR_STRINGS } from "./strings-armour.ts";
 import { TRAFFIC_STRINGS } from "./strings-traffic.ts";
 import { WILD_STRINGS } from "./strings-wild.ts";
 import { FIRE_STRINGS } from "./strings-fire.ts";
@@ -154,6 +155,7 @@ export const STRINGS = {
   ...CHUTE_STRINGS,
   ...WINGSUIT_STRINGS,
   ...GROOMER_STRINGS,
+  ...ARMOUR_STRINGS,
   ...TRAFFIC_STRINGS,
   ...WILD_STRINGS,
   ...WANTED_STRINGS,
@@ -411,16 +413,13 @@ export const STRINGS = {
     touch ? "TAP TO FLY" : `${key} OR CLICK TO FLY`,
   /** Stood at the door of somebody else's (`steal.ts`): whose, and how to
    * take it. */
-  heliOwned: { rescue: "AIR AMBULANCE", police: "POLICE HELICOPTER" } as const,
+  heliOwned: {
+    rescue: "AIR AMBULANCE",
+    police: "POLICE HELICOPTER",
+    army: "ARMY HELICOPTER",
+  } as const,
   heliSteal: (touch: boolean, key: string): string =>
     touch ? "TAP TO STEAL" : `${key} OR CLICK TO STEAL`,
-  /** A machine taken from its owners (`steal.ts`), by whose it was. */
-  newsSteal: {
-    rescue: "STOLE THE AIR AMBULANCE!",
-    patrol: "STOLE THE SKI PATROL'S SNOWMOBILE!",
-    police: "STOLE THE POLICE HELICOPTER!",
-    army: "STOLE AN ARMY SNOWMOBILE!",
-  } as const,
   /** An army snowmobile's crew knocked off it (`army-sled.ts`). */
   newsCrewOff: "KNOCKED THE CREW OFF!",
   /** Blown into a wind tunnel along the valley floor (`wind-tunnels.ts`). */

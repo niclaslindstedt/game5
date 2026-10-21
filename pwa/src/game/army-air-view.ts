@@ -29,7 +29,7 @@ import {
 import { gunnerSeat, type Side } from "./army-heli-plan.ts";
 import { createArmyGroundView } from "./army-ground-view.ts";
 import { createArmySledView } from "./army-sled-view.ts";
-import { createArmyVehicleView } from "./army-vehicle-view.ts";
+import { createArmyVehicleView, type Ridden } from "./army-vehicle-view.ts";
 import { createArmyHeliView, type ArmyHeliPose, type ArmyHeliView } from "./army-heli-view.ts";
 import { createExplosion, type Explosion } from "./explosion.ts";
 import type { HazeUniforms } from "./haze.ts";
@@ -70,6 +70,8 @@ export type ArmyAirView = {
    * drawn for an eye at `eye`; the rotors' smear shaded to the light. */
   lamps(lit: number, eye: { x: number; y: number; z: number }): void;
   setPace(pace: number): void;
+  /** HIS VEHICLE as drawn this frame (`army-vehicle-view.ts`), or null. */
+  ridden(): Ridden | null;
   /** The primer's model in the group (`ArmyHeliView.ready`). */
   ready: Promise<void>;
   dispose(): void;
@@ -233,6 +235,7 @@ export function createArmyAirView(haze: HazeUniforms): ArmyAirView {
       pace = next > 0 ? next : 1;
       for (const d of drawn.values()) d.view.setPace(pace);
     },
+    ridden: () => vehicles.ridden(),
     ready: primer.ready,
     dispose() {
       for (const id of [...drawn.keys()]) drop(id);

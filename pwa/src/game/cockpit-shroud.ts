@@ -28,6 +28,27 @@ import { COCKPIT } from "./cockpit-plan.ts";
 
 type V3 = { x: number; y: number; z: number };
 
+/** THE ROOM A MODEL'S CABIN IS COPIED IN FROM (`cabinOf`, `bulkheadOf`), in
+ * its machine's frame, m: the floor and the roof, the wall behind the
+ * cockpit, the panel's face along z (the nose under it is charcoal), and
+ * how far out from the middle the skin is taken. The light helicopter's
+ * by default; the army's machine names its own (`army-heli-cockpit.ts`). */
+export type CabinRoom = {
+  floor: number;
+  roof: number;
+  bulkhead: number;
+  panelZ: number;
+  half: number;
+};
+
+export const HELI_ROOM: CabinRoom = {
+  floor: HELI.body.floor,
+  roof: HELI.body.roof,
+  bulkhead: COCKPIT.bulkhead,
+  panelZ: COCKPIT.panel.z,
+  half: 1.0,
+};
+
 /** THE SHROUD'S SHAPE, m: how far the hood stands toward the pilot over
  * the middle and at its ends, how far down the sides it reaches toward
  * the pilot at the foot, the bezel between the face and the moulding,
@@ -335,11 +356,10 @@ export function sealGeometry(glass: THREE.BufferGeometry | null): THREE.BufferGe
  * its outward normal: the floor's rubber; the nose under the windscreen and
  * the kick panels under the sills in charcoal; the pillars and the frames
  * between the windows a light grey; the headliner pale. */
-function linerColour(p: V3, n: V3, out: THREE.Color): THREE.Color {
-  const B = HELI.body;
-  const f = (p.y - B.floor) / (B.roof - B.floor);
+function linerColour(p: V3, n: V3, out: THREE.Color, room: CabinRoom): THREE.Color {
+  const f = (p.y - room.floor) / (room.roof - room.floor);
   if (n.y < -0.55) return out.setRGB(0.05, 0.052, 0.056);
-  if (p.z > COCKPIT.panel.z - 0.1 && f < 0.5) return out.setRGB(0.07, 0.072, 0.078);
+  if (p.z > room.panelZ - 0.1 && f < 0.5) return out.setRGB(0.07, 0.072, 0.078);
   if (f < 0.2) return out.setRGB(0.1, 0.104, 0.11);
   if (n.y > 0.6 || f > 0.84) return out.setRGB(0.62, 0.62, 0.6);
   // The walls: darker low down where boots and bags scuff them.
@@ -360,6 +380,7 @@ const tint = new THREE.Color();
 export function cabinOf(
   body: THREE.Object3D,
   toMachine: (m: THREE.Mesh) => THREE.Matrix4,
+  room: CabinRoom = HELI_ROOM,
 ): { liner: THREE.BufferGeometry | null; glass: THREE.BufferGeometry | null } {
   const liner: number[] = [];
   const linerN: number[] = [];
@@ -395,7 +416,7 @@ export function cabinOf(
         cy += tri[k].y / 3;
         cz += tri[k].z / 3;
       }
-      if (cz < COCKPIT.bulkhead - 0.02 || cy > HELI.body.roof + 0.05 || Math.abs(cx) > 1.0) {
+      if (cz < room.bulkhead - 0.02 || cy > room.roof + 0.05 || Math.abs(cx) > room.half) {
         continue;
       }
       for (let k = 0; k < 3; k++) {
@@ -410,7 +431,7 @@ export function cabinOf(
         p.addScaledVector(n, -LINER_IN);
         liner.push(p.x, p.y, p.z);
         linerN.push(n.x, n.y, n.z);
-        const c = linerColour(p, n, tint);
+        const c = linerColour(p, n, tint, room);
         linerC.push(c.r, c.g, c.b);
       }
     }
@@ -431,8 +452,9 @@ export function cabinOf(
 export function bulkheadOf(
   body: THREE.Object3D,
   toMachine: (m: THREE.Mesh) => THREE.Matrix4,
+  room: CabinRoom = HELI_ROOM,
 ): THREE.BufferGeometry | null {
-  const z0 = COCKPIT.bulkhead;
+  const z0 = room.bulkhead;
   const pts: [number, number][] = [];
   const p = new THREE.Vector3();
   body.traverse((o) => {
@@ -443,7 +465,7 @@ export function bulkheadOf(
     const m = toMachine(o);
     for (let i = 0; i < pos.count; i++) {
       p.fromBufferAttribute(pos, i).applyMatrix4(m);
-      if (Math.abs(p.z - z0) < 0.12 && p.y < HELI.body.roof + 0.02 && Math.abs(p.x) < 1.0)
+      if (Math.abs(p.z - z0) < 0.12 && p.y < room.roof + 0.02 && Math.abs(p.x) < room.half)
         pts.push([p.x, p.y]);
     }
   });

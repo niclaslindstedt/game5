@@ -63,7 +63,7 @@ export const CARRIER_CAB = {
   /** THE STEERING WHEEL: its hub, its rim's radius and grip, the column's
    * rake off the vertical (the wheel leant back at the top), its foot in
    * the dash; how far a full lock turns it. */
-  wheel: { x: SEAT_X, y: 1.62, z: -0.1, r: 0.2, grip: 0.016, rake: 0.55, lock: 2.4 },
+  wheel: { x: SEAT_X, y: 1.55, z: -0.1, r: 0.2, grip: 0.016, rake: 0.55, lock: 2.4 },
   column: { y: 1.3, z: 0.16 },
 
   /** THE ENGINE'S COVER between the front seats: half its width, its top,

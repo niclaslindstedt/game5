@@ -146,7 +146,8 @@ export function stealViews(lab: StealLab): Record<string, () => Promise<void>> {
   /** The game's lens on a rung, settled a few frames first. */
   const game = (r: GameState, k: CameraRung, label: string, note: string) => {
     lab.rung(k);
-    for (let i = 0; i < 40; i++) lab.frame(r, 1 / 60);
+    // Past the hand-over a change of ladder flies the lens across (`camera.ts`).
+    for (let i = 0; i < 16; i++) lab.frame(r, 0.1);
     lab.shoot(label, null, note, r);
   };
   const noteOf = (r: GameState) => {
@@ -174,7 +175,7 @@ export function stealViews(lab: StealLab): Record<string, () => Promise<void>> {
       game(r, "helmet", "in a turn to the right", noteOf(r));
       const E = CARRIER_CAB.eye;
       const eye = onVehicle(v, E);
-      lab.shoot("the cluster", lab.look(eye, onVehicle(v, { x: E.x, y: 1.5, z: 0.3 }), 40), n, r);
+      lab.shoot("the cluster", lab.look(eye, onVehicle(v, { x: E.x, y: 1.33, z: 0.27 }), 34), n, r);
       lab.shoot(
         "the switches and the radio",
         lab.look(eye, onVehicle(v, { x: -0.2, y: 1.45, z: 0.3 }), 50),

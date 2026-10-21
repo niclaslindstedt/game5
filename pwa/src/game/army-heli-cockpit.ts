@@ -151,7 +151,7 @@ export function createArmyDeck(
       { x: P.half, y: P.top, z: zTop },
       { x: -P.half, y: P.top, z: zTop },
     ),
-    kit.face(face.texture, 0.3),
+    kit.face(face.texture, 0.3, ds),
     room,
   );
   kit.box(
@@ -244,7 +244,7 @@ export function createArmyDeck(
       { x: K.half - 0.01, y: K.top + 0.003, z: K.to },
       { x: -K.half + 0.01, y: K.top + 0.003, z: K.to },
     ),
-    kit.face(consoleFace.texture, 0.25),
+    kit.face(consoleFace.texture, 0.25, ds),
     room,
   );
 
@@ -268,7 +268,7 @@ export function createArmyDeck(
       { x: -O.half + 0.01, y: O.y - 0.002, z: O.to },
       { x: O.half - 0.01, y: O.y - 0.002, z: O.to },
     ),
-    kit.face(over.texture, 0.2),
+    kit.face(over.texture, 0.2, ds),
     room,
   );
   // The power levers (the engines' #1 and #2) and the fuel levers beside

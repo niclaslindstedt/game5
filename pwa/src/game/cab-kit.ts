@@ -103,9 +103,15 @@ export class CabKit {
   }
 
   /** A painted face's material: its canvas lit a little from within, as
-   * a face under its own lamps reads in a dark cab. */
-  face(t: THREE.Texture, glow = 0.3): THREE.MeshStandardMaterial {
+   * a face under its own lamps reads in a dark cab — drawn both ways
+   * (`side`) where it is laid out under a mirror, its winding turned. */
+  face(
+    t: THREE.Texture,
+    glow = 0.3,
+    side: THREE.Side = THREE.FrontSide,
+  ): THREE.MeshStandardMaterial {
     return this.std({
+      side,
       map: t,
       emissiveMap: t,
       emissive: 0xffffff,

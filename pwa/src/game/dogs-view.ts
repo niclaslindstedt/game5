@@ -30,6 +30,7 @@ import { DOG_LODS, buildDogFigure, dogMaterial, packColour, type DogLod } from "
 import { dogPlanFor, messAt, type Mess } from "./dog-walk.ts";
 import { dogAt, dogWalkerAt, freshDogPose } from "./dog-walk-pose.ts";
 import { releaseShared, sharing } from "./geometry-share.ts";
+import { glslOnly } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { shadeDepth } from "./terrain-shade.ts";
 import type { ViewCull } from "./view-cull.ts";
@@ -130,8 +131,10 @@ export function patchGeometry(): THREE.BufferGeometry {
 }
 
 /** The steam's soft puffs, lit by nothing but fading into the air. */
-function steamMaterial(): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
+export function steamMaterial(): THREE.ShaderMaterial {
+  // A `gl_PointSize` point: drawn on the webgpu paths by a stand-in, a quad
+  // a puff (`people-tsl.ts`'s `steamStand`).
+  const material = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
     uniforms: { uScale: { value: 600 } },
@@ -153,6 +156,8 @@ void main() {
   #include <colorspace_fragment>
 }`,
   });
+  glslOnly(material, "figures").userData.sprite = "steam";
+  return material;
 }
 
 export function createDogsView(level: Level, haze: HazeUniforms, summer = false): DogsView {

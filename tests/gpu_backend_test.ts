@@ -95,7 +95,7 @@ describe("the quarantine (gpu-quarantine.ts)", () => {
       glslOnly(new THREE.MeshStandardMaterial(), "wingsuit"),
     );
     figure.add(suit);
-    const woods = glslOnly(new THREE.Mesh(new THREE.BoxGeometry()), "gore-tree");
+    const woods = glslOnly(new THREE.Mesh(new THREE.BoxGeometry()), "model-merged");
     const lift = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
     const both = new THREE.Mesh(new THREE.BoxGeometry(), [
       new THREE.MeshBasicMaterial(),
@@ -119,7 +119,7 @@ describe("the quarantine (gpu-quarantine.ts)", () => {
     expect(q.counts()).toMatchObject({
       "shader:sky": 1,
       "wingsuit:wingsuit": 1,
-      "gore-tree:scene": 1,
+      "model-merged:scene": 1,
     });
     q.restore();
     for (const o of [sky, suit, woods, lift, both]) expect(o.visible).toBe(true);

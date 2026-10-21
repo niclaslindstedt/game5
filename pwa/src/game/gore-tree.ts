@@ -16,7 +16,7 @@
 import * as THREE from "three";
 import { regionOf, type GameState, type Level, type TreeDef } from "@engine";
 
-import { glslOnly } from "./gpu-backend.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 import { regionLookOf } from "./region-look.ts";
 import { summerShown } from "./season-look.ts";
 import { graftGirth } from "./tree-mesh.ts";
@@ -116,7 +116,9 @@ export function createBloodTrees(
       }),
       "gore-tree",
     );
-    glslOnly(material, "gore-tree"); // thickened and blooded below (`gpu-quarantine.ts`)
+    // Thickened and blooded below; the webgpu paths' twin does the same
+    // (`figure-twins-tsl.ts`).
+    nodeTwin(material, "gore-tree", "gore-tree").userData.figureOwn = { uBloodFront: uniform };
     const haze = material.onBeforeCompile.bind(material);
     material.customProgramCacheKey = (): string => "haze:gore-tree";
     material.onBeforeCompile = (shader, renderer) => {

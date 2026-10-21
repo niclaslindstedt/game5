@@ -141,12 +141,13 @@ export const GPU_PORTS: readonly GpuPort[] = [
     ported: true,
   },
   {
-    // The clouds' ShaderMaterials draw by their twins since part 10 (the
-    // `clouds` row); what is left are the figures' and the effects'.
+    // What is left are the effects' and the props': the rotors, the
+    // aircraft and the burn (12); the piste lights, the fires and the stage
+    // (13).
     id: "shader",
     kind: "material",
-    part: 11,
-    what: "every other ShaderMaterial (the figures, the effects in their own parts)",
+    part: 12,
+    what: "every other ShaderMaterial (the effects and the props, in their own parts)",
     ported: false,
   },
   {
@@ -164,10 +165,19 @@ export const GPU_PORTS: readonly GpuPort[] = [
     ported: true,
   },
   {
-    id: "haze-graft",
+    id: "figures",
     kind: "material",
     part: 11,
-    what: "a hazed material with a graft of its own (the figures' gaits, the rock…)",
+    what: "the crowd, the people on foot, the dogs, the traffic, the fans, the birds and the animals, each drawn by its figure twin",
+    ported: true,
+  },
+  {
+    // The figures' grafts draw by their twins (the `figures` row); what is
+    // left are the cloths' and the balloon's (12) and the props' (13).
+    id: "haze-graft",
+    kind: "material",
+    part: 13,
+    what: "a hazed material with a graft of its own (the rock, the facades, the signs, the cloths…)",
     ported: false,
   },
   {
@@ -178,7 +188,13 @@ export const GPU_PORTS: readonly GpuPort[] = [
     ported: false,
   },
   { id: "wingsuit", kind: "material", part: 12, what: "the wingsuit's paint", ported: false },
-  { id: "gore-tree", kind: "material", part: 11, what: "the blooded tree", ported: false },
+  {
+    id: "gore-tree",
+    kind: "material",
+    part: 11,
+    what: "the blooded tree, drawn by its figure twin",
+    ported: true,
+  },
 ];
 
 /** Whether the frame runs pass `id` on `backend`: always on WebGL, on the
@@ -233,6 +249,32 @@ export function nodeTwin<T extends { userData: Record<string, unknown> }>(
   return glslOnly(material, family);
 }
 let owned = 0;
+
+/** Flag a figure's material (a classic one with a graft of its own) as
+ * drawn on the webgpu paths by figure twin `kind` (`figure-twins-tsl.ts`),
+ * over its graft's own uniforms `own` — read there off the material drawn
+ * (`userData.figureOwn`). WebGL reads neither. */
+export function figureTwin<T extends { userData: Record<string, unknown> }>(
+  material: T,
+  kind: string,
+  own: Record<string, { value: unknown }> = {},
+): T {
+  material.userData.figureOwn = own;
+  return nodeTwin(material, "figures", kind);
+}
+
+/** Flag a caster's WebGL depth material as carrying figure `kind`'s graft
+ * (`figureTwin`), over its own uniforms: the key's shadow on the node
+ * renderer draws the caster moved the same way (`figureShadowOf`). */
+export function figureDepth<T extends { userData: Record<string, unknown> }>(
+  depth: T,
+  kind: string,
+  own: Record<string, { value: unknown }> = {},
+): T {
+  depth.userData.figureDepth = kind;
+  depth.userData.figureOwn = own;
+  return depth;
+}
 
 /** WHAT DREW THE FRAME, for the developer page and the benchmark's report. */
 export type BackendState = {

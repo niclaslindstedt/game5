@@ -144,10 +144,20 @@ function down(steer = 0) {
 
 export function stealViews(lab: StealLab): Record<string, () => Promise<void>> {
   /** The game's lens on a rung, settled a few frames first. */
-  const game = (r: GameState, k: CameraRung, label: string, note: string) => {
+  const game = (
+    r: GameState,
+    k: CameraRung,
+    label: string,
+    note: string,
+    input: (r: GameState) => SkierInput = () => NEUTRAL_INPUT,
+  ) => {
     lab.rung(k);
-    // Past the hand-over a change of ladder flies the lens across (`camera.ts`).
-    for (let i = 0; i < 16; i++) lab.frame(r, 0.1);
+    // A change of ladder flies the lens across on the run's own clock
+    // (`camera.ts`' hand-over): the run is stepped on as it settles.
+    for (let i = 0; i < 16; i++) {
+      run(r, 0.1, input);
+      lab.frame(r, 0.1);
+    }
     lab.shoot(label, null, note, r);
   };
   const noteOf = (r: GameState) => {
@@ -170,9 +180,9 @@ export function stealViews(lab: StealLab): Record<string, () => Promise<void>> {
       run(r, 4, down());
       const v = r.armour.body;
       const n = noteOf(r);
-      game(r, "helmet", "the driver's eye (HELMET)", n);
+      game(r, "helmet", "the driver's eye (HELMET)", n, down());
       run(r, 1.2, down(1));
-      game(r, "helmet", "in a turn to the right", noteOf(r));
+      game(r, "helmet", "in a turn to the right", noteOf(r), down(1));
       const E = CARRIER_CAB.eye;
       const eye = onVehicle(v, E);
       lab.shoot("the cluster", lab.look(eye, onVehicle(v, { x: E.x, y: 1.33, z: 0.27 }), 34), n, r);
@@ -192,8 +202,8 @@ export function stealViews(lab: StealLab): Record<string, () => Promise<void>> {
         n,
         r,
       );
-      game(r, "tips", "TIPS", n);
-      game(r, "chase", "CHASE", n);
+      game(r, "tips", "TIPS", n, down());
+      game(r, "chase", "CHASE", n, down());
       const at = onVehicle(v, { x: 0, y: 1.4, z: 0 });
       lab.shoot("beside it", lab.look(onVehicle(v, { x: 9, y: 2.5, z: 4 }), at, 50), n, r);
     });
@@ -266,8 +276,8 @@ export function stealViews(lab: StealLab): Record<string, () => Promise<void>> {
       };
       run(r, 12, fly);
       const n = noteOf(r);
-      game(r, "helmet", "the pilot's eye in flight", n);
-      game(r, "chase", "CHASE", n);
+      game(r, "helmet", "the pilot's eye in flight", n, fly);
+      game(r, "chase", "CHASE", n, fly);
       const at = onHeli(h, { x: 0, y: 1.5, z: 0 });
       lab.shoot("beside it", lab.look(onHeli(h, { x: -16, y: 3, z: 6 }), at, 50), n, r);
     });
@@ -284,8 +294,8 @@ export function stealViews(lab: StealLab): Record<string, () => Promise<void>> {
         if (kind === "tank") run(r, 1.5, (g) => ({ ...down()(g), lean: 1 }));
         const v = r.armour.body;
         const n = `${noteOf(r)}${kind === "tank" ? ` · turret ${((v.turret * 180) / Math.PI).toFixed(0)}°` : ""}`;
-        game(r, "chase", `the ${kind}: CHASE`, n);
-        game(r, "helmet", `the ${kind}: his head out (HELMET)`, n);
+        game(r, "chase", `the ${kind}: CHASE`, n, down());
+        game(r, "helmet", `the ${kind}: his head out (HELMET)`, n, down());
         const at = onVehicle(v, { x: 0, y: 1.6, z: 0 });
         lab.shoot(
           `the ${kind}: beside it`,

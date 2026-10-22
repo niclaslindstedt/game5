@@ -7,7 +7,7 @@
 
 import * as THREE from "three";
 
-import { glslOnly } from "./gpu-backend.ts";
+import { nodeGraft } from "./gpu-backend.ts";
 import type { SkierPose } from "./skier-joints.ts";
 import { shapeSuit, suitLayout, type SuitDrive } from "./wingsuit-cloth.ts";
 import { colourwayOf, suitPaintGlsl } from "./wingsuit-look.ts";
@@ -47,7 +47,9 @@ export function createWingsuitWings(
     }),
     "wingsuit",
   );
-  glslOnly(mat, "wingsuit"); // painted by the graft below (`gpu-quarantine.ts`)
+  // Painted by the graft below, and on the node renderer by its nodes
+  // (`model-grafts-tsl.ts`).
+  nodeGraft(mat, "wingsuit", "wingsuit").userData.suit = suit;
   // The paint laid over whatever the wrap compiles (the haze, the lamps).
   const before = mat.onBeforeCompile.bind(mat);
   const key = mat.customProgramCacheKey.bind(mat);

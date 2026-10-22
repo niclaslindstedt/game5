@@ -29,6 +29,7 @@ import {
   type Lay,
 } from "./balloon-look.ts";
 import { FIRE_GLSL } from "./balloon-fire-plan.ts";
+import { nodeGraft } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
 
@@ -269,6 +270,19 @@ export function createEnvelope(haze: HazeUniforms): Envelope {
         );
     },
   );
+  // The node renderer's paint and light, over the same uniforms (`cloth-tsl.ts`).
+  nodeGraft(material, "cloth", "envelope").userData.graftOwn = {
+    uBalPalette: palette,
+    uBalScheme: scheme,
+    uBalGlow: look.glow,
+    uBalBurnt: look.burnt,
+    uBalScorch: look.scorch,
+    uBalThrough: look.through,
+    uBalGlowColour: { value: GLOW },
+    uBalCatch: look.catchAt,
+    uBalFront: look.front,
+    uBalTime: look.time,
+  };
   const mesh = new THREE.Mesh(geo, material);
   mesh.name = "balloon-envelope";
   mesh.castShadow = true;

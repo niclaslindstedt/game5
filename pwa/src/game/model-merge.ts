@@ -19,7 +19,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
-import { glslOnly } from "./gpu-backend.ts";
+import { nodeGraft } from "./gpu-backend.ts";
 
 type Wrap = <M extends THREE.Material>(m: M, name: string) => M;
 type Lit = THREE.MeshPhysicalMaterial;
@@ -135,9 +135,9 @@ function mergedLook(first: Lit, wrap: Wrap): Lit {
   // A clearcoat of 1 compiles the coat in; each vertex says how much.
   if (physical) look.clearcoat = 1;
   look.name = "model-merged";
-  // Its metal and roughness are the vertices' (the graft below): hidden on
-  // the webgpu paths until ported (`gpu-quarantine.ts`).
-  const material = glslOnly(wrap(look, "model-merged"), "model-merged");
+  // Its metal and roughness are the vertices' (the graft below), and the
+  // node renderer's (`model-grafts-tsl.ts`).
+  const material = nodeGraft(wrap(look, "model-merged"), "model-merged", "pbr");
   const haze = material.onBeforeCompile.bind(material);
   const key = material.customProgramCacheKey();
   material.customProgramCacheKey = (): string => `${key}:pbr`;

@@ -93,16 +93,19 @@ webgpu paths.
 | `haze` | material | 2 | the haze on a hazed material, with the key's extras, the shade lift and the lamps; a glow's fade. Ported |
 | `sky` | material | 3 | the dome, the far ranges and the sky's passes, each drawn by its node twin. Ported |
 | `particles` | material | 9 | the spray, the snowfall and the spindrift, the snow cloud and its shadow, the billboards, the sparks and the snow guns' plumes, each drawn by its node twin or, for a `gl_PointSize` point, by a stand-in a quad a point. Ported |
-| `shader` | material | 12 | every other `ShaderMaterial`: the effects and the props, in their own parts (the rotors, the aircraft and the burn in 12; the piste lights, the fires and the stage in 13). The clouds' passes were the first of them, ported in part 10, and the dogs' steam is the figures' (part 11) |
+| `shader` | material | 13 | every other `ShaderMaterial`: the props' (the piste lights, the fires and the stage). The clouds' passes were the first of them, ported in part 10, the dogs' steam is the figures' (part 11), and the effects left it in part 12 |
+| `effects` | material | 12 | the rotors' and the propellers' smear, the black fade through a lift's station, the balloon's burner, a skier's burn (the flames, the glow, the sparks, the smoke) and the X-ray cam (the bones and organs, the glass, the mask, the veil, the blood), each drawn by its node twin. Ported |
 | `terrain` | material | 4 | the clipmap's every level, its snow, its rock and a summer's ground, drawn by its node twin. Ported |
 | `forest-batch` | material | 8 | the woods' multi-draw batch, drawn shape by shape instanced on the node renderer (`forest-nodes.ts`). Ported |
 | `figures` | material | 11 | the crowd, the people on foot, the dogs and their steam, the traffic, a race's fans, the birds and the animals, each drawn by its figure twin, and the shadow of every caster whose depth carries a graft. Ported |
-| `haze-graft` | material | 13 | a `hazeMaterial` with grafted GLSL of its own that is not a figure's (the rock's keep, the facades, the signs, the cloths…), each drawn again in its owner's part. The figures' grafts left it in part 11 |
-| `model-merged` | material | 12 | the merged models (the skis) |
-| `wingsuit` | material | 12 | the wingsuit figure |
+| `haze-graft` | material | 13 | a `hazeMaterial` with grafted GLSL of its own that is not a figure's, the skier's, a model's or a cloth's (the rock's keep, the facades, the signs, the avalanche's plates…), each drawn again in its owner's part. The figures' grafts left it in part 11, the cloths' in part 12 |
+| `model-merged` | material | 12 | the merged models (the skis and boards, the machines' parts): the metalness, the roughness and the coat off each vertex, by their node graft. Ported |
+| `skier` | material | 12 | the posed parts' rigid normals, the dressed kit's flutter, by their node grafts; the X-ray's dissolve on his skin. Ported |
+| `wingsuit` | material | 12 | the wingsuit's colourway, by its node graft. Ported |
+| `cloth` | material | 12 | the sky canopy's and the paramotor's panels, the lines' light, the balloon's envelope, by their node grafts. Ported |
 | `gore-tree` | material | 11 | the blood on a tree a skier struck, drawn by its figure twin. Ported |
 
-On the webgpu paths after part 11, the frame draws these:
+On the webgpu paths after part 12, the frame draws these:
 
 - the sky: the dome with the sun, the moon, the stars and the Milky Way,
   the contrails, and the far ranges
@@ -117,7 +120,14 @@ On the webgpu paths after part 11, the frame draws these:
   deformable snow's cuts, heaps and craters with the sun they hide
 - the shadows: the key's (cut where the mountain already shades the
   ground) and every skier's own at HIGH
-- the skier's body
+- the skier: his body and his dressed kit with its flutter, the modelled
+  skis and the snowboard, the code's skis and their bindings and boots, the
+  wingsuit, a ski cut by a rope
+- the machines: the snowmobile's and the piste machine's merged parts, the
+  helicopter's and the plane's rotor and propeller, the canopies and the
+  paramotor's lines, the balloon's envelope and its burner
+- the effects: the black fade through a lift's station, a skier burning,
+  the X-ray cam
 - the gate poles, the netting and the fences
 - the lifts, with their chairs and towers
 - the lamps' glows
@@ -136,8 +146,8 @@ On the webgpu paths after part 11, the frame draws these:
 - the HUD
 
 All of it is hazed and lit by the key and the sky as WebGL lights them, and
-by the lamps at night. The frame does not draw the skis, the cabins, the
-crags, the buildings or the props yet. The benchmark report and the
+by the lamps at night. The frame does not draw the cabins, the crags, the
+buildings or the props yet (part 13). The benchmark report and the
 developer page list what is missing on the `RENDERER` line and on the
 `SKIPPED` / `QUARANTINED` lines under it.
 
@@ -1174,6 +1184,160 @@ Node as a copy of its material with the graft's vertex and paint; the
 shadows of the casters whose depth takes the graft, and no others; the
 steam's stand; the packed attributes; and the two builder fixes.
 
+## The skier, the models and the effects (part 12)
+
+The skier's own kit and the machines now draw whole on the webgpu paths:
+the modelled skis and boards, the merged parts of the snowmobile and the
+piste machine, the posed parts merged into one draw (the code's skis with
+their bindings and boots, the snowboard), the dressed kit's flutter, the wingsuit, the sky
+canopy and the paramotor's wing and lines, the balloon's envelope, the
+helicopter's and the plane's rotor and propeller smear, the black fade
+through a lift's station, the balloon's burner, a burning skier and the
+X-ray cam. Before this part each was hidden, and the frame showed the
+skier's body standing on nothing. WebGL's code path is untouched, so its
+picture is the same to the bit.
+
+There are two kinds of port here.
+
+**A classic material with a graft of its own** is flagged
+`nodeGraft(material, family, kind)` (`gpu-backend.ts`). Three's library
+copies it field for field as for any classic material, and the dressing
+finishes the copy with the graft's nodes (`finishGraft`,
+`model-grafts-tsl.ts`; `cloth-tsl.ts` for the cloths):
+
+| Graft | WebGL | Node renderer |
+| --- | --- | --- |
+| `pbr` | `model-merge.ts`: the merged look's metalness, roughness and clearcoat read off each vertex (`pbr`) | the three nodes off the same attribute; the coat only on a physical copy |
+| `rigid` | `posed-merge.ts`: a part's normal through the inverse transpose of its bone, so a stretched part (a binding's plate, a boot's shell) is lit as its own normal matrix lit it | a `positionNode` that sets `normalLocal` the same way, after three's skinning |
+| `flutter` | `player-model.ts`'s `withFlutter` (the dressed kit, `skier-dress.ts`): the loose cloth trailed and flapped down the air past him, the suit's shiver on its lee | a `positionNode`, after the skin as WebGL's runs after `skinning_vertex`, over the material's own `graftOwn` |
+| `wingsuit` | `wingsuit-figure.ts`: the colourway painted off each vertex's place on its wing | `colorNode`, a program a colourway |
+| `sky-canopy`, `para-canopy` | the canopies' panels painted off the cloth's place | `colorNode` off the same paint |
+| `line-light` | `para-motor.ts`'s `litLine`: the sky's light on a line | the light times the colour |
+| `envelope` | `balloon-envelope.ts`: the gores' palette and scheme, the tapes, the scorch and the fire's front, the glow of the burner through the fabric, the daylight through it, the embers | `colorNode` and `emissiveNode` term for term |
+
+**A ShaderMaterial** is flagged `nodeTwin(material, "effects", kind)` and
+drawn by a node twin (`effects-tsl.ts`): the rotor's smear (`rotor-disc.ts`),
+the lift's fade (`lifts.ts`), the burner's jets and pilots
+(`balloon-flame-tsl.ts`), a skier's burn in four draws (`burn-tsl.ts`, over
+the fire's own flame, sparks and smoke in `fire-tsl.ts`, which part 13 can
+reuse for the props' fires) and the X-ray's bones and organs, its glass and its
+mask on his rig, its veil and its blood (`xray-tsl.ts`). The X-ray's
+dissolve of his skin is a graft on his skin's copies (`dissolveSkin`): the
+dropped patches as its mask, the glowing edge laid over its output.
+
+**The graft's vertex is set on the copy alone.** The node renderer's shadow
+passes copy the `positionNode` of the material DRAWN, which is the classic
+one. WebGL's depth takes none of these grafts (three's own depth, or the
+skiers' `createShadeDepth`), so neither does the node renderer's: the
+shadows of a fluttering kit and of a posed bike are WebGL's. Both the key's
+map and the skiers' atlas draw the skis and the kit as before; the atlas
+drew them even while they were hidden, since it renders before the
+quarantine.
+
+**Traps found here:**
+
+- **ShaderMaterials with the same GLSL share one program on the node
+  renderer too.** Its cache keys a material by its fields and its shader
+  strings, so the X-ray's hundred bones, the balloon's four jets and two
+  helicopters' rotors would all draw with the first one's uniforms. Every
+  effect twin reads its numbers off the material drawn (`shaderOwn`, a
+  `materialReference` on `uniforms.<name>.value`), and a graft's off
+  `userData.graftOwn` (`graftOwn`).
+- **The node renderer ignores a material's own clipping planes.** It clips
+  by a `ClippingGroup` in the scene and nothing else, so a ski cut by a rope
+  (`ski-cut-view.ts`) drew whole. A copy whose material carries planes
+  takes them as its mask, read per object off the material drawn. The cut
+  part still casts its shadow on the node renderer (WebGL's `clipShadows`).
+- **A clear inside the frame's pass is not a clear.** The X-ray's veil
+  clears the depth under him in its `onBeforeRender` on WebGL. The node
+  renderer's `clear` makes a pass of its own, submitted before the frame's
+  and, through the output target, may even present it. On the node
+  renderer the veil is drawn at the far plane through every depth instead
+  (`depthFunc` always, the depth written), and its `onBeforeRender` skips
+  the clear.
+- **A copy is made again for every pipeline build**, so what finishes it
+  must be a pure function of the material: a flag or a uniform object on
+  `userData`, never state kept on the copy.
+- **A `materialReference` resolves to the material being BUILT**, which is
+  the copy or the twin, not the classic material, and the copy's `uniforms`
+  and `userData` are not the classic material's objects. The X-ray's bones
+  read an undefined uniform and drew black. Every own uniform resolves per
+  draw against `object.material` (`objectOwn`, `figure-tsl.ts`).
+- **A clone carries the flags but not the graft.** `Material.clone()` copies
+  `userData` as JSON but not `onBeforeCompile`, so a flag kept on `userData`
+  told the node renderer to graft a gore piece WebGL draws plain. The flags
+  are kept by identity (`graftOf`, `dissolves`), and a clone that does keep
+  its graft (`ski-cut-view.ts`'s `clippedClone`) is flagged again.
+- **Not every name in three's shader language is exported.**
+  `modelNormalViewMatrix` is undefined, and a node built on it throws only
+  when the pipeline is built. The view's normal matrix is
+  `highpModelNormalViewMatrix`. The test checks every name a TSL module
+  destructures.
+
+**How near the picture came.** `make world SEED=38` at HIGH, webgpu against
+WebGL: the mean absolute difference per channel (0 to 255) over the whole
+frame, before this part and after it.
+
+| View | 9 h webgpu | 9 h webgpu-gl | 12 h webgpu | 12 h webgpu-gl | 16.5 h webgpu | 16.5 h webgpu-gl |
+| --- | --- | --- | --- | --- | --- | --- |
+| spawn | 1.83 → 1.30 | 1.47 → 0.93 | 4.05 → 3.53 | 3.72 → 3.19 | 4.74 → 4.28 | 4.48 → 4.02 |
+| chase-6 | 2.85 → 2.60 | 2.66 → 2.40 | 4.20 → 3.87 | 3.87 → 3.52 | 4.88 → 4.67 | 4.72 → 4.50 |
+| tips | 17.16 → 3.92 | 16.87 → 3.62 | 18.59 → 4.96 | 18.34 → 4.68 | 12.87 → 4.55 | 12.65 → 4.31 |
+| helmet | 3.10 → 2.76 | 2.88 → 2.52 | 4.38 → 3.91 | 4.08 → 3.59 | 4.71 → 4.32 | 4.50 → 4.10 |
+| landing | 2.25 → 2.04 | 1.87 → 1.65 | 3.28 → 3.06 | 2.87 → 2.63 | 3.95 → 3.80 | 3.68 → 3.52 |
+| track | 2.09 → 1.77 | 1.70 → 1.37 | 3.70 → 3.39 | 3.32 → 3.00 | 5.03 → 4.84 | 4.75 → 4.54 |
+| far | 2.50 → 2.24 | 2.18 → 1.91 | 3.29 → 3.04 | 2.89 → 2.64 | 4.10 → 3.95 | 3.84 → 3.68 |
+
+Every view came nearer on both node back ends. The tips view moved most,
+because the skis fill its lower half and were missing before. In the other
+views the skier is a small share of the frame. At 12 h the dressed hiker's
+chase view went from 3.96 to 3.39 (webgpu) and from 3.74 to 3.16
+(webgpu-gl), and a second pair of skis' chase view from 3.54 to 3.40 and
+from 3.21 to 3.06. The machines' labs, `webgpu-gl` against WebGL over the
+whole frame:
+
+| Lab | View | Before → after |
+| --- | --- | --- |
+| `make heli` | the rotor spooled up, 3.6 s | 5.69 → 0.87 |
+| `make heli` | the rotor at 1 s | 3.10 → 0.83 |
+| `make plane` | the model at 45° | 1.50 → 1.41 |
+| `make plane` | the model at 180° | 2.04 → 1.77 |
+| `make balloon` | the burner by day, close | 23.02 → 5.17 |
+| `make balloon` | the burner by day, from the chase | 14.04 → 4.97 |
+
+`make xray`'s anatomy stills now draw the bones, the organs and the glass
+over him as WebGL does. Before, they showed his kit standing whole. The 21
+WebGL world shots above are byte-identical to part 11's.
+
+**What is still off.** In a run the X-ray cam has taken after a death
+(`make xray`'s `trunk-fast`), the node renderer draws the bones and the
+organs but not the glass, and his helmet and his hard kit stay solid under
+the veil. The dissolve is on his skin's copies and the shells hang on his
+rig, as in the anatomy stills, which draw right, so the gap is in what the
+death scene changes. The plane's night views are much brighter on
+`webgpu-gl` than on WebGL, before this part as after it. Its cause is not
+found yet.
+
+**What a draw binds after part 12**, counted on `webgpu-gl` (sampler
+uniforms per stage of every linked program, the race on seed 20):
+
+| | LOW | HIGH |
+| --- | --- | --- |
+| The most any program binds, vertex / fragment | 8 / 13 (8 / 13 before) | 8 / 16 (8 / 16 before) |
+| Which program | the ground | the ground |
+| Programs linked | 60 (58 before) | 137 (131 before) |
+
+The ground binds the same samplers as before, so it is still at WebGL2's
+16 at HIGH. None of this part's grafts and twins samples a texture of its
+own. The new programs are the field's modelled skis, which were held back
+before, and their grafts.
+
+`tests/skier_tsl_test.ts` holds the register rows; the flags and the
+uniforms a graft reads, which are the objects WebGL's graft is handed;
+every effect's ShaderMaterial flagged with its twin, and every twin made on
+plain Node; the graft's nodes on the copy alone; the clipping planes as a
+mask; the dissolve; and the veil's clear skipped on the node renderer.
+
 ## Measuring both paths
 
 Every browser lab takes `--renderer=webgl|webgpu|webgpu-gl`
@@ -1183,7 +1347,8 @@ parameter, the Chromium switches that back end needs, and a check
 end than the one asked for. `make bench ARGS="--renderer=both"` runs the
 benchmark on each back end and closes with the two side by side. The labs
 that take the flag are `make bench`, `make screenshots`, `make world`,
-`make sky`, `make snowfall`, `make cloud` and `make profile`. `make world`
+`make sky`, `make snowfall`, `make cloud`, `make xray`, `make heli`,
+`make plane`, `make balloon` and `make profile`. `make world`
 takes `--weather=` as well, so a fall can be photographed over a run. `make sky` times the GPU sky's passes on
 WebGL only. `make profile`'s WebGL meter counts nothing on the webgpu
 paths until part 14.
@@ -1228,8 +1393,10 @@ lines.
 | 10 Clouds | 2026-10-21 | webgpu | 116 (115 before) | 173 759 (173 523) | 76 programs, 47 pipelines (74, 46 before) | 1 215.71 (2 316.78 before) | 1 208.27 (2 306.20) | 4 passes / 24 meshes (5 / 24 before) | The cloud shadow, the slab and the volume draw; at LOW the shadow map's pass is the new pipeline. The steady readings are 6–18 ms (7–15); the mean is the device's queue on SwiftShader, which the last reading drained before (10 111 ms) and none drains here. At HIGH: 226 draws (224), 625 856 triangles (617 124), 143 programs and 101 pipelines (136, 97), 11 508.58 ms (15 237.89) with steady readings of 19–21 ms (21–41) and two draining readings of 66 381 and 39 448 ms (one of 72 688). Snowing at HIGH (`--views snow`, webgpu alone): 227 draws (234), 633 740 triangles (637 066), 139 programs and 99 pipelines (132, 95), 7 841.75 ms (7 580.92) with steady readings of 17–22 ms (15–24) and one draining reading of 32 958 ms (none) |
 | 11 Figures | 2026-10-21 | webgl | 100 | 231 877 (231 883) | 51 programs | 12.27 (13.61 before) | 5.30 (6.32) | 0 / 0 | the WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, track, far; the free ride's figures and a slalom's stands at 12 h) are byte-identical to part 10's. At HIGH: 110 draws, 686 162 triangles, 67 programs, 17.55 ms (17.69) |
 | 11 Figures | 2026-10-21 | webgpu | 123 (116 before) | 217 032 (173 731) | 94 programs, 62 pipelines (76, 47 before) | 861.49 (785.23 before) | 855.41 (779.34) | 4 passes / 16 meshes (4 / 24 before) | The race's fans and animals draw. The new pipelines are the fans' (one program for all their stands), the animals' (one for every herd's count: three's own instancing) and their shadows'. The steady readings are 7–13 ms (8–10); the mean is the device's queue on SwiftShader, which two readings drain (3 787 and 3 987 ms; 3 835 and 4 474 before). At HIGH: 243 draws (233), 672 010 triangles (627 849), 182 programs and 135 pipelines (143, 101), 7 990.37 ms (7 454.24) with steady readings of 20–22 ms (15–26) and two draining readings of 41 498 and 40 820 ms (one of 39 509) |
+| 12 Skier, models, effects | 2026-10-22 | webgl | 100 | 231 883 (231 877) | 51 programs | 12.05 (11.93 before) | 5.69 (5.27) | 0 / 0 | the 21 WebGL world shots (seed 38 at HIGH; 9, 12 and 16.5 h; spawn, chase-6, tips, helmet, landing, track, far) are byte-identical to part 11's. At HIGH: 110 draws, 686 162 triangles, 67 programs, 17.02 ms (16.98) |
+| 12 Skier, models, effects | 2026-10-22 | webgpu | 127 (123 before) | 225 611 (217 032) | 100 programs, 64 pipelines (94, 62 before) | 839.63 (809.29 before) | 833.26 (803.32) | 4 passes / 12 meshes (4 / 16 before) | The four skiers' modelled skis draw (`model-merged:field ×4` left the quarantine), with their grafts on the copy and WebGL's shadows. The steady readings are 8–16 ms (9–13); the mean is the device's queue on SwiftShader, which one reading drains (3 938 ms; two of 3 643 and 3 849 before). At HIGH: 246 draws (243), 680 405 triangles (672 010), 192 programs and 141 pipelines (182, 135), 6 826.17 ms (7 846.98) with steady readings of 18–29 ms (22–35) and no draining reading among the four printed (two of 40 379 and 41 074 before). What is left hidden is part 13's cabins, gates and stands |
 
-Parts 1 to 11 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+Parts 1 to 12 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis), and from
 part 3 again with `--video high` for the numbers under "At HIGH".
 
@@ -1246,7 +1413,7 @@ part 3 again with `--video high` for the numbers under "At HIGH".
 - [x] 9 Particles and air (`particles`): the spray (the CPU pool and the GPU ring), the snowfall, the snow cloud and its shadow, the billboards and the plumes as node twins; the spindrift and the sparks' heads drawn by stand-ins, a quad a point
 - [x] 10 Clouds (`clouds`): the cloud shadow on the ground and the key, MEDIUM's slab, HIGH's volume (whole, then a fresh share into two targets and the rest carried) as node twins drawn into the node renderer's targets; the dome reads their picture by its tier; the `shader` row moved to part 11
 - [x] 11 Figures (`figures`, `gore-tree`): the crowd, the civilians, the dogs and their steam, the traffic, the fans, the birds, the animals and the blooded tree as figure twins whose vertex runs the graft where WebGL's does; the shadow of a caster whose depth carries the graft moved the same way; two fixes to three's node builder; `shader` moved to part 12, `haze-graft` to 13
-- [ ] 12 Skier, models, effects (`model-merged`, `wingsuit`)
+- [x] 12 Skier, models, effects (`model-merged`, `skier`, `wingsuit`, `cloth`, `effects`): the merged models' metal, roughness and coat, the posed parts' normals, the kit's flutter, the wingsuit's paint, the canopies, the lines and the envelope as node grafts on the copy; a material's own clipping planes as its mask; the rotors, the lift's fade, the burner, the burn and the X-ray as node twins over the material drawn; `shader` moved to part 13
 - [ ] 13 Buildings and props
 - [ ] 14 Instruments and tools (`snow-under`, `trail-overlay`, `gpu-timer`)
 - [ ] 15 The flip: webgpu by default, `?renderer=webgl` kept as the way back, the picture's prices re-measured

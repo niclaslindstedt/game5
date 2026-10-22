@@ -15,6 +15,7 @@
 import * as THREE from "three";
 
 import { FLAME } from "./balloon-fire-plan.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 import { glow } from "./glow-sprite.ts";
 
 /** The tube: rings up its length, and round it. */
@@ -217,6 +218,7 @@ export function createBurnerFlame(): BurnerFlame {
       depthWrite: false,
       side: THREE.DoubleSide,
     });
+    nodeTwin(material, "effects", "flame"); // the node renderer's (`balloon-flame-tsl.ts`)
     const mesh = new THREE.Mesh(geo, material);
     mesh.frustumCulled = false;
     mesh.renderOrder = 7;

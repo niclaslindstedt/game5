@@ -30,6 +30,11 @@
 //   - the WOODS are drawn by node materials of their own (`forest-tsl.ts`,
 //     handed to `forest.ts` as `woods`), their casters on a layer only the
 //     key's shadow camera sees (`WOODS_CASTERS`, `forest-nodes.ts`);
+//   - a classic material whose GLSL graft is restated in nodes (`nodeGraft`:
+//     the merged models, the posed figure, the kit's flutter, the
+//     wingsuit — part 12) has the graft's nodes set on its copy
+//     (`model-grafts-tsl.ts`), and a material's own clipping planes (a cut
+//     ski) become the copy's mask;
 //   - the SKIERS' passes' depth (`createShadeDepth`, `userData.shadeCast`)
 //     is drawn by `shadows-tsl.ts`'s twin, the mountain's shade discarded,
 //     and the atlas they fill is re-pointed each frame (`syncHero`).
@@ -49,6 +54,8 @@ import { createGlowSprites, glowFade, insideWall } from "./glow-tsl.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { hazeFog, hazeSlots, syncHaze } from "./haze-tsl.ts";
 import { LampsLight, lightSlots, registerLights, syncLights } from "./lights-tsl.ts";
+import { finishGraft } from "./model-grafts-tsl.ts";
+import { dissolveSkin } from "./xray-tsl.ts";
 import { pointStand } from "./particle-twins-tsl.ts";
 import { heroSlots, shadeDepthTwin, syncHero } from "./shadows-tsl.ts";
 import { createTwins } from "./sky-twins-tsl.ts";
@@ -77,6 +84,8 @@ function finish(copy: NodeMaterial, material: THREE.Material, u: HazeUniforms): 
     copy.opacityNode = materialOpacity.mul(fade);
     copy.maskNode = fade.greaterThan(0.003);
   }
+  finishGraft(copy, material);
+  dissolveSkin(copy, material);
 }
 
 export function dressScene(

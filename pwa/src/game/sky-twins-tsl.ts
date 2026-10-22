@@ -29,12 +29,17 @@
 //   crowd, civilians, dogs, traffic, fans, bird, beast, gore-tree
 //            the figures, each a classic material's copy with its graft's
 //            vertex (`figure-twins-tsl.ts`, part 11)
+//   rotor, lift-fade, flame, burn-*, xray-*
+//            the effects: the rotors' smear, the lift's fade, the
+//            balloon's burner, a skier burning and the X-ray
+//            (`effects-tsl.ts`, part 12)
 
 import type * as THREE from "three";
 import type { NodeMaterial } from "three/webgpu";
 
 import { shadowPassTwin, slabTwin } from "./cloud-pass-tsl.ts";
 import { carryTwin, marchTwin } from "./cloud-volume-tsl.ts";
+import { effectTwin } from "./effects-tsl.ts";
 import { farTwin } from "./far-ranges-tsl.ts";
 import { figureTwinOf } from "./figure-twins-tsl.ts";
 import { copyTwin, deformShadeTwin, fillTwin, groomTwin, stampTwin } from "./trail-map-tsl.ts";
@@ -89,7 +94,9 @@ export function createTwins(haze: HazeUniforms, how: HazeFogOptions): Twins {
       case "cloud-carry":
         return carryTwin(m);
       default:
-        return figureTwinOf(m, kind, haze) ?? particleTwin(m, kind, haze, how);
+        return (
+          figureTwinOf(m, kind, haze) ?? particleTwin(m, kind, haze, how) ?? effectTwin(m, kind)
+        );
     }
   };
   return {

@@ -117,6 +117,66 @@ export const own: Own = (name, type) => {
   return node;
 };
 
+/** A blank value of uniform type `type`, for a reader's first draw. */
+function blank(type: string): unknown {
+  switch (type) {
+    case "vec2":
+      return new THREE.Vector2();
+    case "vec3":
+      return new THREE.Vector3();
+    case "vec4":
+      return new THREE.Vector4();
+    case "color":
+      return new THREE.Color();
+    default:
+      return 0;
+  }
+}
+
+/** A reference to `path` on the OBJECT's own material, read at the build
+ * and before every draw (an array as an array uniform), and `fallback`
+ * (or a blank of `type`) where the path is missing. Never the material
+ * the node renderer builds or draws in its place (a library copy, a twin),
+ * which is what a material reference resolves to there and whose fields
+ * are not the classic material's. */
+export function objectOwn(path: string, type: string, fallback?: unknown): N {
+  const node = materialReference(path, type);
+  const steps = path.split(".");
+  node.updateReference = (state: { object?: THREE.Mesh }): unknown => {
+    const m = state.object?.material;
+    node.reference = Array.isArray(m) ? m[0] : m;
+    return node.reference;
+  };
+  node.getValueFromReference = (object: unknown = node.reference): unknown => {
+    let value = object as Record<string, unknown> | undefined;
+    for (const s of steps) value = value?.[s] as Record<string, unknown> | undefined;
+    return value ?? fallback ?? blank(type);
+  };
+  return node;
+}
+
+/** A node graft's own uniform `name` (`model-grafts-tsl.ts`), read off
+ * the object's material (`userData.graftOwn`). */
+const grafted = new Map<string, N>();
+export const graftOwn: Own = (name, type) => {
+  const key = `${name}:${type}`;
+  let node = grafted.get(key);
+  if (!node) grafted.set(key, (node = objectOwn(`userData.graftOwn.${name}.value`, type)));
+  return node;
+};
+
+/** A ShaderMaterial's own uniform `name`, read off the object's material
+ * (`uniforms[name].value`): what a twin reads where several materials
+ * share its GLSL — and so, on the node renderer, one program — each with
+ * uniforms of its own (a balloon's four jets, every bone of the X-ray). */
+const shaded = new Map<string, N>();
+export const shaderOwn: Own = (name, type) => {
+  const key = `${name}:${type}`;
+  let node = shaded.get(key);
+  if (!node) shaded.set(key, (node = objectOwn(`uniforms.${name}.value`, type)));
+  return node;
+};
+
 /** A uniform of the material's own, by reference: what every material of
  * a kind shares the value of (the palettes, the clock). */
 export const ownValue = (m: THREE.Material, name: string): { value: unknown } =>

@@ -50,6 +50,7 @@ import {
   type Organ,
 } from "@engine";
 
+import { nodeDissolve, nodeTwin } from "./gpu-backend.ts";
 import type { SkierBone, BoneFrame } from "./skier-rig.ts";
 import { BLEED, CAVITY, createXrayBlood, type Bleed } from "./xray-blood.ts";
 import type { XrayLook } from "./xray-shots.ts";
@@ -547,6 +548,7 @@ export function createXrayView(): XrayView {
     polygonOffsetFactor: -1,
     polygonOffsetUnits: -1,
   });
+  nodeTwin(glass, "effects", "xray-glass");
   mats.push(glass);
   /** The glass skin over each of his skin's meshes, and the mask of its
    * solid patches. */
@@ -563,6 +565,7 @@ export function createXrayView(): XrayView {
     depthWrite: true,
     side: THREE.DoubleSide,
   });
+  nodeTwin(mask, "effects", "xray-mask");
   mats.push(mask);
   const grafted = new WeakSet<THREE.Material>();
   const blood = createXrayBlood(ORDER.blood);
@@ -578,12 +581,16 @@ export function createXrayView(): XrayView {
     depthTest: false,
     depthWrite: false,
   });
+  nodeTwin(veilMat, "effects", "xray-veil");
   mats.push(veilMat);
   const veil = new THREE.Mesh(veilGeo, veilMat);
   veil.frustumCulled = false;
   veil.renderOrder = ORDER.veil;
-  // Nothing in the world hides him under the X-ray.
-  veil.onBeforeRender = (r) => r.clearDepth();
+  // Nothing in the world hides him under the X-ray. (The node renderer
+  // cannot clear inside its pass: its veil writes the far plane instead.)
+  veil.onBeforeRender = (r) => {
+    if (!(r as { isWebGPURenderer?: boolean }).isWebGPURenderer) r.clearDepth();
+  };
   group.add(veil);
   group.add(blood.group);
 
@@ -632,6 +639,7 @@ export function createXrayView(): XrayView {
           transparent: true,
           side: THREE.DoubleSide,
         });
+        nodeTwin(mat, "effects", "xray-piece");
         mats.push(mat);
         const mesh = new THREE.Mesh(g.geo, mat);
         mesh.matrixAutoUpdate = false;
@@ -686,6 +694,8 @@ export function createXrayView(): XrayView {
             );
         };
         mat.customProgramCacheKey = (): string => `${key()}:xray`;
+        // The node renderer's dissolve reads these (`xray-tsl.ts`).
+        nodeDissolve(mat, { uXrSolid: solid, uXrEdge: edge });
         mat.needsUpdate = true;
       }
       const sk = m as THREE.SkinnedMesh;

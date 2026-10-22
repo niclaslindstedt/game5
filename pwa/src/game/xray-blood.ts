@@ -14,6 +14,8 @@ import * as THREE from "three";
 
 import type { Bone, BoneKind, Organ } from "@engine";
 
+import { nodeTwin } from "./gpu-backend.ts";
+
 /** THE POOLS: the radius each kind of bleed swells to, m — the volume of
  * blood lost into it (a broken femur's thigh holds 1–1.5 l, a pelvis's belly
  * 2–3 l, a chest a litre or more each side), as a sphere — and how long it
@@ -167,6 +169,7 @@ export function createXrayBlood(order: number): XrayBlood {
         transparent: true,
         depthWrite: false,
       });
+      nodeTwin(mat, "effects", "xray-blood");
       const mesh = new THREE.Mesh(geo, mat);
       mesh.matrixAutoUpdate = false;
       mesh.frustumCulled = false;

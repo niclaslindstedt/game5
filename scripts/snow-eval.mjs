@@ -38,6 +38,14 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".snow-eval-preview");
 
@@ -89,6 +97,7 @@ const args = parseArgs(
       default: "cpu,gpu",
       help: "the ways the cost is read with (cpu, gpu)",
     },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     gpu: {
       kind: "flag",
@@ -96,7 +105,7 @@ const args = parseArgs(
     },
     timeout: { kind: "number", default: 2400, help: "how long the sheet may take, s" },
   },
-  "usage: node scripts/snow-eval.mjs [--scenes=a,b] [--out=dir] [--no-perf] [--skip-build]",
+  "usage: node scripts/snow-eval.mjs [--scenes=a,b] [--out=dir] [--no-perf] [--skip-build] [--renderer=b]",
 );
 
 const outDir = resolve(root, args.out);
@@ -124,9 +133,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: args.gpu
-    ? ["--enable-gpu", "--ignore-gpu-blocklist"]
-    : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    ...(args.gpu
+      ? ["--enable-gpu", "--ignore-gpu-blocklist"]
+      : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]),
+    ...rendererArgs(renderersOf(args.renderer), args.gpu),
+  ],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 let crashed = null;
@@ -149,7 +161,8 @@ const query = new URLSearchParams({
   h: String(args.height),
 }).toString();
 const t0 = Date.now();
-await page.goto(`${server.url}snow-eval-preview.html?${query}`);
+await page.goto(rendererUrl(`${server.url}snow-eval-preview.html?${query}`, args.renderer));
+await assertBackend(page, args.renderer);
 await page.waitForFunction("window.__snowEval !== undefined");
 await page.evaluate("window.__snowEval.ready");
 if (crashed) process.exit(1);

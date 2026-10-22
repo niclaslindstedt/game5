@@ -63,6 +63,14 @@ import { aliasEngine } from "@niclaslindstedt/oss-game-framework/tooling/alias";
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
+
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
 import * as SKIER from "./lib/skier-moves.mjs";
 import { HOP_SWITCH_MOMENTS, HOP_SWITCH_MOVES } from "./lib/hop-switch-moves.mjs";
 import { REVERT_MOMENTS, REVERT_MOVES } from "./lib/revert-moves.mjs";
@@ -150,10 +158,11 @@ const args = parseArgs(
       default: false,
       help: "lay the figure's wireframe over every cell, so its shape reads through the paint",
     },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 240, help: "seconds a sheet may take" },
   },
-  "usage: node scripts/skier-preview.mjs [--move=a,b] [--sheet=moves|path|turntable|closeup|detail|game|stretch] [--moment=a,b] [--code] [--frames=n] [--views=a,b]",
+  "usage: node scripts/skier-preview.mjs [--move=a,b] [--sheet=moves|path|turntable|closeup|detail|game|stretch] [--moment=a,b] [--code] [--frames=n] [--views=a,b] [--renderer=b]",
 );
 
 // ON A BOARD (`--skis=lynx`) the rider's own moves and moments
@@ -348,7 +357,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 
 let crashed = null;
@@ -382,7 +396,8 @@ for (const job of jobs) {
     ...(args.weight ? { weight: args.weight } : {}),
   }).toString();
   const t0 = Date.now();
-  await page.goto(`${server.url}skier-preview.html?${query}`);
+  await page.goto(rendererUrl(`${server.url}skier-preview.html?${query}`, args.renderer));
+  await assertBackend(page, args.renderer);
   await page.waitForFunction("window.__skier !== undefined");
   await page.evaluate("window.__skier.ready");
   if (crashed) process.exit(1);

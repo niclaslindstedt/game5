@@ -46,6 +46,14 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".gore-cost");
 
@@ -76,9 +84,10 @@ const args = parseArgs(
     swiftshader: { kind: "flag", help: "draw with software GL rather than the host's GPU" },
     json: { kind: "string", default: "", help: "write every row to this JSON file" },
     compare: { kind: "string", default: "", help: "a JSON from --json to print beside this run" },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
   },
-  "usage: node scripts/gore-cost.mjs [--scene=a,b] [--seed=n] [--quality=q] [--width=w --height=h --dpr=d] [--json=f] [--compare=f]",
+  "usage: node scripts/gore-cost.mjs [--scene=a,b] [--seed=n] [--quality=q] [--width=w --height=h --dpr=d] [--json=f] [--compare=f] [--renderer=b]",
 );
 
 const list = (s) =>
@@ -113,9 +122,12 @@ const server = await serveDir(buildDir);
 const launch = () =>
   found.chromium.launch({
     executablePath: found.executablePath,
-    args: args.swiftshader
-      ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
-      : ["--enable-gpu", "--ignore-gpu-blocklist"],
+    args: [
+      ...(args.swiftshader
+        ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
+        : ["--enable-gpu", "--ignore-gpu-blocklist"]),
+      ...rendererArgs(renderersOf(args.renderer), !args.swiftshader),
+    ],
   });
 
 const query = new URLSearchParams({
@@ -142,7 +154,10 @@ async function measure(scene) {
   const t0 = Date.now();
   // An animal's scene lays the beast sheet's animals before the world is built.
   const laid = BEAST.includes(scene) ? "&beasts=1" : "";
-  await page.goto(`${server.url}gore-cost-preview.html?${query}${laid}`);
+  await page.goto(
+    rendererUrl(`${server.url}gore-cost-preview.html?${query}${laid}`, args.renderer),
+  );
+  await assertBackend(page, args.renderer);
   await page.waitForFunction("window.__goreCost !== undefined");
   await page.evaluate("window.__goreCost.ready");
   const t1 = Date.now();

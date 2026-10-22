@@ -33,6 +33,7 @@ import { BIRDS, birdRarity, type BirdSpec } from "../game/bird-defs.ts";
 import { BIRD_STYLES, birdMaterial, buildBird, type BirdLod } from "../game/bird-shapes.ts";
 import { createHazeUniforms } from "../game/haze.ts";
 import { BEAST_FORMS, BIRD_FORMS, rackOf } from "../game/wild-traits.ts";
+import { createGpu } from "../game/own-gpu.ts";
 
 /** One cell, px, and how many a row before the sheet wraps. */
 const CELL_W = 340;
@@ -195,7 +196,7 @@ function beastCell(spec: BeastSpec, lod: BeastLod): Cell {
   };
 }
 
-function main(): void {
+async function main(): Promise<void> {
   /** Each species at every cut asked for. */
   const cuts = <T>(rows: readonly T[], cell: (r: T, lod: "near" | "far") => Cell): Cell[] =>
     rows.flatMap((r) => lods.map((lod) => cell(r, lod as "near" | "far")));
@@ -207,7 +208,7 @@ function main(): void {
   const sheet = sheetCanvas.getContext("2d") as CanvasRenderingContext2D;
 
   const cell = document.createElement("canvas");
-  const renderer = new THREE.WebGLRenderer({ canvas: cell, antialias: true });
+  const renderer = (await createGpu(cell, { antialias: true, haze })).renderer;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setSize(CELL_W, CELL_H, false);
@@ -241,4 +242,4 @@ function main(): void {
   (window as unknown as { __done: boolean }).__done = true;
 }
 
-main();
+void main();

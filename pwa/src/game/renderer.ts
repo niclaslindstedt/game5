@@ -870,7 +870,7 @@ export function createWorldRenderer(
     skisUnder: () =>
       terrain && level && riders[0] && passOn("snow-under")
         ? under.measure(gl, scene, lens.camera, terrain.group, riders[0].model.bases, level)
-        : [],
+        : Promise.resolve([]),
     snowDug: () => deform.thrown(),
     bufferSize: () => ({ w: gl.domElement.width, h: gl.domElement.height }),
     setTrailOverlay(on) {
@@ -977,9 +977,8 @@ export function createWorldRenderer(
       }
     },
     drain: () => inst.drain(),
-    info() {
-      return picture.info();
-    },
+    drainLater: () => inst.drainLater(),
+    info: () => picture.info(),
     dispose() {
       unload();
       hurt.dispose();

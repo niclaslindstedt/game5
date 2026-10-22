@@ -108,17 +108,23 @@ export const GPU_PORTS: readonly GpuPort[] = [
     id: "snow-under",
     kind: "pass",
     part: 14,
-    what: "the skis-under-the-snow probe",
-    ported: false,
+    what: "the skis-under-the-snow probe, its depth copied by its node twin and read back waited for",
+    ported: true,
   },
   {
     id: "trail-overlay",
     kind: "pass",
     part: 14,
-    what: "the developer's trail corner",
-    ported: false,
+    what: "the developer's trail corner, drawn by its node twin",
+    ported: true,
   },
-  { id: "gpu-timer", kind: "pass", part: 14, what: "the GPU's timer and the fence", ported: false },
+  {
+    id: "gpu-timer",
+    kind: "pass",
+    part: 14,
+    what: "the GPU's timer (timestamp queries) and the fence (the device's queue)",
+    ported: true,
+  },
   {
     id: "haze",
     kind: "material",
@@ -141,14 +147,14 @@ export const GPU_PORTS: readonly GpuPort[] = [
     ported: true,
   },
   {
-    // The effects' and the props' draw by their twins (the `effects` and
-    // `props` rows). What is left is the gear stage's backdrop, which its
-    // own WebGL renderer draws (14, with the other harnesses), and whatever
-    // ShaderMaterial is added before it has a twin.
+    // THE GUARD: every ShaderMaterial with no twin. None is left — the
+    // effects', the props' and the gear stage's backdrop draw by their
+    // twins (the `effects` and `props` rows) — so it hides nothing, and
+    // stays to hide one added before its twin until the GLSL goes (16).
     id: "shader",
     kind: "material",
-    part: 14,
-    what: "every other ShaderMaterial (the gear stage's backdrop, with the harnesses)",
+    part: 16,
+    what: "a ShaderMaterial with no node twin (none is left; the guard for one added before its port)",
     ported: false,
   },
   {
@@ -180,15 +186,15 @@ export const GPU_PORTS: readonly GpuPort[] = [
     ported: true,
   },
   {
-    // The figures' grafts draw by their twins (the `figures` row), the
-    // skier's, the machines' and the cloths' by theirs (`model-merged`,
-    // `skier`, `wingsuit`, `cloth`), the props' by theirs (`props`). The
-    // game's scene has none left; a graft added before its port is hidden
-    // here, and the last of them go with the flip's sweep (14).
+    // THE GUARD for grafts: the figures' draw by their twins (the
+    // `figures` row), the skier's, the machines' and the cloths' by theirs
+    // (`model-merged`, `skier`, `wingsuit`, `cloth`), the props' and the
+    // gear stage's by theirs (`props`). The game's scene has none left; a
+    // graft added before its port is hidden here until the GLSL goes (16).
     id: "haze-graft",
     kind: "material",
-    part: 14,
-    what: "a hazed material with a graft no port draws yet",
+    part: 16,
+    what: "a hazed material with a graft no port draws (none is left; the guard for one added before its port)",
     ported: false,
   },
   {

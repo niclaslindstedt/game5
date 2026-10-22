@@ -34,6 +34,7 @@ import { skierPose, type SkierPoseInput } from "../game/skier-pose.ts";
 import { rigSkier } from "../game/skier-rig.ts";
 import { coloursOf } from "../game/outfit.ts";
 import { mountsOf, SLOT_DRESS } from "../game/skis-body.ts";
+import { createGpu } from "../game/own-gpu.ts";
 
 type Drawn = { rows: number; cols: number; note: string; table: string[] };
 
@@ -85,7 +86,8 @@ const ENVELOPE = { long: [26, 28], wide: [21, 23], tall: [20, 22] } as const;
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 const host = document.getElementById("sheet") as HTMLDivElement;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+const renderer = (await createGpu(canvas, { antialias: true, preserveDrawingBuffer: true }))
+  .renderer;
 renderer.setPixelRatio(1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setScissorTest(true);

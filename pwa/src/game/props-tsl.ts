@@ -44,6 +44,7 @@ import { slot, type HazeFogOptions, type N } from "./haze-tsl.ts";
 import { lightSlots } from "./lights-tsl.ts";
 import { LUX_TO_LAMP } from "./piste-lights.ts";
 import { rockGraft } from "./rock-tsl.ts";
+import { finishStage } from "./stage-tsl.ts";
 import { SUMMER_UNIFORM } from "./season-look.ts";
 import { waterGraft } from "./water-tsl.ts";
 
@@ -265,7 +266,8 @@ export function finishProp(
       grassGraft(copy, material);
       break;
     default:
-      return false;
+      // The gear stage's backdrop (`stage-tsl.ts`), its own refresh kept.
+      return finishStage(copy, material, kind);
   }
   // A draw's uniforms are refreshed in full only for a material with a node
   // of its own, and the material three checks is `material`.

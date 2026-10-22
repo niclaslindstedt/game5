@@ -15,7 +15,15 @@ export type PictureAuto = {
   /** The frame just drawn: the display's wait for it, its drained draw
    * time (ms), and the picture it was drawn at. */
   frame(elapsedMs: number, drawMs: number, drawnAt: VideoSettings): void;
+  /** The same for a frame whose draw began at `drawAt` (`performance.now`):
+   * the CPU's share is from then to now, the GPU's is drained off `gpu` —
+   * WebGL's sync drain at once, a WebGPU device's queue when it answers
+   * (`drainLater`). */
+  drawn(elapsedMs: number, drawAt: number, gpu: Drains, drawnAt: VideoSettings): void;
 };
+
+/** How the frame's GPU work is waited for (the world renderer's pair). */
+export type Drains = { drain(): number; drainLater(): Promise<number> | null };
 
 /** `allowed` is false under a race a link boots, a link's picture, and a
  * lab's `?probe=0`; `update` is the app's settings setter. */
@@ -26,7 +34,7 @@ export function createPictureAuto(
   let probe: VideoProbe | null = null;
   let fitted = false;
   let wasAuto: boolean | null = null;
-  return {
+  const auto: PictureAuto = {
     wants(auto, quiet) {
       // AUTO pressed again: this visit's fit is to be done over.
       if (auto && wasAuto === false) fitted = false;
@@ -46,5 +54,12 @@ export function createPictureAuto(
         update((s) => (s.probed ? s : { ...s, probed: true }));
       }
     },
+    drawn(elapsedMs, drawAt, gpu, drawnAt) {
+      const cpuMs = performance.now() - drawAt;
+      const later = gpu.drainLater();
+      if (!later) auto.frame(elapsedMs, cpuMs + gpu.drain(), drawnAt);
+      else void later.then((ms) => auto.frame(elapsedMs, cpuMs + ms, drawnAt));
+    },
   };
+  return auto;
 }

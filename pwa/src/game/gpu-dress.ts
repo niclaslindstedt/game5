@@ -52,7 +52,7 @@ import { woodsKit } from "./forest-tsl.ts";
 import type { GlowFade } from "./glow-fade.ts";
 import { createGlowSprites, glowFade, insideWall } from "./glow-tsl.ts";
 import type { HazeUniforms } from "./haze.ts";
-import { hazeFog, hazeSlots, syncHaze } from "./haze-tsl.ts";
+import { hazeFog, hazeSlots, syncHaze, type HazeFogOptions } from "./haze-tsl.ts";
 import { LampsLight, lightSlots, registerLights, syncLights } from "./lights-tsl.ts";
 import { finishGraft } from "./model-grafts-tsl.ts";
 import type { PropDressing } from "./props-tsl.ts";
@@ -74,11 +74,17 @@ export type Dressing = {
   readonly woods: WoodsKit;
 };
 
-/** Finish the node renderer's copy of `material` (see the header). */
-function finish(copy: NodeMaterial, material: THREE.Material, d: PropDressing): void {
+/** Finish the node renderer's copy of `material` (see the header). A scene
+ * under three's own fog (the gear stage's) keeps it on every copy. */
+function finish(
+  copy: NodeMaterial,
+  material: THREE.Material,
+  d: PropDressing,
+  ownFog: boolean,
+): void {
   const u = d.haze;
   const data = material.userData;
-  copy.fog = data.haze === true;
+  if (!ownFog) copy.fog = data.haze === true;
   if (data.hazeWall === true) copy.maskNode = insideWall(u);
   const glow = data.glowFade as GlowFade | undefined;
   if (glow && !(material as THREE.PointsMaterial).isPointsMaterial) {
@@ -88,6 +94,38 @@ function finish(copy: NodeMaterial, material: THREE.Material, d: PropDressing): 
   }
   finishGraft(copy, material, d);
   dissolveSkin(copy, material);
+}
+
+/** The libraries whose copies are finished here: a renderer that dresses
+ * several scenes of its own (a lab's cells, `own-gpu.ts`) is hooked once. */
+const hooked = new WeakSet<object>();
+
+/** Teach `renderer`'s library the twins and the finish (see the header),
+ * over the first dressing's haze. */
+function hookLibrary(
+  renderer: WebGPURenderer,
+  haze: HazeUniforms,
+  how: HazeFogOptions,
+  ownFog: boolean,
+): void {
+  const library = renderer.library;
+  if (hooked.has(library)) return;
+  hooked.add(library);
+  const twins = createTwins(haze, how);
+  const from = library.fromMaterial.bind(library);
+  const depths = new WeakMap<THREE.Material, NodeMaterial>();
+  library.fromMaterial = (material: THREE.Material): NodeMaterial => {
+    const twin = twins.of(material);
+    if (twin) return twin;
+    if (material.userData.shadeCast === true) {
+      let depth = depths.get(material);
+      if (!depth) depths.set(material, (depth = shadeDepthTwin(material, haze)));
+      return depth;
+    }
+    const copy = from(material) as NodeMaterial | null;
+    if (copy && copy !== (material as unknown)) finish(copy, material, { haze, how }, ownFog);
+    return copy as NodeMaterial; // null where three has no node twin, as it returns
+  };
 }
 
 export function dressScene(
@@ -101,23 +139,9 @@ export function dressScene(
   // target (`haze-tsl.ts`, `region-picture.ts`), as on WebGL.
   const display = uniform(renderer.toneMapping === THREE.ACESFilmicToneMapping ? 1 : 0);
   const how = { display, exposure: toneMappingExposure };
-  const twins = createTwins(haze, how);
-  const library = renderer.library;
-  const from = library.fromMaterial.bind(library);
-  const depths = new WeakMap<THREE.Material, NodeMaterial>();
-  library.fromMaterial = (material: THREE.Material): NodeMaterial => {
-    const twin = twins.of(material);
-    if (twin) return twin;
-    if (material.userData.shadeCast === true) {
-      let depth = depths.get(material);
-      if (!depth) depths.set(material, (depth = shadeDepthTwin(material, haze)));
-      return depth;
-    }
-    const copy = from(material) as NodeMaterial | null;
-    if (copy && copy !== (material as unknown)) finish(copy, material, { haze, how });
-    return copy as NodeMaterial; // null where three has no node twin, as it returns
-  };
-  scene.fogNode = hazeFog(haze, how);
+  const ownFog = scene.fog !== null;
+  hookLibrary(renderer, haze, how, ownFog);
+  if (!ownFog) scene.fogNode = hazeFog(haze, how);
   scene.add(new LampsLight(haze));
   const hs = hazeSlots(haze);
   const ls = lightSlots(haze);

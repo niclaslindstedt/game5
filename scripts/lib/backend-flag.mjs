@@ -79,6 +79,15 @@ export function rendererQuery(renderer) {
   return { renderer };
 }
 
+/** `url` with `?renderer=` laid over its query, unless WebGL is asked (the
+ * default, so a WebGL lab's link is the one it always was). */
+export function rendererUrl(url, renderer) {
+  if (!renderer || renderer === "webgl") return url;
+  const [head, hash = ""] = String(url).split("#");
+  const sep = head.includes("?") ? (head.endsWith("?") ? "" : "&") : "?";
+  return `${head}${sep}renderer=${encodeURIComponent(renderer)}${hash ? `#${hash}` : ""}`;
+}
+
 /** Wait for the page's back end to be reported, and fail unless it is the
  * one asked for. Returns the name. */
 export async function assertBackend(page, asked, timeoutMs = 120_000) {

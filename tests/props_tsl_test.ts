@@ -82,12 +82,12 @@ describe("the part's family in the register", () => {
       expect(quarantinedOn(b, "props")).toBe(false);
   });
 
-  it("leaves what is left to the harnesses' part", () => {
+  it("leaves the guards to the GLSL's part", () => {
     for (const id of ["shader", "haze-graft"]) {
       expect(
         GPU_PORTS.find((p) => p.id === id),
         id,
-      ).toMatchObject({ part: 14, ported: false });
+      ).toMatchObject({ part: 16, ported: false });
       expect(quarantinedOn("webgpu", id), id).toBe(true);
       expect(quarantinedOn("webgl", id), id).toBe(false);
     }

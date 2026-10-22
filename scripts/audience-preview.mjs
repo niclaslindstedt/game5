@@ -48,6 +48,14 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".audience-preview");
 const outDir = join(root, "previews");
@@ -133,10 +141,11 @@ const args = parseArgs(
     },
     width: { kind: "number", default: 1280, help: "the race's picture width, px" },
     height: { kind: "number", default: 720, help: "the race's picture height, px" },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/audience-preview.mjs [--sheet=moves,looks,cuts,race] [--seed=n] [--mode=slalom] [--heat] [--views=a,b] [--hour=h] [--skip-build]",
+  "usage: node scripts/audience-preview.mjs [--sheet=moves,looks,cuts,race] [--seed=n] [--mode=slalom] [--heat] [--views=a,b] [--hour=h] [--skip-build] [--renderer=b]",
 );
 
 const sheets = args.sheet.split(",").map((s) => s.trim());
@@ -188,7 +197,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 
 /** Open the page on a sheet; resolve once it says it is done — or fail at
@@ -213,7 +227,8 @@ async function open(sheet, extra, viewport) {
   });
   if (Number.isFinite(args.hour)) params.set("hour", String(args.hour));
   if (args.weather) params.set("weather", args.weather);
-  await page.goto(`${server.url}audience-preview.html?${params}`);
+  await page.goto(rendererUrl(`${server.url}audience-preview.html?${params}`, args.renderer));
+  await assertBackend(page, args.renderer);
   await Promise.race([
     page.waitForFunction("window.__done === true", undefined, { timeout: args.timeout * 1000 }),
     new Promise((_, fail) => {

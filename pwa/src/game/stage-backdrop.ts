@@ -22,6 +22,7 @@
 import * as THREE from "three";
 import { hash2, valueNoise } from "@niclaslindstedt/oss-game-framework/core/noise";
 
+import { nodeGraft, nodeTwin } from "./gpu-backend.ts";
 import { regionLookOf } from "./region-look.ts";
 import { buildTree, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
 import { TREE_VARIANTS } from "./tree-variants.ts";
@@ -231,11 +232,19 @@ function buildGround(): THREE.BufferGeometry {
   return g;
 }
 
+/** Flag a backdrop graft for the node renderer (`stage-tsl.ts`), with the
+ * numbers WebGL's graft is handed. */
+function stageGraft(m: THREE.Material, kind: string): void {
+  m.userData.stage = { piste: PISTE_HALF, sun: SUN_DIR.toArray() };
+  nodeGraft(m, "props", kind);
+}
+
 /** THE SNOW AS SHADED: the corduroy on the piste — ridges across its
  * width, faded where a pixel spans several — and the glitter, a sparse
  * field of grains that catch the sun as the eye moves. */
 function snowMaterial(): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ color: 0xf3f7fc, roughness: 0.82, metalness: 0 });
+  stageGraft(m, "stage-snow");
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uPiste = { value: PISTE_HALF };
     shader.uniforms.uSun = { value: SUN_DIR };
@@ -286,6 +295,7 @@ totalEmissiveRadiance += vec3(1.0, 0.98, 0.94) * glint * near * 2.2 * max(0.0, u
  * the piste was, wandering a little, its two wheel lines worn darker. */
 function meadowMaterial(): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0 });
+  stageGraft(m, "stage-meadow");
   m.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vWorld;")
@@ -355,6 +365,7 @@ void main() {
   #include <colorspace_fragment>
 }`,
   });
+  nodeTwin(material, "props", "stage-sky");
   const dome = new THREE.Mesh(new THREE.SphereGeometry(50000, 32, 16), material);
   dome.renderOrder = -1;
   dome.frustumCulled = false;

@@ -41,6 +41,7 @@ import { createSkisModel, pairStyle, SLOT_DRESS, type SkisModel } from "../game/
 import { drawPath } from "./skier-path.ts";
 import { uprightSkier } from "../game/skier-somersault.ts";
 import { BODIES, WEIGHTS } from "../game/outfit.ts";
+import { createGpu } from "../game/own-gpu.ts";
 
 type Frame = {
   t: number;
@@ -102,7 +103,8 @@ const TURNS = [0, 45, 90, 135, 180, 225, 270, 315];
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 const host = document.getElementById("sheet") as HTMLDivElement;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+const renderer = (await createGpu(canvas, { antialias: true, preserveDrawingBuffer: true }))
+  .renderer;
 renderer.setPixelRatio(1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setScissorTest(true);

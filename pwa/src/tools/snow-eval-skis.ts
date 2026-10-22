@@ -227,7 +227,7 @@ export async function underSheet(
           for (const res of RESOLUTIONS) {
             renderer.setVideo({ ...top, terrain, trails, resolution: res });
             renderer.draw(state, 0, 0, true);
-            const pts = renderer.skisUnder();
+            const pts = await renderer.skisUnder();
             got.get(res)!.push(...pts);
             if (res === "high") last = pts;
           }

@@ -87,18 +87,18 @@ webgpu paths.
 | `shadow-depth` | pass | 16 | WebGL's sun-map depth by kind and its opaque sort. The node renderer's shadow pass does not need it, so it stays WebGL-only until the GLSL goes |
 | `env-warm` | pass | 6 | the warm-up: every pipeline built behind the card (`warmNode`). Ported |
 | `grade-pass` | pass | 7 | the region's grade, the buzz and the blaze over the frame, with the tone map and the sRGB curve done by hand. Ported |
-| `snow-under` | pass | 14 | the snow under the skis |
-| `trail-overlay` | pass | 14 | the trail overlay |
-| `gpu-timer` | pass | 14 | the timer queries |
+| `snow-under` | pass | 14 | the snow lab's probe under the skis: the depth copied into a float target and read back, by its node twin, read asynchronously. Ported |
+| `trail-overlay` | pass | 14 | the developer page's trail corner, by its node twin. Ported; its squares read empty on the node paths yet (part 15, see part 14) |
+| `gpu-timer` | pass | 14 | the GPU's own timer: WebGL's queries, or the node renderer's timestamp queries filed by slice (`gpu-timer-node.ts`) where the device writes them. Ported |
 | `haze` | material | 2 | the haze on a hazed material, with the key's extras, the shade lift and the lamps; a glow's fade. Ported |
 | `sky` | material | 3 | the dome, the far ranges and the sky's passes, each drawn by its node twin. Ported |
 | `particles` | material | 9 | the spray, the snowfall and the spindrift, the snow cloud and its shadow, the billboards, the sparks and the snow guns' plumes, each drawn by its node twin or, for a `gl_PointSize` point, by a stand-in a quad a point. Ported |
-| `shader` | material | 14 | every other `ShaderMaterial`: the gear stage's backdrop, which the stage's own WebGL renderer draws, with the other harnesses. The clouds' passes were the first of them, ported in part 10, the dogs' steam is the figures' (part 11), the effects left it in part 12 and the props in part 13 |
+| `shader` | material | 16 | a `ShaderMaterial` no port draws. Nothing the game or a lab draws is left in it: the clouds' passes left it in part 10, the dogs' steam in part 11, the effects in part 12, the props in part 13 and the gear stage's sky in part 14. A ShaderMaterial added before its twin is hidden here, and the row goes with the GLSL (part 16) |
 | `effects` | material | 12 | the rotors' and the propellers' smear, the black fade through a lift's station, the balloon's burner, a skier's burn (the flames, the glow, the sparks, the smoke) and the X-ray cam (the bones and organs, the glass, the mask, the veil, the blood), each drawn by its node twin. Ported |
 | `terrain` | material | 4 | the clipmap's every level, its snow, its rock and a summer's ground, drawn by its node twin. Ported |
 | `forest-batch` | material | 8 | the woods' multi-draw batch, drawn shape by shape instanced on the node renderer (`forest-nodes.ts`). Ported |
 | `figures` | material | 11 | the crowd, the people on foot, the dogs and their steam, the traffic, a race's fans, the birds and the animals, each drawn by its figure twin, and the shadow of every caster whose depth carries a graft. Ported |
-| `haze-graft` | material | 14 | a `hazeMaterial` with grafted GLSL of its own that no port draws yet. The game's scene has none left: the figures' grafts left it in part 11, the cloths' in part 12 and the props' in part 13. A graft added before its port is hidden here, and the row goes with the flip's sweep |
+| `haze-graft` | material | 16 | a `hazeMaterial` with grafted GLSL of its own that no port draws yet. Nothing is left in it: the figures' grafts left it in part 11, the cloths' in part 12, the props' in part 13 and the gear stage's snow and meadow in part 14. A graft added before its port is hidden here, and the row goes with the GLSL (part 16) |
 | `props` | material | 13 | the buildings (every facade, the cabins, the start house, the stands, the arenas, the stations, the tunnels), the rooms inside, the crags and the talus, the printed signs, the water, a summer's grass and a slab's walls by their node grafts; the challenges' flags, a slab's plates, the floodlights' haloes and the fires by their node twins. Ported |
 | `model-merged` | material | 12 | the merged models (the skis and boards, the machines' parts): the metalness, the roughness and the coat off each vertex, by their node graft. Ported |
 | `skier` | material | 12 | the posed parts' rigid normals, the dressed kit's flutter, by their node grafts; the X-ray's dissolve on his skin. Ported |
@@ -106,7 +106,7 @@ webgpu paths.
 | `cloth` | material | 12 | the sky canopy's and the paramotor's panels, the lines' light, the balloon's envelope, by their node grafts. Ported |
 | `gore-tree` | material | 11 | the blood on a tree a skier struck, drawn by its figure twin. Ported |
 
-On the webgpu paths after part 13, the frame draws these:
+On the webgpu paths after part 14, the frame draws these:
 
 - the sky: the dome with the sun, the moon, the stars and the Milky Way,
   the contrails, and the far ranges
@@ -152,14 +152,20 @@ On the webgpu paths after part 13, the frame draws these:
   lakes and the streams with their ice, a summer's grass, the challenges'
   flags, a slab's plates and walls, the floodlights' haloes, the camp
   fires and the bonfires
+- the instruments: the developer page's trail corner, and the GPU's own
+  timer where the device writes timestamps
 - the HUD
 
 All of it is hazed and lit by the key and the sky as WebGL lights them, and
-by the lamps at night. What is left for part 14 is the instruments' passes
-(the snow under the skis, the trail overlay, the timer queries) and the
-harnesses that build a WebGL renderer of their own. The benchmark report
-and the developer page list what is missing on the `RENDERER` line and on
-the `SKIPPED` / `QUARANTINED` lines under it.
+by the lamps at night. The gear stage behind the rider and gear cards and
+every lab page that draws its own sheet draw on the link's back end too
+(part 14). **Nothing is skipped or hidden on the webgpu paths but
+`shadow-depth`**, WebGL's own sun-map depth, which the node renderer's
+shadow pass does not need. `shader` and `haze-graft` hold nothing; they
+stay as guards for a material added before its port, and go with the
+GLSL in part 16. The benchmark report and the developer page list what is
+missing on the `RENDERER` line and on the `SKIPPED` / `QUARANTINED` lines
+under it.
 
 ## The haze and the lights (part 2)
 
@@ -1505,6 +1511,206 @@ objects WebGL's graft is handed; every graft's nodes on the copy alone and
 the facade's wall mask; the rooms kept from the sun; every twin made on
 plain Node; and every TSL name the modules destructure.
 
+## The instruments and the tools (part 14)
+
+The frame's instruments and the pages that draw on a renderer of their own
+now run on the webgpu paths. Before this part the benchmark's `WHERE THE
+GPU WENT` section, the developer page's trail corner and the snow lab's
+probe under the skis were WebGL's alone (`gpu-timer`, `trail-overlay` and
+`snow-under` were skipped), the benchmark waited for a WebGPU device by
+reading no pixel at all, and every harness page and the gear stage behind
+the rider and gear cards made a `WebGLRenderer` whatever the link asked
+for. WebGL's code path is untouched, so its picture is the same to the bit.
+
+**The GPU's own timer** (`gpu-timer-node.ts`) is the same `GpuTimer` as
+WebGL's, answered by three's timestamp queries. Three brackets each RENDER
+PASS with one (`backend.trackTimestamp`, turned on for as long as the timer
+lives), so a slice is every pass begun while it was on top of the stack:
+the trail maps under `trail`, the skiers' atlas under `hero`, the picture
+under `scene`, the grade under `grade`, the overlay under `overlay`, and a
+pass into a shadow map's depth under `shadow` whatever is on top. The sky's
+and the clouds' own passes, which WebGL does not time either, are begun
+under nothing and are not counted. SPLIT cannot cut inside a pass, so the
+node renderer's timer runs as PASSES and the report says so. A frame asks
+three to resolve what was written (`resolveTimestampsAsync`), and the
+answers come back frames later; a frame is summed once every pass it noted
+is in, and given up on (`dropped`) when it lags twelve frames.
+
+Where the device cannot write timestamps the timer is off, as WebGL's is
+without the disjoint extension. On WebGPU that is the device's own
+`timestamp-query` feature, which `gpu-device.ts` asks for whenever the
+adapter offers it (three's `hasTimestamp` reads true on every WebGPU
+device, so it is not asked). On the WebGL2 back end it is the same
+extension WebGL's timer uses.
+
+**The fence** is the device's queue on WebGPU. WebGL's benchmark waits for
+the GPU by reading one pixel back (`drain`), which blocks until every draw
+before it is done. A WebGPU device has no blocking read, so the world
+renderer's `drainLater` hands back the time until
+`device.queue.onSubmittedWorkDone()` answers, and the benchmark's pump
+awaits it before it closes the frame (`benchFrame` is cut in two:
+`drawBench` and `closeBench`). Where the sync drain already waited
+(WebGL, and the node renderer's WebGL2 back end, whose context is read the
+same way) `drainLater` is null and nothing changes. PRESET ▸ AUTO's timing
+(`picture-auto.ts`'s `drawn`) waits the same way.
+
+**The instruments' passes** are node twins over the instruments' own
+materials (`instruments-tsl.ts`):
+
+| Pass | WebGL | Node renderer |
+| --- | --- | --- |
+| `trail-overlay` | the developer page's corner: each trail map drawn straight to the canvas through a GLSL copy, the stamps' colours mixed over a dark ground | the same sixteen taps and the same mix, with the sRGB curve applied in the twin; the draw is made with the output transform off (a linear colour space, no tone mapping) so it reaches the canvas without three's output pass, and its box is placed from the top, the node renderer's viewport origin |
+| `snow-under` | the snow lab's probe: the depth under each ski copied into a float target and read back with `readRenderTargetPixels` | the depth read by its texel (`screenCoordinate`), the target read back with `readRenderTargetPixelsAsync`, row 0 the top on WebGPU; the depth taken as 0..1 under WebGPU's clip space and as −1..1 elsewhere |
+
+**What the instruments read.** `make bench` on seed 20 at LOW, in the
+container (SwiftShader, whose WebGPU adapter offers `timestamp-query`):
+
+| | WebGL | webgpu, before | webgpu, after |
+| --- | --- | --- | --- |
+| render (the processor's half) | 13.54 ms | 993.49 ms | 17.24 ms |
+| gpu (the fence) | 957.25 ms | 0.00 ms | 1 001.09 ms |
+| wall | 974.33 ms | 996.16 ms | 1 020.62 ms |
+| the GPU's timer, a frame | trail 2.605, scene 192.724, grade 6.900 | none | trail 1.392, scene 740.360, grade 7.205 |
+| skipped | — | `shadow-depth`, `snow-under`, `trail-overlay`, `gpu-timer` | `shadow-depth` |
+
+Before this part nothing waited for the device, so its work landed on
+whichever frame's submit stalled and the processor's half read as the
+card's. The fence now bills it where it belongs. At HIGH the timer reads
+trail 37.3, hero 43.8, shadow 12.7, scene 7 245.5 and grade 12.5 ms a
+frame on webgpu (WebGL's queries: 34.4, 51.1, 14.2, 784.8, 13.7).
+SwiftShader's timestamps are a software rasteriser's: they say where the
+card's frame goes, not a phone's milliseconds. DEVELOPER ▸ BENCHMARK on a
+device prints the same section from its own GPU.
+
+`make profile ARGS="--scene race"` (seed 38, 1280×720) per frame: WebGL
+178 draws, 760 368 triangles, 92 program binds, 162 texture binds;
+webgpu-gl (WebGL's context, patched as before) 264 draws, 838 033
+triangles, 156, 563; webgpu (the device's meter; before this part every
+column read 0) 264 draws, 838 672 triangles, 163 pipeline binds, 407 bind
+groups. The two node back ends agree on the draws.
+
+The snow lab's probe (`make snow-eval ARGS="--under=groomer
+--renderer=webgpu"`) reads the skis under the drawn snow on WebGPU within
+0.2 cm of WebGL's, every row of the table (tip, mid and tail, the worst
+and the mean, at every terrain, trails and resolution stop), and hides
+none (0 % on both). The gear lab's outfits sheet on `webgpu-gl` differs
+from WebGL's by 0.50 a channel on average (see the traps).
+
+`make gore-cost ARGS="--scene=trunk --swiftshader --renderer=webgpu"`
+(seed 2, MEDIUM, 640×360) now counts the device's pipelines: the hit on a
+trunk builds **44 pipelines in its first quarter second**, two for each of
+the 22 lumps (a `ShadowMaterial` and a `MeshStandardMaterial` pipeline
+each, under the same names), with no pipeline built in the frames before
+it or after. Its worst frame is that one (1 358.8 ms of the processor on
+SwiftShader, 37.7 of them the gore's). Each lump has a pipeline of its
+own where one would serve them all; why three keys them apart, and
+warming them behind the card as part 6 does the world's, are for the
+flip's sweep (part 15).
+
+**What is still off.** The trail corner's two squares draw in place on
+both node back ends and leave the picture whole, but they read empty: the
+marks WebGL shows in them at the same moment (a few hundred pixels of
+stamps and berms on seed 20 at 10 s) are not there, while the ground
+draws the same maps' furrows. The twin's read of the maps is the open
+question; the corner is a developer's instrument and draws nothing of the
+game's, so it does not hold the flip, and it is carried to part 15.
+
+**The gear stage's backdrop** (`stage-backdrop.ts`, behind the rider and
+gear cards) is the `shader` row's last tenant. Its snow and its meadow are
+finished by node grafts on the copy (`stage-snow`, `stage-meadow`,
+`stage-tsl.ts`: the corduroy, the drift and the glitter), and its sky by a
+node twin (`stage-sky`). The stage makes its renderer through `createGpu`.
+
+**A renderer of its own** (`own-gpu.ts`'s `createGpu`): the gear stage and
+the twelve harness pages that made a `WebGLRenderer` (audience, birds,
+board, bones, cabins, civilians, crowd, gear, helmet, skier, skis, trees)
+now ask for one on the link's back end. On WebGL it IS the bare
+`WebGLRenderer` with the switches the page used before. On the webgpu
+paths it is the node renderer on the world renderer's device
+(`ownRenderer` in `gpu-device.ts`), and every scene it draws is dressed the
+first time it is drawn, so a material made the game's way draws as the
+game draws it. A world renderer's page (the snow lab, the gore lab) calls
+`labBackend` first, which readies the seam. Every one of those labs, the
+snow lab and the gore lab now take `--renderer=`.
+
+**The labs' meters.** `make profile`'s WebGPU meter counts on the device's
+own encoders, patched before the page's scripts run: every draw a pass or a
+bundle records, every `setPipeline` as a program bind and every
+`setBindGroup` as a texture bind, the textures made and the bytes written
+through the queue. An indirect draw's triangles are on the GPU and are not
+counted. `make gore-cost` counts the device's PIPELINES as its links (named
+by their label or their vertex module's) and the queue's writes as its
+uploads, and waits on the device's queue.
+
+**Traps found here:**
+
+- **Three's timestamp query is named for the frame, and the frame moves
+  only in three's own loop.** A query's `uid` ends in `info.frame`, which
+  three moves on only inside `setAnimationLoop`. The game draws from its
+  own `requestAnimationFrame`, so every frame's queries had the same name
+  and each one's answer overwrote the last. The timer moves `info.frame`
+  on itself, once a frame.
+- **The benchmark asks for its timer before the node renderer is ready.**
+  WebGL's context exists the moment the renderer is made, but the node
+  renderer's back end has no device until `init` resolves, and the
+  benchmark turns its timer on at the start of the scene, before the
+  world's load has waited for it. The first runs read no timestamp
+  support and printed no GPU section, on a device that has the feature.
+  The instruments ask the seam again once `ready` resolves
+  (`renderer-instruments.ts`), unless another mode was asked in between.
+- **The node renderer's viewport is measured from the top, on both of its
+  back ends.** The trail corner's box, placed from the bottom as on WebGL,
+  drew at the top of the screen. A readback's row 0 is the top on WebGPU and
+  the bottom on the WebGL2 back end and on WebGL.
+- **A canvas draw goes through three's output pass when the output wants
+  tone mapping or an sRGB curve.** The node renderer then draws into a
+  framebuffer target of its own and copies it out through the tone map and
+  the curve, so a quad meant to land on the finished picture as it is
+  would be re-graded, through a pass the world's frame does not need. The
+  instrument's draw sets a linear colour space and no tone mapping for its
+  own draw and puts them back after; the twin applies the sRGB curve
+  itself, as WebGL's GLSL does.
+- **A sampled draw onto the canvas after the grade wipes the picture.**
+  The grade's pass is a full-screen pass, which three draws unsampled
+  straight onto the canvas. A later draw onto the canvas with the
+  renderer's own samples loads the canvas's MSAA buffer, which nothing
+  wrote this frame, and resolves it over the whole picture: with the trail
+  corner on, the world drew black around its two squares. The corner's
+  scene is marked a full-screen pass (`isQuadMesh`, which only the node
+  renderer reads), so it is drawn unsampled too.
+- **A square's map is the trail's own uniform.** The corner swapped one
+  material's map between its two draws; it now has a material a map, each
+  over the trail's own uniform object, so the twin follows the slot as the
+  ground's does.
+- **A sheet's cells are laid out from the bottom.** Every lab that draws a
+  grid of cells sets each one's viewport with y counted up from the
+  canvas's foot, as WebGL counts it. On the node renderer the first runs
+  drew the gear lab's rows upside down, each under the wrong label (a
+  mean difference of 45.44 per channel against WebGL's sheet). The
+  renderer of its own counts the canvas's viewport and scissor from the
+  bottom (`bottomUp` in `gpu-device.ts`), so a lab's layout is the same
+  on every back end: the gear lab's outfits sheet now differs from
+  WebGL's by 0.50.
+- **A lab's clear colour is tone mapped on the node renderer.** A page of
+  its own that clears to a colour and tone maps the frame sees the colour
+  through the tone map on the node renderer (its clear goes into the
+  framebuffer target), and as given on WebGL. The tree lab's sheet ground is
+  a shade lighter on the node paths for that reason; nothing of the game's
+  own picture clears to a colour it reads.
+- **A library is hooked once a renderer.** The dressing that finishes
+  every material's node copy hooks three's node library. The gear stage
+  and a harness dress several scenes on one renderer, and a second hook
+  wrapped the first (`hookLibrary`, guarded by a `WeakSet`).
+- **A page's own fog is kept.** A harness scene that sets a classic
+  `scene.fog` keeps it: the dressing hangs the haze as the fog node only on
+  a scene with none of its own, and a copy's `fog` is left as the material
+  set it.
+- **The tree lab's trunks draw without their girth.** The woods' girth is
+  read per instance in the woods' own node path (`forest-tsl.ts`), which
+  the game's forest uses; the tree lab draws the shapes as plain meshes, so
+  its trunks are drawn at their base girth on the node paths. The game's
+  woods are not affected.
+
 ## Measuring both paths
 
 Every browser lab takes `--renderer=webgl|webgpu|webgpu-gl`
@@ -1516,10 +1722,15 @@ benchmark on each back end and closes with the two side by side. The labs
 that take the flag are `make bench`, `make screenshots`, `make world`,
 `make sky`, `make snowfall`, `make cloud`, `make xray`, `make heli`,
 `make plane`, `make balloon`, `make fires`, `make water`, `make snowguns`,
-`make summer`, `make avalanche` and `make profile`. `make world`
-takes `--weather=` as well, so a fall can be photographed over a run. `make sky` times the GPU sky's passes on
-WebGL only. `make profile`'s WebGL meter counts nothing on the webgpu
-paths until part 14.
+`make summer`, `make avalanche`, `make profile`, and from part 14 every
+lab whose page draws its own sheet (`make trees`, `make birds`,
+`make cabins`, `make crowd`, `make civilians`, `make audience`,
+`make board`, `make bones`, `make gear`, `make helmet`, `make skier`,
+`make skis`), `make snow-eval` and `make gore-cost`. `make world`
+takes `--weather=` as well, so a fall can be photographed over a run.
+`make sky` times the GPU sky's passes on WebGL only. `make profile`
+counts on WebGL's context on `webgl` and `webgpu-gl`, and on the device's
+encoders on `webgpu` (part 14).
 
 **WebGPU in a headless container** needs more than the obvious switches. With
 only `--enable-unsafe-webgpu --enable-features=Vulkan
@@ -1565,8 +1776,10 @@ lines.
 | 12 Skier, models, effects | 2026-10-22 | webgpu | 127 (123 before) | 225 611 (217 032) | 100 programs, 64 pipelines (94, 62 before) | 839.63 (809.29 before) | 833.26 (803.32) | 4 passes / 12 meshes (4 / 16 before) | The four skiers' modelled skis draw (`model-merged:field ×4` left the quarantine), with their grafts on the copy and WebGL's shadows. The steady readings are 8–16 ms (9–13); the mean is the device's queue on SwiftShader, which one reading drains (3 938 ms; two of 3 643 and 3 849 before). At HIGH: 246 draws (243), 680 405 triangles (672 010), 192 programs and 141 pipelines (182, 135), 6 826.17 ms (7 846.98) with steady readings of 18–29 ms (22–35) and no draining reading among the four printed (two of 40 379 and 41 074 before). What is left hidden is part 13's cabins, gates and stands |
 | 13 Buildings and props | 2026-10-22 | webgl | 100 | 231 883 (231 913) | 51 programs | 13.64 (13.36 before) | 5.83 (5.64) | 0 / 0 | the 23 WebGL world shots (seed 38 at HIGH; 12 h: spawn, far, vista, track, thirteen of the free ride's buildings and props, four of a slalom's; 21 h: the free ride's village street and plaza) are byte-identical to part 12's but for six pixels of the night sky that move from run to run. At HIGH: 110 draws, 686 162 triangles, 67 programs, 18.77 ms (22.72) |
 | 13 Buildings and props | 2026-10-22 | webgpu | 133 (128 before) | 231 669 (225 825) | 117 programs, 79 pipelines (100, 64 before) | 974.14 (1 191.44 before) | 967.55 (1 183.70) | 4 passes / 0 meshes (4 / 12 before) | The race's cabins, its gates' furniture and its stands draw (`haze-graft:cabins ×10 · haze-graft:checkpoints ×1 · haze-graft:audience ×1` left the quarantine, and nothing is hidden now). The new pipelines are the cabins', the gates' furniture's and the stands', which were hidden before. The steady readings are 13–17 ms (10–18); the mean is the device's queue on SwiftShader, which the last reading drains (4 121 ms; 7 287 before). At HIGH: 243 draws (237), 673 385 triangles (676 629), 220 programs and 167 pipelines (192, 141), 8 466.84 ms (12 548.06) with steady readings of 16–26 ms (21–42) and one draining reading of 37 423 ms (two of 66 182 and 69 420) |
+| 14 Instruments and tools | 2026-10-22 | webgl | 100 | 231 883 (231 877) | 51 programs | 13.54 (13.97 before) | 5.85 (6.21) | 0 / 0 | the WebGL world shots (seed 38 at HIGH, 12 h: spawn, far, track, chase-6) are byte-identical to part 13's. The GPU's timer (WebGL's queries, as before): trail 2.605, hero 0.002, scene 192.724, grade 6.900 ms a frame (2.591, 0.002, 165.043, 7.594 before) over 59 frames. At HIGH: 110 draws, 686 190 triangles, 67 programs, 19.72 ms (19.59); the timer: trail 34.4, hero 51.1, shadow 14.2, scene 784.8, grade 13.7 ms (37.3, 55.3, 15.1, 907.4, 15.3) |
+| 14 Instruments and tools | 2026-10-22 | webgpu | 133 (134 before) | 231 434 (231 682) | 117 programs, 79 pipelines (117, 79 before) | 17.24 (993.49 before) | 9.62 (986.33) | 1 pass / 0 meshes (4 / 0 before) | `snow-under`, `trail-overlay` and `gpu-timer` run; `shadow-depth` alone is skipped. THE FENCE IS THE DEVICE'S QUEUE NOW: the frame waits for SwiftShader's work (1 001.09 ms a frame; 0.00 before, when nothing waited and the work landed on whichever frame's submit stalled), so the processor's half reads as itself (17 ms) and the wall is the card's (1 020.62 ms; 996.16 before). THE GPU'S TIMER on SwiftShader's `timestamp-query`: trail 1.392, scene 740.360, grade 7.205 ms a frame, 748.957 summed, over 59 frames (no section before). At HIGH: 253 draws (244), 686 498 triangles (676 653), 220 programs and 167 pipelines (220, 167), render 1 157.36 ms (9 393.83), gpu 7 420.28 ms (0.00), wall 8 580.01 ms (9 396.87); the timer: trail 37.331, hero 43.845, shadow 12.683, scene 7 245.496, grade 12.536 ms, 7 351.891 summed |
 
-Parts 1 to 13 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+Parts 1 to 14 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis), and from
 part 3 again with `--video high` for the numbers under "At HIGH".
 
@@ -1585,7 +1798,7 @@ part 3 again with `--video high` for the numbers under "At HIGH".
 - [x] 11 Figures (`figures`, `gore-tree`): the crowd, the civilians, the dogs and their steam, the traffic, the fans, the birds, the animals and the blooded tree as figure twins whose vertex runs the graft where WebGL's does; the shadow of a caster whose depth carries the graft moved the same way; two fixes to three's node builder; `shader` moved to part 12, `haze-graft` to 13
 - [x] 12 Skier, models, effects (`model-merged`, `skier`, `wingsuit`, `cloth`, `effects`): the merged models' metal, roughness and coat, the posed parts' normals, the kit's flutter, the wingsuit's paint, the canopies, the lines and the envelope as node grafts on the copy; a material's own clipping planes as its mask; the rotors, the lift's fade, the burner, the burn and the X-ray as node twins over the material drawn; `shader` moved to part 13
 - [x] 13 Buildings and props (`props`): every facade, the rooms, the crags and the talus, the signs' bump, the water, a summer's grass and a slab's walls as node grafts on the copy; the flags, a slab's plates, the floodlights' haloes and the fires as node twins, the flags and the plates as figure twins; the instance's colour handed on by a figure's own instancing; `shader` and `haze-graft` moved to part 14
-- [ ] 14 Instruments and tools (`snow-under`, `trail-overlay`, `gpu-timer`)
+- [x] 14 Instruments and tools (`snow-under`, `trail-overlay`, `gpu-timer`): the GPU's timer off the node renderer's timestamp queries, the device's queue as the benchmark's and AUTO's fence, the trail corner and the snow probe as node twins read back asynchronously, the gear stage's backdrop by node grafts and a twin, every harness's renderer of its own through `createGpu`, the WebGPU meters in `make profile` and `make gore-cost`; `shader` and `haze-graft` emptied and kept as guards until part 16
 - [ ] 15 The flip: webgpu by default, `?renderer=webgl` kept as the way back, the picture's prices re-measured
 - [ ] 16 The GLSL deleted, and the quarantine with it (`shadow-depth` too)
 - [ ] 17 Compute (WebGPU only)

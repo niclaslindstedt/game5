@@ -83,10 +83,10 @@ describe("the part's families in the register", () => {
     }
   });
 
-  it("leave the other ShaderMaterials and grafts to the harnesses' part", () => {
-    expect(GPU_PORTS.find((p) => p.id === "shader")).toMatchObject({ part: 14, ported: false });
+  it("leave the other ShaderMaterials and grafts to the guards' part", () => {
+    expect(GPU_PORTS.find((p) => p.id === "shader")).toMatchObject({ part: 16, ported: false });
     expect(GPU_PORTS.find((p) => p.id === "haze-graft")).toMatchObject({
-      part: 14,
+      part: 16,
       ported: false,
     });
   });

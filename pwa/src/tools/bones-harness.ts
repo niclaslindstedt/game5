@@ -17,6 +17,7 @@ import { FRACTURE_GRADE, type BONES } from "@engine";
 
 import { OPEN_BONES, openBreakGeometry, placeBreak } from "../game/gore-bones.ts";
 import type { BoneFrame } from "../game/skier-rig.ts";
+import { createGpu } from "../game/own-gpu.ts";
 
 type Bone = (typeof BONES)[number];
 
@@ -55,7 +56,7 @@ canvas.width = W;
 canvas.height = H;
 canvas.style.width = `${W}px`;
 canvas.style.height = `${H}px`;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = (await createGpu(canvas, { antialias: true })).renderer;
 renderer.setPixelRatio(1);
 renderer.setSize(W, H, false);
 renderer.setScissorTest(true);

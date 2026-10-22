@@ -4,10 +4,11 @@
 // subsystems, the fence, and the frame's bill — everything the developer
 // page and the benchmark read (`DevRenderer`), and nothing the picture needs.
 //
-// The timer and the fence are WebGL's: on the webgpu paths the timer stays
-// OFF and the fence answers 0 until their port (`gpu-timer` in
-// `gpu-backend.ts`'s register), while the bill is read off the node
-// renderer's own counters in the WebGL path's terms (`render-seam.ts`).
+// On the webgpu paths the timer is the node renderer's timestamp queries
+// (`gpu-timer-node.ts`), the fence is the device's queue (waited for in the
+// background, `drainLater`) or, on three's WebGL2 back end, its context's
+// pixel read back, and the bill is read off the node renderer's own
+// counters in the WebGL path's terms (`render-seam.ts`).
 
 import type * as THREE from "three";
 
@@ -34,8 +35,12 @@ export type Instruments = {
   readonly hidden: ReadonlySet<Hideable>;
   readonly tag: string;
   setHidden(names: readonly Hideable[], tag: string): void;
-  /** Wait for the GPU to finish, ms (one pixel read back; 0 off WebGL). */
+  /** Wait for the GPU to finish, ms (one pixel read back; 0 on a WebGPU
+   * device, whose wait is `drainLater`). */
   drain(): number;
+  /** THE ASYNC FENCE: the ms until the device has run every draw handed to
+   * it so far, or null where `drain` already waited (a WebGL2 context). */
+  drainLater(): Promise<number> | null;
   /** Write the frame's bill into `cost`: the stretches, and the scene's
    * draw calls and triangles as the picture counted them. */
   bill(cost: FrameCost, at: FrameMarks, scene: { calls: number; triangles: number }): void;
@@ -48,6 +53,8 @@ export function createInstruments(seam: RenderSeam): Instruments {
   const ctx = native ? (gl.getContext() as WebGL2RenderingContext) : null;
   const off = (): GpuTimer => createGpuTimer(null as unknown as WebGL2RenderingContext, "off");
   let timer: GpuTimer = ctx ? createGpuTimer(ctx, "off") : off();
+  /** The context a pixel read back fences, asked once it exists. */
+  let fenced: WebGL2RenderingContext | null | undefined;
   let hidden: ReadonlySet<Hideable> = new Set();
   let tag = "";
   /** The one pixel `drain` reads back. */
@@ -93,7 +100,18 @@ export function createInstruments(seam: RenderSeam): Instruments {
     },
     setTimer(mode) {
       timer.dispose();
-      timer = ctx ? createGpuTimer(ctx, mode) : off();
+      timer = ctx ? createGpuTimer(ctx, mode) : (seam.timer(mode) ?? off());
+      // The node renderer knows whether its device writes timestamps only
+      // once it is ready, and the benchmark asks before that: asked again
+      // then, unless something else was asked in between.
+      const made = timer;
+      if (!ctx && mode !== "off" && !made.supported) {
+        void seam.ready.then(() => {
+          if (timer !== made) return;
+          made.dispose();
+          timer = seam.timer(mode) ?? off();
+        });
+      }
     },
     get hidden() {
       return hidden;
@@ -106,11 +124,13 @@ export function createInstruments(seam: RenderSeam): Instruments {
       tag = next;
     },
     drain() {
-      if (!ctx) return 0;
+      fenced ??= seam.drainContext();
+      if (!fenced) return 0;
       const at = performance.now();
-      ctx.readPixels(0, 0, 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, drained);
+      fenced.readPixels(0, 0, 1, 1, fenced.RGBA, fenced.UNSIGNED_BYTE, drained);
       return performance.now() - at;
     },
+    drainLater: () => seam.fence(),
     bill(cost, at, scene) {
       cost.poseMs = at.posed - at.opened;
       cost.trailMs = at.trailed - at.posed;

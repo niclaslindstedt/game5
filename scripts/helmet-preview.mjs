@@ -35,6 +35,14 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".helmet-preview");
 const outDir = join(root, "previews");
@@ -56,10 +64,11 @@ const args = parseArgs(
     },
     code: { kind: "flag", default: true, help: "draw the code's helmet (--code=0: not)" },
     cell: { kind: "number", default: 300, help: "a cell's width, px" },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", default: false, help: "reuse the last bundle" },
     timeout: { kind: "number", default: 120, help: "seconds a sheet may take" },
   },
-  "usage: node scripts/helmet-preview.mjs [--sheet=views,wire,profile,game] [--slots=0,1] [--model=a.glb] [--code=0]",
+  "usage: node scripts/helmet-preview.mjs [--sheet=views,wire,profile,game] [--slots=0,1] [--model=a.glb] [--code=0] [--renderer=b]",
 );
 
 const sheets = args.sheet ? args.sheet.split(",") : SHEETS;
@@ -107,7 +116,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 
 let crashed = null;
@@ -128,7 +142,8 @@ for (const sheet of sheets) {
     cell: String(args.cell),
   }).toString();
   const t0 = Date.now();
-  await page.goto(`${server.url}helmet-preview.html?${query}`);
+  await page.goto(rendererUrl(`${server.url}helmet-preview.html?${query}`, args.renderer));
+  await assertBackend(page, args.renderer);
   await page.waitForFunction("window.__helmet !== undefined");
   await page.evaluate("window.__helmet.ready");
   if (crashed) process.exit(1);

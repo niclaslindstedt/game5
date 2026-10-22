@@ -28,6 +28,7 @@ import { BOARD_CATALOG, pairById, type SkiSpec } from "@engine";
 import { buildBinding, buildDeck, buildSoftBoot, type Paint } from "../game/board-body.ts";
 import { BINDING, boardBend, sheetOf } from "../game/board-look.ts";
 import { boardOf } from "../game/board-input.ts";
+import { createGpu } from "../game/own-gpu.ts";
 
 const CELL_W = 420;
 const CELL_H = 300;
@@ -135,7 +136,7 @@ async function main(): Promise<void> {
   out.height = CELL_H * ROWS.length;
   const ctx = out.getContext("2d") as CanvasRenderingContext2D;
   const cell = document.createElement("canvas");
-  const renderer = new THREE.WebGLRenderer({ canvas: cell, antialias: true });
+  const renderer = (await createGpu(cell, { antialias: true })).renderer;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setSize(CELL_W, CELL_H, false);

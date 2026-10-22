@@ -27,7 +27,10 @@
 //
 // This module owns three.js, so it is loaded as its own chunk
 // (`menu-stage.tsx` imports it dynamically): the entry script's critical
-// path must not carry the render stack.
+// path must not carry the render stack. Its renderer is its own, on the
+// back end the visit asks for (`own-gpu.ts`): WebGL's as it always was, or
+// the node renderer with the backdrop drawn by its node graft and twin
+// (`stage-tsl.ts`).
 
 import * as THREE from "three";
 import {
@@ -50,6 +53,7 @@ import { idlePose, idleRoom } from "./rider-idle.ts";
 import { createSkisModel, pairStyle, REST_SAG, type SkisModel } from "./skis-body.ts";
 import { buildBike } from "./bike-view.ts";
 import { riderPose } from "./skier-bike.ts";
+import { createGpu } from "./own-gpu.ts";
 import { createBackdrop, SUN_DIR, type Backdrop } from "./stage-backdrop.ts";
 
 export { loadModels } from "./skier-models.ts";
@@ -130,8 +134,17 @@ export type GearStage = {
 
 const IDENTITY = { x: 0, y: 0, z: 0, w: 1 };
 
-export function createGearStage(canvas: HTMLCanvasElement): GearStage {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+/** The node renderer's compile, which the WebGL type does not carry. */
+type NodeCompile = { compileAsync(scene: THREE.Scene, camera: THREE.Camera): Promise<void> };
+
+export async function createGearStage(canvas: HTMLCanvasElement): Promise<GearStage> {
+  const gpu = await createGpu(canvas, { antialias: true });
+  const renderer = gpu.renderer;
+  /** Every pipeline the frame would draw built now (WebGL's `compile`). */
+  const compile = (): void => {
+    if (gpu.native) renderer.compile(scene, camera);
+    else void (renderer as unknown as NodeCompile).compileAsync(scene, camera);
+  };
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -465,7 +478,7 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
       if (shown !== keyOf(s, pick, kit)) build(s, pick, kit);
       else dress(s, kit);
       frame(now);
-      renderer.compile(scene, camera);
+      compile();
     }
     // The other kind's pair, built and compiled beside him, then put by.
     if (!other) return;
@@ -474,7 +487,7 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
     const made = make("gear", other, kit);
     made.rest.poles = carriesPoles(kit);
     pivot.add(made.model.root);
-    renderer.compile(scene, camera);
+    compile();
     pivot.remove(made.model.root);
     kept.set(key, made);
     spares.add(key);
@@ -534,7 +547,7 @@ export function createGearStage(canvas: HTMLCanvasElement): GearStage {
       // The CONTEXT goes too, now rather than whenever the canvas is
       // collected: RIDE stands a whole mountain up next, and a phone
       // browser counts this context against the tab.
-      renderer.forceContextLoss();
+      if (gpu.native) renderer.forceContextLoss();
     },
   };
 }

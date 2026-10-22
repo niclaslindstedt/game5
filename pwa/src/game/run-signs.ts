@@ -37,6 +37,7 @@ import { bikeSigns } from "./bike-sign-plan.ts";
 import { GRADE_LOOK, gradePath } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { storedBump } from "./print-bump.ts";
+import { nodeGraft } from "./gpu-backend.ts";
 import { SIGN, signPlan, summitSigns, type SignBoard } from "./run-sign-plan.ts";
 import { SIGN_FALLBACK, signLookOf, type SignLook } from "./sign-look.ts";
 
@@ -553,6 +554,7 @@ export function createRunSigns(level: Level, haze: HazeUniforms): RunSigns {
     "sign-face",
     storedBump,
   );
+  nodeGraft(faceMat, "props", "print-bump"); // the node renderer's (`props-tsl.ts`)
   const woodMat = hazeMaterial(
     new THREE.MeshStandardMaterial({ color: look.edge, roughness: 0.9 }),
     haze,

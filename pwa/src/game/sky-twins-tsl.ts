@@ -33,6 +33,9 @@
 //            the effects: the rotors' smear, the lift's fade, the
 //            balloon's burner, a skier burning and the X-ray
 //            (`effects-tsl.ts`, part 12)
+//   flag-sail, flag-pennant, slab-plates, piste-glow, fire-*
+//            the props: the challenges' flags, the slab's plates, the
+//            floodlights' haloes and the fires (`prop-twins-tsl.ts`, part 13)
 
 import type * as THREE from "three";
 import type { NodeMaterial } from "three/webgpu";
@@ -49,6 +52,7 @@ import { froxelTwin, msTwin, transTwin, viewTwin } from "./sky-atmo-tsl.ts";
 import { groundSpecs } from "./terrain.ts";
 import { groundTwin } from "./terrain-tsl.ts";
 import { particleTwin } from "./particle-twins-tsl.ts";
+import { propTwinOf } from "./prop-twins-tsl.ts";
 import { domeTwin } from "./sky-dome-tsl.ts";
 
 /** The twins a dressing makes (`twinOf`). */
@@ -95,7 +99,10 @@ export function createTwins(haze: HazeUniforms, how: HazeFogOptions): Twins {
         return carryTwin(m);
       default:
         return (
-          figureTwinOf(m, kind, haze) ?? particleTwin(m, kind, haze, how) ?? effectTwin(m, kind)
+          figureTwinOf(m, kind, haze) ??
+          particleTwin(m, kind, haze, how) ??
+          effectTwin(m, kind) ??
+          propTwinOf(m, kind, haze)
         );
     }
   };

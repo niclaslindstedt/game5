@@ -55,6 +55,7 @@ import type { HazeUniforms } from "./haze.ts";
 import { hazeFog, hazeSlots, syncHaze } from "./haze-tsl.ts";
 import { LampsLight, lightSlots, registerLights, syncLights } from "./lights-tsl.ts";
 import { finishGraft } from "./model-grafts-tsl.ts";
+import type { PropDressing } from "./props-tsl.ts";
 import { dissolveSkin } from "./xray-tsl.ts";
 import { pointStand } from "./particle-twins-tsl.ts";
 import { heroSlots, shadeDepthTwin, syncHero } from "./shadows-tsl.ts";
@@ -74,7 +75,8 @@ export type Dressing = {
 };
 
 /** Finish the node renderer's copy of `material` (see the header). */
-function finish(copy: NodeMaterial, material: THREE.Material, u: HazeUniforms): void {
+function finish(copy: NodeMaterial, material: THREE.Material, d: PropDressing): void {
+  const u = d.haze;
   const data = material.userData;
   copy.fog = data.haze === true;
   if (data.hazeWall === true) copy.maskNode = insideWall(u);
@@ -84,7 +86,7 @@ function finish(copy: NodeMaterial, material: THREE.Material, u: HazeUniforms): 
     copy.opacityNode = materialOpacity.mul(fade);
     copy.maskNode = fade.greaterThan(0.003);
   }
-  finishGraft(copy, material);
+  finishGraft(copy, material, d);
   dissolveSkin(copy, material);
 }
 
@@ -112,7 +114,7 @@ export function dressScene(
       return depth;
     }
     const copy = from(material) as NodeMaterial | null;
-    if (copy && copy !== (material as unknown)) finish(copy, material, haze);
+    if (copy && copy !== (material as unknown)) finish(copy, material, { haze, how });
     return copy as NodeMaterial; // null where three has no node twin, as it returns
   };
   scene.fogNode = hazeFog(haze, how);

@@ -20,6 +20,7 @@ import { CABINS, cabinsOf, isResortBuilding, type Cabin, type Level } from "@eng
 import { planHoles } from "./cabin-shapes.ts";
 import { FacadeKit } from "./facade-kit.ts";
 import { graftFacade, holdFacades } from "./facade-material.ts";
+import { nodeGraft } from "./gpu-backend.ts";
 import { facadeGeometry } from "./facade-mesh.ts";
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { buildRoom, hasRoom, insetHoles } from "./interior-build.ts";
@@ -34,7 +35,7 @@ const HYSTERESIS = 8;
 
 /** The room's own light: the share of its albedo lit by day and after
  * dark; a lamp's shade by day and after dark; a pane's daylight. */
-const ROOM_LIGHT = { day: 0.45, night: 0.6, lampDay: 0.9, lampNight: 2.2, pane: 0.65 };
+export const ROOM_LIGHT = { day: 0.45, night: 0.6, lampDay: 0.9, lampNight: 2.2, pane: 0.65 };
 
 /** The rooms' material: the painted stack, the haze, and the room's own
  * light in place of the panes' night glow. */
@@ -75,6 +76,9 @@ function roomMaterial(haze: HazeUniforms): THREE.MeshStandardMaterial {
       graftFacade(shader);
     },
   );
+  // The node renderer's (`props-tsl.ts`), the sun kept out by the key's
+  // light node there.
+  nodeGraft(m, "props", "interiors").userData.indoor = true;
   m.addEventListener("dispose", () => held.release());
   return m;
 }

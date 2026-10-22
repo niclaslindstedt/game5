@@ -40,6 +40,7 @@ import {
   pennantPole,
   timingPost,
 } from "./challenge-shapes.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { PALETTE } from "../identity.ts";
 import { MEDAL_LOOK } from "./medal-look.ts";
@@ -190,6 +191,14 @@ export function createChallengeFlags(level: Level, haze: HazeUniforms): Challeng
     swayGraft(wiring, false),
   );
   mats.push(sailMat, pennantMat);
+  // The node renderer's twins (`prop-twins-tsl.ts`), over the same wiring.
+  for (const [m, kind] of [
+    [sailMat, "flag-sail"],
+    [pennantMat, "flag-pennant"],
+  ] as const) {
+    m.userData.figureOwn = wiring;
+    nodeTwin(m, "props", kind);
+  }
 
   let built: ChallengePlan | null = null;
   let plan: FlagPlan | null = null;

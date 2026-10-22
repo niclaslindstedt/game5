@@ -175,6 +175,8 @@ export class KeyLightNode extends DirectionalLightNode {
 
   setup(builder: NodeBuilder): N {
     const light = this.light as KeyLight;
+    // No sun inside a room (`interiors-view.ts` drops the direct light).
+    if ((builder.material as THREE.Material | null)?.userData.indoor === true) return undefined;
     if (!light.haze || !hazed(builder)) return super.setup(builder);
     const s = lightSlots(light.haze);
     const kept = this as unknown as Kept;

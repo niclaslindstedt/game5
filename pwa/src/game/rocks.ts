@@ -36,6 +36,7 @@ import {
   type Level,
 } from "@engine";
 
+import { nodeGraft } from "./gpu-backend.ts";
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { regionLookOf } from "./region-look.ts";
 import { FOREST_LOOK, type RockLook } from "./settings-video.ts";
@@ -501,6 +502,13 @@ export function createRocks(level: Level, haze: HazeUniforms, look: RockLook): R
   // sunk by the snow and with the distance.
   const talusU = { uTalus: { value: new THREE.Vector4(look.talus.reach, 0, 0, 0) } };
   const talusMaterial = band ? hazeMaterial(stone(), haze, "talus", patch(true)) : null;
+  // The node renderer's (`rock-tsl.ts`), over the same uniforms.
+  nodeGraft(material, "props", "rock").userData.graftOwn = rockU;
+  if (talusMaterial)
+    nodeGraft(talusMaterial, "props", "talus").userData.graftOwn = {
+      ...rockU,
+      ...talusU,
+    };
   const talus =
     band && talusMaterial
       ? createTalus(level, band.tone, talusMaterial, talusU.uTalus, look)

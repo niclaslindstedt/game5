@@ -21,6 +21,7 @@ import type { Level, SlabFrame } from "@engine";
 
 import { CORNERS } from "./avalanche-crack.ts";
 import { bedDepth, crownAt, SLIDE_LOOK } from "./avalanche-plan.ts";
+import { nodeGraft, nodeTwin } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 
 /** The top's shade, the sides' and the underside's. */
@@ -86,6 +87,10 @@ export function outlineAttributes(
 /** The plates' material: the haze's Lambert, the prism built off the
  * instance's outline. */
 export function plateMaterial(haze: HazeUniforms): THREE.MeshLambertMaterial {
+  return nodeTwin(plateGlsl(haze), "props", "slab-plates"); // `prop-twins-tsl.ts`
+}
+
+function plateGlsl(haze: HazeUniforms): THREE.MeshLambertMaterial {
   const corners = Array.from(
     { length: CORNERS / 2 },
     (_, k) => `slabC[${k * 2}] = aOutline${k}.xy;\n  slabC[${k * 2 + 1}] = aOutline${k}.zw;`,
@@ -128,6 +133,10 @@ ${Array.from({ length: CORNERS / 2 }, (_, k) => `attribute vec4 aOutline${k};`).
  * (`uSlabCrack`, as the bed reads it) has not reached yet is folded
  * up to its top and tucked under the snow. */
 export function wallMaterial(haze: HazeUniforms): THREE.MeshLambertMaterial {
+  return nodeGraft(wallGlsl(haze), "props", "slab-walls"); // `props-tsl.ts`
+}
+
+function wallGlsl(haze: HazeUniforms): THREE.MeshLambertMaterial {
   return hazeMaterial(
     new THREE.MeshLambertMaterial({ color: 0xf4f7fb, flatShading: true, vertexColors: true }),
     haze,

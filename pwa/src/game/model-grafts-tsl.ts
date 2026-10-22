@@ -44,6 +44,7 @@ import { finishCloth } from "./cloth-tsl.ts";
 import { graftOwn } from "./figure-tsl.ts";
 import { graftOf } from "./gpu-backend.ts";
 import type { N } from "./haze-tsl.ts";
+import { finishProp, type PropDressing } from "./props-tsl.ts";
 import { SUIT_CUT, colourwayOf, type SuitColourway } from "./wingsuit-look.ts";
 
 const {
@@ -300,8 +301,9 @@ export const clipped = (material: THREE.Material): boolean =>
 
 // ---------------------------------------------------------------- the hook
 
-/** Finish the copy of `material` with its graft's nodes (see the header). */
-export function finishGraft(copy: NodeMaterial, material: THREE.Material): void {
+/** Finish the copy of `material` with its graft's nodes (see the header);
+ * a prop's (`props-tsl.ts`) with the haze `d` it is dressed in. */
+export function finishGraft(copy: NodeMaterial, material: THREE.Material, d?: PropDressing): void {
   const kind = graftOf(material);
   switch (kind) {
     case "pbr":
@@ -317,7 +319,7 @@ export function finishGraft(copy: NodeMaterial, material: THREE.Material): void 
       wingsuit(copy, material);
       break;
     default:
-      if (kind) finishCloth(copy, material, kind);
+      if (kind && !(d && finishProp(copy, material, kind, d))) finishCloth(copy, material, kind);
   }
   if (clipped(material)) {
     copy.maskNode = copy.maskNode

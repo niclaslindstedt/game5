@@ -26,6 +26,7 @@
 import * as THREE from "three";
 import { PISTE_MAST, type Level } from "@engine";
 
+import { nodeTwin } from "./gpu-backend.ts";
 import { hazeMaterial, PAST_THE_WALL, type HazeUniforms } from "./haze.ts";
 import { InstanceReach } from "./instance-reach.ts";
 import {
@@ -49,7 +50,7 @@ const LAMP = { w: 0.6, h: 0.4, d: 0.14, glass: 0.9 };
 /** THE GLOW: the halo's width, m, the fewest pixels it is drawn across
  * however far off, and the glass's glow by day and what the dark adds
  * (emissive intensity). */
-const GLOW = { size: 2.4, minPx: 3.5, day: 0.05, night: 3.5 };
+export const GLOW = { size: 2.4, minPx: 3.5, day: 0.05, night: 3.5 };
 
 export type PisteLights = {
   group: THREE.Group;
@@ -73,6 +74,10 @@ export const HEAD_REACH = 600;
  * `uMinPx` wide, bright seen from in front of the lamp and nothing from
  * behind it, faded into the haze and gone past the mist's wall. */
 function glowMaterial(haze: HazeUniforms): THREE.ShaderMaterial {
+  return nodeTwin(glowGlsl(haze), "props", "piste-glow"); // `prop-twins-tsl.ts`
+}
+
+function glowGlsl(haze: HazeUniforms): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
     uniforms: {
       uOn: { value: 0 },

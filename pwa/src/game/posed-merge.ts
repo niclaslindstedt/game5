@@ -39,6 +39,8 @@
 
 import * as THREE from "three";
 
+import { nodeGraft } from "./gpu-backend.ts";
+
 type Part = {
   mesh: THREE.Mesh;
   bone: THREE.Bone;
@@ -170,6 +172,7 @@ export function mergePosed(
   const key = material.customProgramCacheKey.bind(material);
   const before = material.onBeforeCompile.bind(material);
   material.customProgramCacheKey = (): string => `${key()}:rigid`;
+  nodeGraft(material, "skier", "rigid"); // the node renderer's (`model-grafts-tsl.ts`)
   material.onBeforeCompile = (shader, renderer) => {
     before(shader, renderer);
     shader.vertexShader = shader.vertexShader

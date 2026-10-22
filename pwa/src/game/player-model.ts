@@ -43,6 +43,7 @@ import * as THREE from "three";
 import type { RiderId } from "@engine";
 
 import { bindPose, pastBreak, type DressPart } from "./dress-loft.ts";
+import { nodeGraft } from "./gpu-backend.ts";
 import type { BuildShape } from "./dress-body.ts";
 import type { ModelKit } from "./outfit.ts";
 import { BREAK } from "./skier-broken.ts";
@@ -656,6 +657,8 @@ export function withFlutter<M extends THREE.Material>(
   const key = m.customProgramCacheKey.bind(m);
   const w = new THREE.Vector4(wind.stream, wind.flap, wind.lift, wind.shiver);
   m.customProgramCacheKey = (): string => `${key()}:flutter:${w.toArray().join()}`;
+  // The node renderer's, over the same uniforms (`model-grafts-tsl.ts`).
+  nodeGraft(m, "skier", "flutter").userData.graftOwn = { ...u, uWind: { value: w } };
   m.onBeforeCompile = (shader, renderer) => {
     before(shader, renderer);
     shader.uniforms.uFlow = u.uFlow;

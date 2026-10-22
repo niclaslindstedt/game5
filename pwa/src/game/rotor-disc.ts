@@ -7,6 +7,7 @@
 
 import * as THREE from "three";
 
+import { nodeTwin } from "./gpu-backend.ts";
 import type { RotorLook } from "./rotor-look.ts";
 
 /** A rotor's blades as the shader draws them, in the rotor's own frame. */
@@ -110,6 +111,8 @@ export function rotorDisc(d: DiscSpec): THREE.Mesh {
     depthWrite: false,
     side: THREE.DoubleSide,
   });
+  // The node renderer's twin, over the same uniforms (`effects-tsl.ts`).
+  nodeTwin(material, "effects", "rotor").userData.disc = d;
   const disc = new THREE.Mesh(new THREE.CircleGeometry(d.radius, 96), material);
   disc.renderOrder = 5;
   disc.visible = false;

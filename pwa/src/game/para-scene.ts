@@ -18,6 +18,7 @@
 import * as THREE from "three";
 import { PARA, type GameState, type ParaState } from "@engine";
 
+import { nodeGraft } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { createParaPerch, PARA_SEAT, PARA_SIT } from "./ride-perch.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
@@ -127,6 +128,8 @@ export function createParaScene(haze: HazeUniforms, paint?: CanopyPaint): ParaSc
         );
     },
   );
+  // The node renderer's paint (`cloth-tsl.ts`).
+  nodeGraft(cloth, "cloth", "para-canopy").userData.paint = paint ?? null;
   const canopy = new THREE.Mesh(canopyGeo, cloth);
   canopy.castShadow = true;
   canopy.frustumCulled = false;

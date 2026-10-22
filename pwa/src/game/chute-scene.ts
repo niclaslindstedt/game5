@@ -36,6 +36,7 @@ import {
 
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { litLine, type LineLight } from "./para-motor.ts";
+import { nodeGraft } from "./gpu-backend.ts";
 import { createTrack, observe, sample, type Pose } from "./interp.ts";
 import {
   BASE_PAINT,
@@ -263,6 +264,7 @@ export function createChuteScene(
           );
       },
     );
+    Object.assign(nodeGraft(cloth, "cloth", "sky-canopy").userData, { wing, paint });
     mats.push(cloth);
     const canopy = new THREE.Mesh(geo, cloth);
     canopy.frustumCulled = false;

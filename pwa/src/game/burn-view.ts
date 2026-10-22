@@ -49,6 +49,7 @@ import {
   smoulderOf,
 } from "./burn-plan.ts";
 import { FADE, FLAME_FRAGMENT, SMOKE_FRAGMENT, SPARK_FRAGMENT } from "./fire-glsl.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 import { ALL_ROUND, FIRE_LIGHT } from "./fires-view.ts";
 import { cleanColours } from "./gore-soak.ts";
 import type { HazeUniforms } from "./haze.ts";
@@ -69,7 +70,7 @@ const THROW = {
 const REACH = 600;
 /** The flames stood this far toward the lens off his skin, m, so his body
  * cuts only the ones round his far side. */
-const PROUD = 0.1;
+export const PROUD = 0.1;
 
 export type BurnView = {
   group: THREE.Group;
@@ -167,6 +168,7 @@ export function createBurnView(haze: HazeUniforms): BurnView {
     vertex: string,
     fragment: string,
     blending: THREE.Blending,
+    twin: string,
   ): THREE.ShaderMaterial => {
     const m = new THREE.ShaderMaterial({
       uniforms: shared,
@@ -176,6 +178,7 @@ export function createBurnView(haze: HazeUniforms): BurnView {
       depthWrite: false,
       blending,
     });
+    nodeTwin(m, "effects", twin); // the node renderer's (`burn-tsl.ts`)
     mats.push(m);
     return m;
   };
@@ -233,6 +236,7 @@ export function createBurnView(haze: HazeUniforms): BurnView {
       }`,
       FLAME_FRAGMENT,
       THREE.NormalBlending,
+      "burn-flames",
     ),
     6,
     "burn-flames",
@@ -275,6 +279,7 @@ export function createBurnView(haze: HazeUniforms): BurnView {
         #include <colorspace_fragment>
       }`,
       THREE.AdditiveBlending,
+      "burn-glow",
     ),
     7,
     "burn-glow",
@@ -307,6 +312,7 @@ export function createBurnView(haze: HazeUniforms): BurnView {
       }`,
       SPARK_FRAGMENT,
       THREE.AdditiveBlending,
+      "burn-sparks",
     ),
     8,
     "burn-sparks",
@@ -347,6 +353,7 @@ export function createBurnView(haze: HazeUniforms): BurnView {
       }`,
       SMOKE_FRAGMENT,
       THREE.NormalBlending,
+      "burn-smoke",
     ),
     5,
     "burn-smoke",

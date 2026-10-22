@@ -141,14 +141,20 @@ export const GPU_PORTS: readonly GpuPort[] = [
     ported: true,
   },
   {
-    // What is left are the effects' and the props': the rotors, the
-    // aircraft and the burn (12); the piste lights, the fires and the stage
-    // (13).
+    // What is left are the props': the piste lights, the fires and the
+    // stage (13). The effects' draw by their twins (the `effects` row).
     id: "shader",
     kind: "material",
-    part: 12,
-    what: "every other ShaderMaterial (the effects and the props, in their own parts)",
+    part: 13,
+    what: "every other ShaderMaterial (the props, in their own part)",
     ported: false,
+  },
+  {
+    id: "effects",
+    kind: "material",
+    part: 12,
+    what: "the rotors' smear, the lift's fade, the balloon's flame, the burn and the X-ray, each drawn by its node twin",
+    ported: true,
   },
   {
     id: "terrain",
@@ -172,22 +178,43 @@ export const GPU_PORTS: readonly GpuPort[] = [
     ported: true,
   },
   {
-    // The figures' grafts draw by their twins (the `figures` row); what is
-    // left are the cloths' and the balloon's (12) and the props' (13).
+    // The figures' grafts draw by their twins (the `figures` row), the
+    // skier's, the machines' and the cloths' by theirs (`model-merged`,
+    // `skier`, `wingsuit`, `cloth`); what is left are the props' (13).
     id: "haze-graft",
     kind: "material",
     part: 13,
-    what: "a hazed material with a graft of its own (the rock, the facades, the signs, the cloths…)",
+    what: "a hazed material with a graft of its own (the rock, the facades, the signs, the avalanche's plates…)",
     ported: false,
   },
   {
     id: "model-merged",
     kind: "material",
     part: 12,
-    what: "the merged models' per-vertex paint",
-    ported: false,
+    what: "the merged models' metal, roughness and coat off the vertices, drawn by their node graft",
+    ported: true,
   },
-  { id: "wingsuit", kind: "material", part: 12, what: "the wingsuit's paint", ported: false },
+  {
+    id: "skier",
+    kind: "material",
+    part: 12,
+    what: "the posed figure's normals, the dressed kit's flutter, the X-ray's dissolve and a cut ski's planes, drawn by their node grafts",
+    ported: true,
+  },
+  {
+    id: "wingsuit",
+    kind: "material",
+    part: 12,
+    what: "the wingsuit's paint, drawn by its node graft",
+    ported: true,
+  },
+  {
+    id: "cloth",
+    kind: "material",
+    part: 12,
+    what: "the balloon's envelope, the canopies and the paramotor's lines, drawn by their node grafts",
+    ported: true,
+  },
   {
     id: "gore-tree",
     kind: "material",
@@ -274,6 +301,49 @@ export function figureDepth<T extends { userData: Record<string, unknown> }>(
   depth.userData.figureDepth = kind;
   depth.userData.figureOwn = own;
   return depth;
+}
+
+/** Flag a classic material whose GLSL graft (`onBeforeCompile`) the node
+ * renderer finishes in nodes of kind `kind` (`model-grafts-tsl.ts`): its
+ * copy is three's own, and the graft's nodes are set on it as the dressing
+ * finishes it. In family `family` of `GPU_PORTS`, hidden until ported.
+ * WebGL reads neither flag. */
+export function nodeGraft<T extends { userData: Record<string, unknown> }>(
+  material: T,
+  family: string,
+  kind: string,
+): T {
+  material.userData.graft = kind;
+  grafts.set(material, kind);
+  return glslOnly(material, family);
+}
+
+// The materials flagged, by identity: a clone copies `userData` (as JSON)
+// but never the `onBeforeCompile` WebGL grafts with, so a clone (a dead
+// skier's baked remains) is drawn plain on WebGL and must be on the node
+// renderer too.
+const grafts = new WeakMap<object, string>();
+const dissolving = new WeakSet<object>();
+
+/** The node graft `material` itself was flagged with, or null (a clone of
+ * a flagged material's included). */
+export function graftOf(material: object): string | null {
+  return grafts.get(material) ?? null;
+}
+
+/** Flag his skin's material as dissolved under the X-ray, over the view's
+ * own uniforms `own` (`xray-view.ts`, `xray-tsl.ts`). */
+export function nodeDissolve(
+  material: { userData: Record<string, unknown> },
+  own: { uXrSolid: { value: number }; uXrEdge: { value: unknown } },
+): void {
+  material.userData.xrayOwn = own;
+  dissolving.add(material);
+}
+
+/** Whether `material` itself is dissolved under the X-ray. */
+export function dissolves(material: object): boolean {
+  return dissolving.has(material);
 }
 
 /** WHAT DREW THE FRAME, for the developer page and the benchmark's report. */

@@ -38,6 +38,7 @@
 //   node scripts/xray-preview.mjs                 # every scene
 //   node scripts/xray-preview.mjs --scene=trunk
 //   node scripts/xray-preview.mjs --impact --scene=trunk-fast,post,cable
+//   node scripts/xray-preview.mjs --renderer=webgpu --scene=anatomy   # docs/webgpu.md
 
 import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -47,6 +48,8 @@ import process from "node:process";
 import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromium";
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
+
+import { assertBackend, rendererArgs, rendererFlag, renderersOf } from "./lib/backend-flag.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".xray-preview");
@@ -79,9 +82,10 @@ const args = parseArgs(
       help: "a folder to write every frame shot into as well, full size (<kind>-<scene>-<n>.png)",
     },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
+    renderer: rendererFlag(),
     timeout: { kind: "number", default: 1800, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/xray-preview.mjs [--scene=a,b] [--seed=n] [--every=s] [--skip-build]",
+  "usage: node scripts/xray-preview.mjs [--scene=a,b] [--seed=n] [--every=s] [--skip-build] [--renderer=b]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -110,7 +114,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const viewport = { width: args.width, height: args.height };
 const page = await browser.newPage({ viewport });
@@ -150,10 +159,12 @@ const query = new URLSearchParams({
   most: String(args.most),
   again: String(args.again),
   xray: args.impact ? "0" : "1",
+  ...(args.renderer !== "webgl" ? { renderer: args.renderer } : {}),
 }).toString();
 await page.goto(`${server.url}xray-preview.html?${query}`);
 await guarded(page.waitForFunction("window.__xray !== undefined"));
 const note = await guarded(page.evaluate("window.__xray.ready"));
+await assertBackend(page, args.renderer);
 /** @type {string[]} */
 const scenes = await page.evaluate("window.__xray.scenes");
 const want = args.scene
@@ -176,7 +187,8 @@ for (const scene of scenes) {
     width: Math.max(args.width, Math.ceil(box.width)),
     height: Math.ceil(box.y + box.height),
   });
-  const out = join(outDir, `${args.impact ? "impact" : "xray"}-${scene}.png`);
+  const tag = args.renderer !== "webgl" ? `${args.renderer}-` : "";
+  const out = join(outDir, `${args.impact ? "impact" : "xray"}-${tag}${scene}.png`);
   if (args.frames) {
     mkdirSync(args.frames, { recursive: true });
     frames.forEach((f, n) => {

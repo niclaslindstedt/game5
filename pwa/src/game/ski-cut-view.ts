@@ -26,6 +26,7 @@
 import * as THREE from "three";
 import type { LoneSki, SkiSpec, Thrown } from "@engine";
 
+import { graftOf, nodeGraft } from "./gpu-backend.ts";
 import { lookFrame } from "./ski-looks.ts";
 
 /** One drawn copy of a ski, hung under the pair's root. */
@@ -47,6 +48,9 @@ export function clippedClone(m: THREE.Material, planes: THREE.Plane[]): THREE.Ma
   c.clippingPlanes = planes;
   c.clipShadows = true;
   c.side = THREE.DoubleSide;
+  // The same graft on the node renderer (`model-grafts-tsl.ts`).
+  const graft = graftOf(m);
+  if (graft) nodeGraft(c, c.userData.glsl as string, graft);
   return c;
 }
 

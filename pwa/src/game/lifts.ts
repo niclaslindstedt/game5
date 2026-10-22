@@ -49,6 +49,7 @@ import * as THREE from "three";
 import { smoothstep } from "@niclaslindstedt/oss-game-framework/core/math";
 import { TUNING, type Level, type LiftRide, type Thrown } from "@engine";
 
+import { nodeTwin } from "./gpu-backend.ts";
 import { PAST_THE_WALL, hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { ropeTube } from "./rope-tube.ts";
 import { createMapBoards } from "./map-board.ts";
@@ -666,6 +667,7 @@ export function createLifts(
     depthTest: false,
     depthWrite: false,
   });
+  nodeTwin(fadeMat, "effects", "lift-fade"); // the node renderer's (`effects-tsl.ts`)
   mats.push(fadeMat);
   const fade = new THREE.Mesh(fadeGeo, fadeMat);
   fade.frustumCulled = false;

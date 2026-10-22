@@ -61,6 +61,8 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import { assertBackend, rendererArgs, rendererFlag, renderersOf } from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".balloon-preview");
 const outDir = join(root, "previews");
@@ -108,9 +110,10 @@ const args = parseArgs(
     out: { kind: "string", default: "balloon", help: "file stem under previews/ (no extension)" },
     "sheets-only": { kind: "flag", help: "write the contact sheets, not every frame alone" },
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
+    renderer: rendererFlag(),
     timeout: { kind: "number", default: 1800, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/balloon-preview.mjs [--sheet=a,b] [--views=a,b] [--seed=n] [--region=id] [--hour=h] [--weather=kind] [--skis=id] [--no-poles] [--skip-build]",
+  "usage: node scripts/balloon-preview.mjs [--sheet=a,b] [--views=a,b] [--seed=n] [--region=id] [--hour=h] [--weather=kind] [--skis=id] [--no-poles] [--skip-build] [--renderer=b]",
 );
 
 const list = (s) =>
@@ -147,7 +150,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const viewport = { width: args.width, height: args.height };
 const page = await browser.newPage({ viewport });
@@ -173,6 +181,7 @@ const query = new URLSearchParams({
   ...(args.weather ? { weather: args.weather } : {}),
   ...(args.skis ? { skis: args.skis } : {}),
   ...(args["no-poles"] ? { poles: "0" } : {}),
+  ...(args.renderer !== "webgl" ? { renderer: args.renderer } : {}),
 }).toString();
 /** `work`, or a failure the moment the page throws — never the timeout
  * burnt on a page that died. */
@@ -194,6 +203,7 @@ function guarded(work) {
 await page.goto(`${server.url}balloon-preview.html?${query}`);
 await guarded(page.waitForFunction("window.__balloon !== undefined"));
 const note = await guarded(page.evaluate("window.__balloon.ready"));
+await assertBackend(page, args.renderer);
 /** @type {Record<string, string[]>} */
 const groups = await page.evaluate("window.__balloon.groups");
 

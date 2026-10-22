@@ -15,6 +15,7 @@
 
 import * as THREE from "three";
 
+import { nodeGraft } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import type { SkyLook } from "./sky.ts";
 
@@ -139,6 +140,8 @@ export function litLine(
   name: string,
   light: LineLight,
 ): THREE.LineBasicMaterial {
+  // The node renderer's light (`cloth-tsl.ts`).
+  nodeGraft(material, "cloth", "line-light").userData.graftOwn = { uLineLight: light };
   return hazeMaterial(material, haze, name, (shader) => {
     shader.uniforms.uLineLight = light;
     shader.fragmentShader = shader.fragmentShader

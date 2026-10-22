@@ -37,6 +37,14 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".skis-preview");
 const outDir = join(root, "previews");
@@ -79,10 +87,11 @@ const args = parseArgs(
       help: "a modelled skier as a .glb (make blender KIND=skier); draws the figure sheet, and stands on the models",
     },
     cell: { kind: "number", default: 300, help: "one cell's width, px" },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 600, help: "how long the whole run may take, s" },
   },
-  "usage: node scripts/skis-preview.mjs [--sheet=skis|topsheets|poses|skier|head|landing|asset|rig|clips] [--skis=id] [--views=a,b] [--asset=a.glb,b.glb] [--skip-build]",
+  "usage: node scripts/skis-preview.mjs [--sheet=skis|topsheets|poses|skier|head|landing|asset|rig|clips] [--skis=id] [--views=a,b] [--asset=a.glb,b.glb] [--skip-build] [--renderer=b]",
 );
 
 const assets = args.asset
@@ -148,7 +157,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 
 let crashed = null;
@@ -177,7 +191,8 @@ for (const sheet of wanted) {
     skier: rider ? basename(rider, ".glb") : "",
   }).toString();
   const t0 = Date.now();
-  await page.goto(`${server.url}skis-preview.html?${query}`);
+  await page.goto(rendererUrl(`${server.url}skis-preview.html?${query}`, args.renderer));
+  await assertBackend(page, args.renderer);
   await page.waitForFunction("window.__skis !== undefined");
   await page.evaluate("window.__skis.ready");
   if (crashed) process.exit(1);

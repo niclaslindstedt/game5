@@ -104,6 +104,10 @@ export interface WorldRenderer {
   /** Wait for the GPU to finish everything asked of it, and say how long
    * that took, ms — what the first-visit probe times a frame with. */
   drain(): number;
+  /** The same wait taken in the background where the device has no pixel
+   * to read back (a WebGPU device's queue): the ms until it has run every
+   * draw so far, or null where `drain` already waited. */
+  drainLater(): Promise<number> | null;
   dispose(): void;
 }
 
@@ -131,7 +135,7 @@ export interface DevRenderer {
   /** How far under the snow drawn round him the player's skis stand, at
    * each ski's tip, middle and tail, from the lens (`snow-under.ts`) — a
    * second draw of the ground, so never from a frame being timed. */
-  skisUnder(): UnderPoint[];
+  skisUnder(): Promise<UnderPoint[]>;
   /** Kilograms of thrown snow the deformable snow has dug this run — the
    * spray's own, one budget (`snow-takes.ts`); 0 with none. */
   snowDug(): number;

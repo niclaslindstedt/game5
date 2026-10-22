@@ -27,6 +27,7 @@ import { driftGeometry } from "../game/cabins-view.ts";
 import { facadeMaterial } from "../game/facade-mesh.ts";
 import { lodgeYardGeometry } from "../game/lodge-yard.ts";
 import { LUX_TO_LAMP } from "../game/piste-lights.ts";
+import { createGpu } from "../game/own-gpu.ts";
 
 const CELL_W = 300;
 const CELL_H = 240;
@@ -69,7 +70,7 @@ async function main(): Promise<void> {
   sheetCanvas.height = CELL_H * kinds.length;
   const sheet = sheetCanvas.getContext("2d") as CanvasRenderingContext2D;
   const cell = document.createElement("canvas");
-  const renderer = new THREE.WebGLRenderer({ canvas: cell, antialias: true });
+  const renderer = (await createGpu(cell, { antialias: true, haze })).renderer;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;

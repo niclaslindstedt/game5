@@ -31,6 +31,14 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".trees-preview");
 const outDir = join(root, "previews");
@@ -60,11 +68,12 @@ const args = parseArgs(
       help: "each kind's lead variant at the ages a wood holds, sapling to veteran",
     },
     age: { kind: "number", default: 90, help: "the age every trunk is drawn at, years" },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 600, help: "how long the sheet may take to draw, s" },
     out: { kind: "string", default: "", help: "where the sheet is written" },
   },
-  "usage: node scripts/trees-preview.mjs [--kinds=a,b] [--region=id] [--lod=0|1|2] [--sketch] [--ages] [--age=years] [--skip-build] [--out=path]",
+  "usage: node scripts/trees-preview.mjs [--kinds=a,b] [--region=id] [--lod=0|1|2] [--sketch] [--ages] [--age=years] [--skip-build] [--out=path] [--renderer=b]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -92,7 +101,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const page = await browser.newPage({ viewport: { width: 1900, height: 1500 } });
 
@@ -127,7 +141,8 @@ const out =
 console.log(
   `trees — ${args.kinds || "every kind"}, ${args.region}, ${(args.cards ? ["full", "light", "cloud"] : ["full", "mid", "far"])[lod]} cut${args.ages ? ", by age" : `, ${args.age} yr`}`,
 );
-await page.goto(`${server.url}trees-preview.html${query}`);
+await page.goto(rendererUrl(`${server.url}trees-preview.html${query}`, args.renderer));
+await assertBackend(page, args.renderer);
 await Promise.race([
   page.waitForFunction("window.__done === true", undefined, { timeout: args.timeout * 1000 }),
   new Promise((_, fail) => {

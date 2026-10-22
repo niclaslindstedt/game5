@@ -65,6 +65,7 @@ import { CROWD_LODS, type CrowdLod } from "../game/crowd-shapes.ts";
 import { createHazeUniforms } from "../game/haze.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, withPreset } from "../game/settings-video.ts";
+import { createGpu } from "../game/own-gpu.ts";
 import { dogCells, dogShots } from "./dogs-sheet.ts";
 import { KNOCK_COLS, knockCells } from "./knocks-sheet.ts";
 import { bench, summerCells, summerShots } from "./summer-people-sheet.ts";
@@ -655,14 +656,14 @@ function propCells(): Cell[] {
   return cells;
 }
 
-function drawSheet(cells: Cell[], cols: number): void {
+async function drawSheet(cells: Cell[], cols: number): Promise<void> {
   const rows = Math.ceil(cells.length / cols);
   const canvas = document.getElementById("stage") as HTMLCanvasElement;
   canvas.width = CELL_W * Math.min(cols, cells.length);
   canvas.height = CELL_H * rows;
   const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
   const cell = document.createElement("canvas");
-  const renderer = new THREE.WebGLRenderer({ canvas: cell, antialias: true });
+  const renderer = (await createGpu(cell, { antialias: true, haze })).renderer;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setSize(CELL_W, CELL_H, false);
@@ -972,7 +973,7 @@ async function resort(): Promise<void> {
 if (sheet === "resort") {
   void resort();
 } else if (sheet === "knocks") {
-  drawSheet(knockCells(haze, seed), KNOCK_COLS);
+  await drawSheet(knockCells(haze, seed), KNOCK_COLS);
 } else {
   const pick = {
     moves: moveCells,
@@ -987,5 +988,5 @@ if (sheet === "resort") {
       : sheet === "props" || sheet === "dogs" || sheet === "summer"
         ? 8
         : TARGETS + 1;
-  drawSheet(cells, cols);
+  await drawSheet(cells, cols);
 }

@@ -24,6 +24,9 @@
 // only submits them measures how fast this machine TALKS to its graphics
 // card. Every frame therefore ends by reading one pixel back
 // (`renderer.drain()`), which cannot be answered until the frame is drawn.
+// A WebGPU device has no such read: there the frame waits for the device's
+// queue to empty (`renderer.drainLater()`, `onSubmittedWorkDone`) before
+// the next is pumped, which is the same wait taken in the background.
 //
 // HOW TO READ THE LINE: the workload is fixed ACROSS runs but not flat
 // ALONG one. The race starts with four skis on the grid and strings out
@@ -136,6 +139,15 @@ export type BenchmarkRace = {
  * before it ended, so its bill is its whole PERIOD and a run's periods tile
  * its elapsed time exactly. Returns when the frame closed. */
 function benchFrame(race: BenchmarkRace, into?: RunTotals, since?: number): number {
+  const drawn = drawBench(race);
+  return closeBench(race, drawn, race.renderer.drain(), into, since);
+}
+
+/** A frame stepped and drawn, not yet waited for: when it opened and when
+ * the simulation was through. */
+type Drawn = { opened: number; stepped: number };
+
+function drawBench(race: BenchmarkRace): Drawn {
   const { state, renderer } = race;
   const opened = performance.now();
   for (let i = 0; i < STEPS_PER_FRAME; i++) step(state, botInput(state));
@@ -143,7 +155,18 @@ function benchFrame(race: BenchmarkRace, into?: RunTotals, since?: number): numb
   // The frame's time is the PLAN's, not the clock's: the camera eases on it,
   // and a slow machine must frame the race exactly as a fast one does.
   renderer.draw(state, 1, BENCHMARK.step);
-  const gpu = renderer.drain();
+  return { opened, stepped };
+}
+
+/** The frame waited for (`gpu` ms) and billed. Returns when it closed. */
+function closeBench(
+  race: BenchmarkRace,
+  { opened, stepped }: Drawn,
+  gpu: number,
+  into?: RunTotals,
+  since?: number,
+): number {
+  const { renderer } = race;
   const closed = performance.now();
   last.simMs = stepped - opened;
   last.gpuMs = gpu;
@@ -328,7 +351,18 @@ export function runBenchmark(
     if (without !== null) {
       renderer.setHidden(without === "" ? hidden : [...hidden, without], without);
     }
-    const now = benchFrame(race, totals, framed);
+    const drawn = drawBench(race);
+    const later = renderer.drainLater();
+    if (!later)
+      return void after(without, closeBench(race, drawn, renderer.drain(), totals, framed));
+    void later.then((gpu) => {
+      if (!stopped) after(without, closeBench(race, drawn, gpu, totals, framed));
+    });
+  };
+
+  /** The rest of a frame's tick, once it has been waited for. */
+  const after = (without: Hideable | "" | null, now: number): void => {
+    const inBlock = sweep ? frames % sweep.plan.blockFrames : 0;
     if (without !== null) {
       const t = fence[without];
       t.frames += 1;

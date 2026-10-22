@@ -56,6 +56,14 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".civilians-preview");
 
@@ -121,10 +129,11 @@ const args = parseArgs(
     tag: { kind: "string", default: "", help: "a suffix on every file name (a round's name)" },
     width: { kind: "number", default: 1280, help: "the resort's picture width, px" },
     height: { kind: "number", default: 720, help: "the resort's picture height, px" },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 900, help: "how long a sheet may take to draw, s" },
   },
-  "usage: node scripts/civilians-preview.mjs [--sheet=figures,moves,props,dogs,knocks,summer,resort] [--summer] [--bodies=a,b] [--seed=n] [--views=a,b] [--night=a,b] [--tag=round1] [--skip-build]",
+  "usage: node scripts/civilians-preview.mjs [--sheet=figures,moves,props,dogs,knocks,summer,resort] [--summer] [--bodies=a,b] [--seed=n] [--views=a,b] [--night=a,b] [--tag=round1] [--skip-build] [--renderer=b]",
 );
 
 const sheets = args.sheet.split(",").map((s) => s.trim());
@@ -176,7 +185,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 
 /** Open the page on a sheet; resolve once it says it is done — or fail at
@@ -194,7 +208,8 @@ async function open(sheet, extra, viewport) {
   page.setDefaultTimeout(args.timeout * 1000);
   const params = new URLSearchParams({ sheet, seed: String(args.seed), ...extra });
   if (args.bodies) params.set("bodies", args.bodies);
-  await page.goto(`${server.url}civilians-preview.html?${params}`);
+  await page.goto(rendererUrl(`${server.url}civilians-preview.html?${params}`, args.renderer));
+  await assertBackend(page, args.renderer);
   await Promise.race([
     page.waitForFunction("window.__done === true", undefined, { timeout: args.timeout * 1000 }),
     new Promise((_, fail) => {

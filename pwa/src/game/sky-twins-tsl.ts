@@ -36,6 +36,11 @@
 //   flag-sail, flag-pennant, slab-plates, piste-glow, fire-*
 //            the props: the challenges' flags, the slab's plates, the
 //            floodlights' haloes and the fires (`prop-twins-tsl.ts`, part 13)
+//   stage-sky
+//            the gear stage's dome (`stage-tsl.ts`, part 14)
+//   trail-overlay, under-copy
+//            the instruments: the developer's trail corner and the snow
+//            lab's probe (`instruments-tsl.ts`, part 14)
 
 import type * as THREE from "three";
 import type { NodeMaterial } from "three/webgpu";
@@ -49,6 +54,7 @@ import { copyTwin, deformShadeTwin, fillTwin, groomTwin, stampTwin } from "./tra
 import type { HazeUniforms } from "./haze.ts";
 import type { HazeFogOptions } from "./haze-tsl.ts";
 import { froxelTwin, msTwin, transTwin, viewTwin } from "./sky-atmo-tsl.ts";
+import { instrumentTwin } from "./instruments-tsl.ts";
 import { groundSpecs } from "./terrain.ts";
 import { groundTwin } from "./terrain-tsl.ts";
 import { particleTwin } from "./particle-twins-tsl.ts";
@@ -102,7 +108,8 @@ export function createTwins(haze: HazeUniforms, how: HazeFogOptions): Twins {
           figureTwinOf(m, kind, haze) ??
           particleTwin(m, kind, haze, how) ??
           effectTwin(m, kind) ??
-          propTwinOf(m, kind, haze)
+          propTwinOf(m, kind, haze) ??
+          instrumentTwin(m, kind)
         );
     }
   };

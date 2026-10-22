@@ -28,6 +28,14 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".bones-preview");
 const outDir = join(root, "previews");
@@ -40,11 +48,12 @@ const args = parseArgs(
       default: "",
       help: "only these bones (humerusL, radiusL, ulnaL, femurL, tibiaL)",
     },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 600, help: "how long the sheet may take to draw, s" },
     out: { kind: "string", default: "", help: "where the sheet is written" },
   },
-  "usage: node scripts/bones-preview.mjs [--bones=a,b] [--skip-build] [--out=path]",
+  "usage: node scripts/bones-preview.mjs [--bones=a,b] [--skip-build] [--out=path] [--renderer=b]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -72,7 +81,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const page = await browser.newPage({ viewport: { width: 2600, height: 1400 } });
 
@@ -91,7 +105,8 @@ if (args.bones) params.set("bones", args.bones);
 const out =
   args.out || join(outDir, `bones${args.bones ? `-${args.bones.replace(/,/g, "-")}` : ""}.png`);
 console.log(`bones — ${args.bones || "every bone"}`);
-await page.goto(`${server.url}bones-preview.html?${params}`);
+await page.goto(rendererUrl(`${server.url}bones-preview.html?${params}`, args.renderer));
+await assertBackend(page, args.renderer);
 await Promise.race([
   page.waitForFunction("window.__done === true", undefined, { timeout: args.timeout * 1000 }),
   new Promise((_, fail) => {

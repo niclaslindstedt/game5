@@ -21,10 +21,13 @@
 // switched off) runs three's WebGL2 back end instead — `webgpu-gl`, said as
 // such in `__SH_BACKEND__` and the report, never passed off as WebGPU.
 
+import type * as THREE from "three";
 import { WebGPURenderer } from "three/webgpu";
 
 import { freshBackend, type Backend } from "./gpu-backend.ts";
 import { dressScene, type Dressing } from "./gpu-dress.ts";
+import type { HazeUniforms } from "./haze.ts";
+import { createNodeTimer, type TimedRenderer } from "./gpu-timer-node.ts";
 import { nodeGradePass } from "./grade-tsl.ts";
 import "./node-fixes-tsl.ts";
 import { CANVAS_SAMPLES } from "./region-picture.ts";
@@ -111,19 +114,90 @@ async function requestDevice(): Promise<Prepared> {
 /** Make ready to draw on `asked` (a webgpu path): the device, then the
  * factory every world renderer from here on is made by. */
 export async function prepareGpu(asked: Exclude<Backend, "webgl">): Promise<void> {
-  const ready =
-    asked === "webgpu"
-      ? (prepared ??= requestDevice().catch(() => ({
-          device: null,
-          adapter: "",
-          lost: { why: null },
-        })))
-      : Promise.resolve<Prepared>({ device: null, adapter: "", lost: { why: null } });
-  const { device, adapter, lost } = await ready;
+  const { device, adapter, lost } = await deviceFor(asked);
   const running: Backend = device ? "webgpu" : "webgpu-gl";
   setSeamFactory((canvas, options) =>
     gpuSeam(canvas, options, asked, running, device, adapter, lost),
   );
+}
+
+/** The device `asked` draws on: the adapter's, or none for the WebGL2 back
+ * end (asked for, or no adapter). Asked for once and shared. */
+function deviceFor(asked: Exclude<Backend, "webgl">): Promise<Prepared> {
+  return asked === "webgpu"
+    ? (prepared ??= requestDevice().catch(() => ({
+        device: null,
+        adapter: "",
+        lost: { why: null },
+      })))
+    : Promise.resolve<Prepared>({ device: null, adapter: "", lost: { why: null } });
+}
+
+/** The canvas's viewport and scissor counted from the BOTTOM, as WebGL's:
+ * a page of its own lays its cells out that way (`setViewport(x, y, …)`
+ * with y up), and the node renderer counts the canvas's from the top. */
+function bottomUp(renderer: WebGPURenderer): void {
+  type Box = (x: number | THREE.Vector4, y?: number, w?: number, h?: number) => void;
+  // A Vector2 as far as `getSize` writes one (three's core is not imported here).
+  const at = {
+    x: 0,
+    y: 0,
+    set(x: number, y: number) {
+      at.x = x;
+      at.y = y;
+      return at;
+    },
+  };
+  const size = at as unknown as THREE.Vector2;
+  const flip = (inner: Box): Box =>
+    function (x, y, w, h) {
+      if (typeof x !== "number") return inner(x.x, flipped(x.y, x.w), x.z, x.w);
+      return inner(x, flipped(y ?? 0, h ?? 0), w, h);
+    };
+  const flipped = (y: number, h: number): number => {
+    renderer.getSize(size);
+    return at.y - y - h;
+  };
+  const r = renderer as unknown as { setViewport: Box; setScissor: Box };
+  r.setViewport = flip(renderer.setViewport.bind(renderer) as Box);
+  r.setScissor = flip(renderer.setScissor.bind(renderer) as Box);
+}
+
+/** A NODE RENDERER OF ITS OWN (`own-gpu.ts`): a lab's or the gear stage's,
+ * on the shared device, every scene it draws dressed the first time
+ * (`gpu-dress.ts`) and brought up to the frame each draw. */
+export async function ownRenderer(
+  canvas: HTMLCanvasElement,
+  options: { antialias: boolean },
+  asked: Exclude<Backend, "webgl">,
+  haze: HazeUniforms,
+): Promise<{ renderer: WebGPURenderer; running: Backend; settled: () => Promise<void> }> {
+  const { device } = await deviceFor(asked);
+  const renderer = new WebGPURenderer({
+    canvas,
+    antialias: options.antialias,
+    alpha: false,
+    forceWebGL: device === null,
+    ...(device ? { device } : {}),
+  });
+  await renderer.init();
+  const dressed = new WeakMap<object, Dressing>();
+  const draw = renderer.render.bind(renderer);
+  renderer.render = (scene, camera) => {
+    let d = dressed.get(scene);
+    if (!d && (scene as THREE.Scene).isScene) {
+      dressed.set(scene, (d = dressScene(renderer, scene as THREE.Scene, haze)));
+    }
+    d?.begin();
+    draw(scene, camera);
+    d?.end();
+  };
+  bottomUp(renderer);
+  const running: Backend = device ? "webgpu" : "webgpu-gl";
+  globalThis.__SH_BACKEND__ = running;
+  const settled = (): Promise<void> =>
+    device ? device.queue.onSubmittedWorkDone() : glSettled(renderer);
+  return { renderer, running, settled };
 }
 
 function gpuSeam(
@@ -186,6 +260,13 @@ function gpuSeam(
     woods: () => dressing?.woods ?? null,
     endFrame: () => dressing?.end(),
     settled: () => (device ? device.queue.onSubmittedWorkDone() : glSettled(renderer)),
+    timer: (mode) => createNodeTimer(renderer as unknown as TimedRenderer, mode),
+    fence() {
+      if (!device) return null;
+      const at = performance.now();
+      return device.queue.onSubmittedWorkDone().then(() => performance.now() - at);
+    },
+    drainContext: () => (device ? null : (backendGl(renderer) ?? null)),
     info() {
       const r = renderer.info.render;
       const m = renderer.info.memory;
@@ -208,7 +289,7 @@ function gpuSeam(
 /** The WebGL back end's queue drained: a fence, polled a frame apart so the
  * loading card keeps drawing while the driver works. */
 function glSettled(renderer: WebGPURenderer): Promise<void> {
-  const gl = (renderer.backend as unknown as { gl?: WebGL2RenderingContext }).gl;
+  const gl = backendGl(renderer);
   const sync = gl?.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
   if (!gl || !sync) return Promise.resolve();
   gl.flush();
@@ -220,4 +301,9 @@ function glSettled(renderer: WebGPURenderer): Promise<void> {
     };
     poll();
   });
+}
+
+/** The node renderer's WebGL2 back end's context, or undefined on WebGPU. */
+function backendGl(renderer: WebGPURenderer): WebGL2RenderingContext | undefined {
+  return (renderer.backend as unknown as { gl?: WebGL2RenderingContext }).gl;
 }

@@ -51,6 +51,7 @@ import {
 import type { HazeUniforms } from "./haze.ts";
 import type { N } from "./haze-tsl.ts";
 import { GLOW } from "./piste-lights.ts";
+import { stageSkyTwin } from "./stage-tsl.ts";
 
 const {
   Discard,
@@ -514,6 +515,8 @@ export function propTwinOf(
       return figureTwin(m, plateSpec(), haze);
     case "piste-glow":
       return pisteGlowTwin(m as THREE.ShaderMaterial);
+    case "stage-sky":
+      return stageSkyTwin(m as THREE.ShaderMaterial);
     default:
       return kind.startsWith("fire-") ? fireTwin(m as THREE.ShaderMaterial, kind) : null;
   }

@@ -712,10 +712,7 @@ export function App() {
       if (!covered) renderer.draw(state, clock.alpha(), still ? 0 : dtRun);
       feedHudLive(hudLive, state);
       shots.serve();
-      if (timing) {
-        const drawMs = performance.now() - drawAt + renderer.drain();
-        pictureAuto.frame(frameMs, drawMs, videoOf(settingsRef.current));
-      }
+      if (timing) pictureAuto.drawn(frameMs, drawAt, renderer, videoOf(settingsRef.current));
       if (!still) {
         audio.setView(renderer.camera());
         audio.frame(state, dtRun, soundsLive(shellRef.current) ? 1 : CARD_DUCK);

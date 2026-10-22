@@ -57,6 +57,7 @@ import {
   type SkisModel,
 } from "../game/skis-body.ts";
 import type { SkierDress } from "../game/skier-dress.ts";
+import { createGpu } from "../game/own-gpu.ts";
 
 type Drawn = { rows: number; cols: number; note: string; table: string[] };
 
@@ -93,7 +94,8 @@ const dresses = outfitsAsked.map(dressFrom);
 // ---------------------------------------------------------------- scene
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 const host = document.getElementById("sheet") as HTMLDivElement;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+const renderer = (await createGpu(canvas, { antialias: true, preserveDrawingBuffer: true }))
+  .renderer;
 renderer.setPixelRatio(1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setScissorTest(true);

@@ -31,6 +31,14 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".birds-preview");
 const outDir = join(root, "previews");
@@ -48,6 +56,7 @@ const args = parseArgs(
       default: "near",
       help: "which cut: near, far, or both (each species' near cell, then its far)",
     },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 600, help: "how long the sheet may take to draw, s" },
     out: {
@@ -56,7 +65,7 @@ const args = parseArgs(
       help: "where the sheet is written (previews/birds[-far|-both].png)",
     },
   },
-  "usage: node scripts/birds-preview.mjs [--rows=a,b] [--lod=near|far|both] [--skip-build] [--out=path]",
+  "usage: node scripts/birds-preview.mjs [--rows=a,b] [--lod=near|far|both] [--skip-build] [--out=path] [--renderer=b]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -89,7 +98,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const page = await browser.newPage({ viewport: { width: 1360, height: 720 } });
 
@@ -111,7 +125,8 @@ if (args.lod !== "near") params.set("lod", args.lod);
 const query = params.size ? `?${params}` : "";
 const out = args.out || join(outDir, `birds${args.lod === "near" ? "" : `-${args.lod}`}.png`);
 console.log(`birds — ${args.rows || "every bird and every animal"}, the ${args.lod} cut`);
-await page.goto(`${server.url}birds-preview.html${query}`);
+await page.goto(rendererUrl(`${server.url}birds-preview.html${query}`, args.renderer));
+await assertBackend(page, args.renderer);
 await Promise.race([
   page.waitForFunction("window.__done === true", undefined, { timeout: args.timeout * 1000 }),
   new Promise((_, fail) => {

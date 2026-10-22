@@ -30,6 +30,14 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".cabins-preview");
 const outDir = join(root, "previews");
@@ -42,11 +50,12 @@ const args = parseArgs(
       default: "",
       help: "only these kinds (hut, cabin, chalet, shed, afterski)",
     },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 600, help: "how long the sheet may take to draw, s" },
     out: { kind: "string", default: "", help: "where the sheet is written" },
   },
-  "usage: node scripts/cabins-preview.mjs [--kinds=a,b] [--skip-build] [--out=path]",
+  "usage: node scripts/cabins-preview.mjs [--kinds=a,b] [--skip-build] [--out=path] [--renderer=b]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -74,7 +83,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const page = await browser.newPage({ viewport: { width: 2200, height: 1100 } });
 
@@ -93,7 +107,8 @@ if (args.kinds) params.set("kinds", args.kinds);
 const out =
   args.out || join(outDir, `cabins${args.kinds ? `-${args.kinds.replace(/,/g, "-")}` : ""}.png`);
 console.log(`cabins — ${args.kinds || "every kind"}`);
-await page.goto(`${server.url}cabins-preview.html?${params}`);
+await page.goto(rendererUrl(`${server.url}cabins-preview.html?${params}`, args.renderer));
+await assertBackend(page, args.renderer);
 await Promise.race([
   page.waitForFunction("window.__done === true", undefined, { timeout: args.timeout * 1000 }),
   new Promise((_, fail) => {

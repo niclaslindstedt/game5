@@ -40,6 +40,14 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import {
+  assertBackend,
+  rendererArgs,
+  rendererFlag,
+  rendererUrl,
+  renderersOf,
+} from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(root, "previews", ".board-preview");
 const outDir = join(root, "previews");
@@ -48,6 +56,7 @@ const args = parseArgs(
   process.argv.slice(2),
   {
     board: { kind: "string", default: "lynx", help: "the board drawn" },
+    renderer: rendererFlag(),
     "skip-build": { kind: "flag", help: "reuse the bundle from the last run" },
     timeout: { kind: "number", default: 600, help: "how long the sheet may take to draw, s" },
     out: { kind: "string", default: "", help: "where the sheet is written" },
@@ -57,7 +66,7 @@ const args = parseArgs(
       help: "board (the deck, bindings and boots), range (every board side by side) or grabs (the rider's tricks, every grab from four sides)",
     },
   },
-  "usage: node scripts/board-preview.mjs [--board=id] [--sheet=board|range|grabs] [--skip-build] [--out=path]",
+  "usage: node scripts/board-preview.mjs [--board=id] [--sheet=board|range|grabs] [--skip-build] [--out=path] [--renderer=b]",
 );
 
 mkdirSync(outDir, { recursive: true });
@@ -116,7 +125,12 @@ if (!found) process.exit(1);
 const server = await serveDir(buildDir);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
+  args: [
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    "--ignore-gpu-blocklist",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const page = await browser.newPage({ viewport: { width: 2200, height: 1100 } });
 
@@ -135,7 +149,8 @@ params.set("board", args.board);
 if (args.sheet === "range") params.set("sheet", "range");
 const out = args.out || join(outDir, args.sheet === "range" ? "board-range.png" : "board.png");
 console.log(args.sheet === "range" ? "board — the range" : `board — ${args.board}`);
-await page.goto(`${server.url}board-preview.html?${params}`);
+await page.goto(rendererUrl(`${server.url}board-preview.html?${params}`, args.renderer));
+await assertBackend(page, args.renderer);
 await Promise.race([
   page.waitForFunction("window.__done === true", undefined, { timeout: args.timeout * 1000 }),
   new Promise((_, fail) => {

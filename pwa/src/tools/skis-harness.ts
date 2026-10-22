@@ -88,6 +88,7 @@ import {
 } from "../game/skis-body.ts";
 import { TOPSHEETS } from "../game/ski-topsheets.ts";
 import { lookFrame } from "../game/ski-looks.ts";
+import { createGpu } from "../game/own-gpu.ts";
 
 type Sheet =
   | "skis"
@@ -237,7 +238,8 @@ function riderOf(kit: number): SkierFigure {
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 const host = document.getElementById("sheet") as HTMLDivElement;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+const renderer = (await createGpu(canvas, { antialias: true, preserveDrawingBuffer: true }))
+  .renderer;
 renderer.setPixelRatio(1);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.setScissorTest(true);

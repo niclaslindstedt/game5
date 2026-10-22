@@ -20,6 +20,12 @@
 // program linked after the hit (and what told it from the one it is most
 // like: a key that moved), the last frame's uploads by call and size, and
 // what the gore group held at the end, by kind.
+//
+// ON THE WEBGPU PATHS (`?renderer=`, `docs/webgpu.md`) a "link" is a
+// render or compute PIPELINE made on the device (named by its label, or by
+// its vertex stage's module's), counted at `GPUDevice`'s own calls, and the
+// uploads are the queue's writes; on the WebGL2 back end they are the
+// context's, as on WebGL. The wait is the device's queue (`drainLater`).
 
 import {
   createGame,
@@ -235,6 +241,60 @@ for (const name of ["texImage2D", "texSubImage2D", "texImage3D", "texSubImage3D"
   };
 }
 
+// THE DEVICE'S LEDGER on the webgpu paths: every pipeline made and every
+// byte written through the queue.
+if (typeof GPUDevice !== "undefined") {
+  const dev = GPUDevice.prototype;
+  const made = (d: GPURenderPipelineDescriptor | GPUComputePipelineDescriptor): void => {
+    gl.links++;
+    const stage = "vertex" in d ? d.vertex : (d as GPUComputePipelineDescriptor).compute;
+    gl.named.push(d.label || stage?.module?.label || "pipeline");
+    gl.defines.push([]);
+  };
+  for (const name of [
+    "createRenderPipeline",
+    "createRenderPipelineAsync",
+    "createComputePipeline",
+    "createComputePipelineAsync",
+  ] as const) {
+    const f = dev[name] as (this: GPUDevice, d: never) => unknown;
+    (dev as unknown as Record<string, unknown>)[name] = function (this: GPUDevice, d: never) {
+      made(d);
+      return f.call(this, d);
+    };
+  }
+  const queue = GPUQueue.prototype;
+  const writeBuffer = queue.writeBuffer as (this: GPUQueue, ...a: unknown[]) => void;
+  (queue as unknown as { writeBuffer: unknown }).writeBuffer = function (
+    this: GPUQueue,
+    ...a: unknown[]
+  ) {
+    const data = a[2];
+    const each =
+      ArrayBuffer.isView(data) && "BYTES_PER_ELEMENT" in data
+        ? (data.BYTES_PER_ELEMENT as number)
+        : 1;
+    const n = typeof a[4] === "number" ? a[4] * each : sizeOf(data, (a[3] as number) ?? 0);
+    upload(n, "writeBuffer");
+    writeBuffer.apply(this, a);
+  };
+  const writeTexture = queue.writeTexture as (this: GPUQueue, ...a: unknown[]) => void;
+  (queue as unknown as { writeTexture: unknown }).writeTexture = function (
+    this: GPUQueue,
+    ...a: unknown[]
+  ) {
+    upload(sizeOf(a[1]), "writeTexture");
+    writeTexture.apply(this, a);
+  };
+}
+
+/** The frame's draws waited for: the device's queue where there is one. */
+async function waitGpu(): Promise<void> {
+  const later = renderer.drainLater();
+  if (later) await later;
+  else renderer.drain();
+}
+
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 canvas.style.width = `${width}px`;
 canvas.style.height = `${height}px`;
@@ -302,7 +362,7 @@ const ready = (async () => {
   renderer.setCamera("chase", true);
   renderer.draw(first, 1, FRAME);
   await renderer.shadeSettled();
-  renderer.drain();
+  await waitGpu();
   return `seed ${seed}${region ? ` ${region}` : ""}, ${tier}, ${width}×${height} at ${dpr}×, ${twins} twin(s) a frame`;
 })();
 
@@ -335,11 +395,11 @@ const programs = (): { name: string; cacheKey: string }[] =>
   (renderer.gl.info.programs ?? []) as unknown as { name: string; cacheKey: string }[];
 
 /** One still frame, waited on: its milliseconds end to end and its draws. */
-function still(state: GameState): { ms: number; calls: number; up: number } {
+async function still(state: GameState): Promise<{ ms: number; calls: number; up: number }> {
   const at = performance.now();
   const bytes = gl.bytes;
   renderer.draw(state, 1, STILL);
-  renderer.drain();
+  await waitGpu();
   return {
     ms: performance.now() - at,
     calls: renderer.cost().calls,
@@ -388,7 +448,7 @@ async function run(scene: string): Promise<{
     const at = performance.now();
     renderer.draw(state, 1, FRAME);
     const drawn = performance.now();
-    renderer.drain();
+    await waitGpu();
     const waited = performance.now();
     const cost = renderer.cost();
     const row: CostRow = {
@@ -428,12 +488,12 @@ async function run(scene: string): Promise<{
       let shown = Infinity;
       let hidden = Infinity;
       for (let r = 0; r < twins; r++) {
-        const a = still(state);
+        const a = await still(state);
         shown = Math.min(shown, a.ms);
         row.shownCalls = a.calls;
         row.shownUp = a.up;
         for (const g of groups) g.visible = false;
-        const b = still(state);
+        const b = await still(state);
         for (const g of groups) g.visible = true;
         hidden = Math.min(hidden, b.ms);
         row.hiddenCalls = b.calls;

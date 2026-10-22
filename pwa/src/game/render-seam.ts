@@ -15,7 +15,9 @@
 
 import * as THREE from "three";
 
+import type { GpuMode } from "./benchmark-report.ts";
 import { freshBackend, type BackendState } from "./gpu-backend.ts";
+import type { GpuTimer } from "./gpu-timer.ts";
 import type { WoodsKit } from "./forest-nodes.ts";
 import type { HazeUniforms } from "./haze.ts";
 import type { NodePicture } from "./region-picture.ts";
@@ -66,6 +68,17 @@ export type RenderSeam = {
   /** The node renderer's counters since `beginFrame` (unused on WebGL,
    * whose picture reports its own). */
   info(): SeamInfo;
+  /** THE NODE RENDERER'S TIMER (`gpu-timer-node.ts`), cut at `mode`; null
+   * on WebGL, whose instruments time its context themselves. */
+  timer(mode: GpuMode): GpuTimer | null;
+  /** THE FENCE, waited for in the background (`renderer-instruments.ts`):
+   * resolves with the ms from now until the device has run every draw
+   * handed to it so far. Null where a pixel read back is the fence (WebGL
+   * and the node renderer's WebGL2 back end, `drainContext`). */
+  fence(): Promise<number> | null;
+  /** The WebGL2 context a pixel read back waits on: WebGL's own, the node
+   * renderer's WebGL2 back end's, or null on a WebGPU device. */
+  drainContext(): WebGL2RenderingContext | null;
   dispose(): void;
 };
 
@@ -113,6 +126,9 @@ function webglSeam(canvas: HTMLCanvasElement, options: SeamOptions): RenderSeam 
     endFrame: () => {},
     settled: () => Promise.resolve(),
     info: () => none,
+    timer: () => null,
+    fence: () => null,
+    drainContext: () => gl.getContext() as WebGL2RenderingContext,
     dispose() {
       gl.dispose();
       gl.forceContextLoss(); // a phone keeps only a few contexts alive at once

@@ -19,10 +19,14 @@
 //     exposes them — printed beside the patched count as a cross-check.
 //
 // `--renderer` draws on another back end (`?renderer=`, `docs/webgpu.md`).
-// The patched context is WebGL's, so on `webgpu` it counts nothing of the
-// world: there the meter's columns stay empty and the frame's own counters
-// are the benchmark's (`make bench ARGS=--renderer=both`) until the WebGPU
-// meter lands (the plan's instruments part).
+// On `webgpu-gl` the node renderer's WebGL2 back end draws through the
+// same patched context. On `webgpu` THE WEBGPU METER counts instead,
+// patched on the device's own encoders before any page script runs: every
+// draw / drawIndexed / drawIndirect a pass or a bundle records (an
+// indirect draw's triangles are on the GPU and are not counted), every
+// setPipeline as a program bind and every setBindGroup as a texture bind,
+// and the textures made and the bytes written through the queue as what a
+// map built.
 //
 // READ THE DRAW CALLS FIRST. Headless Chromium rasterizes in software, so
 // the frame RATE here says nothing about a real machine — but draw calls,
@@ -121,6 +125,42 @@ const patch = (proto) => {
 };
 patch(window.WebGL2RenderingContext && window.WebGL2RenderingContext.prototype);
 patch(window.WebGLRenderingContext && window.WebGLRenderingContext.prototype);
+// THE WEBGPU METER: a draw is counted where a pass or a bundle records it.
+const gpuPatch = (proto) => {
+  if (!proto) return;
+  const m = window.__meter;
+  const wrap = (name, count) => {
+    const inner = proto[name];
+    if (!inner) return;
+    proto[name] = function (...a) { m.draws++; m.tris += count(a); return inner.apply(this, a); };
+  };
+  wrap("draw", (a) => (a[0] / 3) * (a[1] ?? 1));
+  wrap("drawIndexed", (a) => (a[0] / 3) * (a[1] ?? 1));
+  wrap("drawIndirect", () => 0);
+  wrap("drawIndexedIndirect", () => 0);
+  const setPipeline = proto.setPipeline;
+  proto.setPipeline = function (...a) { m.programs++; return setPipeline.apply(this, a); };
+  const setBindGroup = proto.setBindGroup;
+  proto.setBindGroup = function (...a) { m.textures++; return setBindGroup.apply(this, a); };
+};
+gpuPatch(window.GPURenderPassEncoder && window.GPURenderPassEncoder.prototype);
+gpuPatch(window.GPURenderBundleEncoder && window.GPURenderBundleEncoder.prototype);
+if (window.GPUDevice) {
+  const createTexture = GPUDevice.prototype.createTexture;
+  GPUDevice.prototype.createTexture = function (...a) {
+    window.__built.textures++;
+    return createTexture.apply(this, a);
+  };
+}
+if (window.GPUQueue) {
+  const writeBuffer = GPUQueue.prototype.writeBuffer;
+  GPUQueue.prototype.writeBuffer = function (...a) {
+    const src = a[2];
+    const each = src && src.BYTES_PER_ELEMENT ? src.BYTES_PER_ELEMENT : 1;
+    window.__built.bytes += typeof a[4] === "number" ? a[4] * each : (src?.byteLength ?? 0);
+    return writeBuffer.apply(this, a);
+  };
+}
 const raf = window.requestAnimationFrame.bind(window);
 window.requestAnimationFrame = (cb) => raf((t) => {
   const m = window.__meter;
@@ -257,6 +297,11 @@ if (rows.length) {
       "\nwindow.__SH_STATS__ is not exposed by this build; only the patched context was read.",
     );
   }
+}
+if (args.renderer === "webgpu") {
+  console.log(
+    "\nthe WebGPU meter: useProg counts setPipeline, bindTex setBindGroup; tris leave out indirect draws.",
+  );
 }
 console.log("\ndraws/tris/binds are per frame and hardware-independent — judge a change on those.");
 console.log("fps is software rasterization and comparable only against another run here.");

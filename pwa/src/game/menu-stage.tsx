@@ -58,7 +58,7 @@ const WINTER: StageLook = { summer: false, bike: false };
 const build = async (canvas: HTMLCanvasElement, skis: PairId, outfit: Outfit, look: StageLook) => {
   const { createGearStage, loadModels } = await import("./gear-stage.ts");
   await loadModels();
-  const stage = createGearStage(canvas);
+  const stage = await createGearStage(canvas);
   stage.look(look);
   stage.set("rider", pairById(skis), outfit);
   return stage;

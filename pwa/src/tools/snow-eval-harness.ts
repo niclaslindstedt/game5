@@ -45,6 +45,7 @@ import { DEFAULT_VIDEO, withPreset, type Tier } from "../game/settings-video.ts"
 import { hourAt, meadow, pisteSpot } from "./stage.ts";
 import { FILM_SCENES, filmMeans, filmSheet, type FilmCell } from "./snow-eval-film.ts";
 import { deformAs } from "../game/deform-snow.ts";
+import { labBackend } from "../game/own-gpu.ts";
 import { underSheet, type UnderRow } from "./snow-eval-skis.ts";
 import { deformPerf, deformPerfScenes, type DeformPerfRow } from "./snow-eval-deform.ts";
 
@@ -126,6 +127,8 @@ const flight = params.get("flight");
 // `deform=0`: the game without the deformable snow, the trail map alone (a BEFORE).
 if (params.get("deform") === "0") deformAs(false);
 if (flight === "cpu" || flight === "gpu") flySprayOn(flight === "gpu");
+// `?renderer=webgpu|webgpu-gl` (`docs/webgpu.md`): the device made first.
+await labBackend();
 const renderer: WorldRendererExt = createWorldRenderer(stage, {
   video: withPreset(DEFAULT_VIDEO, "high"),
   preserveDrawingBuffer: true,

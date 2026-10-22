@@ -13,8 +13,17 @@
 // (the plane through that point, along the ground's own normal), so a
 // positive UNDER is a base standing that far below the snow drawn over it,
 // and a negative one a base in sight over it.
+//
+// ON THE NODE RENDERER the copy is drawn by its twin (`instruments-tsl.ts`,
+// texel for texel) and each pixel is read back waited for
+// (`readRenderTargetPixelsAsync`). Two things differ there and are read off
+// the renderer: a WebGPU texture's row 0 is its top (WebGL's, and three's
+// WebGL2 back end's, its bottom), and WebGPU's depth runs 0..1 in clip
+// space where WebGL's runs −1..1 (`camera.coordinateSystem`).
 
 import * as THREE from "three";
+
+import { nodeTwin } from "./gpu-backend.ts";
 
 /** Where along a ski its base is read: near the tip (before the shovel's
  * rise), the middle, near the tail — shares of its length, tip first. */
@@ -74,7 +83,8 @@ void main() { gl_FragColor = vec4(texture2D(uDepth, vUv).r, 0.0, 0.0, 1.0); }
 
 export type SnowUnder = {
   /** Draw `ground` alone from `camera` and read each base's gap; the
-   * renderer's own target and every other part's visibility are restored. */
+   * renderer's own target and every other part's visibility are restored.
+   * At once on WebGL; the node renderer's read back is waited for. */
   measure(
     gl: THREE.WebGLRenderer,
     scene: THREE.Scene,
@@ -82,7 +92,7 @@ export type SnowUnder = {
     ground: THREE.Object3D,
     bases: readonly THREE.Mesh[],
     level: { normalAt(x: number, z: number, out: { x: number; y: number; z: number }): unknown },
-  ): UnderPoint[];
+  ): Promise<UnderPoint[]>;
   dispose(): void;
 };
 
@@ -100,6 +110,7 @@ export function createSnowUnder(): SnowUnder {
       depthWrite: false,
     }),
   );
+  nodeTwin(quad.material as THREE.ShaderMaterial, "snow-under", "under-copy");
   quad.frustumCulled = false;
   const quadScene = new THREE.Scene();
   quadScene.add(quad);
@@ -111,7 +122,20 @@ export function createSnowUnder(): SnowUnder {
   const n = { x: 0, y: 1, z: 0 };
   const px = new Float32Array(4);
   return {
-    measure(gl, scene, camera, ground, bases, level) {
+    async measure(gl, scene, camera, ground, bases, level) {
+      const node = gl as unknown as {
+        isWebGPURenderer?: boolean;
+        backend?: { isWebGPUBackend?: boolean };
+        readRenderTargetPixelsAsync?: (
+          t: THREE.RenderTarget,
+          x: number,
+          y: number,
+          w: number,
+          h: number,
+        ) => Promise<ArrayBufferView>;
+      };
+      const onNode = node.isWebGPURenderer === true;
+      const topRow = onNode && node.backend?.isWebGPUBackend === true;
       gl.getDrawingBufferSize(size);
       const w = Math.max(1, Math.floor(size.x));
       const h = Math.max(1, Math.floor(size.y));
@@ -165,12 +189,18 @@ export function createSnowUnder(): SnowUnder {
           if (Math.abs(ndc.x) >= 1 || Math.abs(ndc.y) >= 1 || ndc.z >= 1) continue;
           const ix = Math.min(w - 1, Math.floor(((ndc.x + 1) / 2) * w));
           const iy = Math.min(h - 1, Math.floor(((ndc.y + 1) / 2) * h));
-          gl.readRenderTargetPixels(copy!, ix, iy, 1, 1, px);
+          if (onNode && node.readRenderTargetPixelsAsync) {
+            const row = topRow ? h - 1 - iy : iy;
+            const got = await node.readRenderTargetPixelsAsync(copy!, ix, row, 1, 1);
+            px[0] = (got as Float32Array)[0];
+          } else gl.readRenderTargetPixels(copy!, ix, iy, 1, 1, px);
           const depth = px[0];
           if (!(depth < 0.999999)) continue;
           // The drawn snow on the ray through the base: the same screen
           // point at the snow's depth, unprojected.
-          s.set(ndc.x, ndc.y, depth * 2 - 1).unproject(camera);
+          const z =
+            camera.coordinateSystem === THREE.WebGPUCoordinateSystem ? depth : depth * 2 - 1;
+          s.set(ndc.x, ndc.y, z).unproject(camera);
           level.normalAt(s.x, s.z, n);
           const nl = Math.hypot(n.x, n.y, n.z) || 1;
           // The base's height over the snow's plane there, along the plane's

@@ -15,9 +15,15 @@
 // warm white and berm in blue over near-black, so an empty map reads as an
 // empty map rather than as nothing drawn. Presentation of an instrument: one
 // extra pass after the frame, only while the row is on.
+//
+// On the node renderer the quad is drawn by its twin (`instruments-tsl.ts`)
+// straight onto the canvas: the output transform is taken off for the draw
+// (the twin writes the sRGB curve itself, as WebGL's does), and the
+// viewport is placed from the top, as the node renderer counts it.
 
 import * as THREE from "three";
 
+import { nodeTwin } from "./gpu-backend.ts";
 import type { TrailUniforms } from "./trail-map.ts";
 
 /** Each square's side as a share of the buffer's height, and its margin. */
@@ -30,9 +36,12 @@ export type TrailOverlay = {
   dispose(): void;
 };
 
-export function createTrailOverlay(): TrailOverlay {
+/** A square's material over `map`, the trail's OWN uniform: the node
+ * renderer's twin follows that slot as the ground's does, so the fine map
+ * and its spare swapping under it are followed too. */
+function squareMaterial(map: { value: THREE.Texture }): THREE.ShaderMaterial {
   const material = new THREE.ShaderMaterial({
-    uniforms: { uMap: { value: null as THREE.Texture | null } },
+    uniforms: { uMap: map },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
       void main() {
@@ -67,7 +76,15 @@ export function createTrailOverlay(): TrailOverlay {
     depthWrite: false,
     transparent: true,
   });
-  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+  nodeTwin(material, "trail-overlay", "trail-overlay");
+  return material;
+}
+
+export function createTrailOverlay(): TrailOverlay {
+  /** The two squares' materials, made at the first draw (the maps' own
+   * uniforms are known then). */
+  let squares: THREE.ShaderMaterial[] | null = null;
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
   quad.frustumCulled = false;
   const scene = new THREE.Scene();
   scene.add(quad);
@@ -85,20 +102,37 @@ export function createTrailOverlay(): TrailOverlay {
       gl.autoClear = false;
       gl.setScissorTest(true);
       const width = size.x / ratio;
-      [maps.uTrailFine.value, maps.uTrailCoarse.value].forEach((texture, i) => {
+      const node = (gl as { isWebGPURenderer?: boolean }).isWebGPURenderer === true;
+      const y = node ? size.y / ratio - margin - side : margin;
+      const output = { space: gl.outputColorSpace, tone: gl.toneMapping };
+      if (node) {
+        // Drawn as a full-screen pass is (`isQuadMesh`, which only the node
+        // renderer reads): straight onto the canvas, unsampled. A sampled
+        // draw would load the canvas's own MSAA buffer, which the grade's
+        // unsampled pass never wrote, and resolve it over the picture.
+        (scene as { isQuadMesh?: boolean }).isQuadMesh = true;
+        gl.outputColorSpace = THREE.LinearSRGBColorSpace;
+        gl.toneMapping = THREE.NoToneMapping;
+      }
+      squares ??= [squareMaterial(maps.uTrailFine), squareMaterial(maps.uTrailCoarse)];
+      squares.forEach((material, i) => {
         const x = width - (2 - i) * (side + margin);
-        gl.setViewport(x, margin, side, side);
-        gl.setScissor(x, margin, side, side);
-        material.uniforms.uMap.value = texture;
+        gl.setViewport(x, y, side, side);
+        gl.setScissor(x, y, side, side);
+        quad.material = material;
         gl.render(scene, camera);
       });
+      if (node) {
+        gl.outputColorSpace = output.space;
+        gl.toneMapping = output.tone;
+      }
       gl.setScissorTest(false);
       gl.setViewport(0, 0, width, size.y / ratio);
       gl.autoClear = autoClear;
     },
     dispose() {
       quad.geometry.dispose();
-      material.dispose();
+      for (const material of squares ?? []) material.dispose();
     },
   };
 }

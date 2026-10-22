@@ -34,6 +34,7 @@ import { LOD_NAMES, buildTree, treePaint, type TreeLod } from "../game/tree-shap
 import { buildCardTree, type CardLod } from "../game/tree-cards.ts";
 import { atlasTexture, cardMaterial } from "../game/tree-card-material.ts";
 import { TREE_VARIANTS, leadVariant, type TreeVariant } from "../game/tree-variants.ts";
+import { createGpu } from "../game/own-gpu.ts";
 
 /** One cell, px (`?zoom=` times larger, to look at a card's needles). */
 const ZOOM = Math.max(1, Number(new URLSearchParams(location.search).get("zoom") ?? 1));
@@ -95,7 +96,7 @@ async function main(): Promise<void> {
   const sheet = sheetCanvas.getContext("2d") as CanvasRenderingContext2D;
 
   const cell = document.createElement("canvas");
-  const renderer = new THREE.WebGLRenderer({ canvas: cell, antialias: true });
+  const renderer = (await createGpu(cell, { antialias: true, haze })).renderer;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setSize(CELL_W, CELL_H, false);

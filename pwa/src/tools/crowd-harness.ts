@@ -78,6 +78,7 @@ import { createHazeUniforms } from "../game/haze.ts";
 import { BOARDER_COLUMNS, boarderCells } from "./crowd-boarders.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, withPreset } from "../game/settings-video.ts";
+import { createGpu } from "../game/own-gpu.ts";
 
 declare global {
   interface Window {
@@ -537,14 +538,14 @@ function fallCells(): Cell[] {
   });
 }
 
-function drawSheet(cells: Cell[], cols: number): void {
+async function drawSheet(cells: Cell[], cols: number): Promise<void> {
   const rows = Math.ceil(cells.length / cols);
   const canvas = document.getElementById("stage") as HTMLCanvasElement;
   canvas.width = CELL_W * Math.min(cols, cells.length);
   canvas.height = CELL_H * rows;
   const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
   const cell = document.createElement("canvas");
-  const renderer = new THREE.WebGLRenderer({ canvas: cell, antialias: true });
+  const renderer = (await createGpu(cell, { antialias: true, haze })).renderer;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.setSize(CELL_W, CELL_H, false);
@@ -800,7 +801,7 @@ if (sheet === "slope") {
   void slope();
 } else if (sheet === "boarders") {
   const kit = { bodies, figure, stage, sample, standIn, cell: { w: CELL_W, h: CELL_H } };
-  drawSheet(boarderCells(kit), BOARDER_COLUMNS);
+  await drawSheet(boarderCells(kit), BOARDER_COLUMNS);
 } else {
   const cells =
     sheet === "lods"
@@ -822,5 +823,5 @@ if (sheet === "slope") {
           : sheet === "falls"
             ? FALL_AT.length + 1 + RISE_AT.length
             : CROWD_POSES.length + 1;
-  drawSheet(cells, cols);
+  await drawSheet(cells, cols);
 }

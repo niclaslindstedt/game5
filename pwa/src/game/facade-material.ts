@@ -43,6 +43,10 @@ function facadeStack(): { albedo: THREE.DataArrayTexture; normal: THREE.DataArra
   return stack;
 }
 
+/** The two arrays as drawn now (the node renderer's graft reads them,
+ * `props-tsl.ts`). */
+export const facadeTextures = facadeStack;
+
 /** Hold the stack for a material; `release` lets it go with the last. */
 export function holdFacades(): { release(): void } {
   users++;

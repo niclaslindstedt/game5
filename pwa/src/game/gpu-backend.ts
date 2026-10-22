@@ -141,12 +141,14 @@ export const GPU_PORTS: readonly GpuPort[] = [
     ported: true,
   },
   {
-    // What is left are the props': the piste lights, the fires and the
-    // stage (13). The effects' draw by their twins (the `effects` row).
+    // The effects' and the props' draw by their twins (the `effects` and
+    // `props` rows). What is left is the gear stage's backdrop, which its
+    // own WebGL renderer draws (14, with the other harnesses), and whatever
+    // ShaderMaterial is added before it has a twin.
     id: "shader",
     kind: "material",
-    part: 13,
-    what: "every other ShaderMaterial (the props, in their own part)",
+    part: 14,
+    what: "every other ShaderMaterial (the gear stage's backdrop, with the harnesses)",
     ported: false,
   },
   {
@@ -180,11 +182,13 @@ export const GPU_PORTS: readonly GpuPort[] = [
   {
     // The figures' grafts draw by their twins (the `figures` row), the
     // skier's, the machines' and the cloths' by theirs (`model-merged`,
-    // `skier`, `wingsuit`, `cloth`); what is left are the props' (13).
+    // `skier`, `wingsuit`, `cloth`), the props' by theirs (`props`). The
+    // game's scene has none left; a graft added before its port is hidden
+    // here, and the last of them go with the flip's sweep (14).
     id: "haze-graft",
     kind: "material",
-    part: 13,
-    what: "a hazed material with a graft of its own (the rock, the facades, the signs, the avalanche's plates…)",
+    part: 14,
+    what: "a hazed material with a graft no port draws yet",
     ported: false,
   },
   {
@@ -213,6 +217,13 @@ export const GPU_PORTS: readonly GpuPort[] = [
     kind: "material",
     part: 12,
     what: "the balloon's envelope, the canopies and the paramotor's lines, drawn by their node grafts",
+    ported: true,
+  },
+  {
+    id: "props",
+    kind: "material",
+    part: 13,
+    what: "the buildings, the rooms, the crags, the signs, the water, the grass, the flags, the slab's plates, the piste lights and the fires, each drawn by its node graft or twin",
     ported: true,
   },
   {

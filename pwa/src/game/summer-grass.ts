@@ -21,6 +21,7 @@
 // a pure function of the clock the renderer hands it.
 
 import * as THREE from "three";
+import { nodeGraft } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import type { GrassLook } from "./settings-video.ts";
 import { LOOSE } from "./trail-stamp.ts";
@@ -256,6 +257,8 @@ function grassMaterial(haze: HazeUniforms, own: GrassGround): THREE.MeshStandard
         "#include <color_fragment>\ndiffuseColor.rgb = vGrassCol;",
       );
   });
+  // The node renderer's (`grass-tsl.ts`), over the same uniforms.
+  nodeGraft(material, "props", "grass").userData.graftOwn = own;
   return material;
 }
 

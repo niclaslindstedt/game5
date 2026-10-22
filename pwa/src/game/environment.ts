@@ -234,6 +234,10 @@ function standAll(scene: THREE.Scene, apart = false): () => void {
     if (!(o as THREE.Mesh).isMesh && !(o as THREE.Points).isPoints && !(o as THREE.Sprite).isSprite)
       return;
     if (apart && o.userData.warmApart === true) return;
+    // An empty geometry (the talus before its first stones) has nothing to
+    // draw and no attributes to build a pipeline for: it is built when filled.
+    const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+    if (apart && g && !g.getAttribute("position")) return;
     if (o.frustumCulled) {
       o.frustumCulled = false;
       culled.push(o);

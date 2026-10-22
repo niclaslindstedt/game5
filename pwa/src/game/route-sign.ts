@@ -27,6 +27,7 @@ import type { Level } from "@engine";
 import { GRADE_LOOK } from "./grade-look.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import { storedBump } from "./print-bump.ts";
+import { nodeGraft } from "./gpu-backend.ts";
 import { AMATEUR, amateurSigns, type AmateurSign } from "./route-sign-plan.ts";
 import { SIGN_FALLBACK, SIGN_LOOKS } from "./sign-look.ts";
 import { STRINGS } from "./strings.ts";
@@ -490,6 +491,7 @@ export function createRouteSigns(level: Level, haze: HazeUniforms): RouteSigns |
     "route-sign-face",
     storedBump,
   );
+  nodeGraft(faceMat, "props", "print-bump"); // the node renderer's (`props-tsl.ts`)
   const woodMat = hazeMaterial(
     new THREE.MeshStandardMaterial({ color: WOOD.edge, roughness: 0.95 }),
     haze,

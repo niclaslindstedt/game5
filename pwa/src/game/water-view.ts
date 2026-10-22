@@ -17,6 +17,7 @@
 import * as THREE from "three";
 import { regionOf, type Level, type RegionId, type Wind } from "@engine";
 
+import { nodeGraft } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import {
   WATER_FRAGMENT_COLOUR,
@@ -210,6 +211,8 @@ export function createWater(level: Level, haze: HazeUniforms): WaterView | null 
         );
     },
   );
+  // The node renderer's (`water-tsl.ts`), over the same uniforms.
+  nodeGraft(material, "props", "water").userData.graftOwn = own;
   material.depthWrite = false;
   material.polygonOffset = true;
   material.polygonOffsetFactor = -1;

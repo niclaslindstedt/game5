@@ -52,6 +52,7 @@ import {
   snowFloor,
   type FireLayout,
 } from "./fire-plan.ts";
+import { nodeTwin } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 import type { Flood } from "./headlamp.ts";
 import type { SkyLook } from "./sky.ts";
@@ -312,6 +313,8 @@ export function createFires(level: Level, haze: HazeUniforms): FiresView | null 
     name: string,
   ): void => {
     geos.push(geo);
+    // The node renderer's twin of each fire shader (`prop-twins-tsl.ts`).
+    if ((mat as THREE.ShaderMaterial).isShaderMaterial) nodeTwin(mat, "props", name);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.frustumCulled = false;
     mesh.renderOrder = order;

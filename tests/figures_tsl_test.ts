@@ -113,9 +113,9 @@ describe("the figures in the register", () => {
   });
 
   it("leave the other ShaderMaterials and grafts to their own parts", () => {
-    expect(GPU_PORTS.find((p) => p.id === "shader")).toMatchObject({ part: 13, ported: false });
+    expect(GPU_PORTS.find((p) => p.id === "shader")).toMatchObject({ part: 14, ported: false });
     expect(GPU_PORTS.find((p) => p.id === "haze-graft")).toMatchObject({
-      part: 13,
+      part: 14,
       ported: false,
     });
     expect(quarantinedOn("webgpu", "haze-graft")).toBe(true);

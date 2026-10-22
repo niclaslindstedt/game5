@@ -70,6 +70,7 @@ const {
   attribute,
   float,
   instanceColor,
+  instancedBufferAttribute,
   instancedMesh,
   materialColor,
   materialReference,
@@ -165,6 +166,21 @@ export const graftOwn: Own = (name, type) => {
   return node;
 };
 
+/** THE LIT NORMAL MADE IN THE COLOUR'S FLOW. Three builds a `normalNode`
+ * in a pass of its own (its `NORMAL` sub-build), where a `property` the
+ * colour assigned is a different variable, never set: a normal read off
+ * one is zero. A graft whose normal comes out of its colour's work hands
+ * it here instead, and the lighting reads `normal` (view space) in the
+ * main flow, after the colour (`docs/webgpu.md`, part 13). */
+export function normalFromColour(copy: object, normal: N): void {
+  const c = copy as { setupLighting(builder: NodeBuilder): N };
+  const lighting = c.setupLighting;
+  c.setupLighting = function (this: unknown, builder: NodeBuilder): N {
+    (builder.context as { setupNormal?: () => N }).setupNormal = () => normal;
+    return lighting.call(this, builder);
+  };
+}
+
 /** A ShaderMaterial's own uniform `name`, read off the object's material
  * (`uniforms[name].value`): what a twin reads where several materials
  * share its GLSL — and so, on the node renderer, one program — each with
@@ -199,8 +215,13 @@ function setupPose(builder: NodeBuilder, pose: FigurePose, paint: boolean): N {
     if (pose.late) positionLocal.assign(pose.late(positionLocal, ctx));
     const painted = paint && pose.paint;
     if (painted) ctx.posed = positionLocal.toVar();
-    if (pose.instance) positionLocal.assign(pose.instance(positionLocal, ctx));
-    else if (object.isInstancedMesh && object.instanceMatrix?.isInstancedBufferAttribute)
+    if (pose.instance) {
+      positionLocal.assign(pose.instance(positionLocal, ctx));
+      // Three's instancing hands the instance's colour on (`vInstanceColor`,
+      // which its diffuse multiplies by); in its place, so does the pose.
+      if (object.instanceColor)
+        instanceColor.assign(instancedBufferAttribute(object.instanceColor, "vec3"));
+    } else if (object.isInstancedMesh && object.instanceMatrix?.isInstancedBufferAttribute)
       instancedMesh(object);
     if (pose.post) positionLocal.assign(pose.post(positionLocal, ctx));
     if (painted) {

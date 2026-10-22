@@ -2,7 +2,7 @@
 // THE SKIER, THE MODELS AND THE EFFECTS ON THE NODE RENDERER
 // (`docs/webgpu.md`, part 12). What the suite holds: the register draws the
 // skier's, the models', the cloths' and the effects' families on every path
-// and leaves the props' to their own part; each classic material with a
+// and leaves what is left to the harnesses' part; each classic material with a
 // GLSL graft carries its node graft's flag and the very uniforms WebGL's
 // graft is handed; every ShaderMaterial of the effects is flagged with its
 // twin, and the twin is made on plain Node reading the material DRAWN (a
@@ -83,10 +83,10 @@ describe("the part's families in the register", () => {
     }
   });
 
-  it("leave the props' ShaderMaterials and grafts to part 13", () => {
-    expect(GPU_PORTS.find((p) => p.id === "shader")).toMatchObject({ part: 13, ported: false });
+  it("leave the other ShaderMaterials and grafts to the harnesses' part", () => {
+    expect(GPU_PORTS.find((p) => p.id === "shader")).toMatchObject({ part: 14, ported: false });
     expect(GPU_PORTS.find((p) => p.id === "haze-graft")).toMatchObject({
-      part: 13,
+      part: 14,
       ported: false,
     });
   });

@@ -75,8 +75,8 @@ function bandAt(d: number, was: number): number {
 }
 
 /** The lamplight in a window, linear, and how bright at full dark. */
-const LAMP = "vec3(1.0, 0.56, 0.24)";
-const LAMP_BRIGHT = 1.5;
+export const LAMP = "vec3(1.0, 0.56, 0.24)";
+export const LAMP_BRIGHT = 1.5;
 
 /** A pane's glow, in the material: the mark through to the fragment, and
  * the lamplight added as the dark comes on. */

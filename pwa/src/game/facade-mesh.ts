@@ -9,6 +9,7 @@ import * as THREE from "three";
 import { graftGlow } from "./cabins-view.ts";
 import { graftFacade, holdFacades } from "./facade-material.ts";
 import type { FacadeArrays } from "./facade-kit.ts";
+import { nodeGraft } from "./gpu-backend.ts";
 import { hazeMaterial, type HazeUniforms } from "./haze.ts";
 
 /** The arrays as a geometry. */
@@ -36,6 +37,7 @@ export function facadeMaterial(haze: HazeUniforms, name: string): THREE.MeshStan
       graftFacade(shader);
     },
   );
+  nodeGraft(m, "props", "facade"); // the node renderer's (`props-tsl.ts`)
   m.addEventListener("dispose", () => held.release());
   return m;
 }

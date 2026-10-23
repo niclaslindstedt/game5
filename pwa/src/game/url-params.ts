@@ -100,10 +100,12 @@
 //                   render passes (`passes`, the default), the scene split
 //                   by subsystem as well (`split`), or not at all (`off`).
 //   ?renderer=<b>   the world drawn on another back end this visit
-//                   (`gpu-backend.ts`, `docs/webgpu.md`): webgl (the
-//                   default), webgpu (three's WebGPURenderer, drawing what
-//                   is ported and hiding the rest), webgpu-gl (the same on
-//                   its WebGL2 back end). Never stored; `?gpu=` is the timer.
+//                   (`gpu-backend.ts`, `docs/webgpu.md`): auto (the
+//                   default: WebGPU where the device has it, else
+//                   webgpu-gl), webgpu (three's WebGPURenderer on a WebGPU
+//                   device), webgpu-gl (the same on its WebGL2 back end),
+//                   webgl (the old WebGLRenderer, the way back). Never
+//                   stored (DEVELOPER ▸ RENDERER is); `?gpu=` is the timer.
 //   ?hide=<a,b>     ...drawn WITHOUT these subsystems (`HIDEABLE`): the
 //                   A/B reading a slice is checked against.
 //   ?ab=1           ...hiding each subsystem a frame in turn, and timing
@@ -233,7 +235,7 @@ import { BENCHMARK } from "./benchmark-plan.ts";
 import { isBenchScene, type BenchSceneId } from "./bench-scenes.ts";
 import { SWEEP, SWEEP_LEAST } from "./picture-sweep.ts";
 import { GPU_MODES, HIDEABLE, type GpuMode, type Hideable } from "./benchmark-report.ts";
-import { readBackend, type Backend } from "./gpu-backend.ts";
+import { readBackend, type BackendAsk } from "./gpu-backend.ts";
 import { readPose, type SkisPose } from "./debug-readout.ts";
 import { isHoldMove, type HoldMove } from "./hold-input.ts";
 import { bikeLookOf, type BikeLook } from "./bike-variant.ts";
@@ -330,7 +332,7 @@ export type UrlParams = {
   frames: number | null;
   view: BenchSceneId;
   /** The back end the world is drawn on (`?renderer=`, `gpu-backend.ts`), or null for the default. */
-  renderer: Backend | null;
+  renderer: BackendAsk | null;
   /** Pictures a picture sweep deals (`?sweep=`), or none. */
   sweep: number | null;
   shot: boolean;

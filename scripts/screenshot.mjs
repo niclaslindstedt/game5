@@ -737,7 +737,8 @@ async function capture(name, params, viewportName, surface) {
       for (const [k, v] of Object.entries(items)) globalThis.localStorage.setItem(k, v);
     }, surface.storage);
   }
-  const asked = { ...params, ...(args.renderer !== "webgl" ? { renderer: args.renderer } : {}) };
+  // The back end named even for WebGL: the game's own default is `auto`.
+  const asked = { ...params, renderer: args.renderer };
   const url = `${site.url}?${new URLSearchParams(asked)}`;
   const tag = args.renderer !== "webgl" ? `-${args.renderer}` : "";
   const file = join(outDir, `shot-${name}${tag}-${viewportName}.png`);

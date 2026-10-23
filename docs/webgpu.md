@@ -1,25 +1,58 @@
 # The WebGPU port
 
-The world is drawn by three's `WebGLRenderer`. The port moves it onto three's
-node renderer (`WebGPURenderer` from `three/webgpu`), which draws on WebGPU
-where the browser has an adapter and on its own WebGL2 back end where it does
-not. The work lands a system at a time, each one a part below. **Until the
-flip (part 15) the default is WebGL and it draws exactly as before.** The
-webgpu paths are switched on per visit and draw whatever has been ported so
-far. Anything not yet ported is skipped or hidden, and the frame says so.
+The world was drawn by three's `WebGLRenderer`. The port moves it onto
+three's node renderer (`WebGPURenderer` from `three/webgpu`), which draws on
+WebGPU where the browser has an adapter and on its own WebGL2 back end where
+it does not. The work lands a system at a time, each one a part below.
+**Since the flip (part 15) the node renderer is the default**: WebGPU where
+the device has it, its WebGL2 back end where not. The classic
+`WebGLRenderer` is one setting away and still draws exactly as before, to
+the byte. Anything not yet ported is skipped or hidden, and the frame says
+so.
 
 ## The switch
 
 | Link | What draws the world | `__SH_BACKEND__` |
 | --- | --- | --- |
-| (none), `?renderer=webgl` | `WebGLRenderer`, as always | `webgl` |
-| `?renderer=webgpu` | the node renderer on a WebGPU device; three's WebGL2 back end when there is no adapter | `webgpu`, or `webgpu-gl` when it fell back |
+| (none), `?renderer=auto` | the node renderer on a WebGPU device that can present; its WebGL2 back end when there is no adapter, no device, the canvas cannot be configured, or the device was lost at load earlier in this tab | `webgpu`, or `webgpu-gl` |
+| `?renderer=webgpu` | the node renderer on a WebGPU device, even after a fallback; its WebGL2 back end when there is none | `webgpu`, or `webgpu-gl` when it fell back |
 | `?renderer=webgpu-gl` | the node renderer on its WebGL2 back end, even where WebGPU exists | `webgpu-gl` |
+| `?renderer=webgl` | the classic `WebGLRenderer`, as before the port: the way back | `webgl` |
+
+The ask is the link's word, over DEVELOPER ▸ RENDERER (stored as
+`Settings.renderer`, AUTO, WEBGL2 NODES or CLASSIC WEBGL), over `auto`. It
+is read ONCE a visit, when the game opens: the renderer is made before the
+first card, so the row says it takes effect the next time.
 
 `pwa/src/game/gpu-backend.ts` parses the word (`readBackend`, `chooseBackend`)
 and holds the register below. It is DOM-free and three-free, so the suite
 reads it (`tests/gpu_backend_test.ts`). A labelled back end is what the page
 really drew on, and a fallback is never reported as WebGPU.
+
+**The fallback at load** (`gpu-device.ts`). `auto` asks for an adapter and
+a device with the adapter's own limits, then PROBES it: a canvas of four pixels
+is configured on the device and cleared, and the device has to answer within
+four seconds without being lost. A device that fails any step is destroyed
+and the node renderer is made on WebGL2 instead, in the same load. A device
+lost before the first frame is drawn, or a renderer whose `init` rejects,
+marks the tab (`sessionStorage`'s `fall-line.gpu-fell-back`) and reloads
+once: the second load goes straight to WebGL2, so the player sees the
+loading card twice and never a black page. A device lost after the first
+frame marks the tab and the next visit falls back. `webgpu` and
+`webgpu-gl` named by a link do not read the mark.
+
+**The labs draw on WebGL unless asked** (`LAB_BACKEND`,
+`scripts/lib/backend-flag.mjs`): their pictures stay the ones taken before
+the flip, and SwiftShader's WebGPU spends seconds on a frame. A harness page
+reads `pageBackend` (the link's word, else `webgl`); the gear stage behind
+the menu follows the game's ask (`setVisitBackend`). A lab that drives the
+built site names its back end in the link, `webgl` too.
+
+**The platform shells assume nothing.** Neither the desktop shell
+(`tauri/`, the system WebView) nor the store app (`native/`, a WebView over
+`http://localhost`, a secure context) names a renderer: each page asks for
+`auto` and falls back the same way. A WebView without WebGPU draws WebGL2
+nodes.
 
 ## The pieces
 
@@ -88,7 +121,7 @@ webgpu paths.
 | `env-warm` | pass | 6 | the warm-up: every pipeline built behind the card (`warmNode`). Ported |
 | `grade-pass` | pass | 7 | the region's grade, the buzz and the blaze over the frame, with the tone map and the sRGB curve done by hand. Ported |
 | `snow-under` | pass | 14 | the snow lab's probe under the skis: the depth copied into a float target and read back, by its node twin, read asynchronously. Ported |
-| `trail-overlay` | pass | 14 | the developer page's trail corner, by its node twin. Ported; its squares read empty on the node paths yet (part 15, see part 14) |
+| `trail-overlay` | pass | 14 | the developer page's trail corner, by its node twin, made again when the maps are rebuilt. Ported; its marks show from part 15, when the stamps themselves were drawn on the node paths |
 | `gpu-timer` | pass | 14 | the GPU's own timer: WebGL's queries, or the node renderer's timestamp queries filed by slice (`gpu-timer-node.ts`) where the device writes them. Ported |
 | `haze` | material | 2 | the haze on a hazed material, with the key's extras, the shade lift and the lamps; a glow's fade. Ported |
 | `sky` | material | 3 | the dome, the far ranges and the sky's passes, each drawn by its node twin. Ported |
@@ -1711,10 +1744,178 @@ uploads, and waits on the device's queue.
   its trunks are drawn at their base girth on the node paths. The game's
   woods are not affected.
 
+## The flip (part 15)
+
+**The default is `auto`.** A visit with no `renderer` in its link and
+nothing picked on DEVELOPER ▸ RENDERER draws on the node renderer: on a
+WebGPU device that passes the probe (see *The switch*), else on its WebGL2
+back end. `?renderer=webgl` and DEVELOPER ▸ RENDERER ▸ CLASSIC WEBGL are the
+way back to the `WebGLRenderer`, which draws exactly what it drew before:
+the 14 WebGL world shots below are byte-identical to part 14's. The row is a
+fact about the machine (`DEVICE_SETTINGS`), so the cloud save never carries
+it.
+
+**The fallback, tested** in headless Chromium against the built site (the
+race on seed 20 at LOW), each case in a fresh browser:
+
+| Case | What the page did | `__SH_BACKEND__` |
+| --- | --- | --- |
+| no link, no WebGPU switches (no adapter) | the node renderer on WebGL2 | `webgpu-gl` |
+| no link, an adapter whose canvas is lost on configure (the container's "half" switches) | the probe failed, the device was destroyed, WebGL2 in the same load | `webgpu-gl` |
+| no link, the full WebGPU switches | the probe passed | `webgpu` |
+| `?renderer=webgl` | the classic renderer | `webgl` |
+| CLASSIC WEBGL stored on the developer page | the classic renderer | `webgl` |
+| the tab already marked as fallen back | WebGL2 at once, no device asked for | `webgpu-gl` |
+| the device reported lost 15 s into the load (a test hook) | the tab marked and reloaded once, then WebGL2 | `webgpu-gl` |
+
+No case drew a black page, and none reloaded more than once.
+
+**The trail maps' stamps were culled on the node paths.** The stamp's twin
+writes each quad with v turned to the maps' top-down rows, which turns its
+winding, and the node renderer culls by the ORIGINAL material's side, not
+the twin's. Every stamp was a back face and was dropped, so the developer's
+trail corner read empty. The stamp and the swath materials are drawn
+double-sided (WebGL's quads face front, so WebGL draws the same), and the
+corner's squares are made again when a load rebuilds the maps. The corner
+now shows the marks WebGL shows at the same moment. The world lab's views
+below moved by a few pixels at most.
+
+**The gore's lumps each built two pipelines at the hit.** Three's render
+object adds the mesh's own id to the key of every instanced mesh, and each
+one's instance buffer is a uniform named by its node's id in the shader, so
+no two instanced meshes share a pipeline, even with one material and one
+geometry layout. The lumps were 22 instanced blocks made at the hit, a
+picture and a shadow pipeline each: 44 pipelines in the hit's first
+quarter second. Now every shape a view can throw has a STANDING block from
+the load (`createLumps(material, shapes)`): hidden while empty, emptied
+rather than let go, and drawn one instance by the warm-up behind the card
+(`standAll` gives an empty instanced mesh a count of one for the warm-up's
+draw). A death hands the dead a baked mesh (`lay`) and the next rider keeps
+the blocks. The crowd's and the animals' gore stand theirs the same way.
+`make gore-cost ARGS="--scene=trunk --swiftshader --renderer=webgpu
+--twins=0 --seconds=2"` (seed 2, MEDIUM, 640×360):
+
+| | Before | After |
+| --- | --- | --- |
+| Pipelines built in the hit's first quarter second | 44 | 0 |
+| Pipelines built after the hit, in all | 44 | 0 |
+| Worst processor frame of that quarter second | 1 848.8 ms | 309.7 ms |
+| The gore's own update in it | 64.5 ms | 46.7 ms |
+
+On WebGL a program is keyed by its material, so the primer already covered
+the lumps there, and the standing blocks change nothing it draws.
+
+**What the loading card builds.** The game's race on seed 20 at 640×360 on
+SwiftShader's WebGPU, watched from the moment the card lifts (the part 6
+method; 60 s at LOW, 90 s at HIGH):
+
+| | LOW, before | LOW, after | HIGH, before | HIGH, after |
+| --- | --- | --- | --- | --- |
+| Pipelines built before the card lifts | 300 | 325 | 533 | 599 |
+| Pipelines built after it | 0 | 0 | 0 | 0 |
+
+The new ones are the gore's standing blocks and their shadows, and the
+stamps' pipelines now that they draw. No pipeline is built mid-run on
+either preset.
+
+**How near the picture is.** `make world SEED=38` at 12 h on the new
+default (`--renderer=auto`, which drew on `webgpu`) against WebGL, the mean
+absolute difference per channel (0 to 255), part 14's webgpu beside it:
+
+| Quality | View | Part 14 | Part 15 |
+| --- | --- | --- | --- |
+| HIGH | spawn | 3.48 | 3.48 |
+| HIGH | far | 2.94 | 2.94 |
+| HIGH | vista | 1.28 | 1.28 |
+| HIGH | track | 3.36 | 3.36 |
+| HIGH | chase-6 | 3.48 | 3.48 |
+| HIGH | tips | 4.92 | 4.92 |
+| HIGH | village street (free ride) | 1.00 | 1.00 |
+| LOW | spawn | 2.82 | 2.82 |
+| LOW | far | 2.25 | 2.25 |
+| LOW | vista | 0.62 | 0.62 |
+| LOW | track | 2.41 | 2.41 |
+| LOW | chase-6 | 2.35 | 2.35 |
+| LOW | tips | 3.32 | 3.32 |
+| LOW | village street (free ride) | 0.92 | 0.92 |
+
+No view moved by as much as a hundredth, and none is worse. What still
+differs is part 14's: at the tips camera WebGL shows the near ski's shadow
+and its groove where the node renderer does not, and on the groomed track
+the two draw the field's grooves differently.
+
+**The picture's prices, re-measured for the node renderer** (`PICTURE_PRICES`
+in `picture-fit.ts`, which AUTO fits by). There was no GPU to hand, so the
+list is an ESTIMATE: SwiftShader prices the processor, and its numbers are
+RELATIVE, never a device's. Seven rows were lowered to their cheapest stop
+against the top picture on the benchmark's race, on the new default and on
+WebGL, in the same software at 320×180 (`make bench ARGS="--costs --cheapest
+--rounds 1 --frames 60 --width 320 --height 180 --views race --rows …"`; the
+two flags are this part's, for a software device: the whole list at the
+plan's 600 frames and three rounds is days there). Each row's share of the
+frame on the node renderer over its share on WebGL scaled the reference
+machine's WebGL prices:
+
+| Row | Share of the top frame, WebGL | Node renderer | Ratio | Prices (each stop over the cheapest, ms) |
+| --- | --- | --- | --- | --- |
+| RESOLUTION | 19.0 % | 21.5 % | 1.13 | 0.72, 2.26 → 0.82, 2.56 |
+| DISTANCE | 32.0 % | 36.7 % | 1.15 | 0.36, 0.85, 1.50 → 0.41, 0.97, 1.72 |
+| TERRAIN | 15.8 % | 20.8 % | 1.31 | 0.32, 1.19 → 0.42, 1.56 |
+| TRAILS | 23.3 % | 10.2 % | 0.44, held at 0.5 | 0.37, 1.18, 1.35 → 0.18, 0.59, 0.68 |
+| FOREST | 8.8 % | 9.5 % | 1.09 | 0.16, 0.38 → 0.17, 0.41 |
+| SHADOWS | 10.7 % | 2.5 % | 0.23, held at 0.5 | 0.80, 0.88, 1.45 → 0.40, 0.44, 0.72 |
+| ANTIALIAS | 56.2 % | 58.2 % | 1.04 | 1.22, 1.60 → 1.26, 1.66 |
+| every row at its cheapest | 5.4 % | 5.3 % | 0.99 | `FLOOR_MS` 3.56 → 3.53 |
+
+One software run is noisy, so no row moved further than half or twice its
+WebGL price. SPRAY, LAMPS, SKY and HORIZON keep WebGL's. The top frame was
+3 433 ms on WebGL and 5 866–6 081 ms on the node renderer, the processor's
+own work in software, and says nothing about a device. The benefits did not
+move.
+
+**What AUTO keeps.** The fit only reads the costs relative to each other
+(the probe's timed frame scales the whole list), so the question is whether
+a machine slower than the reference still keeps the look. On a machine N
+times slower than the reference at the top picture, fitted twice as the
+probe fits:
+
+| N | Before (WebGL prices) | After |
+| --- | --- | --- |
+| 1 | the top picture | the top picture |
+| 1.5 | RESOLUTION LOW, DISTANCE HIGH, ANTIALIAS OFF, the rest at the top | RESOLUTION LOW, ANTIALIAS OFF, the rest at the top |
+| 2 | ...TERRAIN LOW, SHADOWS MEDIUM, LAMPS LOW (worth 200) | ...DISTANCE HIGH, TERRAIN MEDIUM, SHADOWS MEDIUM (worth 218) |
+| 3 | TRAILS LOW, SHADOWS OFF, FOREST HIGH (worth 122) | TRAILS LOW, SHADOWS MEDIUM, FOREST LOW (worth 148) |
+| 4 | nearly the floor, TRAILS OFF (worth 17) | TRAILS LOW kept, the rest low (worth 55) |
+| 6 or more | the floor | the floor |
+
+Nobody is dropped to LOW who was not before; a machine two to four times
+slower than the reference keeps more of the look, mostly the trails and
+the shadows the node renderer prices lower. SwiftShader itself times a
+frame of a second or more, past six times slower, and AUTO picks the floor
+there as before. `tests/video_test.ts` holds the ladders (every row priced,
+the cheapest stop 0/0, neither cost nor benefit falling up a ladder).
+**Owed:** a real GPU's list on the node renderer, from DEVELOPER ▸ PICTURE
+COSTS (or `make bench ARGS="--gpu --costs"`) on a phone and on a laptop.
+
+**Traps found here:**
+
+- **The node renderer culls by the material drawn, not by its twin.** A
+  twin that turns a quad's winding has to be paired with a double-sided
+  original.
+- **Three keys every instanced mesh apart.** An instanced mesh made
+  mid-run is a new pipeline (two with shadows) whatever material it
+  shares, so a pool of them is made at the load and kept.
+- **The warm-up draws nothing of an empty instanced mesh.** It is given
+  one instance for the warm-up's draw and put back.
+- **A lab that names no renderer now photographs the node renderer** if it
+  drives the built site, since the site's default is `auto`. Every lab's
+  flag defaults to `webgl` and names it in the link.
+
 ## Measuring both paths
 
-Every browser lab takes `--renderer=webgl|webgpu|webgpu-gl`
-(`scripts/lib/backend-flag.mjs`). The flag gives the lab the query
+Every browser lab takes `--renderer=webgl|webgpu|webgpu-gl|auto`
+(`scripts/lib/backend-flag.mjs`), `webgl` when it is left out (part 15):
+`auto` is what a player gets. The flag gives the lab the query
 parameter, the Chromium switches that back end needs, and a check
 (`assertBackend`) that fails the lab when the page drew on a different back
 end than the one asked for. `make bench ARGS="--renderer=both"` runs the
@@ -1778,10 +1979,12 @@ lines.
 | 13 Buildings and props | 2026-10-22 | webgpu | 133 (128 before) | 231 669 (225 825) | 117 programs, 79 pipelines (100, 64 before) | 974.14 (1 191.44 before) | 967.55 (1 183.70) | 4 passes / 0 meshes (4 / 12 before) | The race's cabins, its gates' furniture and its stands draw (`haze-graft:cabins ×10 · haze-graft:checkpoints ×1 · haze-graft:audience ×1` left the quarantine, and nothing is hidden now). The new pipelines are the cabins', the gates' furniture's and the stands', which were hidden before. The steady readings are 13–17 ms (10–18); the mean is the device's queue on SwiftShader, which the last reading drains (4 121 ms; 7 287 before). At HIGH: 243 draws (237), 673 385 triangles (676 629), 220 programs and 167 pipelines (192, 141), 8 466.84 ms (12 548.06) with steady readings of 16–26 ms (21–42) and one draining reading of 37 423 ms (two of 66 182 and 69 420) |
 | 14 Instruments and tools | 2026-10-22 | webgl | 100 | 231 883 (231 877) | 51 programs | 13.54 (13.97 before) | 5.85 (6.21) | 0 / 0 | the WebGL world shots (seed 38 at HIGH, 12 h: spawn, far, track, chase-6) are byte-identical to part 13's. The GPU's timer (WebGL's queries, as before): trail 2.605, hero 0.002, scene 192.724, grade 6.900 ms a frame (2.591, 0.002, 165.043, 7.594 before) over 59 frames. At HIGH: 110 draws, 686 190 triangles, 67 programs, 19.72 ms (19.59); the timer: trail 34.4, hero 51.1, shadow 14.2, scene 784.8, grade 13.7 ms (37.3, 55.3, 15.1, 907.4, 15.3) |
 | 14 Instruments and tools | 2026-10-22 | webgpu | 133 (134 before) | 231 434 (231 682) | 117 programs, 79 pipelines (117, 79 before) | 17.24 (993.49 before) | 9.62 (986.33) | 1 pass / 0 meshes (4 / 0 before) | `snow-under`, `trail-overlay` and `gpu-timer` run; `shadow-depth` alone is skipped. THE FENCE IS THE DEVICE'S QUEUE NOW: the frame waits for SwiftShader's work (1 001.09 ms a frame; 0.00 before, when nothing waited and the work landed on whichever frame's submit stalled), so the processor's half reads as itself (17 ms) and the wall is the card's (1 020.62 ms; 996.16 before). THE GPU'S TIMER on SwiftShader's `timestamp-query`: trail 1.392, scene 740.360, grade 7.205 ms a frame, 748.957 summed, over 59 frames (no section before). At HIGH: 253 draws (244), 686 498 triangles (676 653), 220 programs and 167 pipelines (220, 167), render 1 157.36 ms (9 393.83), gpu 7 420.28 ms (0.00), wall 8 580.01 ms (9 396.87); the timer: trail 37.331, hero 43.845, shadow 12.683, scene 7 245.496, grade 12.536 ms, 7 351.891 summed |
+| 15 The flip | 2026-10-23 | webgl (`?renderer=webgl`) | 100 | 231 883 (231 883) | 51 programs | 11.52 (13.54 before) | 5.52 (5.85) | 0 / 0 | the way back: the 14 WebGL world shots (seed 38, 12 h, LOW and HIGH: spawn, far, vista, track, chase-6, tips and the free ride's village street) are byte-identical to part 14's. Wall 870.27 ms. At HIGH: 110 draws, 686 162 triangles, 67 programs, 16.59 ms (19.72) |
+| 15 The flip | 2026-10-23 | auto (drew on webgpu) | 133 (133 before) | 231 669 (231 434) | 117 programs, 79 pipelines (117, 79 before) | 14.71 (17.24 before) | 8.07 (9.62) | 1 pass / 0 meshes (1 / 0 before) | THE DEFAULT. Nothing new is drawn in the benchmark's race; the gore's standing blocks are hidden until a hit, so they are neither drawn nor counted here (the warm-up builds them behind the card: see this part). Wall 856.17 ms (1 020.62), the device's queue on SwiftShader. At HIGH: 252 draws (253), 685 819 triangles (686 498), 220 programs and 167 pipelines (220, 167), render 27.17 ms (1 157.36), wall 7 639.03 ms (8 580.01) |
 
-Parts 1 to 14 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+Parts 1 to 15 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis), and from
-part 3 again with `--video high` for the numbers under "At HIGH".
+part 3 again with `--video high` for the numbers under "At HIGH" (part 15 with `--renderer=webgl` and `--renderer=auto`, one back end a run).
 
 ## Systems ported
 
@@ -1799,7 +2002,7 @@ part 3 again with `--video high` for the numbers under "At HIGH".
 - [x] 12 Skier, models, effects (`model-merged`, `skier`, `wingsuit`, `cloth`, `effects`): the merged models' metal, roughness and coat, the posed parts' normals, the kit's flutter, the wingsuit's paint, the canopies, the lines and the envelope as node grafts on the copy; a material's own clipping planes as its mask; the rotors, the lift's fade, the burner, the burn and the X-ray as node twins over the material drawn; `shader` moved to part 13
 - [x] 13 Buildings and props (`props`): every facade, the rooms, the crags and the talus, the signs' bump, the water, a summer's grass and a slab's walls as node grafts on the copy; the flags, a slab's plates, the floodlights' haloes and the fires as node twins, the flags and the plates as figure twins; the instance's colour handed on by a figure's own instancing; `shader` and `haze-graft` moved to part 14
 - [x] 14 Instruments and tools (`snow-under`, `trail-overlay`, `gpu-timer`): the GPU's timer off the node renderer's timestamp queries, the device's queue as the benchmark's and AUTO's fence, the trail corner and the snow probe as node twins read back asynchronously, the gear stage's backdrop by node grafts and a twin, every harness's renderer of its own through `createGpu`, the WebGPU meters in `make profile` and `make gore-cost`; `shader` and `haze-graft` emptied and kept as guards until part 16
-- [ ] 15 The flip: webgpu by default, `?renderer=webgl` kept as the way back, the picture's prices re-measured
+- [x] 15 The flip: `auto` by default (WebGPU, else WebGL2 nodes, with a probe and a fallback at load), `?renderer=webgl` and DEVELOPER ▸ RENDERER the way back, the trail maps' stamps drawn on the node paths, the gore's lump blocks standing and warmed behind the card, the picture's prices re-measured for the node renderer
 - [ ] 16 The GLSL deleted, and the quarantine with it (`shadow-depth` too)
 - [ ] 17 Compute (WebGPU only)
 - [ ] 18 Ray-marched effects

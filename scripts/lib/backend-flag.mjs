@@ -22,11 +22,20 @@
 // draws on three's WebGL2 back end and says so (`__SH_BACKEND__` is
 // `webgpu-gl`) — a lab that did not look would report WebGL numbers as
 // WebGPU ones. `assertBackend` fails the lab instead.
+//
+// A LAB DRAWS ON WEBGL UNLESS ASKED (part 15). The game's own default is
+// `auto` (WebGPU where the device has it, else `webgpu-gl`), but every lab's
+// flag stays `webgl`: its pictures are the ones it took before the flip, to
+// the byte, and SwiftShader's WebGPU spends seconds on a frame. A lab that
+// drives the built site names the back end in its link even for WebGL,
+// since the site would otherwise pick `auto`. `--renderer=auto` asks for
+// what a player gets: the WebGPU switches are passed, and the check takes
+// either node back end and says which.
 
 import process from "node:process";
 
-/** The back ends a page can be asked for — `BACKENDS` in `gpu-backend.ts`. */
-export const RENDERERS = ["webgl", "webgpu", "webgpu-gl"];
+/** The back ends a page can be asked for — `BACKEND_ASKS` in `gpu-backend.ts`. */
+export const RENDERERS = ["webgl", "webgpu", "webgpu-gl", "auto"];
 
 /** The flag's entry for a `parseArgs` table. `both` and `all` are for a
  * lab that runs the same plan on several (`make bench ARGS=--renderer=both`). */
@@ -44,7 +53,7 @@ export function renderersOf(value, several = false) {
     several && value === "both"
       ? ["webgl", "webgpu"]
       : several && value === "all"
-        ? [...RENDERERS]
+        ? RENDERERS.filter((r) => r !== "auto") // `auto` is one of the node two
         : String(value ?? "webgl").split(",");
   for (const r of list) {
     if (!RENDERERS.includes(r) || (!several && list.length > 1)) {
@@ -61,7 +70,7 @@ export function renderersOf(value, several = false) {
  * own; `gpu` when the lab draws on the host's GPU rather than SwiftShader. */
 export function rendererArgs(renderers, gpu = false) {
   const list = Array.isArray(renderers) ? renderers : [renderers];
-  if (!list.includes("webgpu")) return [];
+  if (!list.includes("webgpu") && !list.includes("auto")) return [];
   if (gpu) return ["--enable-unsafe-webgpu", "--enable-features=Vulkan"];
   return [
     "--enable-unsafe-webgpu",
@@ -95,6 +104,10 @@ export async function assertBackend(page, asked, timeoutMs = 120_000) {
     timeout: timeoutMs,
   });
   const running = await page.evaluate(() => globalThis.__SH_BACKEND__);
+  if (asked === "auto" && (running === "webgpu" || running === "webgpu-gl")) {
+    console.log(`  auto drew on ${running}`);
+    return running;
+  }
   if (running !== asked) {
     throw new Error(`asked for the ${asked} back end and the page drew on ${running}`);
   }

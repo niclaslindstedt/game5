@@ -48,6 +48,7 @@ import { freshHeliKeys, mergeHeliKeys, type HeliBindings } from "./settings-heli
 import { freshPlaneKeys, mergePlaneKeys, type PlaneBindings } from "./settings-plane-keys.ts";
 import { freshRideKeys, mergeRideKeys, type RideBindings } from "./settings-ride-keys.ts";
 import { FRAME_CAPS, type FrameCap } from "./frame-cap.ts";
+import { DEFAULT_BACKEND, isBackendAsk, type BackendAsk } from "./gpu-backend.ts";
 import { DEFAULT_VIDEO, mergeVideo, videoUntouched, type VideoSettings } from "./settings-video.ts";
 import { DEFAULT_OUTFIT, outfitOf, type Outfit } from "./outfit.ts";
 import { isTrickMap } from "./trick-maps.ts";
@@ -250,6 +251,12 @@ export type Settings = {
   developer: boolean;
   /** The developer page's switches (`menu-dev.tsx`). */
   dev: DevSettings;
+  /** DEVELOPER ▸ RENDERER: the back end the world is drawn on from the next
+   * visit (`gpu-backend.ts`) — `auto` (WebGPU where the device has it), the
+   * node renderer on WebGL2, or the old WebGL renderer. A link's
+   * `?renderer=` goes over it. Kept when the page is locked: it is the way
+   * back for a picture that draws wrong. */
+  renderer: BackendAsk;
 };
 
 /** OPTIONS ▸ RESTART AFTER's travel, whole seconds. */
@@ -318,6 +325,7 @@ export function freshSettings(): Settings {
     hud: true,
     developer: false,
     dev: { fps: false, cost: false, physics: false, trails: false, log: false, freefly: false },
+    renderer: DEFAULT_BACKEND,
   };
 }
 
@@ -422,6 +430,7 @@ export function mergeSettings(parsed: unknown): Settings {
     const on = dev[k];
     if (typeof on === "boolean") out.dev[k] = on;
   }
+  if (isBackendAsk(blob.renderer)) out.renderer = blob.renderer;
   return out;
 }
 

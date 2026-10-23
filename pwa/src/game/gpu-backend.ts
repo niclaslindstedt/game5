@@ -2,22 +2,28 @@
 // WHICH RENDERER DRAWS THE WORLD, and what it draws without. Three back ends
 // can stand under the world renderer (`renderer.ts`):
 //
-//   webgl      three's WebGLRenderer — the game as it ships: every shader,
-//              every pass, every instrument. The default.
-//   webgpu     three's WebGPURenderer on a WebGPU device (`gpu-device.ts`),
-//              drawing what three's node materials draw out of the box.
+//   webgl      three's WebGLRenderer — the game as it was drawn before the
+//              port, every shader in GLSL. The way back (`?renderer=webgl`,
+//              or DEVELOPER ▸ RENDERER).
+//   webgpu     three's WebGPURenderer on a WebGPU device (`gpu-device.ts`).
 //   webgpu-gl  the same WebGPURenderer on its own WebGL2 back end
-//              (`forceWebGL`) — what a browser with no WebGPU adapter gets
-//              when it asks for `webgpu`, and a way to tell a WebGPU fault
-//              from a node-material one on the same machine.
+//              (`forceWebGL`) — what a browser with no WebGPU device gets,
+//              and a way to tell a WebGPU fault from a node-material one on
+//              the same machine.
 //
-// The conversion to WebGPU is done a system at a time (`docs/webgpu.md`).
-// Until a system is ported, the webgpu paths DRAW WITHOUT IT: its pass is
-// skipped and its custom-shader meshes are hidden (`gpu-quarantine.ts`),
-// because WebGPURenderer silently drops `onBeforeCompile` and draws a
-// `ShaderMaterial` as a bare node material — a picture that lies rather than
-// one with a hole in it. `GPU_PORTS` is the register: a port flips its row's
-// `ported`, and the renderer runs the pass again on every back end.
+// THE GAME ASKS FOR `auto` (part 15, `docs/webgpu.md`): WebGPU where the
+// browser hands out an adapter and a device that can draw on a canvas, the
+// node renderer's WebGL2 back end where it does not. A LAB PAGE draws on
+// WebGL unless its link names a back end (`pageBackend`), so a lab's
+// pictures stay the pictures they were and `--renderer=` asks for the rest.
+//
+// The conversion was done a system at a time. A system not yet ported is
+// DRAWN WITHOUT on the webgpu paths: its pass is skipped and its custom-
+// shader meshes are hidden (`gpu-quarantine.ts`), because WebGPURenderer
+// silently drops `onBeforeCompile` and draws a `ShaderMaterial` as a bare
+// node material — a picture that lies rather than one with a hole in it.
+// `GPU_PORTS` is the register: a port flips its row's `ported`, and the
+// renderer runs the pass again on every back end.
 //
 // DOM-free and three-free: `tests/gpu_backend_test.ts` reads it on plain
 // Node, and the app's main bundle reads it without pulling in three.
@@ -25,19 +31,48 @@
 /** A back end the world renderer can stand on. */
 export type Backend = "webgl" | "webgpu" | "webgpu-gl";
 export const BACKENDS: readonly Backend[] = ["webgl", "webgpu", "webgpu-gl"];
-/** What a visit draws on when nothing names one. */
-export const DEFAULT_BACKEND: Backend = "webgl";
+/** What a visit can ASK for: a back end, or `auto` — WebGPU where the
+ * device has it, else the node renderer's WebGL2 back end. */
+export type BackendAsk = Backend | "auto";
+export const BACKEND_ASKS: readonly BackendAsk[] = ["auto", ...BACKENDS];
+/** What the game asks for when neither the link nor the setting names one. */
+export const DEFAULT_BACKEND: BackendAsk = "auto";
+/** What a lab page draws on when its link names nothing. */
+export const LAB_BACKEND: Backend = "webgl";
 
 export const isBackend = (value: unknown): value is Backend =>
   typeof value === "string" && (BACKENDS as readonly string[]).includes(value);
 
+export const isBackendAsk = (value: unknown): value is BackendAsk =>
+  typeof value === "string" && (BACKEND_ASKS as readonly string[]).includes(value);
+
 /** A link's `?renderer=` word, or null where it names none this build has. */
-export function readBackend(value: string | null | undefined): Backend | null {
-  return isBackend(value) ? value : null;
+export function readBackend(value: string | null | undefined): BackendAsk | null {
+  return isBackendAsk(value) ? value : null;
 }
 
-/** The back end a visit asks for: the link's word over the default. */
-export const chooseBackend = (asked: Backend | null): Backend => asked ?? DEFAULT_BACKEND;
+/** What the game asks for: the link's word, over the stored setting
+ * (DEVELOPER ▸ RENDERER), over the default. */
+export const chooseBackend = (
+  link: BackendAsk | null,
+  stored: BackendAsk | null = null,
+): BackendAsk => link ?? stored ?? DEFAULT_BACKEND;
+
+/** The game's own ask once the app has made it (`setVisitBackend`), so a
+ * renderer made later on the same page (the gear stage) asks for the same.
+ * Null on a lab page. */
+let visit: BackendAsk | null = null;
+
+/** The app's ask for this visit (`use-render-kit.ts`); null forgets it. */
+export function setVisitBackend(ask: BackendAsk | null): void {
+  visit = ask;
+}
+
+/** What a renderer made on this page asks for: the link's word, else the
+ * game's ask, else a lab's WebGL. */
+export function pageBackend(search: string): BackendAsk {
+  return readBackend(new URLSearchParams(search).get("renderer")) ?? visit ?? LAB_BACKEND;
+}
 
 /** Whether a back end is three's WebGPURenderer (either of its back ends). */
 export const onNodeRenderer = (backend: Backend): boolean => backend !== "webgl";
@@ -365,10 +400,10 @@ export function dissolves(material: object): boolean {
 
 /** WHAT DREW THE FRAME, for the developer page and the benchmark's report. */
 export type BackendState = {
-  /** What the visit asked for (`?renderer=`). */
-  asked: Backend;
-  /** What actually runs: `webgpu` asked on a browser with no adapter runs
-   * `webgpu-gl`. */
+  /** What the visit asked for (`?renderer=`, the setting, or `auto`). */
+  asked: BackendAsk;
+  /** What actually runs: `webgpu` or `auto` asked on a browser with no
+   * device runs `webgpu-gl`. */
   running: Backend;
   /** The passes skipped (`skippedPasses`). */
   skipped: string[];
@@ -385,7 +420,10 @@ export type BackendState = {
 };
 
 /** The state of a renderer that has drawn nothing on `backend` yet. */
-export function freshBackend(asked: Backend, running: Backend = asked): BackendState {
+export function freshBackend(
+  asked: BackendAsk,
+  running: Backend = asked === "auto" ? "webgpu" : asked,
+): BackendState {
   return {
     asked,
     running,

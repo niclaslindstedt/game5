@@ -229,7 +229,7 @@ for (const tier of tiers)
     if (args.weather !== undefined) params.set("weather", String(args.weather));
     if (args.hour !== undefined) params.set("hour", String(args.hour));
     if (args.region !== undefined) params.set("region", String(args.region));
-    if (args.renderer !== "webgl") params.set("renderer", args.renderer);
+    params.set("renderer", args.renderer); // named even for WebGL: the game's default is `auto`
     await page.goto(`${site.url}?${params}`, { waitUntil: "load" });
     try {
       await page.waitForFunction("window.__SH_READY__ === true", null, {

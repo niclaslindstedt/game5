@@ -32,6 +32,8 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import { rendererArgs, rendererFlag, renderersOf } from "./lib/backend-flag.mjs";
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "pwa", "dist");
 
@@ -55,8 +57,9 @@ const args = parseArgs(
     sheet: { kind: "flag", help: "a contact sheet of every capture (previews/title-sheet.png)" },
     out: { kind: "string", default: join(root, "previews"), help: "where the pictures go" },
     timeout: { kind: "number", default: 240, help: "seconds to wait for a frame" },
+    renderer: rendererFlag(),
   },
-  "usage: node scripts/title-preview.mjs [--times a,b] [--viewport v] [--menu] [--sheet] [--out dir] [--timeout s]",
+  "usage: node scripts/title-preview.mjs [--times a,b] [--viewport v] [--menu] [--sheet] [--out dir] [--timeout s] [--renderer=b]",
 );
 
 const times = String(args.times)
@@ -81,7 +84,12 @@ mkdirSync(args.out, { recursive: true });
 const site = await serveDir(dist);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  args: [
+    "--use-gl=angle",
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 const ms = args.timeout * 1000;
 console.log(`title — t ${times.join(", ")} s, ${viewports.join("+")}, serving ${site.url}`);
@@ -102,7 +110,10 @@ async function capture(label, query, viewport, wait) {
   );
   const file = join(args.out, `${label}-${viewport}.png`);
   try {
-    await page.goto(`${site.url}?${query}&seed=38&probe=0`, { waitUntil: "load" });
+    // The back end named even for WebGL: the game's own default is `auto`.
+    await page.goto(`${site.url}?${query}&seed=38&probe=0&renderer=${args.renderer}`, {
+      waitUntil: "load",
+    });
     await page.waitForSelector(".title-canvas[data-drawn], .title-poster", { timeout: ms });
     await page.waitForSelector(wait, { timeout: ms });
     // Two animation frames, asked as page source (it runs in the page).

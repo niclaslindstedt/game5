@@ -10,35 +10,74 @@ import {
   BACKENDS,
   DEFAULT_BACKEND,
   GPU_PORTS,
+  LAB_BACKEND,
   backendLines,
   chooseBackend,
   freshBackend,
   glslOnly,
+  pageBackend,
   quarantinedOn,
   readBackend,
   runsPass,
+  setVisitBackend,
   skippedPasses,
 } from "../pwa/src/game/gpu-backend.ts";
+import { DEVICE_SETTINGS } from "../pwa/src/game/cloud-save.ts";
 import { createQuarantine } from "../pwa/src/game/gpu-quarantine.ts";
+import { freshSettings, mergeSettings } from "../pwa/src/game/settings.ts";
 import { readParams } from "../pwa/src/game/url-params.ts";
 
 describe("the back end a visit draws on", () => {
-  it("reads every back end off the link, and nothing else", () => {
+  it("reads every back end and `auto` off the link, and nothing else", () => {
     for (const b of BACKENDS) expect(readBackend(b)).toBe(b);
-    for (const word of [null, undefined, "", "WebGPU", "gl", "webgpu2"]) {
+    expect(readBackend("auto")).toBe("auto");
+    for (const word of [null, undefined, "", "WebGPU", "gl", "webgpu2", "AUTO"]) {
       expect(readBackend(word)).toBeNull();
     }
   });
 
-  it("is WebGL unless the link names another", () => {
-    expect(DEFAULT_BACKEND).toBe("webgl");
-    expect(chooseBackend(null)).toBe("webgl");
-    expect(chooseBackend("webgpu")).toBe("webgpu");
+  it("asks for `auto` unless the link or the setting names another, the link first", () => {
+    expect(DEFAULT_BACKEND).toBe("auto");
+    expect(chooseBackend(null)).toBe("auto");
+    expect(chooseBackend(null, "webgl")).toBe("webgl");
+    expect(chooseBackend("webgpu", "webgl")).toBe("webgpu");
+    expect(chooseBackend("webgl", "auto")).toBe("webgl");
     expect(readParams("").renderer).toBeNull();
     expect(readParams("?renderer=webgpu-gl").renderer).toBe("webgpu-gl");
+    expect(readParams("?renderer=auto").renderer).toBe("auto");
     expect(readParams("?renderer=vulkan").renderer).toBeNull();
     // `?gpu=` is the GPU's timer, a different word.
     expect(readParams("?gpu=split").renderer).toBeNull();
+  });
+
+  it("draws a lab page on WebGL unless its link names one, and the game's page on its ask", () => {
+    expect(LAB_BACKEND).toBe("webgl");
+    expect(pageBackend("")).toBe("webgl");
+    expect(pageBackend("?renderer=webgpu")).toBe("webgpu");
+    setVisitBackend("auto");
+    try {
+      expect(pageBackend("?seed=4")).toBe("auto");
+      expect(pageBackend("?renderer=webgl")).toBe("webgl");
+    } finally {
+      setVisitBackend(null); // as a lab page found it
+    }
+    expect(pageBackend("")).toBe("webgl");
+  });
+
+  it("keeps the setting a back end this build has, and `auto` otherwise", () => {
+    expect(freshSettings().renderer).toBe("auto");
+    expect(mergeSettings({ renderer: "webgl" }).renderer).toBe("webgl");
+    expect(mergeSettings({ renderer: "webgpu-gl" }).renderer).toBe("webgpu-gl");
+    expect(mergeSettings({ renderer: "metal" }).renderer).toBe("auto");
+    // A machine's fact, never carried to another device by the cloud save.
+    expect(DEVICE_SETTINGS).toContain("renderer");
+  });
+
+  it("states an ask that fell back as asked", () => {
+    expect(freshBackend("auto").running).toBe("webgpu");
+    expect(backendLines(freshBackend("auto", "webgpu-gl"))[0]).toBe(
+      "RENDERER webgpu-gl (asked auto)",
+    );
   });
 });
 

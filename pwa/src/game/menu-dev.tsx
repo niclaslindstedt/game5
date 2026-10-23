@@ -9,7 +9,9 @@
 // frame's cost, the physics' readouts, the trail maps, the engine's debug
 // lines and the free camera (`dev-tools.ts` drives each one). They are the
 // KNOBS OPTIONS is built from (`menu-knobs.tsx`), because a row picked here
-// and a row picked there have to be the same kind of row.
+// and a row picked there have to be the same kind of row. The one row that
+// is not an instrument is RENDERER, the way back to the old WebGL renderer
+// for a device whose picture draws wrong on WebGPU (`gpu-backend.ts`).
 //
 // THE PRESSES UNDER THEM each leave the page: BENCHMARK takes the canvas and
 // times a pinned race on it (`bench-run.ts`), its HISTORY is every run this
@@ -40,6 +42,11 @@ import {
 import { DEV_SWITCHES, freshSettings, type DevSettings, type Settings } from "./settings.ts";
 import { STRINGS } from "./strings.ts";
 import type { DevPage } from "./url-params.ts";
+
+const RENDERER_STOPS = (["auto", "webgpu-gl", "webgl"] as const).map((id) => ({
+  id,
+  label: STRINGS.devRendererStops[id],
+}));
 
 function DeveloperPage({
   settings,
@@ -75,6 +82,17 @@ function DeveloperPage({
               onHint={setHint}
             />
           ))}
+          {/* THE WAY BACK for a picture that draws wrong (`gpu-backend.ts`):
+            read as the game opens, so it takes hold on the next visit. */}
+          <StepRow
+            label={STRINGS.devRenderer}
+            hint={STRINGS.devRendererHint(globalThis.__SH_BACKEND__ ?? "…")}
+            stops={RENDERER_STOPS}
+            value={settings.renderer}
+            extra={STRINGS.devRendererWebgpu}
+            onPick={(id) => onSettings({ ...settings, renderer: id })}
+            onHint={setHint}
+          />
         </KnobGroup>
         {/* THE STOPWATCH, under the rows rather than among them: not a setting
           but a press that takes the canvas for half a minute. */}

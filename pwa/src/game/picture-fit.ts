@@ -76,7 +76,7 @@ export const FIT_REFERENCE = { width: 1920, height: 1080 } as const;
 /** The frame with every row at its cheapest stop on the reference machine,
  * ms: the engine, the sky, the ground at its coarsest — what no row can
  * take off. */
-export const FLOOR_MS = 3.56;
+export const FLOOR_MS = 3.53;
 
 /**
  * THE PRICE LIST. Benefits, row by row:
@@ -86,7 +86,7 @@ export const FLOOR_MS = 3.56;
  * changes what is in the picture. Their worths are set so that a
  * millisecond of either buys less than a millisecond of any other row
  * (the cheapest of those, DISTANCE MAX over HIGH and TERRAIN HIGH over
- * MEDIUM, about 4.6 a ms; RESOLUTION about 2 to 3; ANTIALIAS under 1), and the fit — which keeps
+ * MEDIUM, about 4 and 3.5 a ms; RESOLUTION about 1.7 to 2.4; ANTIALIAS under 1), and the fit — which keeps
  * the most worth the frame affords — always takes them first.
  * DISTANCE: LOW closes the mist a few seconds ahead, which is a real loss of
  * place; MEDIUM and HIGH push it out; MAX only clears the last haze off the
@@ -127,26 +127,43 @@ export const FLOOR_MS = 3.56;
  * scene alone (`make bench ARGS="--gpu --costs --views night --rows
  * lamps"`), a clear sky well after sunset with every headlamp and the floods
  * on (10.1 ms a frame at the top picture).
+ *
+ * RE-PRICED FOR THE NODE RENDERER, the default since the WebGPU flip
+ * (`docs/webgpu.md`, part 15), and ESTIMATED: no GPU was to hand. Each of
+ * seven rows (RESOLUTION, DISTANCE, TERRAIN, TRAILS, FOREST, SHADOWS,
+ * ANTIALIAS) was lowered to its cheapest stop against the top picture on
+ * SwiftShader, on the node renderer's WebGPU and on WebGL, at 320×180 (`make
+ * bench ARGS="--costs --cheapest --rounds 1 --frames 60 --width 320 --height
+ * 180 --views race --rows …"`), and the reference machine's WebGL prices
+ * above were scaled by how much more or less of its frame the row takes on
+ * the node renderer: RESOLUTION 1.13, DISTANCE 1.15, TERRAIN 1.31, FOREST
+ * 1.09, ANTIALIAS 1.04, the floor 0.99; TRAILS read 0.44 and SHADOWS 0.23,
+ * each held at 0.5, since one software run moves a stop no further than
+ * half or twice. SPRAY, LAMPS, SKY and HORIZON are as measured on WebGL.
+ * These are RELATIVE prices: a software device prices the processor, and
+ * the probe's own timing scales the whole list to the device anyway. A real
+ * GPU's are owed, from DEVELOPER ▸ BENCHMARK (PICTURE COSTS) on a phone and
+ * a laptop, on the node renderer.
  */
 export const PICTURE_PRICES: PriceList = {
   resolution: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.72, benefit: 2 },
-    high: { cost: 2.26, benefit: 5 },
+    medium: { cost: 0.82, benefit: 2 },
+    high: { cost: 2.56, benefit: 5 },
   },
   // Carries the SKY's tiers (`SKY_TIER`, `sky-gpu.ts`), the CLOUD
   // (`CLOUD_TIER`: LOW the shell, MEDIUM the slab, HIGH and MAX the
   // raymarched volume) and the FAR RANGES' rings (`FAR_TIER`) with the mist.
   distance: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.36, benefit: 27 },
-    high: { cost: 0.85, benefit: 39 },
-    max: { cost: 1.5, benefit: 42 },
+    medium: { cost: 0.41, benefit: 27 },
+    high: { cost: 0.97, benefit: 39 },
+    max: { cost: 1.72, benefit: 42 },
   },
   terrain: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.32, benefit: 8 },
-    high: { cost: 1.19, benefit: 12 },
+    medium: { cost: 0.42, benefit: 8 },
+    high: { cost: 1.56, benefit: 12 },
   },
   // MEDIUM and HIGH add the deformable snow: its patch (folded where no tool
   // has touched it) and its self-shadow, marched once a field cell. The
@@ -155,9 +172,9 @@ export const PICTURE_PRICES: PriceList = {
   // snow-eval ARGS=--deform-perf`).
   trails: {
     off: { cost: 0, benefit: 0 },
-    low: { cost: 0.37, benefit: 50 },
-    medium: { cost: 1.18, benefit: 66 },
-    high: { cost: 1.35, benefit: 72 },
+    low: { cost: 0.18, benefit: 50 },
+    medium: { cost: 0.59, benefit: 66 },
+    high: { cost: 0.68, benefit: 72 },
   },
   // Measured on a winter race. A SUMMER free ride also draws the grass the
   // row reaches (`FOREST_LOOK[...].grass`): ESTIMATED, not measured, at about
@@ -166,14 +183,14 @@ export const PICTURE_PRICES: PriceList = {
   // prices until a GPU bench times a summer frame.
   forest: {
     low: { cost: 0, benefit: 0 },
-    medium: { cost: 0.16, benefit: 12 },
-    high: { cost: 0.38, benefit: 18 },
+    medium: { cost: 0.17, benefit: 12 },
+    high: { cost: 0.41, benefit: 18 },
   },
   shadows: {
     off: { cost: 0, benefit: 0 },
-    skiers: { cost: 0.8, benefit: 22 },
-    medium: { cost: 0.88, benefit: 40 },
-    high: { cost: 1.45, benefit: 44 },
+    skiers: { cost: 0.4, benefit: 22 },
+    medium: { cost: 0.44, benefit: 40 },
+    high: { cost: 0.72, benefit: 44 },
   },
   spray: {
     low: { cost: 0, benefit: 0 },
@@ -202,8 +219,8 @@ export const PICTURE_PRICES: PriceList = {
   // graded: an alpine map's 4× is the canvas's own, about as dear).
   antialias: {
     off: { cost: 0, benefit: 0 },
-    "2": { cost: 1.22, benefit: 1 },
-    "4": { cost: 1.6, benefit: 1.1 },
+    "2": { cost: 1.26, benefit: 1 },
+    "4": { cost: 1.66, benefit: 1.1 },
   },
 };
 

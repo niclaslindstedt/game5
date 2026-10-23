@@ -28,6 +28,8 @@ import { findChromium } from "@niclaslindstedt/oss-game-framework/tooling/chromi
 import { parseArgs } from "@niclaslindstedt/oss-game-framework/tooling/cli";
 import { serveDir } from "@niclaslindstedt/oss-game-framework/tooling/serve-dist";
 
+import { rendererArgs, rendererFlag, renderersOf } from "./lib/backend-flag.mjs";
+
 const args = parseArgs(
   process.argv.slice(2),
   {
@@ -38,8 +40,9 @@ const args = parseArgs(
     door: { kind: "number", default: 0, help: "quick: seconds on the front door before the press" },
     shots: { kind: "string", default: "", help: "quick: a picture of the loading card a second" },
     compare: { kind: "string", default: "", help: "a file written by --json: show it beside" },
+    renderer: rendererFlag(),
   },
-  "node scripts/menu-stalls.mjs [--flow=free,race] [--cpu=4] [--json=FILE] [--compare=FILE]",
+  "node scripts/menu-stalls.mjs [--flow=free,race] [--cpu=4] [--json=FILE] [--compare=FILE] [--renderer=b]",
 );
 
 const dist = join(process.cwd(), "pwa", "dist");
@@ -48,7 +51,12 @@ if (!found) process.exit(2);
 const site = await serveDir(dist);
 const browser = await found.chromium.launch({
   executablePath: found.executablePath,
-  args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  args: [
+    "--use-gl=angle",
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader",
+    ...rendererArgs(renderersOf(args.renderer)),
+  ],
 });
 
 /** The flows: a first card by its URL, then the cards NEXT walks to. */
@@ -88,7 +96,7 @@ const sum = (gaps) => {
 
 /** QUICK START off the front door: the loading card timed, and read. */
 async function quick(page) {
-  await page.goto(`${site.url}?probe=0&menu=root`, { waitUntil: "load" });
+  await page.goto(`${site.url}?probe=0&menu=root&renderer=${args.renderer}`, { waitUntil: "load" });
   const tile = page.locator('[data-menu="quick"]');
   await tile.waitFor({ timeout: 120000 });
   // A press while the door is still coming in is lost: a second for that.
@@ -148,7 +156,8 @@ for (const flow of String(args.flow).split(",")) {
   page.on("pageerror", (e) => console.error(`  pageerror: ${e.message}`));
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: args.cpu });
-  const q = new URLSearchParams({ probe: "0", ...plan.url });
+  // The back end named even for WebGL: the game's own default is `auto`.
+  const q = new URLSearchParams({ probe: "0", renderer: args.renderer, ...plan.url });
   const t0 = Date.now();
   await page.goto(`${site.url}?${q}`, { waitUntil: "load" });
   for (const [i, card] of plan.cards.entries()) {

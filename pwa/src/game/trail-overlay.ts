@@ -76,7 +76,7 @@ function squareMaterial(map: { value: THREE.Texture }): THREE.ShaderMaterial {
     depthWrite: false,
     transparent: true,
   });
-  nodeTwin(material, "trail-overlay", "trail-overlay");
+  nodeTwin(material, "trail-overlay", "trail-overlay", true);
   return material;
 }
 
@@ -84,6 +84,8 @@ export function createTrailOverlay(): TrailOverlay {
   /** The two squares' materials, made at the first draw (the maps' own
    * uniforms are known then). */
   let squares: THREE.ShaderMaterial[] | null = null;
+  /** The maps the squares were made over. */
+  let drawn: TrailUniforms | null = null;
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
   quad.frustumCulled = false;
   const scene = new THREE.Scene();
@@ -114,6 +116,14 @@ export function createTrailOverlay(): TrailOverlay {
         gl.outputColorSpace = THREE.LinearSRGBColorSpace;
         gl.toneMapping = THREE.NoToneMapping;
       }
+      // A map is rebuilt with its uniforms on every load (`renderer.ts`'s
+      // `buildTrail`): the squares follow the maps drawn now, never the
+      // first load's.
+      if (squares && drawn !== maps) {
+        for (const material of squares) material.dispose();
+        squares = null;
+      }
+      drawn = maps;
       squares ??= [squareMaterial(maps.uTrailFine), squareMaterial(maps.uTrailCoarse)];
       squares.forEach((material, i) => {
         const x = width - (2 - i) * (side + margin);

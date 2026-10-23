@@ -23,7 +23,8 @@
 //             THIS machine can hold) and NOT the thumbs (`touch`: the travel
 //             of a screen this size) and NOT the developer page (`developer`,
 //             `dev`: a bench let out on one machine is not let out on the
-//             next) — `DEVICE_SETTINGS`.
+//             next) and NOT the renderer (`renderer`: what this browser
+//             draws well) — `DEVICE_SETTINGS`.
 //
 // THE MERGE IS MECHANICAL, NEVER A JUDGEMENT CALL. Two devices that both rode
 // while offline must both keep their work, and running the merge again must
@@ -70,6 +71,7 @@ export const DEVICE_SETTINGS = [
   "touch",
   "developer",
   "dev",
+  "renderer",
 ] as const;
 type DeviceKey = (typeof DEVICE_SETTINGS)[number];
 

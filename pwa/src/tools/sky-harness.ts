@@ -70,7 +70,7 @@ import { timeClouds } from "./sky-cloud-cost.ts";
 import { lowdeckSheet } from "./sky-deck-sheet.ts";
 import { moonSheet } from "./sky-night-sheet.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
-import { chooseBackend, readBackend } from "../game/gpu-backend.ts";
+import { pageBackend } from "../game/gpu-backend.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { skyLookAt } from "../game/sky.ts";
 import { createSkyGpu, forceSkyTier } from "../game/sky-gpu.ts";
@@ -143,7 +143,7 @@ const stage = document.getElementById("stage") as HTMLCanvasElement;
 const sheet = document.getElementById("sheet") as HTMLCanvasElement;
 // `?renderer=webgpu|webgpu-gl` (`docs/webgpu.md`): the node renderer's device
 // first, as the game makes it (`loadModels`, without the models).
-const backend = chooseBackend(readBackend(params.get("renderer")));
+const backend = pageBackend(location.search);
 if (backend !== "webgl") await import("../game/gpu-device.ts").then((m) => m.prepareGpu(backend));
 /** Wait for the GPU: WebGL's `finish`; the node renderer has none to wait on. */
 const finish = (): void => (renderer.gl.getContext() as { finish?: () => void }).finish?.();

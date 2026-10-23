@@ -434,6 +434,11 @@ export function createTrailMap(mapSize: number, options: TrailOptions, node = fa
     blendDst: THREE.OneFactor,
     depthTest: false,
     depthWrite: false,
+    // Both faces: the node twin writes the quad with v turned to its
+    // top-down maps (`stampQuad`), which turns its winding, and the pipeline
+    // culls by this material's side — a front face culled every stamp on
+    // the node renderer (`docs/webgpu.md`, part 15). WebGL's quads face front.
+    side: THREE.DoubleSide,
   });
   nodeTwin(stampMaterial, "trail-map", "trail-stamp");
   // THE SWATH PASS: the same quads, written whole.
@@ -444,6 +449,7 @@ export function createTrailMap(mapSize: number, options: TrailOptions, node = fa
     blending: THREE.NoBlending,
     depthTest: false,
     depthWrite: false,
+    side: THREE.DoubleSide, // as the stamp's, for the same reason
   });
   nodeTwin(groomMaterial, "trail-map", "trail-groom");
   const stampMesh = new THREE.Mesh(quad, stampMaterial);

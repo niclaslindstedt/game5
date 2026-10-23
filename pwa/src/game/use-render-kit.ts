@@ -7,25 +7,37 @@
 // machines or skiers (`skis-models.ts`) has them fetched before the kit is
 // handed out, so every builder finds them waiting — and the back end asked
 // for (`gpu-backend.ts`) has its device, so the renderer is made on it.
+//
+// THE BACK END IS ASKED FOR ONCE A VISIT: the link's `?renderer=` over the
+// stored DEVELOPER ▸ RENDERER over `auto`, read as the page opens. A setting
+// moved later is for the next visit — a canvas, once drawn on by one back
+// end, cannot be handed to another.
 
 import { useEffect, useState } from "preact/hooks";
 
-import { chooseBackend, type Backend } from "./gpu-backend.ts";
+import { chooseBackend, setVisitBackend, type BackendAsk } from "./gpu-backend.ts";
 
 export type RenderKit = typeof import("./renderer.ts");
 
-/** The kit, on the back end a link names (`?renderer=`) or the default. */
-export function useRenderKit(asked: Backend | null): RenderKit | null {
+/** The kit, on the back end the link names, else the stored one, else `auto`. */
+export function useRenderKit(link: BackendAsk | null, stored: BackendAsk): RenderKit | null {
   const [kit, setKit] = useState<RenderKit | null>(null);
+  // Said to the page as the app first draws, before any child's effect can
+  // make a renderer of its own (the gear stage's) on another back end.
+  const [asked] = useState(() => {
+    const ask = chooseBackend(link, stored);
+    setVisitBackend(ask);
+    return ask;
+  });
   useEffect(() => {
     let live = true;
     void import("./renderer.ts").then(async (mod) => {
-      await mod.loadModels(chooseBackend(asked));
+      await mod.loadModels(asked);
       if (live) setKit(mod);
     });
     return () => {
       live = false;
     };
-  }, [asked]); // a visit's link, so it never changes
+  }, [asked]); // read once, as the page opens
   return kit;
 }

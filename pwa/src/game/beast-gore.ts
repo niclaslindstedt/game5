@@ -176,7 +176,7 @@ export function createBeastGore(level: Level, wrap: Wrap): BeastGore {
   };
   gobbet.dispose();
 
-  const lumps = createLumps(flesh);
+  const lumps = createLumps(flesh, [...organs, ...shards, ...rumen]);
   group.add(lumps.group);
   // Every kind of draw the blow adds, compiled with the world.
   const primer = gorePrimer(flesh, new THREE.Group());

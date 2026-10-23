@@ -225,11 +225,13 @@ function warmPicture(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.
 }
 
 /** Every mesh, points and sprite under `scene` shown and none culled, as a
- * warm-up draws them (but, with `apart`, what asks to be left out); the call
- * returned puts each back as it was. */
+ * warm-up draws them (but, with `apart`, what asks to be left out, and an
+ * empty instanced mesh drawn one instance: the gore's standing blocks,
+ * `gore-lumps.ts`); the call returned puts each back as it was. */
 function standAll(scene: THREE.Scene, apart = false): () => void {
   const shown: THREE.Object3D[] = [];
   const culled: THREE.Object3D[] = [];
+  const empty: THREE.InstancedMesh[] = [];
   scene.traverse((o) => {
     if (!(o as THREE.Mesh).isMesh && !(o as THREE.Points).isPoints && !(o as THREE.Sprite).isSprite)
       return;
@@ -238,6 +240,11 @@ function standAll(scene: THREE.Scene, apart = false): () => void {
     // draw and no attributes to build a pipeline for: it is built when filled.
     const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
     if (apart && g && !g.getAttribute("position")) return;
+    const many = o as THREE.InstancedMesh;
+    if (apart && many.isInstancedMesh && many.count === 0) {
+      many.count = 1;
+      empty.push(many);
+    }
     if (o.frustumCulled) {
       o.frustumCulled = false;
       culled.push(o);
@@ -251,6 +258,7 @@ function standAll(scene: THREE.Scene, apart = false): () => void {
   return () => {
     for (const o of culled) o.frustumCulled = true;
     for (const p of shown) p.visible = false;
+    for (const o of empty) o.count = 0;
   };
 }
 

@@ -20,7 +20,7 @@
 
 import * as THREE from "three";
 
-import { chooseBackend, readBackend, type Backend } from "./gpu-backend.ts";
+import { pageBackend, type Backend, type BackendAsk } from "./gpu-backend.ts";
 import type { HazeUniforms } from "./haze.ts";
 
 export type OwnGpuOptions = {
@@ -29,8 +29,8 @@ export type OwnGpuOptions = {
   /** The haze the page's own materials were made with (`hazeMaterial`):
    * the node renderer's fog reads it. A still, clear one when unsaid. */
   haze?: HazeUniforms;
-  /** The back end; the link's `?renderer=` when unsaid. */
-  backend?: Backend;
+  /** The back end; the page's (`pageBackend`) when unsaid. */
+  backend?: BackendAsk;
 };
 
 export type OwnGpu = {
@@ -44,15 +44,15 @@ export type OwnGpu = {
   settled(): Promise<void>;
 };
 
-/** The back end the page's link asks for. */
-export function askedBackend(): Backend {
+/** The back end the page asks for (`pageBackend`: the link's word, the game's ask, else a lab's WebGL). */
+export function askedBackend(): BackendAsk {
   const query = typeof location === "undefined" ? "" : location.search;
-  return chooseBackend(readBackend(new URLSearchParams(query).get("renderer")));
+  return pageBackend(query);
 }
 
 /** For a page that draws through the world renderer: the device made and
  * the seam's factory installed for the back end asked (`prepareGpu`). */
-export async function labBackend(asked: Backend = askedBackend()): Promise<Backend> {
+export async function labBackend(asked: BackendAsk = askedBackend()): Promise<BackendAsk> {
   if (asked !== "webgl") await import("./gpu-device.ts").then((m) => m.prepareGpu(asked));
   return asked;
 }

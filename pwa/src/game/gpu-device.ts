@@ -17,14 +17,25 @@
 // type (Chromium 141 among them) rejects the whole view. The identity is
 // what a view does with no swizzle at all, so the shim drops it.
 //
-// NO ADAPTER: `webgpu` asked on a browser without one (or with WebGPU
-// switched off) runs three's WebGL2 back end instead — `webgpu-gl`, said as
-// such in `__SH_BACKEND__` and the report, never passed off as WebGPU.
+// NO DEVICE: `auto` or `webgpu` asked on a browser without an adapter (or
+// with WebGPU switched off) runs three's WebGL2 back end instead —
+// `webgpu-gl`, said as such in `__SH_BACKEND__` and the report, never passed
+// off as WebGPU. So does a device that cannot draw on a canvas: before the
+// renderer is made the device clears a canvas of its own and waits for it
+// (`canPresent`), because a device can be handed out and then LOST the
+// moment a canvas is configured on it (a software adapter beside a GPU
+// process that has none, `scripts/lib/backend-flag.mjs`), which would leave
+// a black page.
+//
+// A DEVICE LOST LATER, on `auto`: before the run's first frame, the page is
+// loaded again on the WebGL2 back end (`fallBack`); after it, the next load
+// of the tab is. Either way the tab remembers (`sessionStorage`), so it never
+// loops, and the report says DEVICE LOST.
 
 import type * as THREE from "three";
 import { WebGPURenderer } from "three/webgpu";
 
-import { freshBackend, type Backend } from "./gpu-backend.ts";
+import { freshBackend, type Backend, type BackendAsk } from "./gpu-backend.ts";
 import { dressScene, type Dressing } from "./gpu-dress.ts";
 import type { HazeUniforms } from "./haze.ts";
 import { createNodeTimer, type TimedRenderer } from "./gpu-timer-node.ts";
@@ -60,9 +71,85 @@ const FEATURES = [
  * texture cap before its context exists. */
 const WEBGL2_TEXTURE = 4096;
 
+/** A node back end a visit can ask the device for. */
+type NodeAsk = Exclude<BackendAsk, "webgl">;
+
 type Prepared = { device: GPUDevice | null; adapter: string; lost: { why: string | null } };
 let prepared: Promise<Prepared> | null = null;
 let shimmed = false;
+
+/** No device: the node renderer's WebGL2 back end. */
+const NO_DEVICE = (): Prepared => ({ device: null, adapter: "", lost: { why: null } });
+
+/** The tab's memory of a WebGPU device that failed it (see the header). */
+const FELL_BACK = "fall-line.gpu-fell-back";
+
+function fellBack(): boolean {
+  try {
+    return sessionStorage.getItem(FELL_BACK) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** Remember that WebGPU failed this tab, and why; `reload` loads the page
+ * again so it draws on the WebGL2 back end now. */
+function fallBack(why: string, reload: boolean): void {
+  try {
+    sessionStorage.setItem(FELL_BACK, why);
+  } catch {
+    return; // nowhere to remember it: a reload would only loop
+  }
+  if (reload && typeof location !== "undefined") location.reload();
+}
+
+/** How long the probe waits for the device to clear its canvas, ms. */
+const PROBE_MS = 4000;
+
+/** WHETHER THE DEVICE CAN DRAW ON A CANVAS: one canvas of its own
+ * configured, cleared and waited for, with a breath after for a loss the
+ * configure set off. False when anything fails or the device is lost. */
+async function canPresent(device: GPUDevice, lost: { why: string | null }): Promise<boolean> {
+  if (typeof document === "undefined") return true; // a worker draws on no canvas
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 4;
+    const context = canvas.getContext("webgpu") as GPUCanvasContext | null;
+    if (!context) return false;
+    context.configure({
+      device,
+      format: navigator.gpu.getPreferredCanvasFormat(),
+      alphaMode: "opaque",
+    });
+    device.pushErrorScope("validation");
+    const encoder = device.createCommandEncoder();
+    encoder
+      .beginRenderPass({
+        colorAttachments: [
+          {
+            view: context.getCurrentTexture().createView(),
+            clearValue: { r: 0, g: 0, b: 0, a: 1 },
+            loadOp: "clear",
+            storeOp: "store",
+          },
+        ],
+      })
+      .end();
+    device.queue.submit([encoder.finish()]);
+    const error = await device.popErrorScope();
+    const wait = (ms: number) => new Promise<"slow">((done) => setTimeout(() => done("slow"), ms));
+    const done = await Promise.race([
+      device.queue.onSubmittedWorkDone().then(() => "done" as const),
+      device.lost.then(() => "lost" as const),
+      wait(PROBE_MS),
+    ]);
+    if (done === "done") await wait(100);
+    context.unconfigure();
+    return error === null && done === "done" && lost.why === null;
+  } catch {
+    return false;
+  }
+}
 
 /** Drop the identity swizzle three passes (see the header). */
 function shimSwizzle(): void {
@@ -102,8 +189,12 @@ async function requestDevice(): Promise<Prepared> {
   const device = await adapter.requestDevice({ requiredLimits, requiredFeatures });
   void device.lost.then((info) => {
     lost.why = `${info.reason}: ${info.message}`;
-    prepared = null; // the next renderer asks for a new one
+    if (info.reason !== "destroyed") prepared = null; // the next renderer asks for a new one
   });
+  if (!(await canPresent(device, lost))) {
+    device.destroy();
+    return NO_DEVICE();
+  }
   const info = adapter.info;
   const name = [info.vendor, info.architecture, info.device, info.description]
     .filter((s) => s)
@@ -113,7 +204,7 @@ async function requestDevice(): Promise<Prepared> {
 
 /** Make ready to draw on `asked` (a webgpu path): the device, then the
  * factory every world renderer from here on is made by. */
-export async function prepareGpu(asked: Exclude<Backend, "webgl">): Promise<void> {
+export async function prepareGpu(asked: NodeAsk): Promise<void> {
   const { device, adapter, lost } = await deviceFor(asked);
   const running: Backend = device ? "webgpu" : "webgpu-gl";
   setSeamFactory((canvas, options) =>
@@ -122,15 +213,13 @@ export async function prepareGpu(asked: Exclude<Backend, "webgl">): Promise<void
 }
 
 /** The device `asked` draws on: the adapter's, or none for the WebGL2 back
- * end (asked for, or no adapter). Asked for once and shared. */
-function deviceFor(asked: Exclude<Backend, "webgl">): Promise<Prepared> {
-  return asked === "webgpu"
-    ? (prepared ??= requestDevice().catch(() => ({
-        device: null,
-        adapter: "",
-        lost: { why: null },
-      })))
-    : Promise.resolve<Prepared>({ device: null, adapter: "", lost: { why: null } });
+ * end (asked for, no adapter, a device that cannot present, or `auto` in a
+ * tab WebGPU has already failed). Asked for once and shared. */
+function deviceFor(asked: NodeAsk): Promise<Prepared> {
+  if (asked === "webgpu-gl" || (asked === "auto" && fellBack())) {
+    return Promise.resolve(NO_DEVICE());
+  }
+  return (prepared ??= requestDevice().catch(NO_DEVICE));
 }
 
 /** The canvas's viewport and scissor counted from the BOTTOM, as WebGL's:
@@ -169,7 +258,7 @@ function bottomUp(renderer: WebGPURenderer): void {
 export async function ownRenderer(
   canvas: HTMLCanvasElement,
   options: { antialias: boolean },
-  asked: Exclude<Backend, "webgl">,
+  asked: NodeAsk,
   haze: HazeUniforms,
 ): Promise<{ renderer: WebGPURenderer; running: Backend; settled: () => Promise<void> }> {
   const { device } = await deviceFor(asked);
@@ -203,7 +292,7 @@ export async function ownRenderer(
 function gpuSeam(
   canvas: HTMLCanvasElement,
   options: { antialias: boolean },
-  asked: Backend,
+  asked: BackendAsk,
   running: Backend,
   device: GPUDevice | null,
   adapter: string,
@@ -223,9 +312,23 @@ function gpuSeam(
   const state = freshBackend(asked, running);
   state.adapter = adapter;
   let dressing: Dressing | null = null;
-  const ready = renderer.init().then(() => {
-    globalThis.__SH_BACKEND__ = running;
-  });
+  /** Whether a frame has been drawn whole (`endFrame`, the warm-up's first): a loss
+   * before it is a load that failed (see the header). */
+  let started = false;
+  const ready = renderer.init().then(
+    () => {
+      globalThis.__SH_BACKEND__ = running;
+    },
+    (error: unknown) => {
+      if (asked === "auto" && device) fallBack(`init: ${String(error)}`, true);
+      throw error;
+    },
+  );
+  if (asked === "auto" && device) {
+    void device.lost.then((info) => {
+      if (info.reason !== "destroyed") fallBack(`${info.reason}: ${info.message}`, !started);
+    });
+  }
   const pipelines = renderer as unknown as { _pipelines?: { caches?: Map<string, unknown> } };
   const info: SeamInfo = {
     calls: 0,
@@ -258,7 +361,10 @@ function gpuSeam(
       },
     },
     woods: () => dressing?.woods ?? null,
-    endFrame: () => dressing?.end(),
+    endFrame() {
+      started = true;
+      dressing?.end();
+    },
     settled: () => (device ? device.queue.onSubmittedWorkDone() : glSettled(renderer)),
     timer: (mode) => createNodeTimer(renderer as unknown as TimedRenderer, mode),
     fence() {

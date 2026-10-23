@@ -39,6 +39,16 @@ export const DEV_STRINGS = {
       "The camera off the skier: I K fly, J L slide, U O sink and climb, shift is faster, drag to look.",
   } satisfies Record<keyof DevSettings, string>,
   devCaption: "Instruments over the picture. None of them changes the game.",
+  /** DEVELOPER ▸ RENDERER (`gpu-backend.ts`): what the world is drawn with. */
+  devRenderer: "RENDERER",
+  devRendererStops: {
+    auto: "AUTO",
+    "webgpu-gl": "WEBGL2 NODES",
+    webgl: "CLASSIC WEBGL",
+  } satisfies Record<"auto" | "webgpu-gl" | "webgl", string>,
+  devRendererWebgpu: "WEBGPU",
+  devRendererHint: (running: string): string =>
+    `What draws the world, from the next time the game is opened: AUTO is WebGPU where this device has it, CLASSIC WEBGL the renderer the game drew with before. Drawing now on ${running}.`,
   devRepro: "COPY REPRO LINK",
   devReproLabel: "REPRO",
   devLock: "LOCK THE DEVELOPER PAGE",

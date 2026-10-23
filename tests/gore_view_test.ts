@@ -393,4 +393,34 @@ describe("the lumps thrown, instanced and baked (`gore-lumps.ts`)", () => {
     expect(geo.boundingBox!.max.x - geo.boundingBox!.min.x).toBeCloseTo(2.5, 3);
     lumps.dispose();
   });
+
+  it("keeps a standing block of every shape it is given, hidden while empty", () => {
+    const lumps = createLumps(new THREE.MeshBasicMaterial(), [shape]);
+    const block = lumps.group.children[0] as THREE.InstancedMesh;
+    expect(block.isInstancedMesh).toBe(true);
+    expect([block.count, block.visible]).toEqual([0, false]);
+    lumps.add(shape, lump(at, still, 0.5, { x: 0, y: 1, z: 0 }, 0, 1 / 60));
+    expect([block.count, block.visible]).toEqual([1, true]);
+    // Baked away and cleared, the same block stands: the pipelines built for it are kept.
+    for (let i = 0; i < 120; i++) lumps.update(FLAT, 1 / 60);
+    expect(lumps.group.children).toContain(block);
+    lumps.clear();
+    expect(lumps.group.children).toEqual([block]);
+    expect([block.count, block.visible]).toEqual([0, false]);
+    lumps.dispose();
+  });
+
+  it("lays every lump for the dead and keeps its blocks for the next rider", () => {
+    const lumps = createLumps(new THREE.MeshBasicMaterial(), [shape]);
+    const block = lumps.group.children[0];
+    lumps.add(shape, lump(at, still, 0.5, { x: 0, y: 1, z: 0 }, 0, 1 / 60));
+    const dead = lumps.lay();
+    expect(dead.count()).toBe(1);
+    expect(dead.group.children).toHaveLength(1);
+    expect((dead.group.children[0] as THREE.InstancedMesh).isInstancedMesh).toBeUndefined();
+    expect(lumps.group.children).toEqual([block]);
+    expect(lumps.count()).toBe(0);
+    dead.dispose();
+    lumps.dispose();
+  });
 });

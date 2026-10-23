@@ -8,6 +8,17 @@
 // its lumps has moved; and a lump that has lain still `SETTLE` s is BAKED
 // where it lies into one mesh with every other that has — two draws for
 // all of them, however many shapes — and leaves its block.
+//
+// THE STANDING BLOCKS (`docs/webgpu.md`, part 15). The node renderer keys
+// every instanced mesh apart (three's render object adds the mesh's own id
+// to its key, and its instance buffer is named by its node's id in the
+// shader), so each block is a pipeline of its own for the picture and one
+// for the sun's map — built the frame it is first drawn, which was the hit.
+// So a block of every shape the view can throw (`shapes`) stands from the
+// start, hidden while it is empty, and the warm-up behind the loading card
+// draws it (`environment.ts`'s `warmNode`); a block is emptied rather than
+// let go, so the next hit draws through the pipelines already built. On
+// WebGL, which keys a program by its material, it changes nothing drawn.
 
 import * as THREE from "three";
 
@@ -38,6 +49,9 @@ export type Lumps = {
   count(): number;
   /** Every lump gone. */
   clear(): void;
+  /** Every lump baked where it lies, handed over as lumps of its own (the
+   * dead's), and these emptied for the next rider: the standing blocks stay. */
+  lay(): Lumps;
   dispose(): void;
 };
 
@@ -105,7 +119,31 @@ function merged(parts: { geo: THREE.BufferGeometry; at: THREE.Matrix4 | null }[]
   return out;
 }
 
-export function createLumps(material: THREE.Material): Lumps {
+/** Lumps that are only a baked mesh: what `lay` hands the dead. */
+function lying(mesh: THREE.Mesh | null, thrown: number): Lumps {
+  const group = new THREE.Group();
+  group.name = "gore-lumps";
+  if (mesh) group.add(mesh);
+  const clear = (): void => {
+    if (mesh) mesh.geometry.dispose();
+    group.clear();
+    mesh = null;
+  };
+  return {
+    group,
+    add() {},
+    update() {},
+    count: () => thrown,
+    clear,
+    lay: () => lying(null, 0),
+    dispose: clear,
+  };
+}
+
+export function createLumps(
+  material: THREE.Material,
+  shapes: readonly THREE.BufferGeometry[] = [],
+): Lumps {
   const group = new THREE.Group();
   group.name = "gore-lumps";
   const blocks = new Map<THREE.BufferGeometry, Block[]>();
@@ -117,8 +155,8 @@ export function createLumps(material: THREE.Material): Lumps {
   const blockFor = (geo: THREE.BufferGeometry): Block => {
     let list = blocks.get(geo);
     if (!list) blocks.set(geo, (list = []));
-    const last = list[list.length - 1];
-    if (last && last.lumps.length < BLOCK) return last;
+    const room = list.find((b) => b.lumps.length < BLOCK);
+    if (room) return room;
     const mesh = new THREE.InstancedMesh(geo, material, BLOCK);
     mesh.count = 0;
     mesh.castShadow = true;
@@ -129,6 +167,14 @@ export function createLumps(material: THREE.Material): Lumps {
     list.push(block);
     return block;
   };
+  /** The first block of each shape, standing from the start. */
+  const standing = new Set(shapes.map((geo) => blockFor(geo)));
+  /** A block's count, and hidden while it holds none. */
+  const show = (block: Block): void => {
+    block.mesh.count = block.lumps.length;
+    block.mesh.visible = block.lumps.length > 0;
+  };
+  for (const block of standing) show(block);
 
   const place = (block: Block, i: number): void => {
     const o = block.lumps[i];
@@ -143,21 +189,30 @@ export function createLumps(material: THREE.Material): Lumps {
     block.mesh.setMatrixAt(i, m);
   };
 
-  const drop = (block: Block): void => {
+  /** A block let go, or a standing one emptied. */
+  const drop = (block: Block): boolean => {
+    if (standing.has(block)) {
+      block.lumps = [];
+      block.size = [];
+      block.rest = [];
+      show(block);
+      return false;
+    }
     group.remove(block.mesh);
     block.mesh.dispose();
+    return true;
   };
 
-  /** Every lump that has lain still `SETTLE` s baked into the one mesh and
-   * taken out of its block; a block left empty let go. */
-  const bake = (): void => {
+  /** Every lump that has lain still `SETTLE` s (every lump, `all`) baked
+   * into the one mesh and taken out of its block; a block left empty let go. */
+  const bake = (all = false): void => {
     const parts: { geo: THREE.BufferGeometry; at: THREE.Matrix4 | null }[] = [];
     if (baked) parts.push({ geo: baked.geometry, at: null });
     for (const [geo, list] of blocks) {
       for (const block of list) {
         const keep: number[] = [];
         block.lumps.forEach((_, i) => {
-          if (block.rest[i] < SETTLE) return void keep.push(i);
+          if (!all && block.rest[i] < SETTLE) return void keep.push(i);
           parts.push({ geo, at: block.mesh.getMatrixAt(i, new THREE.Matrix4()) });
         });
         if (keep.length === block.lumps.length) continue;
@@ -165,11 +220,10 @@ export function createLumps(material: THREE.Material): Lumps {
         block.size = keep.map((i) => block.size[i]);
         block.rest = keep.map((i) => block.rest[i]);
         block.lumps.forEach((_, i) => place(block, i));
-        block.mesh.count = block.lumps.length;
+        show(block);
         block.mesh.instanceMatrix.needsUpdate = true;
       }
-      const left = list.filter((b) => b.lumps.length > 0);
-      for (const b of list) if (b.lumps.length === 0) drop(b);
+      const left = list.filter((b) => b.lumps.length > 0 || !drop(b));
       if (left.length) blocks.set(geo, left);
       else blocks.delete(geo);
     }
@@ -192,7 +246,7 @@ export function createLumps(material: THREE.Material): Lumps {
       block.lumps.push(lump);
       block.size.push(scale);
       block.rest.push(0);
-      block.mesh.count = block.lumps.length;
+      show(block);
       place(block, block.lumps.length - 1);
       block.mesh.instanceMatrix.needsUpdate = true;
       thrown++;
@@ -229,8 +283,11 @@ export function createLumps(material: THREE.Material): Lumps {
     },
     count: () => thrown,
     clear() {
-      for (const list of blocks.values()) for (const block of list) drop(block);
-      blocks.clear();
+      for (const [geo, list] of blocks) {
+        const left = list.filter((b) => !drop(b));
+        if (left.length) blocks.set(geo, left);
+        else blocks.delete(geo);
+      }
       if (baked) {
         group.remove(baked);
         baked.geometry.dispose();
@@ -239,7 +296,18 @@ export function createLumps(material: THREE.Material): Lumps {
       since = 0;
       thrown = 0;
     },
+    lay() {
+      if (thrown > 0) bake(true);
+      const out = lying(baked, thrown);
+      if (baked) group.remove(baked);
+      baked = null;
+      since = 0;
+      thrown = 0;
+      return out;
+    },
     dispose() {
+      this.clear();
+      standing.clear();
       this.clear();
     },
   };

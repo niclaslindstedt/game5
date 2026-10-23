@@ -210,7 +210,7 @@ describe("the instruments' and the stage's materials", () => {
       backdrop.dispose();
     }
     expect(source("game/trail-overlay.ts")).toMatch(
-      /nodeTwin\(material, "trail-overlay", "trail-overlay"\)/,
+      /nodeTwin\(material, "trail-overlay", "trail-overlay", true\)/,
     );
     expect(source("game/snow-under.ts")).toMatch(/"snow-under", "under-copy"\)/);
   });

@@ -278,12 +278,14 @@ export function createGoreView(
   let rng: Rng = createRng(level.seed ^ 0x5eed90e);
   let pieces: Piece[] = [];
   let tornSeen = 0; // of the engine's torn pieces, flown or crushed
-  let lumps = createLumps(flesh);
+  const lumps = createLumps(
+    flesh,
+    model ? [...ORGAN_KINDS.flatMap(organsOf), ...ribs, ...shards] : [],
+  );
   group.add(lumps.group);
   // Built with his model, at load: the hit's programs compiled and its shapes cut behind the card.
   const primed = model && createDressed(model.skin().dress, wrap, PIECE_BONES.head);
   if (model) cutAhead(model.skin().dress, Object.values(PIECE_BONES));
-  for (const kind of model ? ORGAN_KINDS : []) organsOf(kind);
   for (const piece of model ? GORE_PIECES : []) stumpOf(piece);
   const primer = primed ? gorePrimer(flesh, primed.group) : null;
   if (primer) group.add(primer.group);
@@ -531,18 +533,16 @@ export function createGoreView(
       body,
       pieces: pieces.map((p) => p.dressed),
       loose: [...(spike ? [spike] : []), ...smears.take()],
-      lumps,
+      lumps: lumps.lay(),
       guts: guts.map((g) => g.mesh),
       blood,
     };
     for (const o of [...r.pieces.map((d) => d.group), ...r.loose, ...r.guts]) dead.add(o);
-    dead.add(lumps.group);
+    dead.add(r.lumps.group);
     remains.push(r);
     while (remains.length > REMAINS) forget(remains.shift()!);
     // Owned by the dead now: the next rider starts with none of it.
     pieces = [];
-    lumps = createLumps(flesh);
-    group.add(lumps.group);
     guts = [];
     spike = null;
     blood = createBlood(wrap);

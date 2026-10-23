@@ -69,13 +69,7 @@ import { createGazeRig } from "./lift-gaze.ts";
 import { createGhostModel, type GhostModel } from "./ghost-model.ts";
 import { createMachines, type Machines } from "./machines.ts";
 import { bagRemains, remainsAt } from "./police-remains.ts";
-import {
-  chooseBackend,
-  readBackend,
-  runsPass,
-  type Backend,
-  type BackendState,
-} from "./gpu-backend.ts";
+import { pageBackend, runsPass, type BackendAsk, type BackendState } from "./gpu-backend.ts";
 import { createQuarantine } from "./gpu-quarantine.ts";
 import { hazeMaterial, setRunSnow } from "./haze.ts";
 import { adaptLamps, dealLamps } from "./headlamp.ts";
@@ -152,10 +146,9 @@ import { carveOf, createPen, stampsOf, type Stamp } from "./trail-stamp.ts";
 import { quietThree } from "./three-console.ts";
 
 // The modelled skis and skiers, fetched before the kit (`use-render-kit.ts`) — and the
-// back end asked for (`gpu-backend.ts`; the link's `?renderer=` unless named), its device first.
-export const loadModels = async (asked?: Backend): Promise<void> => {
-  const backend =
-    asked ?? chooseBackend(readBackend(new URLSearchParams(location.search).get("renderer")));
+// back end asked for (`gpu-backend.ts`; the page's `pageBackend` unless named), its device first.
+export const loadModels = async (asked?: BackendAsk): Promise<void> => {
+  const backend = asked ?? pageBackend(location.search);
   const gpu =
     backend === "webgl" ? null : import("./gpu-device.ts").then((m) => m.prepareGpu(backend));
   if (!gpu) setSeamFactory(null);

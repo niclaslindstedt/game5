@@ -36,7 +36,7 @@ import {
 } from "@engine";
 
 import type { LensPose } from "../game/camera-rigs.ts";
-import { chooseBackend, readBackend } from "../game/gpu-backend.ts";
+import { pageBackend } from "../game/gpu-backend.ts";
 import { createWorldRenderer } from "../game/renderer.ts";
 import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
 import { holdInput, isHoldMove, type HoldMove } from "../game/hold-input.ts";
@@ -82,7 +82,7 @@ const stage = document.getElementById("stage") as HTMLCanvasElement;
 const sheet = document.getElementById("sheet") as HTMLCanvasElement;
 // `?renderer=webgpu|webgpu-gl` (`docs/webgpu.md`): the node renderer's device
 // first, as the game makes it.
-const backend = chooseBackend(readBackend(params.get("renderer")));
+const backend = pageBackend(location.search);
 if (backend !== "webgl") await import("../game/gpu-device.ts").then((m) => m.prepareGpu(backend));
 const renderer = createWorldRenderer(stage, {
   video: withPreset(DEFAULT_VIDEO, tier),

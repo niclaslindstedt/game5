@@ -86,7 +86,19 @@ const args = parseArgs(
       help: "print the cost table from the last --costs (or --sweep) run's JSON, running nothing",
     },
     timeout: { kind: "number", default: 3600, help: "seconds to wait for the run to finish" },
-    frames: { kind: "number", help: "time this many frames, not the plan's (?frames=, 60 up)" },
+    frames: {
+      kind: "number",
+      help: "time this many frames, not the plan's (?frames=, 60 up); --costs: each stop's stretch, 600 unless told",
+    },
+    cheapest: {
+      kind: "flag",
+      help: "--costs: price only each row's cheapest stop against the top (each row's whole span, in fewer runs)",
+    },
+    rounds: {
+      kind: "number",
+      default: 3,
+      help: "--costs: runs of each stop beside the top picture, the median kept (fewer for a software device)",
+    },
     renderer: rendererFlag(true),
     out: { kind: "string", default: "previews/benchmark.txt", help: "where the report is written" },
     dist: {
@@ -159,7 +171,7 @@ async function run(hide, picture = args.picture, extra = {}) {
   if (hide) query.set("hide", hide);
   if (picture) query.set("picture", picture);
   if (args.frames !== undefined) query.set("frames", String(args.frames));
-  if (renderer !== "webgl") query.set("renderer", renderer);
+  query.set("renderer", renderer); // named even for WebGL: the game's own default is `auto`
   for (const [key, value] of Object.entries(extra)) query.set(key, value);
   const url = `${site.url}?${query}`;
   if (!args.costs && !args.sweep) {
@@ -228,8 +240,10 @@ async function priceList() {
     Object.entries({ ...top, ...over })
       .map(([row, stop]) => `${row}:${stop}`)
       .join(",");
-  const FRAMES = 600;
-  const ROUNDS = 3;
+  const FRAMES = args.frames ?? 600;
+  // Every stop under the top, or (`--cheapest`) the cheapest alone.
+  const priced = (stops) => (args.cheapest ? stops.slice(0, 1) : stops.slice(0, -1));
+  const ROUNDS = Math.max(1, Math.round(args.rounds));
   const bench = async (view, over) => {
     const extra = { frames: String(FRAMES) };
     if (view !== "race") extra.view = view;
@@ -244,7 +258,7 @@ async function priceList() {
     topRuns.push(before);
     for (const [row, stops] of Object.entries(all)) {
       rows[row] = {};
-      for (const stop of stops.slice(0, -1)) {
+      for (const stop of priced(stops)) {
         const shares = { wall: [], card: [] };
         for (let r = 0; r < ROUNDS; r++) {
           const t = await bench(view, { [row]: stop });
@@ -282,7 +296,7 @@ async function priceList() {
     `  row          stop    ${scenes.map((view) => view.padStart(7)).join(" ")}`,
   ];
   for (const [row, stops] of Object.entries(all)) {
-    for (const stop of stops.slice(0, -1)) {
+    for (const stop of priced(stops)) {
       const shares = scenes.map((view) =>
         `${(views[view].rows[row][stop].wall * 100).toFixed(1)}%`.padStart(7),
       );
@@ -295,13 +309,13 @@ async function priceList() {
         `every row at its cheapest: ${(views[view].floor.wall * 100).toFixed(1)}%`,
     );
   }
-  const whole = !args.rows && !args.views;
+  const whole = !args.rows && !args.views && !args.cheapest;
   const name = whole
     ? "picture-costs.json"
-    : `picture-costs-${scenes.join("-")}${args.rows ? `-${asked.join("-")}` : ""}.json`;
-  const priced = { width: args.width, height: args.height, frames: FRAMES, views };
-  writeFileSync(join(root, "previews", name), JSON.stringify(priced, null, 2));
-  lines.push(`  (the numbers: previews/${name})`, "", costTable(all, priced));
+    : `picture-costs-${scenes.join("-")}${args.rows ? `-${asked.join("-")}` : ""}${args.cheapest ? "-cheapest" : ""}.json`;
+  const list = { width: args.width, height: args.height, frames: FRAMES, views };
+  writeFileSync(join(root, "previews", name), JSON.stringify(list, null, 2));
+  lines.push(`  (the numbers: previews/${name})`, "", costTable(all, list));
   return lines.join("\n");
 }
 
@@ -320,6 +334,8 @@ function costTable(all, priced) {
       stop === ladder[ladder.length - 1] ? 0 : (1 - v.rows[row][stop].wall) * v.top.wall;
     let last = 0;
     const cells = ladder.map((stop, i) => {
+      // A stop `--cheapest` did not run has no reading.
+      if (i < ladder.length - 1 && views.some((v) => !v.rows[row][stop])) return `${stop} —`;
       const cost =
         i === 0 ? 0 : Math.max(...views.map((v) => saved(v, ladder[0]) - saved(v, stop)));
       last = Math.max(last, cost);

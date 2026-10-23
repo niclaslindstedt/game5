@@ -128,7 +128,7 @@ export function createCrowdGore(level: Level, wrap: Wrap): CrowdGore {
   );
   const organs = ORGANS.map((k, i) => organGeometry(k, 3.1 + i * 4.7));
   const shards = [0, 1, 2].map((i) => shardGeometry(0.08 + 0.04 * i, 0.012, i * 3.3));
-  const lumps = createLumps(flesh);
+  const lumps = createLumps(flesh, [...organs, ...shards]);
   group.add(lumps.group);
   const primer = gorePrimer(flesh, new THREE.Group());
   group.add(primer.group);

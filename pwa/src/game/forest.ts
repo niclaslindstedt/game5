@@ -89,6 +89,7 @@ import {
   type TreeTable,
 } from "./forest-batch.ts";
 import { createNodeTreeBatch, roomOf, type ShapeRoom, type WoodsKit } from "./forest-nodes.ts";
+import { createIndirectTreeBatch } from "./forest-indirect.ts";
 import { summerShown } from "./season-look.ts";
 import { buildTree, kindPaint, summerPaint, treePaint, type TreeLod } from "./tree-shapes.ts";
 import {
@@ -545,27 +546,42 @@ export function createForest(
     geometries: THREE.BufferGeometry[];
   };
 
-  /** One of the woods' batches over the table: WebGL's one multi-draw, or
-   * the node renderer's shapes drawn instanced (`forest-nodes.ts`), each
-   * with the room `room` says. */
+  /** One of the woods' batches over the table: WebGL's one multi-draw, the
+   * node renderer's shapes drawn instanced (`forest-nodes.ts`), or on WebGPU
+   * one indirect draw a pass (`forest-indirect.ts`), each shape with the
+   * room `room` says. */
   const batchOf = (
     geometries: THREE.BufferGeometry[],
     colour: THREE.Material,
     room: ShapeRoom,
     table?: TreeTable,
   ): TreeBatch =>
-    woods
-      ? createNodeTreeBatch(geometries, count, matrices, data, room, colour, casterNode, { table })
-      : createTreeBatch(
+    woods?.indirect
+      ? createIndirectTreeBatch(
           geometries,
           count,
           matrices,
           data,
-          { colour: count * 2, casters: room.casters ? count : 0 },
+          room,
           colour,
-          casterDepth,
+          casterNode,
+          woods.indirect,
           { table },
-        );
+        )
+      : woods
+        ? createNodeTreeBatch(geometries, count, matrices, data, room, colour, casterNode, {
+            table,
+          })
+        : createTreeBatch(
+            geometries,
+            count,
+            matrices,
+            data,
+            { colour: count * 2, casters: room.casters ? count : 0 },
+            colour,
+            casterDepth,
+            { table },
+          );
 
   /** THE SHAPES for `variants` of every kind (the FOREST row's): which
    * variant every tree is, the map's own variants built at each cut (only

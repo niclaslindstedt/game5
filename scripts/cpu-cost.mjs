@@ -30,6 +30,7 @@
 //   npm run cpu-cost                          every suite
 //   npm run cpu-cost -- --suite forest        one (engine, forest, lifts, crowd)
 //   npm run cpu-cost -- --forest medium --distance low --shadows off
+//   npm run cpu-cost -- --suite forest --woods indirect   the node renderer's woods
 //   npm run cpu-cost -- --json previews/cpu-before.json
 //   npm run cpu-cost -- --compare previews/cpu-before.json
 //
@@ -73,6 +74,11 @@ const args = parseArgs(
       kind: "string",
       default: "high",
       help: "the SHADOWS row (off, skiers, medium, high)",
+    },
+    woods: {
+      kind: "string",
+      default: "webgl",
+      help: "the forest's draw: webgl (one multi-draw batch), nodes (a shape at a time, the node renderer's) or indirect (one indirect draw a pass, WebGPU's)",
     },
     json: { kind: "string", help: "write the table as JSON here" },
     compare: { kind: "string", help: "a --json file from an earlier run, printed beside this one" },
@@ -123,6 +129,17 @@ function hashInstances(group) {
     // A batch that keeps its own list of what it draws (`forest-batch.ts`).
     if (o.userData.drawnBytes) {
       for (const b of o.userData.drawnBytes()) h.update(b);
+      return;
+    }
+    // The node renderer's woods: each shape's run of words, whether a mesh
+    // a shape or one indirect draw a pass carries it — the same bytes.
+    const tw = o.geometry?.getAttribute?.("treeWord");
+    if (tw && o.visible) {
+      const g = o.geometry;
+      const runs = g.indirect
+        ? g.indirectOffset.map((b) => [g.indirect.array[b / 4 + 4], g.indirect.array[b / 4 + 1]])
+        : [[0, g.instanceCount]];
+      for (const [at, n] of runs) h.update(new Uint8Array(tw.array.buffer, at * 4, n * 4));
       return;
     }
     if (!o.isInstancedMesh) return;
@@ -253,12 +270,36 @@ if (suites.includes("forest")) {
   const state = E.createGame({ seed: BENCHMARK.seed, level, sky: BENCHMARK.sky, quiet: true });
   const look = V.FOREST_LOOK[args.forest];
   const casts = V.SHADOW_LOOK[args.shadows].trees;
-  const forest = createForest(level, createHazeUniforms(), {
-    ...look,
-    far: V.DISTANCE_LOOK[args.distance].trees,
-    view: V.DISTANCE_LOOK[args.distance].view,
-    casters: casts ? look.casters : "none",
-  });
+  // The node renderer's woods are filled by the same cull into its own
+  // lists (`forest-nodes.ts`, `forest-indirect.ts`); plain materials stand in
+  // for its node materials, which this lab never draws.
+  if (!["webgl", "nodes", "indirect"].includes(args.woods)) {
+    console.error(`unknown --woods ${args.woods} (webgl, nodes, indirect)`);
+    process.exit(2);
+  }
+  const kit =
+    args.woods === "webgl"
+      ? null
+      : {
+          tree: () => new THREE.MeshStandardMaterial(),
+          cards: () => new THREE.MeshStandardMaterial(),
+          casters: () => new THREE.MeshBasicMaterial(),
+          ...(args.woods === "indirect"
+            ? { indirect: (a) => new THREE.BufferAttribute(a, 1) }
+            : {}),
+        };
+  const forest = createForest(
+    level,
+    createHazeUniforms(),
+    {
+      ...look,
+      far: V.DISTANCE_LOOK[args.distance].trees,
+      view: V.DISTANCE_LOOK[args.distance].view,
+      casters: casts ? look.casters : "none",
+    },
+    undefined,
+    kit,
+  );
   const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 4000);
   const dir = new THREE.Vector3();
   // A late-morning sun, as the benchmark's sky has it.
@@ -284,7 +325,7 @@ if (suites.includes("forest")) {
     forest.group,
   );
   rows.at(-1).name =
-    `forest ${args.forest}/${args.distance}/${args.shadows} (${level.trees.length} trees)`;
+    `forest ${args.forest}/${args.distance}/${args.shadows} ${args.woods} (${level.trees.length} trees)`;
 }
 
 if (suites.includes("terrain")) {

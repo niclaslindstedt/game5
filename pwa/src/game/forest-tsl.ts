@@ -36,7 +36,11 @@
 
 import * as THREE from "three";
 import * as TSL from "three/tsl";
-import { MeshBasicNodeMaterial, MeshStandardNodeMaterial } from "three/webgpu";
+import {
+  IndirectStorageBufferAttribute,
+  MeshBasicNodeMaterial,
+  MeshStandardNodeMaterial,
+} from "three/webgpu";
 
 import { TREE_BITS, type BatchUniforms } from "./forest-batch.ts";
 import type { WoodsKit } from "./forest-nodes.ts";
@@ -308,11 +312,20 @@ function casterMaterial(r: Reader, u: HazeUniforms): MeshBasicNodeMaterial {
 }
 
 /** The woods' kit for `forest.ts` (`render-seam.ts`'s `woods`): the
- * backlight takes `key`'s colour and direction. */
-export function woodsKit(u: HazeUniforms, key: THREE.DirectionalLight | null): WoodsKit {
+ * backlight takes `key`'s colour and direction. `indirect`: the device
+ * draws indirect with a first instance (WebGPU's `indirect-first-instance`),
+ * so the woods are one indirect draw a pass (`forest-indirect.ts`). */
+export function woodsKit(
+  u: HazeUniforms,
+  key: THREE.DirectionalLight | null,
+  indirect = false,
+): WoodsKit {
   return {
     tree: (b, wind) => new TreeMaterial(readerOf(b, wind)),
     cards: (b, wind, atlas) => new CardTreeMaterial(readerOf(b, wind), atlas, key),
     casters: (b, wind) => casterMaterial(readerOf(b, wind), u),
+    ...(indirect
+      ? { indirect: (args: Uint32Array) => new IndirectStorageBufferAttribute(args, 1) }
+      : {}),
   };
 }

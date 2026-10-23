@@ -65,6 +65,8 @@ const FEATURES = [
   "shader-f16",
   "timestamp-query",
   "float32-filterable",
+  // The woods' one indirect draw a pass (`forest-indirect.ts`).
+  "indirect-first-instance",
 ] as const;
 
 /** What a WebGL2 context is guaranteed to hold, px — the webgpu-gl path's
@@ -275,7 +277,7 @@ export async function ownRenderer(
   renderer.render = (scene, camera) => {
     let d = dressed.get(scene);
     if (!d && (scene as THREE.Scene).isScene) {
-      dressed.set(scene, (d = dressScene(renderer, scene as THREE.Scene, haze)));
+      dressed.set(scene, (d = dressScene(renderer, scene as THREE.Scene, haze, device)));
     }
     d?.begin();
     draw(scene, camera);
@@ -345,7 +347,7 @@ function gpuSeam(
     state,
     maxTextureSize: () => device?.limits.maxTextureDimension2D ?? WEBGL2_TEXTURE,
     dress(scene, haze) {
-      dressing = dressScene(renderer, scene, haze);
+      dressing = dressScene(renderer, scene, haze, device);
     },
     beginFrame() {
       renderer.info.reset();

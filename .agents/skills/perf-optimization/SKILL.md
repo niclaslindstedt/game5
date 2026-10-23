@@ -164,6 +164,13 @@ with the machine and the meter that measured it.
 
 Each is a real cost found in a round and not taken, with why:
 
+- **The deformable snow's processor half** (3.8 ms a frame in a profile of
+  the race at HIGH on SwiftShader's WebGPU: the press and the takes 1.9, the
+  settle 0.7, its shade's pass 1.2): the dearest system the WebGPU port's
+  compute part looked at, kept on the processor because its sweeps' order is
+  its look and the spray's budget reads what it dug the same frame
+  (`docs/webgpu.md` part 17). A cheaper press, or a settle that is not
+  in-place, would each change the look.
 - **The deformable snow's patch, what is left of it** (~0.5 ms of round 14's
   6.3 ms): not its fold's own arithmetic (0.08) nor its touched cells
   (folding them at 12 or 16 px bought nothing), so its 58k vertices' ground

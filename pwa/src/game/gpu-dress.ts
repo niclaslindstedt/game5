@@ -128,10 +128,19 @@ function hookLibrary(
   };
 }
 
+/** Whether `device` (WebGPU's, null on the WebGL2 back end) takes an
+ * indirect draw's first instance (`forest-indirect.ts`). Asked of the
+ * device itself: the scene is dressed before three's `init` has resolved,
+ * when its back end holds no device yet. */
+function drawsIndirect(device: GPUDevice | null): boolean {
+  return device?.features.has("indirect-first-instance") === true;
+}
+
 export function dressScene(
   renderer: WebGPURenderer,
   scene: THREE.Scene,
   haze: HazeUniforms,
+  device: GPUDevice | null = null,
 ): Dressing {
   registerLights(renderer);
   // Mixed in display space where the frame goes straight onto the canvas
@@ -166,7 +175,7 @@ export function dressScene(
       glows.begin(scene);
     },
     end: () => glows.end(),
-    woods: woodsKit(haze, keys[0] ?? null),
+    woods: woodsKit(haze, keys[0] ?? null, drawsIndirect(device)),
     hazeInDisplay(on) {
       display.value = on && renderer.toneMapping === THREE.ACESFilmicToneMapping ? 1 : 0;
     },

@@ -777,8 +777,9 @@ sent each refill.
 - **A `BatchedMesh` draws one instance a sub-draw on the node renderer.**
   The multi-draw's instanced twin has no path in three's node back ends, so
   the woods are drawn shape by shape. That is a draw a shape in use (see
-  the counts below) where WebGL makes one a pass. Indirect draws off a
-  compute cull (part 17) take it back to a few.
+  the counts below) where WebGL makes one a pass. On WebGPU, part 17 takes
+  it back to one render object a pass with indirect draws (the cull stays
+  the processor's).
 - **The shadow pass reads its position off the material it is handed**,
   the object's own, not its node copy (`Renderer.renderObject`). A classic
   material flagged for a twin would be drawn into the key's map without its
@@ -1911,6 +1912,187 @@ COSTS (or `make bench ARGS="--gpu --costs"`) on a phone and on a laptop.
   drives the built site, since the site's default is `auto`. Every lab's
   flag defaults to `webgl` and names it in the link.
 
+## Compute: what pays, and the woods drawn indirect (part 17)
+
+Part 17 was to move the processor's per-frame work onto the GPU where it
+pays, on WebGPU only, with the current path kept for `webgpu-gl` and WebGL.
+The candidates were the forest's cull and its draws, the snow cloud, the
+spray, the snowfall, the trail stamps and the deformable snow. They were
+measured first, and only the dearest was moved.
+
+**What each candidate costs the processor.** A CPU profile of the game's
+race on seed 20 at HIGH on WebGPU (SwiftShader, 640×360, an unminified
+build, 150 s after the card lifts, CDP's sampling profiler, the samples
+under a one-off canvas upload left out), each system's own time a frame:
+
+| System | Processor a frame | What it is | Moved? |
+| --- | --- | --- | --- |
+| The woods' draws (three's work per render object) | 3.7 ms at HIGH, 0.9 at LOW (the no-draw meter below: what folding them in took off three's `render`) | a render object, a bindings check and a draw a shape in use: 147 of the frame's 252 at HIGH | **yes: one indirect draw a pass** |
+| The deformable snow (`deform-snow.ts`: the press and the takes, the walls' settle, its shade pass) | 3.8 ms (1.9 press and takes, 0.7 settle, 1.2 the shade's pass) | a field of 5 cm cells round the player, MEDIUM and HIGH | no (below) |
+| The trail maps (`trail-map.ts`'s `update`) | 1.4 ms | three's own pass to draw the stamps; the stamps themselves 0.03 ms | no (below) |
+| The woods' cull and refill (`forest.ts`'s `update` less the crags') | 0.5 ms | the cells in the frustum, the hand-over, the lists | no (below) |
+| The spray (`spray.ts`'s emit and update) | 0.11 ms | the throws; the flight is already the GPU's (`gpu-spray.ts`) | no |
+| The snow cloud (`snow-cloud.ts`'s emit and update) | 0.02 ms | a few hundred puffs flown, shaded sun-first and sorted | no |
+| The snowfall (`snowfall.ts`'s update) | under 0.01 ms | the flakes are the GPU's already; 900 grains of spindrift | no |
+
+The woods' draws were the one candidate that is both dear and moveable
+without changing the picture.
+
+**The woods in one indirect draw a pass** (`forest-indirect.ts`). Since
+part 8 the node renderer drew the woods a shape at a time: a mesh, a render
+object and a draw for every shape in use, 147 at HIGH. Three's per-object
+work for each (its bindings, its pipeline, its buffers set) is processor time
+every frame. On a WebGPU device that offers `indirect-first-instance`, every
+shape is now packed into ONE geometry, and each pass is ONE mesh drawn
+indirect: an argument block a shape (its indices, the trees listed for it,
+its first index, its first vertex, and its first instance), from which three
+issues one `drawIndexedIndirect` a shape in use off the one render object.
+
+- **The list is the same.** The words are the same 32-bit words
+  (`slotWord`), one instanced attribute for the pass, each shape's run at a
+  fixed place (its room, counted once). The draw's first instance points the
+  shape at its run, so the vertex reads its word as before. The woods'
+  materials (`forest-tsl.ts`) are unchanged.
+- **The cull is still the processor's** (`forest.ts`), the same trees in the
+  same order as every other path. The argument blocks are written by the
+  processor too: a shape's count is its run's length.
+- **The draws come back to a few**: the picture's faceted woods, their
+  casters, and HIGH's card woods, one render object each.
+- **Elsewhere nothing changed.** The kit offers the indirect batch only
+  where the device has the feature (`woodsKit`'s `indirect`, asked of the
+  device by the dressing). On the WebGL2 back end, and on a WebGPU device
+  without the feature, the woods are drawn a shape at a time as in part 8.
+  WebGL draws its one multi-draw batch, untouched.
+
+**What it bought.** The benchmark's race on seed 20, 640×360, SwiftShader's
+WebGPU, before and after, back to back:
+
+| | LOW, before | LOW, after | HIGH, before | HIGH, after |
+| --- | --- | --- | --- | --- |
+| Draw calls a frame (render objects) | 133 | 98 | 252 | 110 |
+| The woods' objects | 37 | 1 | 153 | 3 |
+| Pipelines | 79 | 79 | 167 | 167 |
+| Processor, render (the no-draw meter, 300 frames) | 8.30 ms | 7.39 ms | 18.12 ms | 14.79 ms |
+| of it `submit` (three's `render`) | 5.11 ms | 4.20 ms | 10.94 ms | 7.23 ms |
+| Processor, render (the plain benchmark, 60 frames) | 14.38 ms | 12.65 ms | 25.94 ms | see below |
+
+THE NO-DRAW METER is the benchmark with every draw on the encoder stubbed to
+nothing (an init script over `GPURenderPassEncoder`), so the main thread is
+priced without SwiftShader rasterising under it, as performance round 5
+priced WebGL. The plain benchmark's processor numbers on SwiftShader's WebGPU
+move with the device's queue: one reading of its 60 frames can hold a frame
+that waited a second for the queue (HIGH after: a mean of 967 ms out of
+readings of 19–47 ms). The encoder still issues one draw a shape in use, so
+the GPU's own work is the same; what is saved is three's processor work a
+render object. On a phone, where the processor is often the frame's floor,
+that is the gain. Owes a device's benchmark.
+
+**The lists are the same bytes.** `make cpu-cost ARGS="--suite forest
+--woods webgl|nodes|indirect"` (the new `--woods` flag fills the node
+renderer's lists in Node with plain materials) hashes every run of words
+each path draws: `6544342d8ffe` for WebGL's batch, the shapes drawn
+instanced and the indirect pass alike, over 600 frames of the benchmark's
+race at HIGH. The fill itself costs the same (p50 0.21, 0.28 and 0.23 ms).
+
+**Why the others stayed where they are:**
+
+- **The deformable snow** is the dearest left (3.8 ms), but it is not a
+  field a GPU can settle the same way. The press, the takes and the settle
+  are in-place sweeps whose order is part of the look (a wall slumps along
+  the sweep, alternating each pass). The spray's budget reads the kilograms
+  dug (`thrown()`) in the same frame, and the takes weigh the snow still
+  standing before they dig. A GPU field would need a readback a frame late,
+  or a different (Jacobi) settle that looks different. A lead, not a
+  speed-up.
+- **The trail stamps are already the GPU's**: the stamps are quads blended
+  MAX into the maps, and the processor's 1.4 ms is three's own pass, not the
+  stamping (0.03 ms). WGSL's atomics work on storage buffers only, not on
+  storage textures, so an `atomicMax` stamp would need a buffer, a copy into
+  the texture the ground filters, and a pass of its own: more passes for no
+  processor time.
+- **The woods' cull** is 0.5 ms and runs only when the lens has moved. The
+  hand-over keeps each tree's dissolve on the wall clock with hysteresis,
+  so a GPU cull would need that state on the GPU, and every path's lists are
+  held equal by the suite today. The indirect draws took the dearer half.
+- **The spray, the snow cloud and the snowfall** cost a tenth of a
+  millisecond or less. The spray's flight and the snowfall's flakes have
+  been the GPU's since before the port (`gpu-spray.ts`, the fall's box).
+  The cloud's self-shadow is a sun-first walk where each puff is shaded by
+  those before it, and its shadow blots and the snow lab read the puffs on
+  the processor.
+
+**Metal-reachable features.** `indirect-first-instance` is now asked for
+wherever the adapter has it (`gpu-device.ts`), as every other feature the
+port uses is. SwiftShader's adapter offers it; a device's benchmark says
+whether it does (its WHAT WAS STANDING THERE reads `woods-indirect` rows in
+place of `woods`). Timestamp queries measured the GPU's passes (the
+benchmark's WHERE THE GPU WENT, unmoved: the scene pass's share is the
+same, since the encoder draws the same shapes). `shader-f16` is still asked
+for, and still unused: no shader was written here.
+
+**Pipelines after the card.** The game's race on seed 20, 640×360,
+SwiftShader's WebGPU, watched from the moment the card lifts (the part 6
+method):
+
+| Build | Picture | Pipelines before the run | After the card |
+| --- | --- | --: | --: |
+| Before | LOW | 325 | 0 |
+| After | LOW | 325 | 0 |
+| After | HIGH | 599 | 0 |
+
+The indirect passes are compiled by the loading card's warm-up like every
+other mesh, so nothing is built mid-run. Dawn's one warning in these runs
+(`Draw with an index count of 0 is unusual`) is printed by the build before
+this part too, so it is not the woods'.
+
+**How near the picture is.** `make world SEED=38` at 12 h on WebGPU, after
+against before, the mean absolute difference per channel (0 to 255):
+
+| View | LOW | HIGH |
+| --- | --: | --: |
+| spawn | 0 (byte-identical) | 0.00001 (one pixel) |
+| far | 0 (byte-identical) | 0 (byte-identical) |
+| vista | 0 (byte-identical) | 0 (byte-identical) |
+| track | 0 (byte-identical) | 0 (byte-identical) |
+| chase-6 | 0 (byte-identical) | 0 (byte-identical) |
+| powder | 0 (byte-identical) | 0 (byte-identical) |
+| forest | 0 (byte-identical) | 0.00001 (one pixel) |
+
+The two pixels that moved are where two trees' faces meet at the same
+depth: the indirect pass draws the shapes in the shape table's order, the
+instanced meshes were drawn in three's sorted order, and the depth test
+keeps whichever came first. A probe that counted the encoder's calls during
+two of these shots read 78 indirect draws, so the shots above are the
+indirect path's and not the old one's.
+
+The effect labs on WebGPU, after against before: `make snowfall
+ARGS=--renderer=webgpu` byte-identical (the frame sheet and the flow
+sheet); `make cloud ARGS=--renderer=webgpu` 0.00014 (313 pixels of 5.9
+million, the most 23 levels, all on tree edges behind the cloud: the same
+draw order). The spray lab (`make spray`, the turns lab) draws on WebGL
+only and its code is untouched; `make forest` is a map of where the trees
+stand, made in Node, and reads nothing drawn.
+
+The 14 WebGL shots (`?renderer=webgl`, the same seven views at LOW and
+HIGH) are byte-identical to before.
+`webgpu-gl` draws the woods a shape at a time as before, so no program it
+links changed: the most any binds is still the ground's, 16 at HIGH.
+
+**Traps found here:**
+
+- **The scene is dressed before three's `init` resolves**, so
+  `renderer.backend.device` is still null when the woods' kit is made. Ask
+  the device the seam was handed, never three's back end, for a feature.
+- **A first instance in an indirect draw needs `indirect-first-instance`.**
+  Without the feature WebGPU validates a non-zero `firstInstance` in the
+  buffer as a draw of nothing, not an error: the woods would vanish without
+  a message.
+- **Three counts a render object as one draw**, whatever it issues. The
+  frame's `drawCalls` falls by the shapes folded in, while the encoder still
+  makes a draw a shape. The triangle counter reads the draw range times the
+  instance count, so each pass's draw range is set to its mean shape's
+  indices.
+
 ## Measuring both paths
 
 Every browser lab takes `--renderer=webgl|webgpu|webgpu-gl|auto`
@@ -1966,7 +2148,7 @@ lines.
 | 7 Grade and post | 2026-10-20 | webgl | 100 | 231 877 | 51 programs | 12.60 (13.86 before) | 5.83 (6.21) | 0 / 0 | the 24 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, track, far) are pixel-identical to part 6's. At HIGH: 110 draws, 686 187 triangles, 67 programs, 19.66 ms (20.16) |
 | 7 Grade and post | 2026-10-20 | webgpu | 79 (80 before) | 143 958 (144 327) | 62 programs, 40 pipelines (62, 40 before) | 1 333.19 (2 422.07 before) | 1 325.83 (2 415.02) | 5 passes / 29 meshes (6 / 29 before) | The grade, the buzz and the blaze draw, and the blue deficit is closed. The grade's pipeline takes the place of three's output pass, so the counts hold. The steady readings are 10–12 ms; the mean is the device's queue on SwiftShader, which the last reading drains (4 078 ms; 8 194 before), and two runs of one build differ by that much (part 6). At HIGH: 85 draws (83), 464 052 triangles (460 791), 121 programs and 89 pipelines (121, 89), 9 951.81 ms (10 389.35) with steady readings of 17–24 ms (12–19) and a last reading of 40 829 ms (41 815) |
 | 8 Forest | 2026-10-20 | webgl | 100 | 231 883 | 51 programs | 15.51 (14.74 before) | 7.11 (6.93) | 0 / 0 | the 30 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, track, far, forest) are pixel-identical to part 7's. At HIGH: 110 draws, 686 042 triangles, 67 programs, 21.24 ms (20.13) |
-| 8 Forest | 2026-10-20 | webgpu | 114 (79 before) | 170 808 (144 326) | 64 programs, 41 pipelines (62, 40 before) | 969.29 (979.56 before) | 962.21 (972.75) | 5 passes / 28 meshes (5 / 29 before) | The woods draw, a shape at a time, and cast into the key's map. The steady readings are 9–10 ms (10–12); the mean is the device's queue on SwiftShader, which the last reading drains (5 000 ms). At HIGH: 223 draws (85), 610 385 triangles (464 052), 126 programs and 92 pipelines (121, 89), 10 375.37 ms (10 319.44) with steady readings of 24–37 ms (14–22) and a last reading of 58 728 ms (44 918). Indirect draws off a compute cull (part 17) take the draws back |
+| 8 Forest | 2026-10-20 | webgpu | 114 (79 before) | 170 808 (144 326) | 64 programs, 41 pipelines (62, 40 before) | 969.29 (979.56 before) | 962.21 (972.75) | 5 passes / 28 meshes (5 / 29 before) | The woods draw, a shape at a time, and cast into the key's map. The steady readings are 9–10 ms (10–12); the mean is the device's queue on SwiftShader, which the last reading drains (5 000 ms). At HIGH: 223 draws (85), 610 385 triangles (464 052), 126 programs and 92 pipelines (121, 89), 10 375.37 ms (10 319.44) with steady readings of 24–37 ms (14–22) and a last reading of 58 728 ms (44 918). Part 17's indirect draws take the draws back on WebGPU |
 | 9 Particles and air | 2026-10-21 | webgl | 100 | 231 883 | 51 programs | 13.65 (13.42 before) | 6.35 (6.34) | 0 / 0 | the 42 WebGL world shots (seed 38; LOW and HIGH; 9, 12 and 16.5 h; spawn, chase-6, powder, furrow, landing, far; and snowing at 12 h) are pixel-identical to part 8's. At HIGH: 110 draws, 686 162 triangles, 67 programs, 16.57 ms (21.46) |
 | 9 Particles and air | 2026-10-21 | webgpu | 116 (114 before) | 173 541 (170 618) | 74 programs, 46 pipelines (64, 41 before) | 828.40 (1 040.77 before) | 821.09 (1 033.81) | 5 passes / 24 meshes (5 / 28 before) | The spray, the snowfall and the snow cloud and its shadow draw. The steady readings are 10–11 ms (11–17); the mean is the device's queue on SwiftShader, which one reading drains (3 892 ms; 4 030 before). At HIGH: 224 draws (223), 616 797 triangles (610 097), 136 programs and 97 pipelines (126, 92), 7 936.49 ms (9 420.68) with steady readings of 29–33 ms (17–29) and a last reading of 41 606 ms (41 315) |
 | 10 Clouds | 2026-10-21 | webgl | 100 (101 before) | 231 880 (231 913) | 51 programs | 18.89 (18.88 before) | 9.24 (8.57) | 0 / 0 | the 64 WebGL world shots (seed 38; LOW and HIGH; clear and overcast at 9, 12 and 16.5 h, fair and snowing at 12 h; spawn, far, vista, chase-6) are byte-identical to part 9's. At HIGH: 110 draws, 686 187 triangles, 67 programs, 23.42 ms (22.24). The container ran the world lab beside the bench, so every ms here is higher than part 9's |
@@ -1981,10 +2163,12 @@ lines.
 | 14 Instruments and tools | 2026-10-22 | webgpu | 133 (134 before) | 231 434 (231 682) | 117 programs, 79 pipelines (117, 79 before) | 17.24 (993.49 before) | 9.62 (986.33) | 1 pass / 0 meshes (4 / 0 before) | `snow-under`, `trail-overlay` and `gpu-timer` run; `shadow-depth` alone is skipped. THE FENCE IS THE DEVICE'S QUEUE NOW: the frame waits for SwiftShader's work (1 001.09 ms a frame; 0.00 before, when nothing waited and the work landed on whichever frame's submit stalled), so the processor's half reads as itself (17 ms) and the wall is the card's (1 020.62 ms; 996.16 before). THE GPU'S TIMER on SwiftShader's `timestamp-query`: trail 1.392, scene 740.360, grade 7.205 ms a frame, 748.957 summed, over 59 frames (no section before). At HIGH: 253 draws (244), 686 498 triangles (676 653), 220 programs and 167 pipelines (220, 167), render 1 157.36 ms (9 393.83), gpu 7 420.28 ms (0.00), wall 8 580.01 ms (9 396.87); the timer: trail 37.331, hero 43.845, shadow 12.683, scene 7 245.496, grade 12.536 ms, 7 351.891 summed |
 | 15 The flip | 2026-10-23 | webgl (`?renderer=webgl`) | 100 | 231 883 (231 883) | 51 programs | 11.52 (13.54 before) | 5.52 (5.85) | 0 / 0 | the way back: the 14 WebGL world shots (seed 38, 12 h, LOW and HIGH: spawn, far, vista, track, chase-6, tips and the free ride's village street) are byte-identical to part 14's. Wall 870.27 ms. At HIGH: 110 draws, 686 162 triangles, 67 programs, 16.59 ms (19.72) |
 | 15 The flip | 2026-10-23 | auto (drew on webgpu) | 133 (133 before) | 231 669 (231 434) | 117 programs, 79 pipelines (117, 79 before) | 14.71 (17.24 before) | 8.07 (9.62) | 1 pass / 0 meshes (1 / 0 before) | THE DEFAULT. Nothing new is drawn in the benchmark's race; the gore's standing blocks are hidden until a hit, so they are neither drawn nor counted here (the warm-up builds them behind the card: see this part). Wall 856.17 ms (1 020.62), the device's queue on SwiftShader. At HIGH: 252 draws (253), 685 819 triangles (686 498), 220 programs and 167 pipelines (220, 167), render 27.17 ms (1 157.36), wall 7 639.03 ms (8 580.01) |
+| 17 Compute | 2026-10-23 | webgl (`?renderer=webgl`) | 100 | 231 883 (231 877) | 51 programs | 10.82 (11.46 before) | 5.14 (5.12) | 0 / 0 | untouched: the 14 WebGL world shots (seed 38, 12 h, LOW and HIGH: spawn, far, vista, track, chase-6, powder, forest) are byte-identical to the build before this part. At HIGH: 110 draws, 686 010 triangles, 67 programs, 15.95 ms (17.80) |
+| 17 Compute | 2026-10-23 | webgpu | 100 (133 before) | 231 657 (231 434) | 117 programs, 79 pipelines (117, 79 before) | 12.65 (14.38 before) | 6.74 (8.04) | 1 pass / 0 meshes (1 / 0 before) | The woods are one indirect draw a pass (`woods-indirect`: 1 object at LOW where 34 were). THE NO-DRAW METER (every encoder draw stubbed, 300 frames): render 7.39 ms (8.30), submit 4.20 (5.11). At HIGH: 110 draws (252), 687 129 triangles (686 010), 220 programs and 167 pipelines (220, 167), the woods 3 objects (147); the plain mean is one reading that waited on the device's queue (967.00 ms; readings of 19–47 ms against 21–37 before), so the no-draw meter reads it: render 14.79 ms (18.12), submit 7.23 (10.94) |
 
-Parts 1 to 15 were measured with `make bench ARGS="--renderer=both --frames 60 --width
+Parts 1 to 17 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis), and from
-part 3 again with `--video high` for the numbers under "At HIGH" (part 15 with `--renderer=webgl` and `--renderer=auto`, one back end a run).
+part 3 again with `--video high` for the numbers under "At HIGH" (part 15 with `--renderer=webgl` and `--renderer=auto`, one back end a run; part 17 with `--renderer=webgl` and `--renderer=webgpu`, and its no-draw meter at 300 frames).
 
 ## Systems ported
 
@@ -2004,5 +2188,5 @@ part 3 again with `--video high` for the numbers under "At HIGH" (part 15 with `
 - [x] 14 Instruments and tools (`snow-under`, `trail-overlay`, `gpu-timer`): the GPU's timer off the node renderer's timestamp queries, the device's queue as the benchmark's and AUTO's fence, the trail corner and the snow probe as node twins read back asynchronously, the gear stage's backdrop by node grafts and a twin, every harness's renderer of its own through `createGpu`, the WebGPU meters in `make profile` and `make gore-cost`; `shader` and `haze-graft` emptied and kept as guards until part 16
 - [x] 15 The flip: `auto` by default (WebGPU, else WebGL2 nodes, with a probe and a fallback at load), `?renderer=webgl` and DEVELOPER ▸ RENDERER the way back, the trail maps' stamps drawn on the node paths, the gore's lump blocks standing and warmed behind the card, the picture's prices re-measured for the node renderer
 - [ ] 16 The GLSL deleted, and the quarantine with it (`shadow-depth` too)
-- [ ] 17 Compute (WebGPU only)
+- [x] 17 Compute (WebGPU only): measured first; the woods drawn as one indirect draw a pass off `indirect-first-instance`; the deformable snow, the trail stamps, the woods' cull, the spray, the snow cloud and the snowfall kept on their paths, each with why
 - [ ] 18 Ray-marched effects

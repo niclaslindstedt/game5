@@ -58,6 +58,10 @@ export type WoodsKit = {
   /** The casters' depth: the girth and the wind, cut where the mountain
    * already shades it (`castMask`). */
   casters(u: BatchUniforms, wind: THREE.IUniform<THREE.Vector4>): THREE.Material;
+  /** On a WebGPU device with `indirect-first-instance`: the buffer an
+   * indirect draw reads its arguments from, and the woods are drawn one
+   * indirect draw a pass (`forest-indirect.ts`). Absent elsewhere. */
+  indirect?: (args: Uint32Array) => THREE.BufferAttribute;
 };
 
 /** How many trees each shape may be drawn for in each pass (0: none). */

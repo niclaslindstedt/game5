@@ -35,6 +35,8 @@
 //     wingsuit — part 12) has the graft's nodes set on its copy
 //     (`model-grafts-tsl.ts`), and a material's own clipping planes (a cut
 //     ski) become the copy's mask;
+//   - the RAYS (`rays-tsl.ts`, part 18) are made over the same haze and the
+//     scene's key and sky the first time the picture asks for them;
 //   - the SKIERS' passes' depth (`createShadeDepth`, `userData.shadeCast`)
 //     is drawn by `shadows-tsl.ts`'s twin, the mountain's shade discarded,
 //     and the atlas they fill is re-pointed each frame (`syncHero`).
@@ -60,7 +62,8 @@ import { dissolveSkin } from "./xray-tsl.ts";
 import { pointStand } from "./particle-twins-tsl.ts";
 import { heroSlots, shadeDepthTwin, syncHero } from "./shadows-tsl.ts";
 import { createTwins } from "./sky-twins-tsl.ts";
-import type { KeyLight } from "./world-lights.ts";
+import { createNodeRays, type NodeRays } from "./rays-tsl.ts";
+import type { KeyLight, SkyLight } from "./world-lights.ts";
 
 export type Dressing = {
   /** Before a frame: the maps the slots hold re-pointed, the glow points
@@ -72,6 +75,8 @@ export type Dressing = {
   hazeInDisplay(on: boolean): void;
   /** The woods' node materials (`forest-tsl.ts`). */
   readonly woods: WoodsKit;
+  /** The rays over the scene's haze and lights, made at the first ask. */
+  rays(): NodeRays;
 };
 
 /** Finish the node renderer's copy of `material` (see the header). A scene
@@ -157,9 +162,12 @@ export function dressScene(
   const hero = heroSlots(haze);
   const glows = createGlowSprites(haze, (points) => pointStand(points, haze));
   const keys: THREE.DirectionalLight[] = [];
+  let sky: SkyLight | null = null;
   scene.traverse((o) => {
     if ((o as KeyLight).isKeyLight) keys.push(o as KeyLight);
+    if ((o as SkyLight).isSkyLight) sky = o as SkyLight;
   });
+  let rays: NodeRays | null = null;
   // The woods' casters stand where only the key's shadow camera looks.
   for (const key of keys) key.shadow.camera.layers.enable(WOODS_CASTERS);
   return {
@@ -176,6 +184,7 @@ export function dressScene(
     },
     end: () => glows.end(),
     woods: woodsKit(haze, keys[0] ?? null, drawsIndirect(device)),
+    rays: () => (rays ??= createNodeRays(renderer, haze, (keys[0] as KeyLight) ?? null, sky)),
     hazeInDisplay(on) {
       display.value = on && renderer.toneMapping === THREE.ACESFilmicToneMapping ? 1 : 0;
     },

@@ -74,12 +74,14 @@ import {
   type HorizonLevel,
   RESOLUTION_LEVELS,
   ANTIALIAS_LEVELS,
+  RAYS_LEVELS,
   TIERS,
   TRAIL_LEVELS,
   presetOf,
   withPreset,
   type AntialiasLevel,
   type DistanceLevel,
+  type RaysLevel,
   type ResolutionLevel,
   type ShadowLevel,
   type SkyLevel,
@@ -120,6 +122,7 @@ const PRESET_STOPS: Stop<Tier | "auto">[] = [{ id: "auto", label: STRINGS.optAut
 const DISTANCE_STOPS = stopsOf<DistanceLevel>(DISTANCE_LEVELS);
 const RESOLUTION_STOPS = stopsOf<ResolutionLevel>(RESOLUTION_LEVELS);
 const TRAIL_STOPS = stopsOf<TrailLevel>(TRAIL_LEVELS);
+const RAYS_STOPS = stopsOf<RaysLevel>(RAYS_LEVELS);
 const SHADOW_WORD: Record<ShadowLevel, string> = {
   off: STRINGS.optOff,
   skiers: STRINGS.optShadowSkiers,
@@ -561,6 +564,14 @@ export function OptionsPage({
                 stops={ANTIALIAS_STOPS}
                 value={video.antialias}
                 onPick={(antialias) => setVideo({ antialias })}
+                onHint={setHint}
+              />
+              <StepRow
+                label={STRINGS.optRays}
+                hint={STRINGS.optRaysHint}
+                stops={RAYS_STOPS}
+                value={video.rays}
+                onPick={(rays) => setVideo({ rays })}
                 onHint={setHint}
               />
             </KnobGroup>

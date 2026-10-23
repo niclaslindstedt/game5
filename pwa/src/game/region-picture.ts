@@ -20,12 +20,24 @@
 // the node grade (`grade-tsl.ts`, handed in as `node`) writes the canvas.
 // The haze is told each frame where WebGL's would be mixed
 // (`hazeInDisplay`): in display space only when the frame goes straight.
+//
+// THE RAYS ROW (`RAYS_LOOK`, `rays-tsl.ts`, part 18) is the node renderer's
+// alone: while it is on, the frame always goes through the pass, the
+// target keeps its depth, the rays are marched between the scene and the
+// grade, and the grade shades the colour with them. With it OFF nothing
+// of it is built or drawn.
 
 import * as THREE from "three";
 import { regionOf, type Level } from "@engine";
 
 import { gradeOf, isNeutral, type ColourGrade } from "./colour-grade.ts";
-import { ANTIALIAS_SAMPLES, type AntialiasLevel } from "./settings-video.ts";
+import {
+  ANTIALIAS_SAMPLES,
+  RAYS_LOOK,
+  type AntialiasLevel,
+  type RaysLevel,
+  type RaysLook,
+} from "./settings-video.ts";
 import { summerShown } from "./season-look.ts";
 import type { GpuTimer } from "./gpu-timer.ts";
 import { createGradePass, gradeSupported, type GradePass, type NodeGrade } from "./grade-pass.ts";
@@ -37,6 +49,11 @@ export type RegionPicture = {
   /** Draw `scene` through `camera` onto the canvas, graded or not; the
    * grade's pass is a slice of its own on the GPU's timer. */
   draw(scene: THREE.Scene, camera: THREE.Camera, timer?: Pick<GpuTimer, "push" | "pop">): void;
+  /** THE RAYS' FIRST DRAW, done behind the loading card after the scene's
+   * warm-up (`renderer.ts`): with the row on, its passes are marched once
+   * and the grade drawn shaded, so the pipelines they need are built there
+   * and not on the run's first frame. Nothing with the row OFF. */
+  warm(camera: THREE.Camera): void;
   /** THE BUZZ over the picture (`grade-pass.ts`), 0..1, and the clock it
    * swims by, s: at 0 nothing changes; above it even an ungraded region
    * draws through the pass, at its own neutral grade. */
@@ -49,6 +66,15 @@ export type RegionPicture = {
   dispose(): void;
 };
 
+/** THE RAYS on the node renderer (`rays-tsl.ts`): the target readied for a
+ * RAYS stop, the rays marched after the scene, the frame kept for the
+ * water's mirror after the grade. */
+export type NodeRays = {
+  ready(target: THREE.RenderTarget, look: RaysLook): void;
+  march(target: THREE.RenderTarget, camera: THREE.PerspectiveCamera, look: RaysLook): void;
+  keep(target: THREE.RenderTarget, camera: THREE.PerspectiveCamera, look: RaysLook): void;
+};
+
 /** The node renderer's half of the picture (`render-seam.ts`'s `post`). */
 export type NodePicture = {
   /** The samples the canvas was made with. */
@@ -59,6 +85,9 @@ export type NodePicture = {
   hazeInDisplay(on: boolean): void;
   /** The node renderer's counters since the frame began. */
   info(): { calls: number; triangles: number; points: number };
+  /** The rays (made the first time a stop asks; null before the scene is
+   * dressed). */
+  rays(): NodeRays | null;
 };
 
 /** What a canvas made with multisampling takes a pixel. */
@@ -75,8 +104,10 @@ export function drawsStraight(o: {
   burning: boolean;
   samples: number;
   canvas: number;
+  /** Whether the RAYS row marches anything (the node renderer's alone). */
+  rays?: boolean;
 }): boolean {
-  return !o.graded && o.buzz === 0 && !o.burning && o.samples === o.canvas;
+  return !o.graded && o.buzz === 0 && !o.burning && o.samples === o.canvas && !o.rays;
 }
 
 /** The picture over `gl`, multisampled as the ANTIALIAS row `antialias`
@@ -85,6 +116,7 @@ export function createRegionPicture(
   gl: THREE.WebGLRenderer,
   antialias: () => AntialiasLevel,
   node: NodePicture | null = null,
+  raysLevel: () => RaysLevel = () => "off",
 ): RegionPicture {
   let samples = ANTIALIAS_SAMPLES[antialias()];
   // The canvas's own, as it was made.
@@ -97,6 +129,8 @@ export function createRegionPicture(
   let grade: ColourGrade | null = null;
   let buzz = 0;
   let burning = false;
+  /** The RAYS stop the target was last readied for. */
+  let readied: RaysLook = RAYS_LOOK.off;
   const size = new THREE.Vector2();
   const last = { calls: 0, triangles: 0, points: 0 };
   /** The scene's draw, counted before the grade's own. */
@@ -122,10 +156,25 @@ export function createRegionPicture(
       grade = gradeOf(regionOf(level).id, summerShown());
       graded = !isNeutral(grade) && supported();
       pass?.setGrade(grade);
-      if (!graded && (samples === canvas || !supported())) return null;
+      // The rays' target readied now, so the warm-up builds what it draws.
+      const look = node ? RAYS_LOOK[raysLevel()] : RAYS_LOOK.off;
+      const rays = look !== RAYS_LOOK.off ? node?.rays() : null;
+      if (!graded && !rays && (samples === canvas || !supported())) return null;
       pass ??= createPass(samples);
       pass.setGrade(grade);
+      if (rays && readied !== look) rays.ready(pass.target, (readied = look));
       return pass.target;
+    },
+    warm(camera) {
+      const lens = (camera as THREE.PerspectiveCamera).isPerspectiveCamera
+        ? (camera as THREE.PerspectiveCamera)
+        : null;
+      const rays = readied !== RAYS_LOOK.off && lens && pass ? node?.rays() : null;
+      if (!rays || !lens || !pass) return;
+      const onto = gl.getRenderTarget();
+      rays.march(pass.target, lens, readied);
+      pass.render(gl, true);
+      gl.setRenderTarget(onto);
     },
     setBuzz(b, t) {
       buzz = b > 1e-3 && supported() ? b : 0;
@@ -148,12 +197,27 @@ export function createRegionPicture(
     },
     draw(scene, camera, timer) {
       follow();
-      const straight = drawsStraight({ graded, buzz, burning, samples, canvas });
+      const look = node ? RAYS_LOOK[raysLevel()] : RAYS_LOOK.off;
+      const lens = (camera as THREE.PerspectiveCamera).isPerspectiveCamera
+        ? (camera as THREE.PerspectiveCamera)
+        : null;
+      const marching = look.shade || look.contact || look.mirror;
+      const rays = (marching || readied !== RAYS_LOOK.off) && lens ? node?.rays() : null;
+      if (marching && rays && !pass) {
+        pass = createPass(samples);
+        if (grade) pass.setGrade(grade);
+      }
+      const on = marching && !!rays;
+      const straight = drawsStraight({ graded, buzz, burning, samples, canvas, rays: on });
       node?.hazeInDisplay(straight || !pass);
       if (straight || !pass) {
         gl.render(scene, camera);
         tally();
         return;
+      }
+      if (rays && readied !== (on ? look : RAYS_LOOK.off)) {
+        readied = on ? look : RAYS_LOOK.off;
+        rays.ready(pass.target, readied);
       }
       gl.getDrawingBufferSize(size);
       pass.setSize(size.x, size.y);
@@ -162,9 +226,15 @@ export function createRegionPicture(
       gl.render(scene, camera);
       tally();
       gl.setRenderTarget(onto);
+      if (on && rays && lens) {
+        timer?.push("rays");
+        rays.march(pass.target, lens, look);
+        timer?.pop();
+      }
       timer?.push("grade");
-      pass.render(gl);
+      pass.render(gl, on);
       timer?.pop();
+      if (rays && lens) rays.keep(pass.target, lens, on ? look : RAYS_LOOK.off);
     },
     info: () => ({ ...last }),
     dispose() {

@@ -797,6 +797,9 @@ export const STRINGS = {
   optAntialiasHint:
     "Antialiasing: how many samples a pixel along every edge. 2× smooths most of the steps for less than 4× costs.",
   optSamples: (n: string): string => `${n}×`,
+  optRays: "RAYS",
+  optRaysHint:
+    "Light worked out by marching rays through each frame. LOW shades the snow where things crowd round it; HIGH adds the short shadows a boot or a ski throws; MAX adds lakes and ice mirroring the world. Not drawn by CLASSIC WEBGL.",
 
   /* ── OPTIONS ▸ KEYS (menu-keys.tsx) ────────────────────────────────── */
   keysTitle: "KEYS",

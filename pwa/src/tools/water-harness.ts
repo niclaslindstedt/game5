@@ -38,7 +38,13 @@ import {
 
 import type { LensPose } from "../game/camera-rigs.ts";
 import { createWorldRenderer, loadModels } from "../game/renderer.ts";
-import { DEFAULT_VIDEO, TIERS, withPreset, type Tier } from "../game/settings-video.ts";
+import {
+  DEFAULT_VIDEO,
+  TIERS,
+  readPicture,
+  withPreset,
+  type Tier,
+} from "../game/settings-video.ts";
 import { ringMiddle } from "../game/water-plan.ts";
 import { withPlaceholderWater } from "./water-placeholder.ts";
 
@@ -83,7 +89,8 @@ const sheetEl = document.getElementById("sheet") as HTMLDivElement;
 
 await loadModels();
 const renderer = createWorldRenderer(canvas, {
-  video: withPreset(DEFAULT_VIDEO, tier),
+  // Picture rows over the preset (`?picture=rays:max`, `readPicture`).
+  video: { ...withPreset(DEFAULT_VIDEO, tier), ...readPicture(params.get("picture")) },
   preserveDrawingBuffer: true,
 });
 renderer.resize(width, height, 1);

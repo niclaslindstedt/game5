@@ -191,7 +191,11 @@ export type GradeUniforms = {
 
 /** How the node renderer draws the pass (`grade-tsl.ts`, handed in by the
  * seam): the grade over `uniforms` written onto the canvas. Null on WebGL. */
-export type NodeGrade = (uniforms: GradeUniforms) => { render(): void; dispose(): void };
+export type NodeGrade = (uniforms: GradeUniforms) => {
+  /** Write the canvas, the colour shaded by the RAYS first when `shaded`. */
+  render(shaded?: boolean): void;
+  dispose(): void;
+};
 
 export type GradePass = {
   /** Where the frame is drawn instead of the canvas. */
@@ -206,8 +210,9 @@ export type GradePass = {
   /** The fire through his eyes: its heat, flash and smoke, 0..1 each, and
    * the clock its flames rise by, s. */
   setBlaze(heat: number, flash: number, smoke: number, t: number): void;
-  /** Read the picture back, tone-map and grade it, write the canvas. */
-  render(renderer: THREE.WebGLRenderer): void;
+  /** Read the picture back, tone-map and grade it, write the canvas — on
+   * the node renderer shaded by the RAYS first when `shaded`. */
+  render(renderer: THREE.WebGLRenderer, shaded?: boolean): void;
   dispose(): void;
 };
 
@@ -303,8 +308,8 @@ export function createGradePass(samples: number, node: NodeGrade | null = null):
       uniforms.uBlaze.value.set(heat, flash, smoke);
       uniforms.uTime.value = t;
     },
-    render(renderer) {
-      if (drawn) drawn.render();
+    render(renderer, shaded = false) {
+      if (drawn) drawn.render(shaded);
       else renderer.render(scene, camera);
     },
     dispose() {

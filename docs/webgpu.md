@@ -2093,6 +2093,217 @@ links changed: the most any binds is still the ground's, 16 at HIGH.
   instance count, so each pass's draw range is set to its mean shape's
   indices.
 
+## The rays (part 18)
+
+Light worked out by marching rays through the frame just drawn, on the node
+renderer alone, as the OPTIONS ▸ PICTURE row RAYS (`settings-video.ts`'s
+`RAYS_LOOK`). Classic WebGL (`?renderer=webgl`) draws none of it and its
+code path is untouched; with the row OFF none of it is built, and the node
+renderer's picture is what it was.
+
+| Stop | What it adds | Preset |
+| --- | --- | --- |
+| OFF | nothing | LOW, MEDIUM, and a first visit |
+| LOW | THE SHADE: the snow and every surface dimmed where things crowd round it (a trunk's foot, under the boughs, a wall's foot and its eaves, a furrow's trough, between a skier's boots) | |
+| HIGH | and THE CONTACT SHADOWS: the short shadow a boot, a ski or a gate's foot casts where it meets the snow, finer than the key's map has texels for | HIGH |
+| MAX | and THE MIRROR: open water and the ice mirror the slopes, the woods and the sky round them, where they are on screen | |
+
+**What a real one looks like, in our words.** Snow is lit by two lights: the
+sun, hard and white, and the sky, soft and blue from the whole dome. Where
+something stands close, the snow sees less of the dome: the shade gathers in
+a crease (a wall's foot, a trench, the snow between two boots) and fades over
+about the height of what casts it, never with a line. In full sun the sky is
+the smaller share of a sunlit pixel's light, so the shade is quiet there and
+plain in the shade of a building, in the woods and under cloud. Where an
+object touches the snow its own shadow is darkest and sharpest at the touch
+and opens out away from it: the shadow's colour is the sky's blue, never
+grey. Calm open water mirrors the far shore the right way down and nearly
+whole at a grazing look, darker and bluer looking down into it (the Fresnel
+the water already had), and the mirror breaks up as the wind roughens it;
+ice and snow on it mirror little.
+
+**THE PASSES** (`rays-tsl.ts`), between the scene and the grade, each frame
+the row is on (`region-picture.ts`'s `draw`):
+
+| Pass | Size | Reads | Writes |
+| --- | --- | --- | --- |
+| depth | half a side | the picture's depth (one sample of a multisampled one) | the distance along the lens, m |
+| march | half a side | the distances; the key's shadow map and the mountain's shade (HIGH and MAX) | the shade (red) and the contact light (green) |
+| smooth | half a side | the march and the distances | the march's four-by-four pattern averaged across no edge |
+| the grade | whole | the depth, the smoothed answer | the shading laid over the colour, in linear light before the tone map |
+
+The picture's target keeps its depth as a texture only while the row is on
+(`ready`); the grade's shaded pipeline is a SECOND pipeline built at the
+first frame that asks for it (`nodeGradePass`), so the grade drawn with the
+row OFF is the one it always was. The water's mirror (MAX) reads the LAST
+frame's colour and distance, copied off the target after the grade (`keep`):
+a mirror marched in the water's own material needs no pass of its own, and
+the one frame behind is not seen at a lake's speed.
+
+**What was taken from three's own nodes, and what was not.**
+
+- `GTAONode` (ground-truth ambient occlusion): the horizon search a
+  direction at a time from a view-space point with its normal, the radius
+  in metres projected to pixels and capped, a fall-off with the distance
+  to the sample, a pattern of turns across a four-by-four tile and a
+  depth-aware blur to take it away. Cut down: four directions of four
+  steps where GTAO integrates the arc between two horizons, the normal
+  rebuilt from the depth (there is no normal buffer to read), at half
+  size.
+- `SSSNode` (screen-space shadows): a short ray from the point toward the
+  light in view space, stepped with a jitter, a hit taken where the depth
+  in front of it stands within a thickness. Added here: only where the sun
+  lights the point (the key's map and the mountain's shade both asked), so
+  a shadow already drawn is never laid twice, and its colour is the sky
+  over the sun's (`shadeTint`), not black.
+- `SSRNode` (screen-space reflections): the reflected ray projected into
+  the picture through the lens's matrices, a hit where it passes behind
+  the drawn depth within a thickness, a bisection to place it, and the
+  reflection faded toward the screen's edges and with the distance. Here
+  the march is geometric (0.6 m, then each step 1.3 times the last, out to
+  some 250 m) so a lake's far shore is reached in 24 steps, and it runs in
+  the water's material over the last frame (`mirrorMarch`), falling back
+  on the water's own sky-and-horizon mirror wherever it finds nothing.
+- Not taken: their pass graph (a `PassNode` with its own targets and a
+  normal and metalness buffer written by every material), which the
+  renderer's one target and the grade's order have no place for, and
+  their composite, which knows nothing of the haze.
+
+**THE HAZE AND THE GRADE.** What the grade reads is a surface already mixed
+into the air in front of it (`hazeOver`), affine in the surface: `seen = A·s
++ B`, `B` the air's own share at that point. A darkening `k` of the surface
+is `k·seen + (1 − k)·B`, so a far slope under the mist keeps its mist and
+the air in front of a shaded trunk is not shaded with it. `B` is held under
+`seen` itself: a material the haze is not laid on (the figures near the
+lens) has no air in front to keep, and shading never lightens a pixel. The
+shading is linear light, before the grade's tone map and everything after
+it. The shade fades out between 70 and 160 m from the lens, the contact
+shadows between 22 and 40 m, the mirror past 156 m and toward every
+screen edge. At night the sun is down, so the contact shadows lay nothing
+(their tint is one), and the shade still grounds what the lamps light.
+
+**Off and on, side by side** (`make rays`, `scripts/rays-preview.mjs`): each
+scene photographed through the game's own renderer with the row OFF and at a
+stop, the same moment of the same run, and laid beside their difference
+drawn eight times over, with the mean difference and the share of pixels
+darker and lighter. On SwiftShader's WebGPU at HIGH, 960×540, RAYS MAX
+against OFF:
+
+| Scene | View | Mean \|Δ\| (0–255) | Darker | Lighter |
+| --- | --- | --: | --: | --: |
+| skier, noon | chase-6 | 0.29 | 3.5 % | 0.0 % |
+| skier, noon | helmet | 0.03 | 0.5 % | 0.0 % |
+| skier, noon | spawn | 0.26 | 2.9 % | 0.0 % |
+| forest, noon | forest | 0.14 * | 1.8 % | 0.0 % |
+| forest, noon | approach-40 | 0.06 * | 0.7 % | 0.0 % |
+| forest, low sun (16.5 h) | forest | 0.15 * | 1.4 % | 0.0 % |
+| forest, low sun | approach-40 | 0.04 * | 0.5 % | 0.0 % |
+| village, noon | village-street | 0.41 | 4.4 % | 0.0 % |
+| village, noon | village-square | 0.28 | 2.1 % | 0.0 % |
+| village, night (21 h) | village-street | 0.76 † | 6.4 % | 0.0 % |
+| lake, noon | aerial | 0.00 | 0.0 % | 0.0 % |
+| lake, noon | chase | 0.24 † | 2.6 % | 0.0 % |
+| lake, noon | open-calm | 0.91 † | 1.9 % | 2.0 % |
+| lake, summer | summer | 0.02 † | 0.1 % | 0.0 % |
+
+No pixel is lighter anywhere but on the lake, where the far shore's woods
+now stand mirrored in the water over the sky the water's own mirror showed
+there. The rows marked * were taken at the first strength (`shadeStrength`
+0.75, `shadeBias` 0.18). The shade was then made a third stronger (1 and
+0.14), because in full sun it read too quietly against the real look above.
+The rest are at the strength shipped. The water lab's summer view looks down
+on the tarn from high over it, past the shade's reach and with nothing for
+the water to mirror, so it shows next to nothing. A summer lake seen from
+the shore is not in the lab yet. The first sheets showed a band of shade
+down the screen's left edge: a step off the picture read the nothing past
+it as a wall at the lens. Every half-size read is now held on the picture,
+and a step off it adds no horizon. The rows marked † were taken before that
+fix (the skier's and the village's were taken again after it: the skier's
+chase lost its edge band, from 0.41 to 0.29).
+
+**THE PRICE** (`picture-fit.ts`). The benchmark's race (seed 20, HIGH,
+320×180, SwiftShader's WebGPU, 60 frames), the GPU's timer a frame:
+
+| RAYS | rays slice | grade slice | over OFF | times the plain grade |
+| --- | --: | --: | --: | --: |
+| OFF | — | 3.65 ms | — | — |
+| LOW | 7.45 ms | 16.30 ms | 20.10 ms | 5.5 |
+| HIGH | 8.49 ms | 16.17 ms | 21.01 ms | 5.8 |
+| MAX | 9.67 ms | 17.86 ms | 23.88 ms | 6.5 |
+
+SwiftShader rasterises the scene in software (97 % of its GPU time here, 4
+to 5 s a frame either way), so a frame's wall time cannot price a few
+full-screen passes: `make bench ARGS="--costs"` on this device ran past its
+hour without a reading. The stops were priced instead as multiples of the
+grade's own full-screen pass, taken at 0.13 ms on the reference machine:
+LOW 0.7 ms, HIGH 0.75, MAX 0.85 (the race has no water, so MAX's mirror is
+its copy and a little held for a lake in view). Their worths are 8, 11 and
+14. THESE ARE ESTIMATES, RELATIVE TO A SOFTWARE DEVICE. A real GPU's prices
+are owed, from DEVELOPER ▸ BENCHMARK (PICTURE COSTS) or `make bench
+ARGS="--gpu --costs --rows rays,resolution --renderer=webgpu"` on a phone
+and a laptop.
+
+**PRESET ▸ AUTO** fits the row like any other. A machine drawing the top
+picture N times slower than the reference, on the node renderer, after
+against before (rows that did not move left out):
+
+| N | Before | After |
+| --: | --- | --- |
+| 0.5, 1 | the top picture | the top picture, RAYS MAX |
+| 1.5 | RESOLUTION LOW, ANTIALIAS OFF | the same, DISTANCE HIGH (MAX before), RAYS MAX |
+| 2 | RESOLUTION LOW, DISTANCE HIGH, TERRAIN MEDIUM, SHADOWS MEDIUM, ANTIALIAS OFF | the same, RAYS OFF |
+| 3, 4, 6 | | the same as before, RAYS OFF |
+
+On classic WebGL every RAYS stop is priced at nothing and worth nothing
+(`pricesFor`), so the fit spends nothing on it, holds it at OFF, and fits
+every other row exactly as it did before this part (the same seven machines,
+row for row). `picture-auto.ts` reads the back end off the renderer it times.
+
+**Nothing else moved.** `make world SEED=38` at 12 h (spawn and chase-6), the
+base of this part against it: `?renderer=webgl` at HIGH is byte-identical,
+and so is the node renderer on WebGPU with the row OFF at HIGH
+(`--picture=rays:off`) and at LOW (whose preset leaves it off), every file
+the same to the byte. The water lab's calm lake on WebGPU at HIGH with the row OFF (`make water ARGS="--views=open-calm --picture=rays:off"`, its two frames and the sheet) is byte-identical too: the water's mirror falls back on its own sky-and-horizon mirror exactly where it finds no history.
+
+**Pipelines after the card.** The game's race on seed 20 at HIGH, 640×360,
+SwiftShader's WebGPU, watched from the moment the card lifts (the part 6
+method): RAYS HIGH builds 602 pipelines before the run (599 before this
+part: the three passes and the shaded grade, less the one they share) and
+0 after it; RAYS MAX the same, 602 and 0. The warm-up marches the passes
+once and draws the grade shaded behind the card, after the scene's own
+warm-up (`region-picture.ts`'s `warm`), so nothing is built on the run's
+first frame. With the row OFF nothing of it is built at all.
+
+**Texture units on `webgpu-gl`.** Every program linked, counted per stage
+(`linkProgram` watched): the benchmark's race at HIGH with RAYS MAX links
+163 programs, and the most any fragment program binds is 16, the ground's
+at HIGH as before; every full-screen program (no texture in its vertex
+stage: the passes, the grade, the sky's) binds 10 at most. The water lab's
+lake with RAYS MAX and OFF reads the same table from the top (16, 16, 16,
+14, 14, 14, 12 …; 974 programs against 971, the three passes), since the
+water's material reads the last frame's colour and distance whether the
+row is on or not (`mirrorMarch` is in its source either way, and with the
+row OFF it gives back the water's own mirror untouched). No program is
+over 16.
+
+**Traps found here:**
+
+- **A TSL branch whose block hands back a node is built as a `return`.**
+  `If(c, () => x.assign(y))` returns the assignment, and inside an inline
+  `Fn` three comments the return out with a warning: the assignment never
+  runs. Brace every branch's block (`tests/rays_tsl_test.ts` holds it).
+- **A framebuffer texture is made in the CANVAS's format**, so a half-float
+  target cannot be copied into one (`copyTextureToTexture`: the formats are
+  not copy compatible, and the frame's command buffer is thrown away). The
+  kept frame is a half-float target of its own, made with
+  `initRenderTarget` before the first copy.
+- **A depth texture on a multisampled target** is multisampled on WebGPU:
+  it is read with `textureLoad` at one sample, never sampled. On the WebGL2
+  back end three resolves it (`resolveDepthBuffer`).
+- **The haze is not on every material**: a mix that assumes `seen = A·s +
+  B` everywhere lightens a dark figure near the lens toward the air's
+  colour. Hold the air's share under the colour.
+
 ## Measuring both paths
 
 Every browser lab takes `--renderer=webgl|webgpu|webgpu-gl|auto`
@@ -2165,6 +2376,7 @@ lines.
 | 15 The flip | 2026-10-23 | auto (drew on webgpu) | 133 (133 before) | 231 669 (231 434) | 117 programs, 79 pipelines (117, 79 before) | 14.71 (17.24 before) | 8.07 (9.62) | 1 pass / 0 meshes (1 / 0 before) | THE DEFAULT. Nothing new is drawn in the benchmark's race; the gore's standing blocks are hidden until a hit, so they are neither drawn nor counted here (the warm-up builds them behind the card: see this part). Wall 856.17 ms (1 020.62), the device's queue on SwiftShader. At HIGH: 252 draws (253), 685 819 triangles (686 498), 220 programs and 167 pipelines (220, 167), render 27.17 ms (1 157.36), wall 7 639.03 ms (8 580.01) |
 | 17 Compute | 2026-10-23 | webgl (`?renderer=webgl`) | 100 | 231 883 (231 877) | 51 programs | 10.82 (11.46 before) | 5.14 (5.12) | 0 / 0 | untouched: the 14 WebGL world shots (seed 38, 12 h, LOW and HIGH: spawn, far, vista, track, chase-6, powder, forest) are byte-identical to the build before this part. At HIGH: 110 draws, 686 010 triangles, 67 programs, 15.95 ms (17.80) |
 | 17 Compute | 2026-10-23 | webgpu | 100 (133 before) | 231 657 (231 434) | 117 programs, 79 pipelines (117, 79 before) | 12.65 (14.38 before) | 6.74 (8.04) | 1 pass / 0 meshes (1 / 0 before) | The woods are one indirect draw a pass (`woods-indirect`: 1 object at LOW where 34 were). THE NO-DRAW METER (every encoder draw stubbed, 300 frames): render 7.39 ms (8.30), submit 4.20 (5.11). At HIGH: 110 draws (252), 687 129 triangles (686 010), 220 programs and 167 pipelines (220, 167), the woods 3 objects (147); the plain mean is one reading that waited on the device's queue (967.00 ms; readings of 19–47 ms against 21–37 before), so the no-draw meter reads it: render 14.79 ms (18.12), submit 7.23 (10.94) |
+| 18 Rays | 2026-10-23 | webgpu, HIGH, 320×180 | 110 (110 with RAYS OFF) | 686 326 (687 104) | 226 programs, 170 pipelines (220, 167 with RAYS OFF) | 27.98 (718.46 with RAYS OFF) | 13.97 (705.71) | 1 pass / 0 meshes (1 / 0) | RAYS MAX against OFF on the same build. The GPU's timer: rays 9.67 ms and the grade 17.86 ms a frame against the plain grade's 3.65 (LOW 7.45 and 16.30, HIGH 8.49 and 16.17); the scene pass is 97 % of either frame on SwiftShader (4.6 to 4.9 s), so the processor's means swing with the device's queue and say nothing of the rays. 602 pipelines before the card lifts and 0 after (seed 20, HIGH, 640×360). `?renderer=webgl` and, with RAYS OFF, the node renderer at LOW and HIGH are byte-identical to part 17: `make world SEED=38` at 12 h, spawn and chase-6, on both back ends, and the water lab's calm lake on WebGPU |
 
 Parts 1 to 17 were measured with `make bench ARGS="--renderer=both --frames 60 --width
 640 --height 360 --video low"` on seed 20 (the woods and a kicker, four skis), and from
@@ -2189,4 +2401,4 @@ part 3 again with `--video high` for the numbers under "At HIGH" (part 15 with `
 - [x] 15 The flip: `auto` by default (WebGPU, else WebGL2 nodes, with a probe and a fallback at load), `?renderer=webgl` and DEVELOPER ▸ RENDERER the way back, the trail maps' stamps drawn on the node paths, the gore's lump blocks standing and warmed behind the card, the picture's prices re-measured for the node renderer
 - [ ] 16 The GLSL deleted, and the quarantine with it (`shadow-depth` too)
 - [x] 17 Compute (WebGPU only): measured first; the woods drawn as one indirect draw a pass off `indirect-first-instance`; the deformable snow, the trail stamps, the woods' cull, the spray, the snow cloud and the snowfall kept on their paths, each with why
-- [ ] 18 Ray-marched effects
+- [x] 18 Ray-marched effects (`rays`, node renderer only): the PICTURE row RAYS — the shade (LOW), the contact shadows (HIGH) and the water's mirror (MAX) marched off the picture's depth between the scene and the grade, the haze kept and the grade's order, priced for AUTO and held OFF on classic WebGL

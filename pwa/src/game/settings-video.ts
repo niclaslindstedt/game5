@@ -48,6 +48,13 @@
 //               takes it at once (`region-picture.ts`); the canvas's own,
 //               read when the canvas is made, is used only where it is
 //               what the row asks for.
+//   RAYS        light worked out by marching rays through the frame the
+//               node renderer has just drawn (`rays-tsl.ts`): LOW the shade
+//               where things crowd the snow (ambient occlusion), HIGH that
+//               and the short shadow a boot, a ski or a pole throws where
+//               the sun's map is too coarse to (contact shadows), MAX both
+//               and the lakes and the ice mirroring what stands round them
+//               (screen-space reflections). Nothing on classic WebGL.
 //
 // Every ladder runs CHEAPEST FIRST, so a skier hunting for frames always
 // walks the same way. `VIDEO_PRESETS` are whole pictures a tier at a time —
@@ -91,6 +98,11 @@ export type AntialiasLevel = "off" | "2" | "4";
 export const ANTIALIAS_LEVELS: readonly AntialiasLevel[] = ["off", "2", "4"];
 export const ANTIALIAS_SAMPLES: Record<AntialiasLevel, number> = { off: 0, "2": 2, "4": 4 };
 
+/** RAYS: none, the shade (LOW), the shade and the contact shadows (HIGH),
+ * and those and the water's mirror (MAX). */
+export type RaysLevel = "off" | "low" | "high" | "max";
+export const RAYS_LEVELS: readonly RaysLevel[] = ["off", "low", "high", "max"];
+
 export type VideoSettings = {
   resolution: ResolutionLevel;
   distance: DistanceLevel;
@@ -103,6 +115,7 @@ export type VideoSettings = {
   sky: SkyLevel;
   horizon: HorizonLevel;
   antialias: AntialiasLevel;
+  rays: RaysLevel;
 };
 
 /* ── What each stop buys ─────────────────────────────────────────────── */
@@ -428,6 +441,30 @@ export const LAMP_COUNT: Record<Tier, number> = { low: 2, medium: 4, high: 6 };
  * up; the moon's own glitter stays. */
 export const LAMP_GLINT: Record<Tier, boolean> = { low: false, medium: true, high: true };
 
+export type RaysLook = {
+  /** THE SHADE (ambient occlusion): how much of the sky's light a point
+   * still sees past what stands round it, marched a pixel in every other
+   * row and column of the frame. */
+  shade: boolean;
+  /** THE CONTACT SHADOWS: a short march toward the sun from every pixel the
+   * sun lights, for the shadows the key's map is too coarse to hold. */
+  contact: boolean;
+  /** THE MIRROR: the water and the ice reflect what the last frame drew
+   * round them, the sky and the far hills where a ray finds nothing. */
+  mirror: boolean;
+};
+
+/** RAYS, stop by stop: each stop adds one effect to the one under it. */
+export const RAYS_LOOK: Record<RaysLevel, RaysLook> = {
+  off: { shade: false, contact: false, mirror: false },
+  low: { shade: true, contact: false, mirror: false },
+  high: { shade: true, contact: true, mirror: false },
+  max: { shade: true, contact: true, mirror: true },
+};
+
+/** Whether a RAYS stop marches anything at all. */
+export const raysOn = (level: RaysLevel): boolean => level !== "off";
+
 /* ── Whole pictures ──────────────────────────────────────────────────── */
 
 /** A whole picture a tier at a time. */
@@ -444,6 +481,7 @@ export const VIDEO_PRESETS: Record<Tier, VideoSettings> = {
     sky: "plain",
     horizon: "3d",
     antialias: "2",
+    rays: "off",
   },
   medium: {
     resolution: "high",
@@ -457,6 +495,7 @@ export const VIDEO_PRESETS: Record<Tier, VideoSettings> = {
     sky: "full",
     horizon: "3d",
     antialias: "4",
+    rays: "off",
   },
   high: {
     resolution: "high",
@@ -470,6 +509,7 @@ export const VIDEO_PRESETS: Record<Tier, VideoSettings> = {
     sky: "full",
     horizon: "3d",
     antialias: "4",
+    rays: "high",
   },
 };
 
@@ -516,6 +556,7 @@ export const PICTURE_LADDERS: { readonly [R in PictureRow]: readonly VideoSettin
   sky: SKY_LEVELS,
   horizon: HORIZON_LEVELS,
   antialias: ANTIALIAS_LEVELS,
+  rays: RAYS_LEVELS,
 };
 export const PICTURE_ROWS = Object.keys(PICTURE_LADDERS) as PictureRow[];
 
@@ -584,5 +625,12 @@ export function mergeVideo(parsed: unknown): VideoSettings {
   const antialias =
     blob.antialias === true ? "4" : blob.antialias === false ? "off" : blob.antialias;
   out.antialias = pick(antialias, ANTIALIAS_LEVELS, out.antialias);
+  // A picture stored before the RAYS row: the HIGH preset's own stop if
+  // every other row stood on HIGH, so it is still that preset.
+  const high = VIDEO_PRESETS.high;
+  const wasHigh = (Object.keys(high) as (keyof typeof high)[]).every(
+    (k) => k === "rays" || out[k] === high[k],
+  );
+  out.rays = pick(blob.rays, RAYS_LEVELS, wasHigh && blob.rays === undefined ? "high" : out.rays);
   return out;
 }

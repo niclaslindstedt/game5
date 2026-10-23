@@ -10,6 +10,11 @@
 // every pixel and the discard comes after them. The water's own uniforms
 // are read off the material drawn (`userData.graftOwn`), its two maps
 // re-pointed every draw (`ownTexture`).
+//
+// At RAYS MAX (part 18) the mirror marches the reflected ray through the
+// last frame (`rays-tsl.ts`'s `mirrorMarch`) and takes what it lands on over
+// the sky-and-horizon mirror; with the row below MAX it hands that mirror
+// back untouched.
 
 import type * as THREE from "three";
 import * as TSL from "three/tsl";
@@ -20,6 +25,7 @@ import { hazeAmount } from "./air-tsl.ts";
 import { hazeColour, hazeSlots, skyColour, slot, type N } from "./haze-tsl.ts";
 import type { PropDressing } from "./props-tsl.ts";
 import { HORIZON_REACH, SHORE_SCALE } from "./water-plan.ts";
+import { mirrorMarch, rayHistory } from "./rays-tsl.ts";
 
 const {
   Discard,
@@ -244,7 +250,9 @@ function waterColour(material: THREE.Material, d: PropDressing): N {
       hazeColour(s, h),
       hazeAmount(d.haze, hz.a.mul(HORIZON_REACH), float(0)),
     );
-    const seen = select(row.lessThan(0).or(under.lessThanEqual(0)), sky, mix(sky, hill, under));
+    const far = select(row.lessThan(0).or(under.lessThanEqual(0)), sky, mix(sky, hill, under));
+    // RAYS MAX: what the last frame drew round the water, where a ray finds it.
+    const seen = mirrorMarch(rayHistory(d.haze), positionWorld, r, far);
     MIRROR.assign(seen.mul(fres).mul(mirrorShare));
     If(alpha.lessThan(0.004), () => {
       Discard();

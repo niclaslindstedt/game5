@@ -144,7 +144,12 @@ function blaze(s: Slots, c0: N, uv: N): N {
 /** THE GRADE'S OUTPUT: the picture `picture` read, tone mapped, graded and
  * encoded — the colour the quad writes the canvas with. `toned` is whether
  * the renderer tone maps (its ACES) at all. */
-export function gradeOutput(u: GradeUniforms, picture: THREE.Texture, toned = true): N {
+export function gradeOutput(
+  u: GradeUniforms,
+  picture: THREE.Texture,
+  toned = true,
+  rays: ((seen: N) => N) | null = null,
+): N {
   const s = gradeSlots(u);
   const pic: N = texture(picture);
   /** The picture at `p`, WebGL's `vUv` (0 at the foot). */
@@ -197,6 +202,8 @@ export function gradeOutput(u: GradeUniforms, picture: THREE.Texture, toned = tr
     If(s.buzz.greaterThan(0), () => {
       seen.assign(drunk(at));
     });
+    // THE RAYS (`rays-tsl.ts`), on the scene's own linear light.
+    if (rays) seen.assign(rays(seen));
     const linear: N = max(seen, 0);
     const c: N = (toned ? acesGlsl(linear, toneMappingExposure) : linear).toVar();
 
@@ -230,22 +237,35 @@ export function gradeOutput(u: GradeUniforms, picture: THREE.Texture, toned = tr
 
 /** THE NODE RENDERER'S GRADE PASS over `u` (`grade-pass.ts`'s `NodeGrade`):
  * a `RenderPipeline` whose quad writes `gradeOutput` onto the canvas, its
- * own output transform off (see the header). */
+ * own output transform off (see the header). A second pipeline, built the
+ * first time the RAYS row asks for it, shades the colour first with
+ * `shade` (`rays-tsl.ts`); the first is never touched by it, so a picture
+ * with the row OFF is the one drawn before the row existed. */
 export function nodeGradePass(
   renderer: WebGPURenderer,
   u: GradeUniforms,
-): { render(): void; dispose(): void; readonly pipeline: RenderPipeline } {
+  shade: (() => ((seen: N) => N) | null) | null = null,
+): { render(shaded?: boolean): void; dispose(): void; readonly pipeline: RenderPipeline } {
   const toned = renderer.toneMapping === THREE.ACESFilmicToneMapping;
   const pipeline = new RenderPipeline(renderer, gradeOutput(u, u.uPicture.value, toned));
   pipeline.outputColorTransform = false;
+  let shaded: RenderPipeline | null = null;
   return {
     pipeline,
-    render() {
+    render(withRays = false) {
+      const by = withRays ? shade?.() : null;
+      if (by && !shaded) {
+        shaded = new RenderPipeline(renderer, gradeOutput(u, u.uPicture.value, toned, by));
+        shaded.outputColorTransform = false;
+      }
       const onto = renderer.getRenderTarget();
       renderer.setRenderTarget(null);
-      pipeline.render();
+      (by && shaded ? shaded : pipeline).render();
       renderer.setRenderTarget(onto);
     },
-    dispose: () => pipeline.dispose(),
+    dispose() {
+      pipeline.dispose();
+      shaded?.dispose();
+    },
   };
 }

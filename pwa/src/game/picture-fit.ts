@@ -114,6 +114,18 @@ export const FLOOR_MS = 3.53;
  * LAMPS: only after dark, and only where beams cross — his own headlamp is
  * always drawn, the floods and the field's lamps past the nearest are what
  * the lower stops give up, and LOW the snow's glitter in the beams.
+ * RAYS (the node renderer alone — classic WebGL prices it at nothing,
+ * `pricesFor`): LOW's shade is a quiet gain in full sun, where the sky's
+ * light it dims is a small share of a sunlit pixel's, and a plain one in
+ * the woods, the village and under cloud, where the sky's light is most of
+ * it — a trunk's foot, a wall's, a furrow's trough grounded (8, below
+ * TERRAIN's MEDIUM for the ms, so a machine short of room gives it up
+ * early). HIGH's contact shadows are a boot's, a ski's and a gate's foot
+ * where the key's map has no texel fine enough, and the skiers' atlas has
+ * most of them already (+3). MAX's mirror shows only where there is open
+ * water or ice in view, which a race rarely has (+3). Off on LOW and MEDIUM:
+ * three full-screen passes at half size and a deeper grade cost a phone more
+ * of its frame than any of the rows those presets keep on.
  *
  * The costs are the dearer view's of `make bench ARGS="--gpu --costs"` at
  * `FIT_REFERENCE` — the race's for nearly every row: its top picture is
@@ -222,7 +234,29 @@ export const PICTURE_PRICES: PriceList = {
     "2": { cost: 1.26, benefit: 1 },
     "4": { cost: 1.66, benefit: 1.1 },
   },
+  // ESTIMATED off SwiftShader (part 18): the GPU's timer on the
+  // benchmark's race at HIGH, 320×180, put each stop's passes and the
+  // shaded grade at 5.5, 5.8 and 6.5 times the plain grade's own pass;
+  // a full-screen pass like it is taken at 0.13 ms on the reference. The
+  // race has no water, so MAX's mirror is priced as its copy alone, with a
+  // little held for a lake in view. A real GPU's are owed.
+  rays: {
+    off: { cost: 0, benefit: 0 },
+    low: { cost: 0.7, benefit: 8 },
+    high: { cost: 0.75, benefit: 11 },
+    max: { cost: 0.85, benefit: 14 },
+  },
 };
+
+/** THE PRICE LIST A BACK END FITS BY. Classic WebGL (`?renderer=webgl`)
+ * draws no rays: every RAYS stop is priced at nothing and worth nothing
+ * there, so the fit spends nothing on the row and keeps it at OFF (a tie in
+ * worth goes to the cheaper stop, and OFF is the first). */
+export function pricesFor(classic: boolean): PriceList {
+  if (!classic) return PICTURE_PRICES;
+  const none = { cost: 0, benefit: 0 };
+  return { ...PICTURE_PRICES, rays: { off: none, low: none, high: none, max: none } };
+}
 
 /** The frame the fit aims a drained frame at, ms: sixty a second, with a
  * tenth held back — the probe times a quiet stretch under a card, and a

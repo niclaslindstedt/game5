@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-.PHONY: licences contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn gunfire gunfire-table army army-flight army-ground army-steal water tree-wells trails piste-day snow summer judder menu-stalls hitches trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
+.PHONY: licences rays contrails bike bike-film bike-motion bike-park bike-look bike-ride bike-steer bike-hit bike-tangle body-hits title-scene title world buildings interiors lifts sky sky-solar sky-table cloud snowfall shimmer rock-eval tree-eval aloft cloud-metrics spray-metrics snow-eval snow-mass spray turns technique skis skier revert hop-switch poleless skate-turns skate-climb sidestep helmet damage injuries falls hud-body gear glove-metrics skier-metrics air-lean board board-metrics board-motion sag landing lean blender models model-registry ci-models birds crowd civilians audience lift-ride chair-ride grind lift-board lift-flow lift-path heli sled sled-land sled-turn sled-tip daring grimbear avalanche-flow avalanche rescue police gore gore-cost bones xray xray-body replay-cam cinema groomer snowguns fires burn gunfire gunfire-table army army-flight army-ground army-steal water tree-wells trails piste-day snow summer judder menu-stalls hitches trees cabins forest build test lint fmt fmt-check release clean install icons sim level resort lift-tops trick-ramps challenges-table junctions analyze rate difficulty routes real-faces far-faces real-hints world-map ride audition screenshots profile bench cpu-cost hooks shellcheck actionlint changelog bump docs tauri tauri-test tauri-lint tauri-fmt desktop native-install native-bundle native-typecheck native-ios native-iphone native-android para para-wind balloon-flight plane-flight airstrip skijump-flight skijump-hills plane skijump skydive-flight wingsuit-flight wingsuit skydive speed-cam balloon afterski town exit-cam jolt anim store-preflight store-metadata
 
 build:
 	npm run build
@@ -1274,6 +1274,16 @@ army-steal:
 # ARGS="--sheet=states".
 water:
 	npm run water -- $(if $(SEED),--seed=$(SEED),) $(if $(FACE),--face=$(FACE),) $(if $(REGION),--region=$(REGION),) $(ARGS)
+
+# THE RAYS LAB: the PICTURE row RAYS (`rays-tsl.ts`: the shade, the contact
+# shadows, the water's mirror) judged off and on side by side, with their
+# difference brightened beside — the woods at noon and at a low sun, the
+# skier's boots and skis, a free ride's village by day and after dark, a lake
+# at noon and in summer — through `world` and `water` on WebGPU (classic WebGL
+# draws no rays). previews/rays-<scene>-<view>.png. ARGS="--scenes=skier
+# --stop=high".
+rays:
+	node scripts/rays-preview.mjs $(ARGS)
 
 # THE TREE WELL LAB: the hollows round the trunks in deep powder photographed
 # through the game's own renderer — one well from every side and at the

@@ -110,6 +110,7 @@ describe("the picture on the node renderer (createRegionPicture with a node half
     const node = {
       canvas: 4,
       grade: () => ({ render: () => void log.push("grade"), dispose: () => {} }),
+      rays: () => null,
       hazeInDisplay: (on: boolean) => void log.push(`haze display=${on}`),
       info: () => ({ calls: 12, triangles: 34, points: 5 }),
     };

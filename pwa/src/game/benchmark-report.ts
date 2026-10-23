@@ -150,6 +150,7 @@ export type GpuSlice =
   | "spray"
   | "snowfall"
   | "wildlife"
+  | "rays"
   | "grade"
   | "overlay";
 
@@ -171,6 +172,7 @@ export const GPU_SLICES: readonly { slice: GpuSlice; what: string }[] = [
   { slice: "spray", what: "the roost, the ski spray, the puffs" },
   { slice: "snowfall", what: "the falling snow and the spindrift" },
   { slice: "wildlife", what: "the birds and the animals" },
+  { slice: "rays", what: "the rays marched off the picture's depth (RAYS)" },
   { slice: "grade", what: "the region's grade over the whole frame" },
   { slice: "overlay", what: "the developer page's trail-map corner" },
 ];

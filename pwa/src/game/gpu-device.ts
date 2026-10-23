@@ -355,7 +355,12 @@ function gpuSeam(
     },
     post: {
       canvas: options.antialias ? CANVAS_SAMPLES : 0,
-      grade: (u) => nodeGradePass(renderer, u),
+      grade: (u) =>
+        nodeGradePass(renderer, u, () => {
+          const rays = dressing?.rays();
+          return rays ? (seen) => rays.shade(seen) : null;
+        }),
+      rays: () => dressing?.rays() ?? null,
       hazeInDisplay: (on) => dressing?.hazeInDisplay(on),
       info: () => {
         const r = renderer.info.render;

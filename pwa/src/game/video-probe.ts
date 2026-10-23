@@ -30,7 +30,7 @@
 // DOM-free: `tests/video_test.ts` drives it with made-up frames. `App.tsx`
 // feeds it one frame at a time from the loop and applies what it hands back.
 
-import { fitPicture, samePicture } from "./picture-fit.ts";
+import { fitPicture, samePicture, type PriceList } from "./picture-fit.ts";
 import type { VideoSettings } from "./settings-video.ts";
 
 /** Frames drawn before the first one of a round is measured: the first
@@ -65,7 +65,12 @@ export type VideoProbe = {
   /** One drawn frame: the display's wait for it and its drained draw time,
    * ms, and the picture it was drawn at. A picture to apply when a round
    * moves it; null otherwise. */
-  frame: (elapsedMs: number, drawMs: number, drawnAt: VideoSettings) => VideoSettings | null;
+  frame: (
+    elapsedMs: number,
+    drawMs: number,
+    drawnAt: VideoSettings,
+    prices?: PriceList,
+  ) => VideoSettings | null;
   done: () => boolean;
 };
 
@@ -76,7 +81,7 @@ export function createVideoProbe(budgetMs?: number): VideoProbe {
   let samples: number[] = [];
   let done = false;
   return {
-    frame: (elapsedMs, drawMs, drawnAt) => {
+    frame: (elapsedMs, drawMs, drawnAt, prices) => {
       if (done) return null;
       if (!(elapsedMs > 0) || elapsedMs > PROBE_STALL_MS) {
         // A machine that stalls this often is not one this probe can say
@@ -90,7 +95,7 @@ export function createVideoProbe(budgetMs?: number): VideoProbe {
       }
       samples.push(drawMs);
       if (samples.length < PROBE_SAMPLES) return null;
-      const next = fitPicture(drawnAt, decile(samples, 0.9), budgetMs);
+      const next = fitPicture(drawnAt, decile(samples, 0.9), budgetMs, prices);
       rounds++;
       samples = [];
       warm = 0;

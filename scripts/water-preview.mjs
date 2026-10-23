@@ -62,6 +62,11 @@ const args = parseArgs(
     },
     size: { kind: "number", default: 1, help: "the valley lake's scale (1: about 600 × 340 m)" },
     quality: { kind: "string", default: "high", help: "the picture preset (low, medium, high)" },
+    picture: {
+      kind: "string",
+      default: "",
+      help: "picture rows over the preset, as the app's ?picture= (rays:max)",
+    },
     width: { kind: "number", default: 1280, help: "a frame's width, px" },
     height: { kind: "number", default: 720, help: "a frame's height, px" },
     cols: { kind: "number", default: 3, help: "tiles a row on a sheet" },
@@ -131,6 +136,7 @@ page.setDefaultTimeout(args.timeout * 1000);
 const query = new URLSearchParams({
   seed: String(args.seed),
   quality: args.quality,
+  ...(args.picture ? { picture: args.picture } : {}),
   w: String(args.width),
   h: String(args.height),
   cols: String(args.cols),

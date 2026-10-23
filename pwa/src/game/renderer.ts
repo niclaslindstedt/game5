@@ -197,7 +197,12 @@ export function createWorldRenderer(
 
   const scene = new THREE.Scene();
   // THE REGION'S GRADE (R21, `region-picture.ts`): the frame through it or straight on.
-  const picture = createRegionPicture(gl, () => video.antialias, seam.post);
+  const picture = createRegionPicture(
+    gl,
+    () => video.antialias,
+    seam.post,
+    () => video.rays,
+  );
   const afterski = createAfterskiView(picture);
   const lens: Lens = createLens(NEAR, FAR, (eye) => machines?.keepOut(eye));
   scene.add(lens.camera);
@@ -432,6 +437,7 @@ export function createWorldRenderer(
       if (mine === loads) hero.render(gl, scene, [], null);
       const run = { level: skyLevel, t: state.t };
       if (mine === loads) env.warmNode(gl, scene, lens.camera, lv.size, seam, quarantine, run);
+      if (mine === loads) picture.warm(lens.camera); // the rays' passes, RAYS on
       gl.setRenderTarget(null);
       return seam.settled(); // the device's own compiles, still under the card
     }

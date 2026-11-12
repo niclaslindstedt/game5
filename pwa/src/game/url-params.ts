@@ -43,9 +43,11 @@
 //                   ...and then ridden on a few seconds more (three unless
 //                   named) HELD at that speed along his heading in a move
 //                   (`hold-input.ts`: straight, carve, turn, skid, check,
-//                   stop, skate, climb — straight UP the fall line) —
-//                   how a lab photographs what a speed looks like in the
-//                   game: the cloud it raises, the skier at it.
+//                   stop, skate, climb — straight UP the fall line —
+//                   and flip, the way a `pose` stands him, a backflip off
+//                   the kicker he faces) — how a lab photographs what a
+//                   speed looks like in the game: the cloud it raises,
+//                   the skier at it, a trick in the air.
 //   ?shot=1         ...and held still once drawn, so nothing moves under a
 //                   screenshot's shutter.
 //   ?paused=1       ...or held under the pause card.
